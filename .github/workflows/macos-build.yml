@@ -16,9 +16,6 @@ jobs:
   build_x64:
     if: ${{ inputs.build_x64 == 'true' }}
     runs-on: macos-13
-    defaults:
-      run:
-        working-directory: EXDA-dashboard
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,14 +33,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install backend build deps
-        working-directory: EXDA-dashboard/backend
+        working-directory: backend
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
           python -m pip install -r requirements.txt
 
       - name: Build backend app
-        working-directory: EXDA-dashboard/backend
+        working-directory: backend
         run: |
           python -m PyInstaller exda-backend.spec
 
@@ -57,14 +54,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EXDA-dashboard-macos-x64
-          path: EXDA-dashboard/dist-electron/
+          path: dist-electron/
 
   build_arm64:
     if: ${{ inputs.build_arm64 == 'true' }}
     runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: EXDA-dashboard
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,14 +76,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install backend build deps
-        working-directory: EXDA-dashboard/backend
+        working-directory: backend
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
           python -m pip install -r requirements.txt
 
       - name: Build backend app
-        working-directory: EXDA-dashboard/backend
+        working-directory: backend
         run: |
           python -m PyInstaller exda-backend.spec
 
@@ -103,4 +97,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EXDA-dashboard-macos-arm64
-          path: EXDA-dashboard/dist-electron/
+          path: dist-electron/

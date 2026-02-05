@@ -11,9 +11,6 @@ on:
 jobs:
   build_x64:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: EXDA-dashboard
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,14 +28,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install backend build deps
-        working-directory: EXDA-dashboard/backend
+        working-directory: backend
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
           python -m pip install -r requirements.txt
 
       - name: Build backend exe
-        working-directory: EXDA-dashboard/backend
+        working-directory: backend
         run: |
           python -m PyInstaller --noconfirm --onefile --name exda-backend --add-data "routes;routes" --add-data "modules;modules" app.py
 
@@ -52,14 +49,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EXDA-dashboard-windows-x64
-          path: EXDA-dashboard/dist-electron/
+          path: dist-electron/
 
   build_arm64:
     if: ${{ inputs.build_arm64 == 'true' }}
     runs-on: [self-hosted, windows, arm64]
-    defaults:
-      run:
-        working-directory: EXDA-dashboard
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -77,14 +71,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install backend build deps
-        working-directory: EXDA-dashboard/backend
+        working-directory: backend
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
           python -m pip install -r requirements.txt
 
       - name: Build backend exe
-        working-directory: EXDA-dashboard/backend
+        working-directory: backend
         run: |
           python -m PyInstaller --noconfirm --onefile --name exda-backend --add-data "routes;routes" --add-data "modules;modules" app.py
 
@@ -98,4 +92,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EXDA-dashboard-windows-arm64
-          path: EXDA-dashboard/dist-electron/
+          path: dist-electron/
