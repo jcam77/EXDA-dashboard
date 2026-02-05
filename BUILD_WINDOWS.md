@@ -34,10 +34,10 @@ py -m venv .venv
 ./build_backend.ps1
 ```
 
-Output: `EXDA-dashboard-v0.3/backend/dist/exda-backend.exe`
+Output: `EXDA-dashboard/backend/dist/exda-backend.exe`
 
 ### 2) Build frontend (demo mode)
-From `EXDA-dashboard-v0.3`:
+From `EXDA-dashboard`:
 
 ```powershell
 npm install
@@ -45,7 +45,7 @@ npm run build:demo
 ```
 
 ### 3) Build installer
-From `EXDA-dashboard-v0.3`:
+From `EXDA-dashboard`:
 
 ```powershell
 npm run dist:win

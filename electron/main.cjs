@@ -60,8 +60,9 @@ const startBackend = () => {
     ...process.env,
     EXDA_PROJECTS_ROOT: demoRoot || process.env.EXDA_PROJECTS_ROOT || '',
   };
+  const backendCwd = isDev ? app.getAppPath() : process.resourcesPath;
   backendProcess = spawn(cmd, args, {
-    cwd: app.getAppPath(),
+    cwd: backendCwd,
     env,
     stdio: 'pipe',
   });

@@ -14,7 +14,7 @@ Workflow file: `.github/workflows/macos-build.yml`
 ## Option B: Local macOS build
 
 ### 1) Build backend app
-From `EXDA-dashboard-v0.3/backend` on macOS:
+From `EXDA-dashboard/backend` on macOS:
 
 ```bash
 python3 -m pip install -U pyinstaller
@@ -24,10 +24,10 @@ python3 -m pip install -r requirements.txt
 pyinstaller exda-backend.spec
 ```
 
-Output: `EXDA-dashboard-v0.3/backend/dist/exda-backend`
+Output: `EXDA-dashboard/backend/dist/exda-backend`
 
 ### 2) Build frontend (demo mode)
-From `EXDA-dashboard-v0.3`:
+From `EXDA-dashboard`:
 
 ```bash
 npm install
@@ -35,13 +35,13 @@ npm run build:demo
 ```
 
 ### 3) Build macOS app and DMG
-From `EXDA-dashboard-v0.3`:
+From `EXDA-dashboard`:
 
 ```bash
 npm run dist:mac
 ```
 
-Output: `EXDA-dashboard-v0.3/dist-electron/`
+Output: `EXDA-dashboard/dist-electron/`
 
 Notes:
 - Demo projects are copied on first run to `~/Documents/EXDA Projects/Demo Projects`.
