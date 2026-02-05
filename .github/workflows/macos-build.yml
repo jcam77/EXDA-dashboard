@@ -1,0 +1,106 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_x64:
+        description: "Build macOS x64 (Intel)"
+        required: false
+        default: "true"
+      build_arm64:
+        description: "Build macOS arm64 (Apple Silicon)"
+        required: false
+        default: "true"
+
+jobs:
+  build_x64:
+    if: ${{ inputs.build_x64 == 'true' }}
+    runs-on: macos-13
+    defaults:
+      run:
+        working-directory: EXDA-dashboard-v0.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: EXDA-dashboard-v0.3/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend build deps
+        working-directory: EXDA-dashboard-v0.3/backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+          python -m pip install -r requirements.txt
+
+      - name: Build backend app
+        working-directory: EXDA-dashboard-v0.3/backend
+        run: |
+          python -m PyInstaller exda-backend.spec
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Build demo + macOS app (x64)
+        run: npm run dist:mac -- --x64
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: EXDA-dashboard-macos-x64
+          path: EXDA-dashboard-v0.3/dist-electron/
+
+  build_arm64:
+    if: ${{ inputs.build_arm64 == 'true' }}
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: EXDA-dashboard-v0.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: EXDA-dashboard-v0.3/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend build deps
+        working-directory: EXDA-dashboard-v0.3/backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+          python -m pip install -r requirements.txt
+
+      - name: Build backend app
+        working-directory: EXDA-dashboard-v0.3/backend
+        run: |
+          python -m PyInstaller exda-backend.spec
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Build demo + macOS app (arm64)
+        run: npm run dist:mac -- --arm64
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: EXDA-dashboard-macos-arm64
+          path: EXDA-dashboard-v0.3/dist-electron/
