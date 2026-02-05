@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Upload, FileText, CheckCircle, Trash2, Loader2, ExternalLink, Search, Folder } from 'lucide-react';
+import { getBackendBaseUrl } from '../utils/backendUrl';
 
 const LiteraturePage = ({ projectPath }) => {
+    const apiBaseUrl = getBackendBaseUrl();
     const [isUploading, _setIsUploading] = useState(false);
     const [papers, setPapers] = useState([]); 
     const [isLoading, setIsLoading] = useState(false);
@@ -12,7 +14,7 @@ const LiteraturePage = ({ projectPath }) => {
             if (!projectPath) return;
             setIsLoading(true);
             try {
-                const res = await fetch(`http://localhost:5000/list_research_pdfs?projectPath=${encodeURIComponent(projectPath)}`);
+                const res = await fetch(`${apiBaseUrl}/list_research_pdfs?projectPath=${encodeURIComponent(projectPath)}`);
                 const data = await res.json();
                 if (data.success) {
                     // Alphabetical sort by full path
@@ -43,14 +45,14 @@ const LiteraturePage = ({ projectPath }) => {
     }, [papers, searchTerm]);
 
     const handleViewPdf = (fullPath) => {
-        const url = `http://localhost:5000/view_resource/${encodeURIComponent(fullPath)}?projectPath=${encodeURIComponent(projectPath)}`;
+        const url = `${apiBaseUrl}/view_resource/${encodeURIComponent(fullPath)}?projectPath=${encodeURIComponent(projectPath)}`;
         window.open(url, '_blank');
     };
 
     const handleDelete = async (fullPath, fileName) => {
         if (!window.confirm(`Delete ${fileName}?`)) return;
         try {
-            const res = await fetch('http://localhost:5000/delete_research_pdf', {
+            const res = await fetch(`${apiBaseUrl}/delete_research_pdf`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ projectPath, fileName: fullPath })

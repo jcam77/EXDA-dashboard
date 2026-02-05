@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FlaskConical,Beaker, Wind, Gauge, RefreshCw, UserCheck } from 'lucide-react';
+import { getBackendBaseUrl } from '../utils/backendUrl';
 
 /**
  * GasPage Component
@@ -7,6 +8,7 @@ import { FlaskConical,Beaker, Wind, Gauge, RefreshCw, UserCheck } from 'lucide-r
  * Ensures traceable stoichiometric calculations are performed in Python backend.
  */
 const GasPage = ({ projectPath }) => {
+    const apiBaseUrl = getBackendBaseUrl();
     // Local state for stoichiometric inputs
     const [inputs, setInputs] = useState({ targetVol: 10, ambPressure: 1.01325 });
     const [results, setResults] = useState(null);
@@ -19,7 +21,7 @@ const GasPage = ({ projectPath }) => {
     const calculateInBackend = async () => {
         setIsCalculating(true);
         try {
-            const res = await fetch('http://127.0.0.1:5000/calculate_gas_mix', {
+            const res = await fetch(`${apiBaseUrl}/calculate_gas_mix`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...inputs, projectPath })

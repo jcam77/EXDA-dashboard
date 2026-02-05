@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StopCircle, Send, Trash2, Save, Bot, BrainCircuit, User, ShieldAlert, ChevronDown, Cloud, Cpu, RefreshCw, Copy, Check } from 'lucide-react';
 import { marked } from 'marked';
+import { getBackendBaseUrl } from '../utils/backendUrl';
 
 marked.setOptions({
     gfm: true,
@@ -19,6 +20,7 @@ marked.setOptions({
  * @param {Object} checklistState - Sign-off data from TabChecklist (resp_name/inst_init)
  */
 const AiPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}, checklistState = {} }) => {
+    const apiBaseUrl = getBackendBaseUrl();
     const [query, setQuery] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [models, setModels] = useState(['deepseek-v3.1:671b-cloud']);
@@ -43,7 +45,7 @@ const AiPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}, 
             setAiStatus('disabled');
             return;
         }
-        fetch('http://localhost:5000/get_models')
+        fetch(`${apiBaseUrl}/get_models`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
@@ -63,7 +65,7 @@ const AiPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}, 
 
     useEffect(() => {
         if (projectPath) return;
-        fetch('http://localhost:5000/projects_overview')
+        fetch(`${apiBaseUrl}/projects_overview`)
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.overview) {
@@ -289,7 +291,7 @@ const handleAsk = () => {
         contextParams.set('expert_role', selectedExpert);
         activatedExperts.forEach(role => contextParams.append('expert_roles', role));
 
-        const url = `http://localhost:5000/ai_research_stream?${contextParams.toString()}`;
+        const url = `${apiBaseUrl}/ai_research_stream?${contextParams.toString()}`;
         const es = new EventSource(url);
         eventSourceRef.current = es;
 
@@ -312,7 +314,7 @@ const handleAsk = () => {
     const saveChat = async () => {
         if (!chatHistory || chatHistory.length === 0) return;
         try {
-            const res = await fetch('http://localhost:5000/save_ai_chat', {
+            const res = await fetch(`${apiBaseUrl}/save_ai_chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ projectPath, history: chatHistory })

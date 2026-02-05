@@ -16,6 +16,7 @@ import {
   FolderPlus,
   FolderOpen,
 } from 'lucide-react';
+import { getBackendBaseUrl } from '../utils/backendUrl';
 
 const HomePage = ({
   onSelectTab,
@@ -25,6 +26,7 @@ const HomePage = ({
   showHeader = true,
   allowAira = true,
 }) => {
+  const apiBaseUrl = getBackendBaseUrl();
   const [isLight, setIsLight] = React.useState(() => {
     if (typeof window === 'undefined') return false;
     const root = document.documentElement;
@@ -61,13 +63,13 @@ const HomePage = ({
     let mounted = true;
     const loadRecent = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:5000/list_directories');
+        const res = await fetch(`${apiBaseUrl}/list_directories`);
         const data = await res.json();
         if (!data.success) return;
         const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
         if (!projectsDir?.path) return;
         const listRes = await fetch(
-          `http://127.0.0.1:5000/list_directories?path=${encodeURIComponent(
+          `${apiBaseUrl}/list_directories?path=${encodeURIComponent(
             projectsDir.path
           )}&includeStatus=1`
         );

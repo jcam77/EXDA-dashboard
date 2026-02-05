@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getBackendBaseUrl } from '../utils/backendUrl';
 
 const ProjectPickerModal = ({
   isOpen,
@@ -11,6 +12,7 @@ const ProjectPickerModal = ({
   title,
   confirmLabel
 }) => {
+  const apiBaseUrl = getBackendBaseUrl();
   const [currentPath, setCurrentPath] = useState('');
   const [parentPath, setParentPath] = useState(null);
   const [directories, setDirectories] = useState([]);
@@ -24,7 +26,7 @@ const ProjectPickerModal = ({
     setError('');
     try {
       const res = await fetch(
-        `http://127.0.0.1:5000/list_directories?path=${encodeURIComponent(pathValue || '')}`
+        `${apiBaseUrl}/list_directories?path=${encodeURIComponent(pathValue || '')}`
       );
       const data = await res.json();
       if (!data.success) {

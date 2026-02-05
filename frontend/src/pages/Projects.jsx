@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FolderPlus, Folder, FileText, Trash2, Settings, Search, RefreshCw, Home } from 'lucide-react';
 import ProjectPickerModal from '../components/ProjectPickerModal';
+import { getBackendBaseUrl } from '../utils/backendUrl';
 
 const ProjectsPage = ({
   onOpenProject,
@@ -9,6 +10,7 @@ const ProjectsPage = ({
   activeProjectPath,
   refreshKey,
 }) => {
+  const apiBaseUrl = getBackendBaseUrl();
   const [basePath, setBasePath] = useState('');
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -47,7 +49,7 @@ const ProjectsPage = ({
     for (const candidate of candidates) {
       try {
         const res = await fetch(
-          `http://127.0.0.1:5000/read_project_file?path=${encodeURIComponent(candidate)}&projectPath=${encodeURIComponent(projectPath)}`
+          `${apiBaseUrl}/read_project_file?path=${encodeURIComponent(candidate)}&projectPath=${encodeURIComponent(projectPath)}`
         );
         const data = await res.json();
         if (data.success && data.content) {
@@ -69,7 +71,7 @@ const ProjectsPage = ({
     try {
       const cacheBuster = Date.now();
       const res = await fetch(
-        `http://127.0.0.1:5000/list_directories?path=${encodeURIComponent(
+        `${apiBaseUrl}/list_directories?path=${encodeURIComponent(
           path
         )}&includeStatus=1&_ts=${cacheBuster}`
       );
@@ -84,7 +86,7 @@ const ProjectsPage = ({
         entries.map(async (project) => {
           try {
             const summaryRes = await fetch(
-              `http://127.0.0.1:5000/project_plan_summary?path=${encodeURIComponent(
+              `${apiBaseUrl}/project_plan_summary?path=${encodeURIComponent(
                 project.path
               )}&_ts=${cacheBuster}`
             );
@@ -136,7 +138,7 @@ const ProjectsPage = ({
       if (savedBase) {
         try {
           const res = await fetch(
-            `http://127.0.0.1:5000/list_directories?path=${encodeURIComponent(savedBase)}`
+            `${apiBaseUrl}/list_directories?path=${encodeURIComponent(savedBase)}`
           );
           const data = await res.json();
           if (data.success) {
@@ -149,7 +151,7 @@ const ProjectsPage = ({
         localStorage.removeItem('projectsBasePath');
       }
       try {
-        const res = await fetch('http://127.0.0.1:5000/list_directories');
+        const res = await fetch(`${apiBaseUrl}/list_directories`);
         const data = await res.json();
         if (!data.success) return;
         const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
@@ -277,7 +279,7 @@ const ProjectsPage = ({
     );
     if (!confirmed) return;
     try {
-      const res = await fetch('http://127.0.0.1:5000/delete_project', {
+      const res = await fetch(`${apiBaseUrl}/delete_project`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectPath: project.path }),
@@ -295,7 +297,7 @@ const ProjectsPage = ({
 
   const handleStatusChange = async (project, nextStatus) => {
     try {
-      const res = await fetch('http://127.0.0.1:5000/update_project_status', {
+      const res = await fetch(`${apiBaseUrl}/update_project_status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectPath: project.path, status: nextStatus }),

@@ -22,6 +22,7 @@ import LiteraturePage from './pages/Literature';
 import HomePage from './pages/Home';
 import ProjectsPage from './pages/Projects';
 import ProjectPickerModal from './components/ProjectPickerModal';
+import { getBackendBaseUrl } from './utils/backendUrl';
 
 /**
  * Feature Flags for modular control
@@ -88,6 +89,7 @@ class SafeComponent extends React.Component {
 }
 
 const DataAnalysisDashboard = () => {
+    const apiBaseUrl = getBackendBaseUrl();
     // Add flame folder picker state
     const [selectedFlameFolder, setSelectedFlameFolder] = useState("");
     const [flamePicker, setFlamePicker] = useState({ open: false });
@@ -175,7 +177,7 @@ const DataAnalysisDashboard = () => {
 
           try {
               // Pulse check: Fetch current directory state (Plan and Raw Data) from backend
-              const res = await fetch(`http://127.0.0.1:5000/get_project_state?projectPath=${encodeURIComponent(savedPath)}`);
+              const res = await fetch(`${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(savedPath)}`);
               const state = await res.json();
 
               if (state.success) {
@@ -306,7 +308,7 @@ const DataAnalysisDashboard = () => {
 
     const openProjectByPath = async (projectPathValue, nextTab) => {
       try {
-          const res = await fetch('http://127.0.0.1:5000/open_project_path', {
+          const res = await fetch(`${apiBaseUrl}/open_project_path`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ projectPath: projectPathValue })
@@ -328,7 +330,7 @@ const DataAnalysisDashboard = () => {
 
   const createProjectAtPath = async (parentPath, projectName) => {
       try {
-          const res = await fetch('http://127.0.0.1:5000/create_project_at_path', {
+          const res = await fetch(`${apiBaseUrl}/create_project_at_path`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ parentPath, projectName })
@@ -357,7 +359,7 @@ const DataAnalysisDashboard = () => {
       if(!projectPath) return silent ? null : notify('error', 'Save Failed', 'No project selected');
       let content = JSON.stringify({ planName, experiments, meta: planMeta }, null, 2);
       try {
-          const res = await fetch('http://127.0.0.1:5000/save_plan', {
+          const res = await fetch(`${apiBaseUrl}/save_plan`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({ projectPath, filename: `${planName}.${saveFormat}`, content })
@@ -408,7 +410,7 @@ const DataAnalysisDashboard = () => {
   const openProjectFolder = async () => {
       if (!projectPath) return;
       try {
-          const res = await fetch('http://127.0.0.1:5000/reveal_project_path', {
+          const res = await fetch(`${apiBaseUrl}/reveal_project_path`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ projectPath })
@@ -471,7 +473,7 @@ const DataAnalysisDashboard = () => {
   const importPlan = async () => {
       if(!projectPath) return notify('error', 'Import Failed', 'Select project first');
       try {
-          const res = await fetch('http://127.0.0.1:5000/load_plan_dialog', {
+          const res = await fetch(`${apiBaseUrl}/load_plan_dialog`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({ projectPath })
@@ -489,7 +491,7 @@ const DataAnalysisDashboard = () => {
   const processFile = async (fileObj, type='pressure') => {
       try {
           if (type === 'ewt') {
-              const res = await fetch('http://127.0.0.1:5000/analyze_ewt', {
+              const res = await fetch(`${apiBaseUrl}/analyze_ewt`, {
                   method: 'POST',
                   headers: {'Content-Type': 'application/json'},
                   body: JSON.stringify({
@@ -514,7 +516,7 @@ const DataAnalysisDashboard = () => {
                   color: stringToColor(colorSeed)
               };
           }
-          const res = await fetch('http://127.0.0.1:5000/analyze_pressure', {
+          const res = await fetch(`${apiBaseUrl}/analyze_pressure`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({ content: fileObj.content, dataType: type, cutoff: settings.cutoff, order: settings.order, useRaw: settings.useRaw, impulseDrop: settings.impulseDrop })
@@ -526,7 +528,7 @@ const DataAnalysisDashboard = () => {
           if (type === 'flame_speed') return { name: fileObj.name, displayName: name, plotData: d.plot_data, color: stringToColor(colorSeed) };
           let ventTime = null;
           if (type === 'pressure' && fileObj.ventContent) {
-               const vRes = await fetch('http://127.0.0.1:5000/analyze_vent', {
+               const vRes = await fetch(`${apiBaseUrl}/analyze_vent`, {
                    method: 'POST', headers: {'Content-Type': 'application/json'},
                    body: JSON.stringify({ content: fileObj.ventContent })
                });
@@ -587,7 +589,7 @@ const DataAnalysisDashboard = () => {
       }
       setAnalysisResults(res);
       try {
-          const aggregateRes = await fetch('http://127.0.0.1:5000/aggregate_plot', {
+          const aggregateRes = await fetch(`${apiBaseUrl}/aggregate_plot`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -632,7 +634,7 @@ const onSimFolder = async (e) => {
       if (manualPath) {
           try {
               // We pass the projectPath and specific folder type to the backend
-              const res = await fetch(`http://127.0.0.1:5000/get_project_state?projectPath=${encodeURIComponent(projectPath)}&sync=true`);
+              const res = await fetch(`${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(projectPath)}&sync=true`);
               const state = await res.json();
               if (state.success && state.sim_files) {
                   setSessionFiles(state.sim_files);
@@ -672,7 +674,7 @@ const onExpFolder = async (e) => {
     if (manualPath) {
         setSelectedExpFolder(manualPath);
         // We tell the backend: "Scan ONLY this specific folder I just picked"
-        const res = await fetch(`http://127.0.0.1:5000/get_project_state?projectPath=${encodeURIComponent(projectPath)}&folderPath=${encodeURIComponent(manualPath)}`);
+        const res = await fetch(`${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(projectPath)}&folderPath=${encodeURIComponent(manualPath)}`);
         const state = await res.json();
         if (state.success) {
             setExpFiles(state.data_files);
@@ -705,7 +707,7 @@ const onExpFolder = async (e) => {
               if (main.path) {
                   // ...existing code...
                   const getFile = async (filePath) => {
-                      const res = await fetch(`http://127.0.0.1:5000/read_project_file?path=${encodeURIComponent(filePath)}&projectPath=${encodeURIComponent(projectPath || '')}`);
+                      const res = await fetch(`${apiBaseUrl}/read_project_file?path=${encodeURIComponent(filePath)}&projectPath=${encodeURIComponent(projectPath || '')}`);
                       const d = await res.json();
                       return d.success ? d.content : null;
                   };
@@ -737,7 +739,7 @@ const onExpFolder = async (e) => {
           if(f) {
               let content;
               if (f.path) {
-                  const res = await fetch(`http://127.0.0.1:5000/read_project_file?path=${encodeURIComponent(f.path)}&projectPath=${encodeURIComponent(projectPath || '')}`);
+                  const res = await fetch(`${apiBaseUrl}/read_project_file?path=${encodeURIComponent(f.path)}&projectPath=${encodeURIComponent(projectPath || '')}`);
                   const d = await res.json();
                   content = d.content;
               } else {

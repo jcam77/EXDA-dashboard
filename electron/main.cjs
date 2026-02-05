@@ -1,10 +1,12 @@
 const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const net = require('net');
 const { spawn } = require('child_process');
 
 const isDev = !app.isPackaged;
 let backendProcess = null;
+let backendPort = 5000;
 
 const DEMO_PROJECT_NAME = 'VH2D-Project';
 const DEMO_PARENT_DIR = 'Demo Projects';
@@ -52,13 +54,31 @@ const resolveBackendCommand = () => {
   };
 };
 
-const startBackend = () => {
+const findFreePort = (preferredPort = 5000) => new Promise((resolve) => {
+  const tryServer = net.createServer();
+  tryServer.unref();
+  tryServer.on('error', () => {
+    const fallback = net.createServer();
+    fallback.unref();
+    fallback.listen(0, () => {
+      const { port } = fallback.address();
+      fallback.close(() => resolve(port));
+    });
+  });
+  tryServer.listen(preferredPort, () => {
+    const { port } = tryServer.address();
+    tryServer.close(() => resolve(port));
+  });
+});
+
+const startBackend = (port) => {
   if (backendProcess) return;
   const demoRoot = ensureDemoProject();
   const { cmd, args } = resolveBackendCommand();
   const env = {
     ...process.env,
     EXDA_PROJECTS_ROOT: demoRoot || process.env.EXDA_PROJECTS_ROOT || '',
+    EXDA_BACKEND_PORT: String(port),
   };
   const backendCwd = isDev ? app.getAppPath() : process.resourcesPath;
   backendProcess = spawn(cmd, args, {
@@ -85,7 +105,7 @@ const stopBackend = () => {
   }
 };
 
-const createWindow = () => {
+const createWindow = (port) => {
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -99,10 +119,11 @@ const createWindow = () => {
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
+  const query = `?backendPort=${encodeURIComponent(port)}`;
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL(`http://localhost:5173${query}`);
   } else {
-    mainWindow.loadFile(path.join(app.getAppPath(), 'frontend', 'dist', 'index.html'));
+    mainWindow.loadFile(path.join(app.getAppPath(), 'frontend', 'dist', 'index.html'), { query: { backendPort: String(port) } });
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -111,9 +132,10 @@ const createWindow = () => {
   });
 };
 
-app.whenReady().then(() => {
-  startBackend();
-  createWindow();
+app.whenReady().then(async () => {
+  backendPort = await findFreePort(5000);
+  startBackend(backendPort);
+  createWindow(backendPort);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
