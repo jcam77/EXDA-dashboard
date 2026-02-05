@@ -10,8 +10,10 @@ jobs:
         include:
           - arch: x64
             runner: ubuntu-latest
+            script: dist:linux
           - arch: arm64
             runner: ubuntu-24.04-arm
+            script: dist:linux:appimage
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
@@ -45,7 +47,7 @@ jobs:
         run: npm ci
 
       - name: Build demo + Linux app
-        run: npm run dist:linux -- --${{ matrix.arch }} --publish=never
+        run: npm run ${{ matrix.script }} -- --${{ matrix.arch }} --publish=never
 
       - name: Upload app
         uses: actions/upload-artifact@v4
