@@ -18,7 +18,7 @@ jobs:
     runs-on: macos-13
     defaults:
       run:
-        working-directory: EXDA-dashboard-v0.3
+        working-directory: EXDA-dashboard
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: EXDA-dashboard-v0.3/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -36,14 +36,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install backend build deps
-        working-directory: EXDA-dashboard-v0.3/backend
+        working-directory: EXDA-dashboard/backend
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
           python -m pip install -r requirements.txt
 
       - name: Build backend app
-        working-directory: EXDA-dashboard-v0.3/backend
+        working-directory: EXDA-dashboard/backend
         run: |
           python -m PyInstaller exda-backend.spec
 
@@ -57,14 +57,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EXDA-dashboard-macos-x64
-          path: EXDA-dashboard-v0.3/dist-electron/
+          path: EXDA-dashboard/dist-electron/
 
   build_arm64:
     if: ${{ inputs.build_arm64 == 'true' }}
     runs-on: macos-latest
     defaults:
       run:
-        working-directory: EXDA-dashboard-v0.3
+        working-directory: EXDA-dashboard
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: EXDA-dashboard-v0.3/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -82,14 +82,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install backend build deps
-        working-directory: EXDA-dashboard-v0.3/backend
+        working-directory: EXDA-dashboard/backend
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
           python -m pip install -r requirements.txt
 
       - name: Build backend app
-        working-directory: EXDA-dashboard-v0.3/backend
+        working-directory: EXDA-dashboard/backend
         run: |
           python -m PyInstaller exda-backend.spec
 
@@ -103,4 +103,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EXDA-dashboard-macos-arm64
-          path: EXDA-dashboard-v0.3/dist-electron/
+          path: EXDA-dashboard/dist-electron/
