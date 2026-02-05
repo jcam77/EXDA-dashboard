@@ -38,6 +38,8 @@ git push --delete origin v0.0
 git tag -d v0.0
 git tag -a v0.0 -m "v0.0"
 git push --delete origin v0.0
+git add .
+git commit -m "Build app Update"
 git push origin main
 git push origin v0.0
 ```
