@@ -1,5 +1,9 @@
 {
   "name": "exda-dashboard",
+  "author": {
+    "name": "Javier I. Camacho",
+    "email": "javier.camacho@brand.lth.se"
+  },
   "private": true,
   "version": "0.0.0",
   "type": "module",
