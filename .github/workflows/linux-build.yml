@@ -4,8 +4,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_x64:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,11 +44,11 @@ jobs:
       - name: Install frontend deps
         run: npm ci
 
-      - name: Build demo + Linux app (x64)
-        run: npm run dist:linux -- --x64 --publish=never
+      - name: Build demo + Linux app
+        run: npm run dist:linux -- --${{ matrix.arch }} --publish=never
 
       - name: Upload app
         uses: actions/upload-artifact@v4
         with:
-          name: EXDA-dashboard-linux-x64
+          name: EXDA-dashboard-linux-${{ matrix.arch }}
           path: dist-electron/
