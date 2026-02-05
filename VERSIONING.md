@@ -16,7 +16,7 @@ Versions are tracked with **git tags**.
 git add .
 git commit -m "Your message"
 ```
-3. Tag the version:
+3. Tag the version (First time pushing a tag):
 ```bash
 git tag -a v0.0 -m "v0.0"
 ```
@@ -32,6 +32,14 @@ git tag -d v0.0
 6. Remote (GitHub) tag delete
 ```bash
 git push --delete origin v0.0
+```
+7. If you moved the tag to a new commit (re‑tagged):
+```bash
+git tag -d v0.0
+git tag -a v0.0 -m "v0.0"
+git push --delete origin v0.0
+git push origin main
+git push origin v0.0
 ```
 
 
