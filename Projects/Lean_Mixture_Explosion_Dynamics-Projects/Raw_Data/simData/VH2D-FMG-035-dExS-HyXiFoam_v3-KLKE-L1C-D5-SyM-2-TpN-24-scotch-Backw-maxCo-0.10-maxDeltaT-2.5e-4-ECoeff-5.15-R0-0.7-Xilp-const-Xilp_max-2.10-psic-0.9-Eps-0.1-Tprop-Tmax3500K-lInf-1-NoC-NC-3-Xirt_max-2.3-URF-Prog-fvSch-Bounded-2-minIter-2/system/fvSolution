@@ -1,0 +1,203 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2306                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    // --- Pressure & Density ---
+    "(p|rho|pcorr)"
+    {
+        solver                 GAMG;
+        tolerance              1e-06;//1e-04;//
+        relTol                 0.01;
+        smoother               GaussSeidel;
+        nPreSweeps             0;
+        nPostSweeps            2;
+        cacheAgglomeration     on;
+        agglomerator           faceAreaPair;
+        nCellsInCoarsestLevel  1000; 
+        mergeLevels 1;
+        minIter 2;
+    }
+
+    "(p|rho|pcorr)Final"
+    {
+        solver                 GAMG;
+        tolerance              1e-07;
+        relTol                 0;
+        smoother               GaussSeidel;
+        nPreSweeps             0;
+        nPostSweeps            2;
+        cacheAgglomeration     on;
+        agglomerator           faceAreaPair;
+        nCellsInCoarsestLevel  1000;
+        mergeLevels 1;
+        minIter 2;
+    }
+
+    // --- Velocity (Vector) ---
+    // PBiCGStab is good for U (asymmetry), but we separate it from scalars
+    U
+    {
+        type              coupled;
+        solver            PBiCCCG;
+        preconditioner    DILU;
+        tolerance         (1e-06 1e-06 1e-06);
+        relTol            (0.01 0.01 0.01);
+        minIter  3;
+    }
+    
+    UFinal
+    {
+        type              coupled;
+        solver            PBiCCCG;
+        preconditioner    DILU;
+        tolerance         (1e-08 1e-08 1e-08);//(1e-07 1e-07 1e-07);//(1e-08 1e-08 1e-08);//
+        relTol            (0.0 0.0 0.0);
+        minIter  3;
+    }
+
+    // --- Scalars (Turbulence & Combustion) ---
+    // CRITICAL CHANGE: Using smoothSolver here helps prevent negative k
+    /*"(b|Su|Xi|ha|hau|k|ft|epsilon)"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-06;
+        relTol          0.01;
+    }*/
+
+   /*"(b|Su|Xi|ha|hau|k|ft|epsilon)Final"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-08;
+        relTol          0.0;
+    } */
+
+   "(b|Su|Xi|ha|hau|k|ft|epsilon)"
+   {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-07;//1e-06;//
+        relTol          0.01;
+        minIter 2;
+    }
+
+   "(b|Su|Xi|ha|hau|k|ft|epsilon)Final"
+   {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-08;//1e-07;
+        relTol          0.0;
+        minIter 2;
+    }
+}
+
+PIMPLE
+{
+    momentumPredictor yes;
+    nOuterCorrectors 100; 
+    nCorrectors      3;
+    nNonOrthogonalCorrectors 2; 
+    correctPhi          yes;
+    turbOnFinalIterOnly false;
+
+    residualControl
+    {
+        p
+        {
+            tolerance  1e-6; 
+            relTol     0;
+        }
+        U
+        {
+            tolerance  1e-5;
+            relTol     0;
+        }
+
+        b
+        {
+            tolerance  1e-5;
+            relTol     0;
+        }
+
+        k
+        {
+            tolerance  1e-5;//1e-4;//1e-5;
+            relTol     0;
+        }
+
+/*         epsilon
+        {
+            tolerance  1e-5; 
+            relTol     0;
+        }
+        ha
+        {
+            tolerance  1e-3; 
+            relTol     0;
+        }
+        hau
+        {
+            tolerance  1e-3; 
+            relTol     0;
+        }
+        ft
+        {
+            tolerance  1e-3; 
+            relTol     0;
+        } */
+    }
+}
+// --- Programmable under-relaxation factors -----------------------------------
+// Usage Example:
+/*
+relaxationFactors
+{
+    equations
+    {
+        // Ramp the relaxation factors
+        "(U|k|epsilon).*" table ((0 0.4) (0.5 0.7));
+    }
+}
+table ((T0 URF0) (T1 URF1));
+This will ramp the relaxation factor from 0.4 to 0.7 over the time interval 0 to 0.5s.
+*/
+relaxationFactors
+{
+    fields
+    {
+                              // Linearly decrease stability as explosion approaches
+        "U"                   table ((0 0.4) (0.125 0.4) (0.3 0.3));
+        "p"                   table ((0 0.4) (0.125 0.4) (0.3 0.3));
+        "(b|ft)"              table ((0 0.4) (0.125 0.4) (0.3 0.3));
+        
+        // KEEP THIS AT 0.9 TO PREVENT PRESSURE SPIKES
+        "(U|p|b|ft)Final"     1.0;//0.9;;//1.0;//0.9;//1; 
+    }
+    equations
+    {
+        "U"                                            table ((0 0.4) (0.125 0.4) (0.3 0.3));
+        "p"                                            table ((0 0.4) (0.125 0.4) (0.3 0.3));
+        "b"                                            table ((0 0.4) (0.125 0.4) (0.3 0.3));
+        "(k|epsilon)"                                  table ((0 0.4) (0.125 0.4) (0.3 0.3));
+        "(rho|Su|Xi|ha|hau|ft)"                        table ((0 0.4) (0.125 0.4) (0.3 0.3));
+        
+        // KEEP THIS AT 0.9 TO PREVENT PRESSURE SPIKES
+        "(U|p|rho|b|Su|Xi|ha|hau|k|ft|epsilon)Final"   1.0;//0.9;;//1.0;//0.9;//1; 
+    }
+} 

@@ -1,0 +1,156 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2306                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    // --- Pressure & Density ---
+    "(p|rho|pcorr)"
+    {
+        solver                 GAMG;
+        tolerance              1e-04;
+        relTol                 0.01;
+        smoother               GaussSeidel;
+        nPreSweeps             0;
+        nPostSweeps            2;
+        cacheAgglomeration     on;
+        agglomerator           faceAreaPair;
+        nCellsInCoarsestLevel  1000;
+        mergeLevels 1;
+    }
+
+    "(p|rho|pcorr)Final"
+    {
+        solver                 GAMG;
+        tolerance              1e-07;
+        relTol                 0;
+        smoother               GaussSeidel;
+        nPreSweeps             0;
+        nPostSweeps            2;
+        cacheAgglomeration     on;
+        agglomerator           faceAreaPair;
+        nCellsInCoarsestLevel  1000;
+        mergeLevels 1;
+    }
+
+    // --- Velocity (Vector) ---
+    // PBiCGStab is good for U (asymmetry), but we separate it from scalars
+    U
+    {
+        type              coupled;
+        solver            cPBiCCCG;
+        preconditioner    DILU;
+        tolerance         (1e-06 1e-06 1e-06);
+        relTol            (0.01 0.01 0.01);
+        minIter  3;
+    }
+    
+    UFinal
+    {
+        type              coupled;
+        solver            cPBiCCCG;
+        preconditioner    DILU;
+        tolerance         (1e-08 1e-08 1e-08);
+        relTol            (0.0 0.0 0.0);
+        minIter  3;
+    }
+
+    // --- Scalars (Turbulence & Combustion) ---
+    // CRITICAL CHANGE: Using smoothSolver here helps prevent negative k
+    /*"(b|Su|Xi|ha|hau|k|ft|epsilon)"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-06;
+        relTol          0.01;
+    }*/
+
+   /*"(b|Su|Xi|ha|hau|k|ft|epsilon)Final"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-08;
+        relTol          0.0;
+    } */
+
+   "(b|Su|Xi|ha|hau|k|ft|epsilon)"
+   {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-07;
+        relTol          0.01;
+    }
+
+   "(b|Su|Xi|ha|hau|k|ft|epsilon)Final"
+   {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-08;
+        relTol          0.0;
+    }
+}
+
+PIMPLE
+{
+    momentumPredictor yes;
+    nOuterCorrectors 100; 
+    nCorrectors      3;
+    nNonOrthogonalCorrectors 2; 
+    correctPhi          yes;
+    turbOnFinalIterOnly false;
+
+    residualControl
+    {
+        p
+        {
+            tolerance  1e-6; 
+            relTol     0;
+        }
+        U
+        {
+            tolerance  1e-5;
+            relTol     0;
+        }
+
+        b
+        {
+            tolerance  1e-5;
+            relTol     0;
+        }
+
+        k
+        {
+            tolerance  1e-5;
+            relTol     0;
+        }
+    }
+}
+
+relaxationFactors
+{
+    fields
+    {
+        "U|p|b|ft"      0.4;
+        "(U|p|b|ft)Final"   1;
+    }
+    equations
+    {
+        "(U|p|rho|b|Su|Xi|ha|hau|k|ft|epsilon)"     0.4;
+        "(U|p|rho|b|Su|Xi|ha|hau|k|ft|epsilon)Final"   1;
+    }
+} 
+
+

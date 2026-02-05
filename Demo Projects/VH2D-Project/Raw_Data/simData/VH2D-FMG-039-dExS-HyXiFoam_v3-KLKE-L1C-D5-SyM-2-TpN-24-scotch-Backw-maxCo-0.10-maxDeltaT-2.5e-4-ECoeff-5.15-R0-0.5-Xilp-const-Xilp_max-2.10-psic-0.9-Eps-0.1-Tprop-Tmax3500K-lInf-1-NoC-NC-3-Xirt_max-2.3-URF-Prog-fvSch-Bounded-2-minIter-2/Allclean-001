@@ -1,0 +1,141 @@
+#!/bin/bash
+#
+#------------------------------------------------------------------------------#
+# Contributor : Javier I. Camacho                                              #
+# Case created on :  08-2024                                                   #
+#------------------------------------------------------------------------------#
+# Repository : https://osf.io/gkubp/?view_only=41f95f9ff8e94a4681c626a112955d50#
+# Email           : javier.camacho@brand.lth.se                                #
+#------------------------------------------------------------------------------#
+#!/bin/bash
+#
+# ...existing code...
+cd "${0%/*}" || exit 1                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/CleanFunctions      # Tutorial clean functions
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # for getApplication
+#-------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Protect postProcessing: some clean helpers may remove it. Create a tarball
+# backup outside the case directory (/tmp) before running cleanCase0, then
+# restore it afterwards. This makes the script safe to run without losing
+# postProcessing results.
+# -----------------------------------------------------------------------------
+POSTPROC_DIR="postProcessing"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+CASE_NAME=$(basename "$(pwd)")
+
+# --- Save latest ExecutionTime/ClockTime from the solver log into CSV
+#     This runs before the backup so the CSV is included in the archive.
+SOLVER_NAME="$(getApplication 2>/dev/null)"
+[ -z "$SOLVER_NAME" ] && SOLVER_NAME="HyXiFoam"  # fallback if controlDict is missing
+
+# Find newest matching solver log (supports rotated and gzipped logs)
+shopt -s nullglob
+_candidates=( "log.${SOLVER_NAME}" "log.${SOLVER_NAME}."* "log.${SOLVER_NAME}.gz" "log.${SOLVER_NAME}."*.gz )
+candidates=()
+for f in "${_candidates[@]}"; do [ -e "$f" ] && candidates+=( "$f" ); done
+SOLVER_LOG=""
+if [ ${#candidates[@]} -gt 0 ]; then
+    SOLVER_LOG=$(ls -1t "${candidates[@]}" 2>/dev/null | head -n1)
+fi
+shopt -u nullglob
+
+if [ -n "$SOLVER_LOG" ] && [ -f "$SOLVER_LOG" ]; then
+    # Parse the last ExecutionTime/ClockTime line
+    if [[ "$SOLVER_LOG" == *.gz ]]; then
+        read -r EXEC_T CLOCK_T < <(zcat -- "$SOLVER_LOG" | awk '
+            /ExecutionTime[[:space:]]*=/ {
+                et=$3; ct=$6;
+                for (i=1; i<=NF-2; ++i) {
+                    if ($i=="ExecutionTime" && $(i+1)=="=") et=$(i+2);
+                    if ($i=="ClockTime"    && $(i+1)=="=") ct=$(i+2);
+                }
+            }
+            END { if (et!="") printf("%s %s", et, ct); }
+        ')
+    else
+        read -r EXEC_T CLOCK_T < <(awk '
+            /ExecutionTime[[:space:]]*=/ {
+                et=$3; ct=$6;
+                for (i=1; i<=NF-2; ++i) {
+                    if ($i=="ExecutionTime" && $(i+1)=="=") et=$(i+2);
+                    if ($i=="ClockTime"    && $(i+1)=="=") ct=$(i+2);
+                }
+            }
+            END { if (et!="") printf("%s %s", et, ct); }
+        ' "$SOLVER_LOG")
+    fi
+
+    if [ -n "$EXEC_T" ] && [ -n "$CLOCK_T" ]; then
+        mkdir -p "$POSTPROC_DIR"
+        OUT_CSV="$POSTPROC_DIR/solverTime.csv"
+        if [ ! -f "$OUT_CSV" ]; then
+            echo "case,logFile,executionTime_s,clockTime_s,utc" > "$OUT_CSV"
+        fi
+        printf "%s,%s,%s,%s,%s\n" \
+            "$CASE_NAME" "$SOLVER_LOG" "$EXEC_T" "$CLOCK_T" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$OUT_CSV"
+        echo "[Allclean] Saved latest ExecutionTime/ClockTime ($EXEC_T s, $CLOCK_T s) from '$SOLVER_LOG' to '$OUT_CSV'"
+    else
+        echo "[Allclean] WARNING: could not parse ExecutionTime/ClockTime from '$SOLVER_LOG'"
+    fi
+else
+    echo "[Allclean] NOTE: no solver logfile matching 'log.${SOLVER_NAME}*' found; skipping timing save."
+fi
+
+BACKUP_TAR="/tmp/${CASE_NAME}_postProcessing_backup_${TIMESTAMP}.tar.gz"
+BACKED_UP=0
+if [ -d "$POSTPROC_DIR" ]; then
+    echo "[Allclean] Backing up '$POSTPROC_DIR' to '$BACKUP_TAR'"
+    # Use tar to place backup outside the case directory so cleans inside the
+    # case won't remove the backup archive.
+    if tar -czf "$BACKUP_TAR" "$POSTPROC_DIR"; then
+        BACKED_UP=1
+    else
+        echo "[Allclean] WARNING: failed to create backup of '$POSTPROC_DIR'. Aborting to avoid data loss." >&2
+        exit 1
+    fi
+fi
+
+cleanCase0
+rm -rf constant/triSurface
+rm -rf constant/polyMesh
+# rm -rf log.*
+rm -rf Py*
+rm -rf Gn*
+rm -rf regoutput.out
+rm -rf stderr.out
+rm -rf terminaloutput.out
+
+# If we created a backup, extract it into a timestamped folder so repeated
+# runs don't overwrite previous results. The restored folder will be named
+# postProcessing_YYYYmmdd-HHMMSS in the case directory.
+
+if [ "$BACKED_UP" -eq 1 ]; then
+    echo "[Allclean] Restoring '$POSTPROC_DIR' from '$BACKUP_TAR' into a timestamped folder"
+    RESTORE_TS=$(date +%Y%m%d-%H%M%S)
+    RESTORE_DIR="${POSTPROC_DIR}_$RESTORE_TS"
+    # Create a safe temporary extraction directory
+    TMP_RESTORE_DIR=$(mktemp -d "./.postproc_restore_${RESTORE_TS}.XXXX")
+    if [ -z "$TMP_RESTORE_DIR" ] || [ ! -d "$TMP_RESTORE_DIR" ]; then
+        echo "[Allclean] ERROR: failed to create temporary directory for restore." >&2
+        exit 1
+    fi
+    # Extract archive into tmp dir, then move extracted postProcessing to the
+    # timestamped target directory.
+    if tar -xzf "$BACKUP_TAR" -C "$TMP_RESTORE_DIR"; then
+        if [ -d "$TMP_RESTORE_DIR/$POSTPROC_DIR" ]; then
+            mv "$TMP_RESTORE_DIR/$POSTPROC_DIR" "$RESTORE_DIR"
+            rm -rf "$TMP_RESTORE_DIR"
+            rm -f "$BACKUP_TAR"
+            echo "[Allclean] postProcessing restored to '$RESTORE_DIR'."
+        else
+            echo "[Allclean] ERROR: archive did not contain '$POSTPROC_DIR' as expected." >&2
+            echo "[Allclean] Backup retained at '$BACKUP_TAR'. Extracted files are in '$TMP_RESTORE_DIR'." >&2
+            exit 1
+        fi
+    else
+        echo "[Allclean] ERROR: failed to extract backup. Backup retained at '$BACKUP_TAR'." >&2
+        exit 1
+    fi
+fi

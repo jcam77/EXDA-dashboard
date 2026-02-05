@@ -1,0 +1,257 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2306                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      ft;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 0 0 0 0 0 0];
+
+internalField   uniform 0;
+
+boundaryField
+{
+    // Symmetry Plane patches---------------------------------------------------
+    symmetry
+    {
+        type symmetryPlane;
+    }   
+    
+    explosionChamber
+    {
+        type            zeroGradient;
+    }
+    ground
+    {
+        type            zeroGradient;
+    }
+    outletFarfield
+    {
+        type            inletOutlet;
+        inletValue      uniform 0;
+        value           uniform 0; 
+    }
+    
+    // Arbitrary Mesh Interface (AMI) patches-----------------------------------
+    // Front interface----------------------------------------------------------
+    // Mid-1 to Step-2_D1
+    mid-1_front_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-1_front_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D2
+    mid-2_front_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-2_front_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D3
+    mid-3_front_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-3_front_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D4
+    mid-4_front_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-4_front_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D5
+    mid-5_front_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-5_front_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Left interface-----------------------------------------------------------
+    // Mid-1 to Step-2_D1
+    mid-1_leftSide_AMI_master
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-1_leftSide_AMI_slave
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D2
+    mid-2_leftSide_AMI_master
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-2_leftSide_AMI_slave
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D3
+    mid-3_leftSide_AMI_master
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-3_leftSide_AMI_slave
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D4
+    mid-4_leftSide_AMI_master
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-4_leftSide_AMI_slave
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D5
+    mid-5_leftSide_AMI_master
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-5_leftSide_AMI_slave
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Top interface------------------------------------------------------------
+    // Mid-1 to Step-2_D1
+    mid-1_top_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-1_top_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D2
+    mid-2_top_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-2_top_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D3
+    mid-3_top_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-3_top_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D4
+    mid-4_top_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-4_top_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Mid-2 to Step-2_D5
+    mid-5_top_AMI_master 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-5_top_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    // Back interface-----------------------------------------------------------
+    mid-1_back_AMI_master
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+
+    mid-1_back_AMI_slave 
+    {
+        type            cyclicAMI;
+        value           uniform 0;
+    }
+}
+
+// ************************************************************************* //

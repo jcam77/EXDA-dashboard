@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# This script is used to run the hybrid  mpi/openmp  version of fds6
+# Set tasks-per-node to the same number as number of grids/mesh in your simulation
+# Set cpus-per-task to round_down(20/tasks-per-node)   
+# Eg. having 3 grids, 20/3 = 6.6666  rounded to 6 
+# That would give tasks-per-node=3 and cpus-per-task=6, using 18 processor in total out of 20.
+#
+# Request number of nodes (e.g. 10 processors below on 1 node)
+#SBATCH -N 2
+#SBATCH --tasks-per-node=12
+#SBATCH --cpus-per-task=2
+#
+# job time, change for what your job requires
+#SBATCH -t 48:00:00
+# 
+# filenames stdout and stderr
+#SBATCH -o stdout.out
+#SBATCH -e stderr.out
+#
+#
+#SBATCH --mail-user=javier.camacho@brand.lth.se
+#SBATCH --mail-type=ALL
+
+# Enable modules and add software
+module load GCC/12.2.0 OpenMPI/4.1.4 && module load OpenFOAM/v2306 && source $FOAM_BASH
+
+# Set number of openmp threads
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+# Run on all nodes and create output for monitoring simulation progress
+./Allrun > regoutput.out 2> terminaloutput.out
+#./AllcleanFromLatestTime > regoutput.out 2> terminaloutput.out
+# ./AllrunFromLatestTime > regoutput.out 2> terminaloutput.out
+

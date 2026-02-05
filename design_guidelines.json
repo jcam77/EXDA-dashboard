@@ -1,0 +1,115 @@
+{
+  "identity": {
+    "name": "EXDA-Dashboard v0.2",
+    "archetype": "The Research Operator",
+    "vibe": "Minimal, Scientific, Monochrome, Precise, Light/Dark Adaptive",
+    "description": "A lean, research-first workspace for Hydrogen Explosion Modelling & Experimental Validation."
+  },
+  "typography": {
+    "primary_font": "Inter",
+    "heading_font": "Barlow Condensed",
+    "mono_font": "JetBrains Mono",
+    "scale": {
+      "h1": "text-4xl font-bold tracking-tight uppercase",
+      "h2": "text-3xl font-semibold tracking-tight",
+      "h3": "text-2xl font-medium",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm text-muted-foreground",
+      "mono": "font-mono text-sm"
+    },
+    "import_url": "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+  },
+  "colors": {
+    "theme": "dark",
+    "palette": {
+      "background": "#0B0E14",
+      "foreground": "#F5F5F5",
+      "card": "#141824",
+      "card_foreground": "#F5F5F5",
+      "popover": "#141824",
+      "popover_foreground": "#F5F5F5",
+      "primary": "#E5E5E5",
+      "primary_foreground": "#1A1F2B",
+      "secondary": "#A6A6A6",
+      "secondary_foreground": "#1A1F2B",
+      "muted": "#2A2F3A",
+      "muted_foreground": "#B3B3B3",
+      "accent": "#D4D4D4",
+      "accent_foreground": "#1A1F2B",
+      "destructive": "#B91C1C",
+      "destructive_foreground": "#F5F5F5",
+      "border": "#2A2F3A",
+      "input": "#141824",
+      "ring": "#D4D4D4"
+    },
+    "chart_colors": {
+      "pmax": "#E5E5E5",
+      "tmax": "#BDBDBD",
+      "impulse": "#9CA3AF",
+      "safe": "#9CA3AF",
+      "neutral": "#6B7280"
+    }
+  },
+  "layout": {
+    "grid_system": "Wide Column Layout",
+    "spacing": {
+      "container_padding": "px-4 sm:px-6 lg:px-8",
+      "gap": "gap-4 md:gap-6",
+      "section_spacing": "py-12"
+    },
+    "container_style": "w-full max-w-6xl mx-auto",
+    "sidebar": {
+      "width": "w-64",
+      "collapsed_width": "w-16",
+      "style": "border-r border-sidebar-border bg-sidebar-background"
+    }
+  },
+  "components": {
+    "cards": {
+      "style": "flat",
+      "border": "1px solid border-sidebar-border",
+      "radius": "rounded-xl",
+      "shadow": "none",
+      "hover": "hover:border-primary/50 transition-colors duration-200"
+    },
+    "buttons": {
+      "primary": "bg-primary/15 text-primary border border-primary/40 rounded-md font-semibold",
+      "secondary": "border border-primary/30 text-foreground rounded-md",
+      "ghost": "hover:bg-accent/20 rounded-md"
+    },
+    "inputs": {
+      "style": "bg-background border-input focus:border-ring rounded-md"
+    },
+    "tables": {
+      "style": "compact",
+      "header": "bg-muted/40 text-muted-foreground uppercase text-xs font-semibold",
+      "row": "hover:bg-muted/20 border-b border-border/50"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-md bg-background/80 border border-border/60",
+    "borders": "Subtle monochrome borders (border-sidebar-border)",
+    "gradients": "Only for headline text accents, not backgrounds.",
+    "textures": "Optional light noise overlay (opacity 0.02)"
+  },
+  "motion": {
+    "transitions": "transition-colors duration-200",
+    "hover_effects": "hover:border-primary/50",
+    "loading": "Skeleton loaders with soft shimmer"
+  },
+  "media": {
+    "icons": "Lucide React"
+  },
+  "accessibility": {
+    "contrast": "WCAG AA",
+    "focus_states": "Visible ring-2 ring-ring ring-offset-2 ring-offset-background",
+    "reduced_motion": "Respect prefers-reduced-motion"
+  },
+  "instructions_to_main_agent": [
+    "Keep v0.1 minimal and monochrome.",
+    "Use the existing Tailwind tokens from index.css.",
+    "Avoid bright gradients except for hero text accents.",
+    "Prefer clean borders over heavy shadows.",
+    "Keep headings bold and compact; body text readable."
+  ]
+}

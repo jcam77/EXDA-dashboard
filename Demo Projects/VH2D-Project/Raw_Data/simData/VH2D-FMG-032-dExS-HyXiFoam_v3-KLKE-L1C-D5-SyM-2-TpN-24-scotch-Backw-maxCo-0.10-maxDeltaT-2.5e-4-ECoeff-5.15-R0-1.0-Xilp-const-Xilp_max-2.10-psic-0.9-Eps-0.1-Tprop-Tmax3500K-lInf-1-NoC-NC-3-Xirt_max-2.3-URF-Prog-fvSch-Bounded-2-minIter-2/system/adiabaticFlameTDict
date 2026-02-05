@@ -1,0 +1,32 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2306                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      adiabaticFlameTDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//Hydrogen 
+
+// P       98900;//[Pa]
+// T0      283;//[K]
+// H2
+// {
+//     fuel H2;
+//     n    0;
+//     m    2;
+// }
+P       101325;   // Pressure in Pa (1 atm)
+T0      288;     // Initial temperature in K (25°C)
+fuel    H2;               // Fuel name, assuming "H2" is defined in thermoData
+n       0;                // Number of carbon atoms in H2 (H2 has 0 C atoms)
+m       2;                // Number of hydrogen atoms in H2 (H2 has 2 H atoms)
+
+// ************************************************************************* //

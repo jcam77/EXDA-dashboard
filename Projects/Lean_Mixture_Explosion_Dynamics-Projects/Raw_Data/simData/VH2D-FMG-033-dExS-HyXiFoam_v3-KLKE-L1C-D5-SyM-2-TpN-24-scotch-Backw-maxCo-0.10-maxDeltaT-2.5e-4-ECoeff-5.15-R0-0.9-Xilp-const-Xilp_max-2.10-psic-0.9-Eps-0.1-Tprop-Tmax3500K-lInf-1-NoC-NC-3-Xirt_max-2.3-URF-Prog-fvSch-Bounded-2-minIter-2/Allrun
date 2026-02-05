@@ -1,0 +1,127 @@
+#!/bin/bash
+#
+#------------------------------------------------------------------------------#
+# Contributor : Javier I. Camacho                                              #
+# Case created on :  08-2024                                                   #
+#------------------------------------------------------------------------------#
+# Repository : https://osf.io/gkubp/?view_only=41f95f9ff8e94a4681c626a112955d50#
+# Email : javier.camacho@brand.lth.se                                          #
+#------------------------------------------------------------------------------#
+foamVersion="OpenFOAM-v2306"
+cd "${0%/*}" || exit                               # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+. ${WM_PROJECT_DIR:?}/bin/tools/CleanFunctions      # Tutorial clean functions
+#------------------------------------------------------------------------------
+clear
+cleanCase0
+# . ./Auxilliary_Files/preambleFiles/color
+# . ./Auxilliary_Files/preambleFiles/preamble
+
+#-------------------------------------------------------------------------------
+echo "---Restoring 0 Directory for AMI Mesh Configuration..."
+# restore0Dir
+cp -r 0.AMI-D5-orig 0
+#cp -r 0.AMI-D5-refSrf-orig 0
+#-------------------------------------------------------------------------------
+# Thermophysical Properties Range Selection-------------------------------------
+rm -rf constant/thermophysicalProperties
+#-------------------------------------------------------------------------------
+# Option 1: Sutherland Coefficients (As, Ts) fitted over 200–3500 K
+echo "---Setting Thermophysical Properties for Sutherland Coeff.(As Ts) Max. Temp. 3500 K..."
+cp -r constant/Hydrogen-Air-inhomogeneousMixture-thermophysicalProperties/thermophysicalProperties_2025_11_29_sutherlandTrange_200-3500K constant/thermophysicalProperties
+#-------------------------------------------------------------------------------
+# Option 2: Sutherland Coefficients (As, Ts) fitted over 200–6000 K
+#echo "---Setting Thermophysical Properties for Sutherland Coeff.(As Ts) Max. Temp. 6000 K..."
+#cp -r constant/Hydrogen-Air-inhomogeneousMixture-thermophysicalProperties/thermophysicalProperties_2025_11_29_sutherlandTrange_200-6000K constant/thermophysicalProperties
+#-------------------------------------------------------------------------------
+# Option 3: Sutherland Coefficients (As, Ts) fitted over 200–2000 K
+#echo "---Setting Thermophysical Properties for Sutherland Coeff.(As Ts) Max. Temp. 2000 K..."
+#cp -r constant/Hydrogen-Air-inhomogeneousMixture-thermophysicalProperties/thermophysicalProperties_2025_12_16_sutherlandTrange_200-2000K constant/thermophysicalProperties
+#-------------------------------------------------------------------------------
+echo "---Runing Create Mesh..."
+# runApplication blockMesh
+
+# Domain 1(D1): Size (30x12.5x20 m)#--------------------------------------------
+#cp -r constant/polyMesh.L1C-D1-SG-SyM-Mesh-000 constant/polyMesh
+#cp -r ../L1C-D1-Mesh/polyMesh.L1C-D1-SG-SyM-Mesh-000 constant/polyMesh
+
+# Domain 2(D2): Size (40x17.5x30 m)#--------------------------------------------
+#cp -r constant/polyMesh.L1C-D2-SG-SyM-Mesh-000 constant/polyMesh
+#cp -r ../L1C-D2-Mesh/polyMesh.L1C-D2-SG-SyM-Mesh-000 constant/polyMesh
+
+# Domain 3(D3): Size (50x22.5x40 m)#--------------------------------------------
+#cp -r constant/polyMesh.L1C-D3-SG-SyM-Mesh-000 constant/polyMesh
+#cp -r ../L1C-D3-Mesh/polyMesh.L1C-D3-SG-SyM-Mesh-000 constant/polyMesh
+
+# Domain 4(D4): Size (60x27.5x50 m)#--------------------------------------------
+#cp -r constant/polyMesh.L1C-D4-SG-SyM-Mesh-000 constant/polyMesh
+#cp -r ../L1C-D4-Mesh/polyMesh.L1C-D4-SG-SyM-Mesh-000 constant/polyMesh
+
+# Domain 5(D5): Size (70x32.5x60 m)#--------------------------------------------
+# cp -r constant/polyMesh.L1C-D5-SG-SyM-Mesh-000 constant/polyMesh
+cp -r ../L1C-D5-Mesh/polyMesh.L1C-D5-SG-SyM-Mesh-002 constant/polyMesh
+#cp -r ../L1C-D5-Mesh/polyMesh.L1C-D5-SG-SyM-Mesh-000-refSrf constant/polyMesh
+#-------------------------------------------------------------------------------
+# Program Execution
+    # flag to enable computations in parallel mode
+   parallel=true
+    
+#Parallel Mode------------------------------------------------------------------
+    if [ "$parallel" = true ]
+    then
+        echo "---Running checkMesh..."
+        runApplication checkMesh -allTopology -allGeometry -constant | tee log.checkMesh
+		touch run.foam
+        #runApplication checkMesh | tee log.checkMesh
+        #-----------------------------------------------------------------------
+        echo "---Set Initial Fields Conditions (Hydrogen-Air Mixture and Air)"
+        runApplication setFields
+        #-----------------------------------------------------------------------
+        echo "---Running in parallel mode..."
+        # runApplication decomposePar
+        # runApplication decomposePar -cellDist
+        # # decomposePar -force
+        # runApplication decomposePar -allRegions -force -cellDist
+        runApplication decomposePar -force -cellDist
+        runParallel -s parallel renumberMesh -overwrite
+        runParallel  $(getApplication) | tee log.solver
+        # runApplication reconstrucParMesh # only for AMR
+        runApplication reconstructPar
+        # runApplication reconstructPar -allRegions
+        # runApplication foamToVTK
+        #rm -rf process* # remove processors folder to save space
+        touch run.foam
+        ./AllpostProcessExtract
+    else
+#Serial Mode----------------------------------------------------------------------
+		echo "---Running checkMesh..."
+        runApplication checkMesh -allTopology -allGeometry -constant | tee log.checkMesh
+        #runApplication checkMesh | tee log.checkMesh
+        #-----------------------------------------------------------------------
+        echo "---Set Initial Fields Conditions (Hydrogen-Air Mixture and Air)"
+        runApplication setFields
+        #-----------------------------------------------------------------------
+        echo "---Running in serial mode..."
+        #runApplication pyFoamPlotRunner.py $(getApplication) #with residual monitor
+        runApplication $(getApplication) 
+		#runApplication foamToVTK
+        touch run.foam
+        ./AllpostProcessExtract
+    fi
+#-------------------------------------------------------------------------------
+# Data Compression--------------------------------------------------------------
+echo "---Data Compression..."
+for d in 0.*; do
+    if [[ "$d" != "0.orig" && "$d" != 0.AMI* && -d "$d" ]]; then
+        find "$d" -type f -not -name "*.gz" -exec gzip {} \;
+    fi
+done
+#-------------------------------------------------------------------------------
+# Data Uncompression------------------------------------------------------------
+# echo "---Data Uncompression..."
+#for d in 0.*; do
+#    if [[ "$d" != "0.orig" && "$d" != 0.AMI* && -d "$d" ]]; then
+#        find "$d" -type f -name "*.gz" -exec gunzip {} \;
+#    fi
+#done
+#-------------------------------------------------------------------------------

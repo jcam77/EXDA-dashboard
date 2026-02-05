@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP="${1:-}"
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_DIR="$ROOT_DIR/.venv"
+
+if [[ -d "$VENV_DIR/bin" ]]; then
+  export PATH="$VENV_DIR/bin:$PATH"
+else
+  echo "⚠️  .venv not found at $VENV_DIR (backend may use system Python)."
+fi
+
+VERSION="$(git -C "$ROOT_DIR" describe --tags --always 2>/dev/null || echo "unknown")"
+BRANCH="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")"
+echo "EXDA version: $VERSION (branch: $BRANCH)"
+
+if [[ -z "$APP" ]]; then
+  echo "Usage: run <appName>"
+  echo "Examples:"
+  echo "  run EXDA"
+  echo "  run exda"
+  echo "  run dashboard"
+  exit 1
+fi
+
+case "$APP" in
+  EXDA|exda|dashboard|EXDA-dashboard|v0.3|0.3)
+    cd "$ROOT_DIR"
+    npm run dev
+    ;;
+  *)
+    echo "Unknown app: $APP"
+    echo "Supported: EXDA, exda, dashboard"
+    exit 1
+    ;;
+ esac

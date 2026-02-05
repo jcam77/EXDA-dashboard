@@ -1,0 +1,80 @@
+{
+  "name": "exda-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently \"npm:vite\" \"npm:server\"",
+    "vite": "vite --open --config frontend/vite.config.js",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm:vite\" \"npm:electron\"",
+    "server": "python3 backend/app.py",
+    "build": "vite build --config frontend/vite.config.js",
+    "build:demo": "cross-env VITE_DEMO_MODE=true vite build --config frontend/vite.config.js",
+    "dist:win": "npm run build:demo && electron-builder --win",
+    "dist:mac": "npm run build:demo && electron-builder --mac",
+    "lint": "eslint --config frontend/eslint.config.js frontend",
+    "preview": "vite preview --config frontend/vite.config.js",
+    "smoke": "playwright test tests/smoke.spec.ts",
+    "experiment-selection": "concurrently \"npm run vite\" \"playwright test tests/experiment-selection.spec.ts\"",
+    "test": "playwright test",
+    "test:report": "playwright show-report"
+  },
+  "dependencies": {
+    "lucide-react": "^0.562.0",
+    "marked": "^17.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^6.27.0",
+    "recharts": "^3.6.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.23",
+    "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3",
+    "electron": "^32.2.0",
+    "electron-builder": "^24.13.3",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vite": "^7.2.4",
+    "@playwright/test": "^1.52.0"
+  },
+  "build": {
+    "appId": "com.exda.dashboard",
+    "productName": "EXDA Dashboard",
+    "asarUnpack": [
+      "backend/dist/**"
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**",
+      "frontend/dist/**",
+      "backend/dist/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "Demo Projects",
+        "to": "Demo Projects"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

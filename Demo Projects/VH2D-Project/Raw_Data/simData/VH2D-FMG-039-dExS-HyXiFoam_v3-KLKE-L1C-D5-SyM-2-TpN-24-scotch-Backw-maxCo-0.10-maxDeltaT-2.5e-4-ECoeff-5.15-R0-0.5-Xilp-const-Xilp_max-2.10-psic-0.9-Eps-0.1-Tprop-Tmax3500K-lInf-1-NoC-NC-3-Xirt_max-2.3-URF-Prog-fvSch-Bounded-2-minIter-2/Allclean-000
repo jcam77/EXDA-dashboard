@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+#------------------------------------------------------------------------------#
+# Contributor : Javier I. Camacho                                              #
+# Case created on :  08-2024                                                   #
+#------------------------------------------------------------------------------#
+# Repository : https://osf.io/gkubp/?view_only=41f95f9ff8e94a4681c626a112955d50#
+# Email           : javier.camacho@brand.lth.se                                #
+#------------------------------------------------------------------------------#
+cd "${0%/*}" || exit 1                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/CleanFunctions      # Tutorial clean functions
+#-------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Protect postProcessing: some clean helpers may remove it. Create a tarball
+# backup outside the case directory (/tmp) before running cleanCase0, then
+# restore it afterwards. This makes the script safe to run without losing
+# postProcessing results.
+# -----------------------------------------------------------------------------
+POSTPROC_DIR="postProcessing"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+CASE_NAME=$(basename "$(pwd)")
+BACKUP_TAR="/tmp/${CASE_NAME}_postProcessing_backup_${TIMESTAMP}.tar.gz"
+BACKED_UP=0
+if [ -d "$POSTPROC_DIR" ]; then
+	echo "[Allclean] Backing up '$POSTPROC_DIR' to '$BACKUP_TAR'"
+	# Use tar to place backup outside the case directory so cleans inside the
+	# case won't remove the backup archive.
+	if tar -czf "$BACKUP_TAR" "$POSTPROC_DIR"; then
+		BACKED_UP=1
+	else
+		echo "[Allclean] WARNING: failed to create backup of '$POSTPROC_DIR'. Aborting to avoid data loss." >&2
+		exit 1
+	fi
+fi
+
+cleanCase0
+rm -rf constant/triSurface
+rm -rf constant/polyMesh
+rm -rf log.*
+rm -rf Py*
+rm -rf Gn*
+rm -rf regoutput.out
+rm -rf stderr.out
+rm -rf terminaloutput.out
+
+# If we created a backup, extract it into a timestamped folder so repeated
+# runs don't overwrite previous results. The restored folder will be named
+# postProcessing_YYYYmmdd-HHMMSS in the case directory.
+
+if [ "$BACKED_UP" -eq 1 ]; then
+	echo "[Allclean] Restoring '$POSTPROC_DIR' from '$BACKUP_TAR' into a timestamped folder"
+	RESTORE_TS=$(date +%Y%m%d-%H%M%S)
+	RESTORE_DIR="${POSTPROC_DIR}_$RESTORE_TS"
+	# Create a safe temporary extraction directory
+	TMP_RESTORE_DIR=$(mktemp -d "./.postproc_restore_${RESTORE_TS}.XXXX")
+	if [ -z "$TMP_RESTORE_DIR" ] || [ ! -d "$TMP_RESTORE_DIR" ]; then
+		echo "[Allclean] ERROR: failed to create temporary directory for restore." >&2
+		exit 1
+	fi
+	# Extract archive into tmp dir, then move extracted postProcessing to the
+	# timestamped target directory.
+	if tar -xzf "$BACKUP_TAR" -C "$TMP_RESTORE_DIR"; then
+		if [ -d "$TMP_RESTORE_DIR/$POSTPROC_DIR" ]; then
+			mv "$TMP_RESTORE_DIR/$POSTPROC_DIR" "$RESTORE_DIR"
+			rm -rf "$TMP_RESTORE_DIR"
+			rm -f "$BACKUP_TAR"
+			echo "[Allclean] postProcessing restored to '$RESTORE_DIR'."
+		else
+			echo "[Allclean] ERROR: archive did not contain '$POSTPROC_DIR' as expected." >&2
+			echo "[Allclean] Backup retained at '$BACKUP_TAR'. Extracted files are in '$TMP_RESTORE_DIR'." >&2
+			exit 1
+		fi
+	else
+		echo "[Allclean] ERROR: failed to extract backup. Backup retained at '$BACKUP_TAR'." >&2
+		exit 1
+	fi
+fi

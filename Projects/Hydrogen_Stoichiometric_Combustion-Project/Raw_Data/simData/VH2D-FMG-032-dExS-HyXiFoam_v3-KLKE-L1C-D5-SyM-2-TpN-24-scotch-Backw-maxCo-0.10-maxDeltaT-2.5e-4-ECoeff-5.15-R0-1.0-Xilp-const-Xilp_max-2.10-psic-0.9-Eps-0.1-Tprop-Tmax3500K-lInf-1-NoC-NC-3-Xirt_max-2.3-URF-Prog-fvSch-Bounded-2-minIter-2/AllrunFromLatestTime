@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+#------------------------------------------------------------------------------#
+# Contributor : Javier I. Camacho                                              #
+# Case created on :  08-2024                                                   #
+#------------------------------------------------------------------------------#
+# Repository : https://osf.io/gkubp/?view_only=41f95f9ff8e94a4681c626a112955d50#
+# Email : javier.camacho@brand.lth.se                                          #
+#------------------------------------------------------------------------------#
+foamVersion="OpenFOAM-v2306"
+cd "${0%/*}" || exit                               # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+. ${WM_PROJECT_DIR:?}/bin/tools/CleanFunctions      # Tutorial clean functions
+#------------------------------------------------------------------------------
+# clear
+# . ./Allclean
+# . ./Auxilliary_Files/preambleFiles/color
+# . ./Auxilliary_Files/preambleFiles/preamble
+
+restore0Dir
+#------------------------------------------------------------------------------
+echo "---Runing Create Mesh..."
+#runApplication blockMesh
+
+#------------------------------------------------------------------------------
+# Program Execution
+    # flag to enable computations in parallel mode
+   parallel=true
+    
+#Parallel Mode----------------------------------------------------------------------
+    if [ "$parallel" = true ]
+    then
+        #echo "---Running checkMesh..."
+        #runApplication checkMesh -allTopology -allGeometry -constant | tee log.checkMesh
+		#runApplication checkMesh | tee log.checkMesh
+        #-----------------------------------------------------------------------
+        #echo "---Set Initial Fields Conditions (Hydrogen-Air Mixture and Air)"
+        #runApplication setFields
+        #-----------------------------------------------------------------------
+        echo "---Running in parallel mode..."
+        runApplication decomposePar
+        runParallel -s parallel renumberMesh -overwrite
+        runParallel  $(getApplication) | tee log.solver
+        #reconstrucParMesh # only for AMR
+        runApplication reconstructPar
+        # runApplication foamToVTK
+        #rm -rf process* # remove processors folder to save space
+        touch fmglobal.foam
+        
+    else
+#Serial Mode----------------------------------------------------------------------
+		echo "---Running checkMesh..."
+        runApplication checkMesh -allTopology -allGeometry -constant | tee log.checkMesh
+        #runApplication checkMesh | tee log.checkMesh
+        #-----------------------------------------------------------------------
+        echo "---Set Initial Fields Conditions (Hydrogen-Air Mixture and Air)"
+        runApplication setFields
+        #-----------------------------------------------------------------------
+        echo "---Running in serial mode..."
+        #runApplication pyFoamPlotRunner.py $(getApplication) #with residual monitor
+        runApplication $(getApplication) 
+		#runApplication foamToVTK
+        touch fmglobal.foam
+    fi

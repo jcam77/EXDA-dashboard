@@ -1,0 +1,211 @@
+{
+  "planName": "Experiment_Plan_v000",
+  "experiments": [
+    {
+      "done": false,
+      "end": "2026-01-24",
+      "id": 1,
+      "name": "vh2d-13pctV-001",
+      "notes": "",
+      "start": "2026-01-21"
+    },
+    {
+      "done": false,
+      "end": "2026-01-23",
+      "id": 1769017036244,
+      "name": "vh2d-13pctV-003",
+      "notes": "",
+      "start": "2026-01-21"
+    },
+    {
+      "done": true,
+      "end": "2026-01-21",
+      "id": 1769022722763,
+      "meta": {
+        "h2": "10",
+        "ignition": "Center",
+        "p0": "1",
+        "t0": "293",
+        "vent": "Automatic removal"
+      },
+      "name": "vh2d-10pctV-001",
+      "notes": "",
+      "start": "2026-01-21"
+    },
+    {
+      "done": true,
+      "end": "2026-01-24",
+      "id": 2,
+      "meta": {
+        "h2": "10",
+        "ignition": "Center",
+        "p0": "1",
+        "t0": "293",
+        "vent": "Automatic"
+      },
+      "name": "vh2d-10pctV-002",
+      "notes": "",
+      "start": "2026-01-29"
+    },
+    {
+      "done": false,
+      "end": "2026-01-24",
+      "id": 1769017007028,
+      "meta": {
+        "h2": "13",
+        "p0": "1",
+        "t0": "190"
+      },
+      "name": "vh2d-13pctV-002",
+      "notes": "",
+      "start": "2026-01-21"
+    },
+    {
+      "done": true,
+      "end": "2026-01-23",
+      "id": 3,
+      "meta": {
+        "h2": "10",
+        "ignition": "Center",
+        "p0": "1",
+        "t0": "293",
+        "vent": "Hotwire"
+      },
+      "name": "vh2d-10pctV-003",
+      "notes": "",
+      "start": "2026-01-23"
+    },
+    {
+      "done": false,
+      "end": "2026-01-24",
+      "id": 4,
+      "name": "vh2d-11pctV-001",
+      "notes": "",
+      "start": "2026-01-21"
+    },
+    {
+      "done": false,
+      "end": "2026-01-24",
+      "id": 5,
+      "name": "vh2d-11pctV-002",
+      "notes": "",
+      "start": "2026-01-29"
+    },
+    {
+      "done": false,
+      "end": "2026-01-23",
+      "id": 6,
+      "meta": {
+        "h2": "11",
+        "p0": "1",
+        "t0": "290"
+      },
+      "name": "vh2d-11pctV-003",
+      "notes": "",
+      "start": "2026-01-23"
+    },
+    {
+      "done": false,
+      "end": "2026-01-21",
+      "id": 7,
+      "name": "vh2d-12pctV-001",
+      "notes": "",
+      "start": "2026-01-22"
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 8,
+      "name": "vh2d-12pctV-002",
+      "notes": "",
+      "start": "2026-01-25"
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 9,
+      "name": "vh2d-12pctV-003",
+      "notes": "",
+      "start": ""
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 10,
+      "name": "vh2d-14pctV-001",
+      "notes": "",
+      "start": ""
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 11,
+      "name": "vh2d-14pctV-002",
+      "notes": "",
+      "start": ""
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 12,
+      "name": "vh2d-14pctV-003",
+      "notes": "",
+      "start": ""
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 13,
+      "name": "vh2d-16pctV-001",
+      "notes": "",
+      "start": ""
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 14,
+      "name": "vh2d-16pctV-002",
+      "notes": "",
+      "start": ""
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 15,
+      "name": "vh2d-16pctV-003",
+      "notes": "",
+      "start": ""
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 16,
+      "name": "vh2d-18pctV-001",
+      "notes": "",
+      "start": ""
+    },
+    {
+      "done": false,
+      "end": "2026-01-21",
+      "id": 17,
+      "name": "vh2d-18pctV-002",
+      "notes": "",
+      "start": "2026-01-21"
+    },
+    {
+      "done": false,
+      "end": "2026-01-25",
+      "id": 18,
+      "name": "vh2d-18pctV-003",
+      "notes": "",
+      "start": ""
+    }
+  ],
+  "meta": {
+    "deadline": "2026-01-31",
+    "description": "Analysis of stoichiometric hydrogen-air mixture combustion at varying ignition energy",
+    "objective": "Analysis of stoichiometric hydrogen-air mixture combustion at varying ignition energy",
+    "startDate": "2026-01-21",
+    "status": "archived"
+  }
+}

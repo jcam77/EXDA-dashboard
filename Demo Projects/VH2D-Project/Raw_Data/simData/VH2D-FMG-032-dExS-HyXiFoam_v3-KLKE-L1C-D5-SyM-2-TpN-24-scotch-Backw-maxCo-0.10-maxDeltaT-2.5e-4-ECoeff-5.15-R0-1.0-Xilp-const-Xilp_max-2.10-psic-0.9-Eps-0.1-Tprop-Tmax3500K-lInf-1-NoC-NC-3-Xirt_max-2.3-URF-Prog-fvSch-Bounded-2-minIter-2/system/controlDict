@@ -1,0 +1,619 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application    HyXiFoam_v3; //HyXiFoam_v1;//HyXiDyMFoam;
+
+startFrom       latestTime;//startTime;
+
+startTime       0;
+
+stopAt          endTime;//writeNow;//this to pause the simulation, check that whe you re-start startFrom is set to latestTime;
+
+endTime         0.30;//0.30;//0.30;//0.61;0.050;// 0.50; //
+
+deltaT          1e-6;//1e-6;//5e-6;//1e-6;//0.000001;
+
+writeControl    adjustableRunTime; // this is to get the exact time written butt too much computational overhead observed
+//writeControl    runTime;
+
+writeInterval   0.050;//0.010;//0.020;//0.050;//0.020;//0.025;//0.020;//0.010;//0.050;
+
+purgeWrite      0;
+
+writeFormat     binary;//ascii;//binary;//ascii; 
+
+writePrecision  10;
+
+writeCompression on;//off;
+
+timeFormat      general;
+
+timePrecision   12;//6;
+
+runTimeModifiable true; 
+
+
+
+
+/*
+runTimeModifiable no
+runTimeModifiable option in controlDict allows the modification of 
+problem parameters while the simulations are running. 
+But we strongly recommend to set it to no. OpenFOAM simulations tend 
+to have a large overhead in the startup phase; the runTimeModifiable 
+flag is a major factor in this behavior. 
+Turning off this option can greatly reduce this initial overhead and 
+result in faster simulations.
+source: https://pawsey.atlassian.net/wiki/spaces/US/pages/51925980/OpenFOAM+Best+Practices
+*/
+
+adjustTimeStep  yes;//to adjust time step according to maximum Courant number in transient simulation.
+
+maxCo         0.10;//0.20;//0.10;//0.25;//0.20;//0.25;//0.20;//0.30;//0.35;//0.6;//0.9;//1.5;
+
+// OPTION 1: Least restrictive 
+// maxDeltaT       0.001;    // 1 millisecond
+
+// OPTION 2: Moderate restriction  (recommended) Δt = 2.5×10⁻⁴ ≈ 0.43 tscale (≈ 43% of tscale) tscale(0.000578s)from ignitionProperties file
+maxDeltaT       2.5e-4;   // 1.0e-4;
+
+// OPTION 3: Most restrictive (your current)
+// maxDeltaT       1e-5;     // 0.01 millisecond
+
+
+libs ("libmyCompressibleTurbulenceModels.so");
+//libs ("libmyCompressibleTurbulenceModels.so" "libdynamicRefineBalancedFvMesh.so")
+//libs ( "libmyCompressibleTurbulenceModels.so" "libdynamicFvMesh.so" "libtopoChangerFvMesh.so" "libdistributed.so" );
+/*
+If you use the first order Euler scheme, try to use a CFL number less 
+than 2.0 and preferably in the order of 0.6-0.9, this is in order to keep 
+temporal diffusion to a minimum.
+Note!!!: Yes, numerical diffusion also applies in time.
+source: WolfDynamics "supplement_tipsandtricks" 
+https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.wolfdynamics.com/training/introOF8/supplement_tipsandtricks.pdf
+*/
+
+//-- Include Mach number function object ---------------------------------------
+// MachNo
+//     {
+//         type            MachNo;
+//         libs            (fieldFunctionObjects);
+
+//         // Assumes you have fields U, p, and T available in your case.
+//         // Check if your solver uses 'p' for pressure and 'T' for temperature.
+
+//         writeControl    runTime;
+//         writeInterval   0.00001;
+//         // log             true; // Optional: prints min/max/avg MachNo to the log
+//     }
+
+// #includeFunc MachNo
+//-- End of Mach number function object ----------------------------------------
+
+
+functions
+{
+//--- Internal Pressure and Temperature Probes ---------------------------------
+
+     pTProbes
+    {
+        type probes;
+		libs            (sampling);
+        interpolationScheme cellPoint; //cellPatchConstrained;//pointMVC;
+		writeControl    timeStep;
+        writeInterval   1;
+		probeLocations
+		(
+		(2.4 2.295  1.5) //chamber pressure transducers added by JCAM
+		);
+		fields ( p T );
+    } 
+
+/* 	pTProbes
+    {
+        type            patchProbes;    // SPECIFIC type for walls
+		libs            (sampling);
+        //interpolationScheme cellPatchConstrained;//cellPoint; //pointMVC;
+		patch           "explosionChamber";  
+		writeControl    timeStep;
+        writeInterval   1;
+		probeLocations
+		(
+		(2.4 2.295  1.5) //chamber pressure transducers added by JCAM
+		);
+		fields ( p T );
+    } */
+//--- b Regression Variable ----------------------------------------------------
+	bProbes // regression variable "b" probes // Added by JCAM
+    {
+        libs            (sampling);
+        type probes;
+		//writeControl   adjustableRunTime;
+		//writeControl   runTime;
+		//writeInterval  0.00001;
+        // This OVERRIDES the global setting for this specific probe
+        // It tells the solver: "Don't brake for me, just write what you have."
+        writeControl    timeStep;
+        writeInterval   1;
+		//interpolationScheme cell;//cellPoint; //pointMVC; 	// Given cell centre values interpolates to vertices and uses these to do a Mean Value Coordinates interpolation.
+        fields ( b );
+
+	probeLocations
+	(
+    //Combustion Progress by tracking regression variable "b" (b=1 unburned, b=0 burned => c(progression variable) = 1-b)
+    // from bEqn.H file     Info<< "Combustion progress  = 100*(scalar(1) - b)().weightedAverage(mesh.V()).value() << "%"
+	(2.4 0.0 1.5) //ignition cell   added by JCAM   
+	// (2.3 0.0 1.5) //ignition cell
+	   //(2.3 0.005 1.5) //ignition cell
+	);
+    }
+//--- up (Turbulent Fluctuating Velocity) probes -------------------------------
+	upProbes
+    {
+        libs            (sampling);
+        type probes;
+        writeControl    timeStep;
+        writeInterval   1;
+		interpolationScheme cellPoint; //pointMVC; 	// Given cell centre values interpolates to vertices and uses these to do a Mean Value Coordinates interpolation.
+        fields ( up );
+
+	probeLocations
+	(
+	(3.4 0.005 1.5) 
+	(4.4 0.005 1.5) 
+	(5.4 0.005 1.5) 
+	(5.9 0.005 1.5) 
+	(6.2 0.005 1.5) 
+	(6.7 0.005 1.5) 
+	(8.2 0.005 1.5) 
+	);
+    }
+//--- St (Turbulent Flame Speed) probes ----------------------------------------
+	StProbes
+    {
+        libs            (sampling);
+        type probes;
+        writeControl    timeStep;
+        writeInterval   1;
+		interpolationScheme cellPoint; //pointMVC;; 	// Given cell centre values interpolates to vertices and uses these to do a Mean Value Coordinates interpolation.
+        fields ( St );
+
+	probeLocations
+	(
+	(3.4 0.005 1.5) 
+	(4.4 0.005 1.5) 
+	(5.4 0.005 1.5) 
+	(5.9 0.005 1.5) 
+	(6.2 0.005 1.5) 
+	(6.7 0.005 1.5) 
+	(8.2 0.005 1.5) 
+	);
+    }
+//--- External Blast Wave Pressure Probes --------------------------------------
+	bwpProbes // external blast wave pressure transducers
+    {
+        libs            (sampling);
+        type probes;
+        writeControl    timeStep;
+        writeInterval   1;
+		interpolationScheme cellPoint; //pointMVC;; 	// Given cell centre values interpolates to vertices and uses these to do a Mean Value Coordinates interpolation.
+        fields ( p );
+
+	probeLocations
+	(
+	(6.0 0.005 0.305) 
+	(6.3 0.005 0.305) 
+	(6.8 0.005 0.305) 
+	(8.3 0.005 0.305) 
+	);
+    }
+
+    //--- Method 1: Discrete Probes (For comparison with Bauwens Experiment) ---
+    TOAProbs
+    {
+        type            probes;
+        libs            ("libsampling.so"); // Standardized lib name
+        enabled         true;               // Added enabled flag
+        
+        writeControl    timeStep;
+        writeInterval   1;
+        
+        // cellPoint is definitely better than pointMVC for this
+        interpolationScheme cellPoint; 
+        
+        fields          ( T b Tu );
+
+        probeLocations
+        (
+            // Internal Probes (Approx 0.5m spacing)
+            (0.4 0.005 1.4) 
+            (0.9 0.005 1.4) 
+            (1.4 0.005 1.4) 
+            (1.9 0.005 1.4) 
+            (2.4 0.005 1.4) 
+            (2.9 0.005 1.4) 
+            (3.4 0.005 1.4) 
+            (3.9 0.005 1.4) 
+            (4.4 0.005 1.4) 
+            
+            // External Probes (Verify these are inside your mesh!)
+            (4.9 0.005 1.4) 
+            (5.4 0.005 1.4) 
+            (5.9 0.005 1.4) 
+            (6.4 0.005 1.4) 
+            (6.9 0.005 1.4) 
+            (7.4 0.005 1.4) 
+            (7.9 0.005 1.4) 
+            (8.4 0.005 1.4)
+        );
+    }
+    //--- Vent Flame TOA ---
+    ventTOAProb
+    {
+        type            probes;
+        libs            ("libsampling.so"); // Standardized lib name
+        enabled         true;               // Added enabled flag
+        
+        writeControl    timeStep;
+        writeInterval   1;
+        
+        // cellPoint is definitely better than pointMVC for this
+        interpolationScheme cellPoint; 
+        
+        fields          (b);
+
+        probeLocations
+        (
+            // Vent Probes (outer edge)
+            (4.8 0.005 1.5) 
+        );
+    }
+
+//---End of probes--------------------------------------------------------------
+
+//-- Flow Characteristics Calculation ------------------------------------------
+// 1. Get resolved variance (UPrime2Mean)
+    fieldAverage1
+    {
+        type            fieldAverage;
+        libs            ("libfieldFunctionObjects.so");
+        writeControl    writeTime;
+        fields
+        (
+            U 
+			{ 
+				mean on; 
+				prime2Mean on; 
+				base time; 
+			}
+        );
+    }
+
+// -----------------------------------------------------------------------------
+//-- Automatic time-discretization switch --------------------------------------
+		/*
+	NOTE: Automatic time-discretization switch
+	- Purpose: start with Euler time derivative and switch to CrankNicolson 0.9 when ignition ends.
+	- Mechanism: timeActivatedFileUpdate copies a template file onto <system>/fvSchemes at specified times.
+	  The replacement is persistent (i.e., it stays on disk and survives restarts).
+	- Files required in system/: fvSchemes (current), fvSchemes.Euler, fvSchemes.CN.
+	- The (-1 ...) entry ensures Euler is applied at startup and on restarts before the switch time.
+	- The 0.00832 s below should match ignitionSites.duration in constant/combustionProperties.
+	- Prereq: runTimeModifiable must be true so the solver can pick up the change at runtime.
+	*/
+/* 	fvSchemesUpdate
+	{
+		type              timeActivatedFileUpdate;
+		libs              (utilityFunctionObjects);
+		writeControl      timeStep;
+		writeInterval     1;
+
+		// The file we want to replace at the switch time
+		fileToUpdate      "<system>/fvSchemes";
+
+		// Switch time => file to use from then on
+		timeVsFile
+		(
+			(-1      "<system>/fvSchemes.Backward")
+			// (-1      "<system>/fvSchemes.Euler")  // enforce Euler prior to ignition end (also on restarts)
+			// (0.00832 "<system>/fvSchemes.CN")     // at t = ignitionSites.duration -> use CrankNicolson 0.9
+		);
+	} */
+//--End of automatic time-discretization switch --------------------------------
+
+//-- Yplus calculation ---------------------------------------------------------
+yPlus1
+    {
+        type            yPlus;
+        libs            (fieldFunctionObjects);
+        // Optional entries
+		//----------------------------------------------------------------------
+        // writeControl    timeStep;    // Write every time step
+        // writeInterval   1;           // When writeControl is timeStep, this means every step
+		// log             false;          // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+		writeControl   adjustableRunTime;
+		writeInterval  $writeInterval;
+        log             true;        // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+    }
+//-- End of Yplus calculation --------------------------------------------------
+
+//-- Monitor max pressure in the entire domain ---------------------------------
+    // Monitor max pressure in the entire domain
+    pressureMax
+    {
+        type            fieldMinMax;
+        libs            (fieldFunctionObjects);
+        fields           (p);
+        // Optional entries
+		//----------------------------------------------------------------------
+        writeControl    timeStep;    // Write every time step
+        writeInterval   1;           // When writeControl is timeStep, this means every step
+		log             false;          // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+		// writeControl   adjustableRunTime;
+		// writeInterval  $writeInterval;
+        // log             true;        // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+    }
+//-- End of max pressure monitoring --------------------------------------------
+
+//-- Continuity error monitoring -----------------------------------------------
+	continuityError
+	{
+		// Mandatory entries
+		type            continuityError;
+		libs            (fieldFunctionObjects);
+		// Optional entries
+		phi             phi;
+		// Optional entries
+		//----------------------------------------------------------------------
+		// writeControl    timeStep;    // Write every time step
+		// writeInterval   1;           // When writeControl is timeStep, this means every step
+		// log             false;          // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+		writeControl   adjustableRunTime;
+		writeInterval  $writeInterval;
+		log             true;        // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+    }
+//-- End of continuity error monitoring ----------------------------------------
+
+//-- Temperature monitoring ----------------------------------------------------
+    // Monitor min/max temperature in the entire Domain
+    T_MinMaxGlobal
+    {
+        type            fieldMinMax;
+        libs            (fieldFunctionObjects);
+        fields           (T);
+        // Optional entries
+		//----------------------------------------------------------------------
+        writeControl    timeStep;    // Write every time step
+        writeInterval   1;           // When writeControl is timeStep, this means every step
+		log             false;          // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+		// writeControl   adjustableRunTime;
+		// writeInterval  $writeInterval;
+        // log             true;        // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+    }
+
+	// Monitor min/max temperature in the chamber + External Structure (Porch)
+
+	Tmin_explosionChamber
+	{
+		type            surfaceFieldValue;
+		libs            (fieldFunctionObjects);
+		regionType      patch;
+		name            explosionChamber;
+		//name            chamberWalls;
+		fields          (T);
+		writeFields     false;
+		operation       min;
+		writeControl    timeStep;
+		writeInterval   1;
+		log             false;
+	}
+
+	Tmax_explosionChamber
+	{
+		type            surfaceFieldValue;
+		libs            (fieldFunctionObjects);
+		regionType      patch;
+		name            explosionChamber;
+		//name            chamberWalls;
+		fields          (T);
+		writeFields     false;
+		operation       max;
+		writeControl    timeStep;
+		writeInterval   1;
+		log             false;
+	}
+//-- End of temperature monitoring ---------------------------------------------
+
+//-- Wall Heat Flux monitoring -------------------------------------------------
+	// wallHeatFlux
+	// {
+	// 	type            wallHeatFlux;
+	// 	libs            (fieldFunctionObjects);
+	// 	patches        (explosionChamber); // change patch name as needed
+	// 	qr              qr;
+	// 	writeControl    runTime;
+	// 	writeInterval  $writeInterval;//0.00001;
+	// 	// writeControl    writeTime;
+    //     // writeInterval   1;
+	// 	log             false;//true; // Print to terminal
+	// }
+//-- End of Wall Heat Flux monitoring ------------------------------------------
+
+//-- Include Mach number function object ---------------------------------------
+	MachNo
+    {
+        type            MachNo;
+        libs            (fieldFunctionObjects);
+        // Optional entries
+		//----------------------------------------------------------------------
+        // writeControl    timeStep;    // Write every time step
+        // writeInterval   1;           // When writeControl is timeStep, this means every step
+		// log             false;          // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+		writeControl   adjustableRunTime;
+		writeInterval  $writeInterval;
+        log             true;        // Print min/max/avg to solver log file
+		//----------------------------------------------------------------------
+    }
+//-- End of Mach number function object ----------------------------------------
+	
+// Monitor min k in the chamber + External Structure (Porch)
+
+	kMin_explosionChamber
+	{
+		type            surfaceFieldValue;
+		libs            (fieldFunctionObjects);
+		regionType      patch;
+		name            explosionChamber;
+		//name            chamberWalls;
+		fields          (k);
+		writeFields     false;
+		operation       min;
+		writeControl    timeStep;
+		writeInterval   1;
+		log             false;
+	}
+
+    // Monitor min epsilon in the chamber + External Structure (Porch)
+
+	epsilonMin_explosionChamber
+	{
+		type            surfaceFieldValue;
+		libs            (fieldFunctionObjects);
+		regionType      patch;
+		name            explosionChamber;
+		//name            chamberWalls;
+		fields          (epsilon);
+		writeFields     false;
+		operation       min;
+		writeControl    timeStep;
+		writeInterval   1;
+		log             false;
+	}
+
+	kepsilonMinMax
+    {
+        type            fieldMinMax;
+        libs            (fieldFunctionObjects);
+        fields           (k epsilon);
+        writeControl    timeStep;    // Write every time step
+        writeInterval   1;           // When writeControl is timeStep, this means every step
+		log             false;          // Print min/max/avg to solver log file
+    }
+
+XiReactionRate1
+{
+    // Mandatory entries
+    type            XiReactionRate;
+    libs            (fieldFunctionObjects);
+
+    // Optional (inherited) entries
+    region          region0;
+    enabled         true;
+    log             true;
+    timeStart       0;
+    timeEnd         1000;
+    executeControl  timeStep;
+    executeInterval 1;
+    writeControl    writeTime;
+    writeInterval   -1;
+}
+
+
+}
+
+
+// ************************************************************************* //
+// functions
+// {
+//     #includeFunc MachNo
+//     #includeFunc solverInfo
+
+//     readFields1
+//     {
+//         type        readFields;
+//         libs        (fieldFunctionObjects);
+//         fields      (phi);
+//         readOnStart true;
+//     }
+
+//     contErr
+//     {
+//         type            div;
+//         libs            (fieldFunctionObjects);
+//         field           phi;
+//         executeControl  writeTime;
+//         writeControl    writeTime;
+//     }
+
+//     momErr
+//     {
+//         type            momentumError;
+//         libs            (fieldFunctionObjects);
+//         cellZones       (z1);
+//         nLayers         2;
+//         executeControl  writeTime;
+//         writeControl    writeTime;
+//     }
+// }
+
+// functions
+// {
+//     // ... (Your yPlus1, MachNo, solverInfo, contErr functions) ...
+
+//     // Monitor max pressure in the entire domain
+//     pressureMax
+//     {
+//         type            fieldMinMax;
+//         libs            (fieldFunctionObjects);
+//         field           p;
+//         writeControl    runTime;
+//         writeInterval   0.00001; // Match your yPlus interval for consistency
+//         log             true; // Print to terminal
+//     }
+
+//     // Monitor average pressure on the 'ground' patch (change patch name as needed)
+//     groundPressureAverage
+//     {
+//         type            patchAverage;
+//         libs            (fieldFunctionObjects);
+//         field           p;
+//         patch           ground; 
+//         writeControl    runTime;
+//         writeInterval   0.00001;
+//         log             true;
+//     }
+    
+//     // Monitor max temperature in the chamber
+//     temperatureMax
+//     {
+//         type            fieldMinMax;
+//         libs            (fieldFunctionObjects);
+//         field           T;
+//         writeControl    runTime;
+//         writeInterval   0.00001;
+//         log             true;
+//     }
+// }

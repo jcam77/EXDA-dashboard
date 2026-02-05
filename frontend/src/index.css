@@ -1,0 +1,430 @@
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/Inter/static/Inter_18pt-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/Inter/static/Inter_18pt-Medium.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/Inter/static/Inter_18pt-SemiBold.ttf") format("truetype");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/Inter/static/Inter_18pt-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/Inter/static/Inter_18pt-ExtraBold.ttf") format("truetype");
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 220 29% 6%;
+        --foreground: 210 33% 96%;
+
+        --card: 220 29% 11%;
+        --card-foreground: 210 33% 96%;
+
+        --popover: 220 29% 11%;
+        --popover-foreground: 210 33% 96%;
+
+        --primary: 192 70% 62%;
+        --primary-foreground: 220 20% 12%;
+
+        --secondary: 212 50% 44%;
+        --secondary-foreground: 210 33% 96%;
+
+        --muted: 220 12% 22%;
+        --muted-foreground: 210 15% 70%;
+
+        --accent: 190 95% 78%;
+        --accent-foreground: 220 20% 12%;
+
+        --destructive: 0 70% 52%;
+        --destructive-foreground: 210 33% 96%;
+
+        --border: 220 18% 22%;
+        --input: 220 29% 11%;
+        --ring: 190 95% 78%;
+
+        --radius: 0.5rem;
+
+        --sidebar-background: 220 24% 8%;
+        --sidebar-foreground: 210 33% 96%;
+        --sidebar-primary: 192 70% 62%;
+        --sidebar-primary-foreground: 220 20% 12%;
+        --sidebar-accent: 220 18% 18%;
+        --sidebar-accent-foreground: 210 33% 96%;
+        --sidebar-border: 220 18% 22%;
+        --sidebar-ring: 190 95% 78%;
+
+        --success: 152 24% 74%;
+        --warning: 35 77% 34%;
+        --info: 194 37% 79%;
+    }
+
+    .light {
+        --background: 210 28% 96%;
+        --foreground: 220 28% 14%;
+
+        --card: 210 25% 92%;
+        --card-foreground: 220 28% 14%;
+
+        --popover: 210 25% 92%;
+        --popover-foreground: 220 28% 14%;
+
+        --primary: 192 70% 40%;
+        --primary-foreground: 210 33% 98%;
+
+        --secondary: 212 45% 38%;
+        --secondary-foreground: 210 33% 98%;
+
+        --muted: 210 18% 88%;
+        --muted-foreground: 220 12% 36%;
+
+        --accent: 190 85% 50%;
+        --accent-foreground: 210 33% 98%;
+
+        --destructive: 0 70% 45%;
+        --destructive-foreground: 210 33% 98%;
+
+        --border: 210 14% 80%;
+        --input: 210 16% 90%;
+        --ring: 190 85% 50%;
+
+        --sidebar-background: 210 25% 92%;
+        --sidebar-foreground: 220 28% 14%;
+        --sidebar-primary: 192 70% 40%;
+        --sidebar-primary-foreground: 210 33% 98%;
+        --sidebar-accent: 210 18% 88%;
+        --sidebar-accent-foreground: 220 28% 14%;
+        --sidebar-border: 210 14% 80%;
+        --sidebar-ring: 190 85% 50%;
+
+        --success: 152 34% 36%;
+        --warning: 35 77% 38%;
+        --info: 194 37% 38%;
+    }
+
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+        font-family: "Inter", sans-serif;
+        scrollbar-gutter: stable;
+    }
+
+    h1 {
+        @apply text-4xl font-bold tracking-tight;
+    }
+
+    h2 {
+        @apply text-3xl font-bold tracking-tight;
+    }
+
+    h3 {
+        @apply text-2xl font-bold tracking-tight;
+    }
+
+    h4 {
+        @apply text-xl font-semibold;
+    }
+
+    h5 {
+        @apply text-lg font-semibold;
+    }
+
+    h6 {
+        @apply text-base font-semibold;
+    }
+
+    :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    pre,
+    code {
+        overflow-x: auto;
+        white-space: pre;
+        font-family: "Monaco", "Courier New", monospace;
+    }
+
+    .logo-light {
+        display: none;
+    }
+
+    .light .logo-light {
+        display: inline-block;
+    }
+
+    .light .logo-dark {
+        display: none;
+    }
+}
+
+@layer components {
+    .exda-gradient {
+        background: linear-gradient(
+            135deg,
+            hsl(220 10% 12%) 0%,
+            hsl(220 10% 8%) 100%
+        );
+    }
+
+    .exda-border {
+        border-color: hsl(192 70% 62% / 0.24);
+    }
+
+    .exda-glow {
+        box-shadow: 0 0 18px hsl(192 70% 62% / 0.18);
+    }
+
+    .light .exda-gradient {
+        background: linear-gradient(
+            135deg,
+            hsl(210 33% 98%) 0%,
+            hsl(210 28% 94%) 100%
+        );
+    }
+
+    .light .exda-border {
+        border-color: hsl(192 70% 40% / 0.25);
+    }
+
+    .light .exda-glow {
+        box-shadow: 0 0 18px hsl(192 70% 40% / 0.18);
+    }
+
+    .data-point {
+        @apply w-2 h-2 rounded-full;
+    }
+
+    .metric-card {
+        @apply rounded-lg border border-sidebar-border bg-card p-6;
+    }
+}
+
+@layer utilities {
+    .bg-zinc-950 {
+        background-color: hsl(var(--background)) !important;
+    }
+    .bg-zinc-900 {
+        background-color: hsl(var(--card)) !important;
+    }
+    .bg-zinc-900\/50 {
+        background-color: hsl(var(--card) / 0.6) !important;
+    }
+    .bg-zinc-900\/40 {
+        background-color: hsl(var(--card) / 0.5) !important;
+    }
+    .bg-zinc-900\/20 {
+        background-color: hsl(var(--card) / 0.3) !important;
+    }
+    .bg-zinc-800 {
+        background-color: hsl(var(--muted)) !important;
+    }
+    .bg-zinc-800\/50 {
+        background-color: hsl(var(--muted) / 0.6) !important;
+    }
+    .bg-zinc-800\/30 {
+        background-color: hsl(var(--muted) / 0.4) !important;
+    }
+    .bg-black {
+        background-color: hsl(var(--background)) !important;
+    }
+    .bg-black\/30 {
+        background-color: hsl(var(--background) / 0.4) !important;
+    }
+    .bg-black\/40 {
+        background-color: hsl(var(--background) / 0.5) !important;
+    }
+    .text-white {
+        color: hsl(var(--foreground)) !important;
+    }
+    .text-zinc-700,
+    .text-zinc-600,
+    .text-zinc-500,
+    .text-zinc-400 {
+        color: hsl(var(--muted-foreground)) !important;
+    }
+    .text-zinc-300 {
+        color: hsl(var(--foreground) / 0.85) !important;
+    }
+    .border-zinc-900,
+    .border-zinc-800,
+    .border-zinc-700 {
+        border-color: hsl(var(--border)) !important;
+    }
+}
+
+/* Ensure AI Markdown lists appear vertically with bullet points */
+.ai-response-container ul {
+    list-style-type: disc;
+    margin-left: 1.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.ai-response-container li {
+    margin-bottom: 0.25rem;
+    display: list-item; /* Forces vertical stacking */
+}
+
+.ai-response-container p {
+    margin-bottom: 0.75rem;
+}
+
+.ai-response-container strong {
+    color: hsl(var(--primary));
+    font-weight: 800;
+}
+
+/* Force vertical stacking for AI Literature lists */
+.markdown-content {
+    color: hsl(var(--foreground));
+    font-size: 0.875rem;
+    line-height: 1.65;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+    font-weight: 700;
+    margin: 1rem 0 0.5rem;
+    letter-spacing: 0.01em;
+}
+
+.markdown-content h1 { font-size: 1.15rem; }
+.markdown-content h2 { font-size: 1.05rem; }
+.markdown-content h3 { font-size: 0.98rem; }
+.markdown-content h4 { font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+.markdown-content p {
+    margin: 0.6rem 0 !important;
+    display: block !important;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    display: block !important;
+    margin: 0.8rem 0 0.8rem 1.5rem !important;
+    padding: 0 !important;
+}
+
+.markdown-content ul { list-style-type: disc !important; }
+.markdown-content ol { list-style-type: decimal !important; }
+
+.markdown-content li {
+    display: list-item !important;
+    margin-bottom: 0.4rem !important;
+    line-height: 1.5 !important;
+    list-style-position: outside !important;
+}
+
+.markdown-content strong {
+    color: hsl(var(--primary));
+    font-weight: 800;
+    display: inline;
+}
+
+.markdown-content .ai-category {
+    color: hsl(var(--primary));
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.markdown-content a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.markdown-content code {
+    font-family: Monaco, "Courier New", monospace;
+    font-size: 0.82rem;
+    background: rgba(148, 163, 184, 0.15);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    padding: 0.1rem 0.35rem;
+    border-radius: 6px;
+}
+
+.markdown-content pre {
+    margin: 0.9rem 0;
+    padding: 0.85rem 1rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    overflow-x: auto;
+}
+
+.markdown-content pre code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 0.82rem;
+    color: hsl(var(--foreground));
+}
+
+.markdown-content blockquote {
+    margin: 0.8rem 0;
+    padding: 0.25rem 1rem;
+    border-left: 3px solid hsl(var(--primary) / 0.65);
+    color: rgba(226, 232, 240, 0.85);
+    font-style: italic;
+    background: hsl(var(--primary) / 0.08);
+    border-radius: 8px;
+}
+
+.markdown-content hr {
+    margin: 1rem 0;
+    border-color: rgba(148, 163, 184, 0.25);
+}
+
+.markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.9rem 0;
+}
+
+.markdown-content th,
+.markdown-content td {
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    padding: 0.45rem 0.6rem;
+    text-align: left;
+}
+
+.markdown-content th {
+    background: rgba(148, 163, 184, 0.12);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
