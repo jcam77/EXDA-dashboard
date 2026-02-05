@@ -25,6 +25,15 @@ git tag -a v0.0 -m "v0.0"
 git push origin main
 git push origin v0.0
 ```
+5. Local tag delete
+```bash
+git tag -d v0.0
+```
+6. Remote (GitHub) tag delete
+```bash
+git push --delete origin v0.0
+```
+
 
 ## Workflow With a Branch (Optional)
 1. Create a branch:
