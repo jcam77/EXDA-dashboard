@@ -9,10 +9,10 @@ jobs:
       matrix:
         include:
           - arch: x64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
             script: dist:linux
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
             script: dist:linux:appimage
     runs-on: ${{ matrix.runner }}
     steps:
