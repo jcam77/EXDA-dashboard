@@ -27,11 +27,13 @@ const appVersion = process.env.EXDA_APP_VERSION || gitVersion || pkg.version || 
 const lastUpdated = process.env.EXDA_LAST_UPDATED || gitUpdated || pkg.lastUpdated || new Date().toISOString()
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: __dirname,
+  // Use relative asset paths for packaged Electron builds (file://).
+  base: command === 'build' ? './' : '/',
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
     __LAST_UPDATED__: JSON.stringify(lastUpdated),
   },
-})
+}))
