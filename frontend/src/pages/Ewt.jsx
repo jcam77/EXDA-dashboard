@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AudioLines, Sliders, AlertTriangle } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
 
@@ -17,13 +17,14 @@ const Ewt = ({
     );
 
     const selectedPath = settings?.ewtSelectedPath || '';
+    const [localTickCount, setLocalTickCount] = useState(settings.ewtTickCount || 10);
+    const [localYTickCount, setLocalYTickCount] = useState(10);
 
     useEffect(() => {
-        if (!candidates.length) return;
+        if (!selectedPath) return;
         const exists = candidates.some(c => (c.path || c.name) === selectedPath);
-        if (!selectedPath || !exists) {
-            const first = candidates[0];
-            setSettings(prev => ({ ...prev, ewtSelectedPath: first.path || first.name }));
+        if (!exists) {
+            setSettings(prev => ({ ...prev, ewtSelectedPath: '' }));
         }
     }, [candidates, selectedPath, setSettings]);
 
@@ -39,6 +40,23 @@ const Ewt = ({
     }, [plotData]);
 
     const modeColors = ['hsl(var(--primary))'];
+
+    const formatTimeTick = (val) => {
+        const num = Number(val);
+        if (!Number.isFinite(num)) return val;
+        return num.toFixed(2);
+    };
+
+    const chartData = useMemo(() => {
+        if (!Array.isArray(plotData)) return [];
+        return plotData.map((row) => {
+            const timeNum = Number(row?.time);
+            return {
+                ...row,
+                time: Number.isFinite(timeNum) ? timeNum : row?.time,
+            };
+        });
+    }, [plotData]);
 
     return (
         <div className="flex flex-col gap-6">
@@ -93,13 +111,17 @@ const Ewt = ({
                                         </div>
                                         <div className="h-40 max-w-[720px] mx-auto">
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart data={plotData}>
+                                                <LineChart data={chartData}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                                                     <XAxis
                                                         dataKey="time"
+                                                        type="number"
                                                         stroke="hsl(var(--muted-foreground))"
                                                         fontSize={10}
-                                                        tickFormatter={(val) => Number(val).toFixed(3)}
+                                                        tickFormatter={formatTimeTick}
+                                                        tickCount={localTickCount || 10}
+                                                        domain={[0, 'dataMax']}
+                                                        allowDataOverflow
                                                         label={{
                                                             value: 'Time (s)',
                                                             position: 'insideBottom',
@@ -111,6 +133,7 @@ const Ewt = ({
                                                     <YAxis
                                                         stroke="hsl(var(--muted-foreground))"
                                                         fontSize={10}
+                                                        tickCount={localYTickCount || 10}
                                                         label={{
                                                             value: idx === 0 ? 'Pressure (kPa)' : `${series.label} (kPa)`,
                                                             angle: -90,
@@ -186,6 +209,36 @@ const Ewt = ({
                                         className="mt-1 w-full bg-background border border-border rounded-md px-2 py-2 text-xs text-foreground outline-none"
                                     />
                                 </div>
+                                <div>
+                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">X Ticks</label>
+                                    <input
+                                        type="number"
+                                        min="3"
+                                        max="20"
+                                        value={localTickCount}
+                                        onChange={(e) => {
+                                            const raw = Number(e.target.value || 10);
+                                            const next = Math.max(3, Math.min(20, Math.round(raw)));
+                                            setLocalTickCount(next);
+                                        }}
+                                        className="mt-1 w-full bg-background border border-border rounded-md px-2 py-2 text-xs text-foreground outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Y Ticks</label>
+                                    <input
+                                        type="number"
+                                        min="3"
+                                        max="20"
+                                        value={localYTickCount}
+                                        onChange={(e) => {
+                                            const raw = Number(e.target.value || 10);
+                                            const next = Math.max(3, Math.min(20, Math.round(raw)));
+                                            setLocalYTickCount(next);
+                                        }}
+                                        className="mt-1 w-full bg-background border border-border rounded-md px-2 py-2 text-xs text-foreground outline-none"
+                                    />
+                                </div>
                                 <div className="flex flex-col justify-end">
                                     <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Max Points</div>
                                     <div className="text-xs text-foreground mt-1">{settings.ewtMaxPoints}</div>
@@ -223,6 +276,7 @@ const Ewt = ({
                                         <YAxis
                                             stroke="hsl(var(--muted-foreground))"
                                             fontSize={10}
+                                            tickCount={localYTickCount || 10}
                                             label={{
                                                 value: 'Energy (%)',
                                                 angle: -90,

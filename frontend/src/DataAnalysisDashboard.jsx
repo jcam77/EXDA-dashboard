@@ -22,6 +22,7 @@ import LiteraturePage from './pages/Literature';
 import HomePage from './pages/Home';
 import ProjectsPage from './pages/Projects';
 import ProjectPickerModal from './components/ProjectPickerModal';
+import PlanPickerModal from './components/PlanPickerModal';
 import { getBackendBaseUrl } from './utils/backendUrl';
 import { getPublicUrl } from './utils/assetUrl';
 import { recordRecentProject } from './utils/recentProjects';
@@ -108,6 +109,7 @@ const DataAnalysisDashboard = () => {
     const [modal, setModal] = useState({ show: false, type: 'success', title: '', content: null });
     const [picker, setPicker] = useState({ open: false, mode: 'open' });
     const [dataPicker, setDataPicker] = useState({ open: false, type: 'sim' });
+    const [planPickerOpen, setPlanPickerOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
   const [aiChatHistory, setAiChatHistory] = useState([]); 
@@ -140,6 +142,7 @@ const DataAnalysisDashboard = () => {
     useRaw: false, cutoff: 100, order: 4, impulseDrop: 1.0, 
     showVentLines: true, useShortNames: true,
     ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
+    pressureTickCount: 10, ewtTickCount: 10,
     validationMode: false, validationRefPath: '', validationCfdPath: '',
     pressureExperimentPath: ''
   });
@@ -166,12 +169,36 @@ const DataAnalysisDashboard = () => {
       }
   }, [location.pathname, navigate]);
 
+
   /**
    * REFRESH PERSISTENCE LOGIC: Sync with Backend Folder State
    * Replaces volatile localStorage-only logic with server-side truth.
    */
+  const fetchJsonWithRetry = async (url, options = {}, retries = 4, delayMs = 600) => {
+      let lastError = null;
+      for (let attempt = 0; attempt <= retries; attempt += 1) {
+          try {
+              const res = await fetch(url, options);
+              const data = await res.json();
+              if (!res.ok) {
+                  throw new Error(data?.error || `Request failed (${res.status})`);
+              }
+              return data;
+          } catch (err) {
+              lastError = err;
+              if (attempt === retries) break;
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+      }
+      throw lastError || new Error('Request failed');
+  };
+
   useEffect(() => {
       const syncProject = async () => {
+          const resumeOnStartup = localStorage.getItem('resumeOnStartup') === 'true';
+          const resumeOnce = localStorage.getItem('resumeOnStartupOnce') === 'true';
+          if (!resumeOnStartup && !resumeOnce) return;
+          if (resumeOnce) localStorage.removeItem('resumeOnStartupOnce');
           const savedPath = localStorage.getItem('currentProjectPath');
           if (!savedPath) return;
 
@@ -179,8 +206,9 @@ const DataAnalysisDashboard = () => {
 
           try {
               // Pulse check: Fetch current directory state (Plan and Raw Data) from backend
-              const res = await fetch(`${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(savedPath)}`);
-              const state = await res.json();
+              const state = await fetchJsonWithRetry(
+                  `${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(savedPath)}`
+              );
 
               if (state.success) {
                   // 1. Recover the most recent Experiment Plan
@@ -282,6 +310,20 @@ const DataAnalysisDashboard = () => {
   };
   
   const stringToColor = (str) => `hsl(${Math.abs(str.split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % 360}, 70%, 60%)`;
+  const SERIES_COLORS = [
+      'hsl(200, 80%, 60%)',
+      'hsl(20, 80%, 60%)',
+      'hsl(120, 70%, 55%)',
+      'hsl(280, 70%, 65%)',
+      'hsl(40, 85%, 55%)',
+      'hsl(160, 65%, 55%)',
+      'hsl(320, 70%, 60%)',
+      'hsl(90, 70%, 55%)',
+      'hsl(0, 75%, 60%)',
+      'hsl(240, 70%, 65%)',
+      'hsl(300, 60%, 60%)',
+      'hsl(60, 80%, 55%)'
+  ];
 
   const projectStatus = (() => {
       const explicit = (planMeta?.status || '').toString().toLowerCase();
@@ -316,14 +358,15 @@ const DataAnalysisDashboard = () => {
               body: JSON.stringify({ projectPath: projectPathValue })
           });
           const d = await res.json();
-          if (d.success) {
-              setProjectPath(d.path);
-              localStorage.setItem('currentProjectPath', d.path);
-              localStorage.setItem('lastProjectPath', d.path);
-              recordRecentProject(d.path);
-              if (nextTab) localStorage.setItem('pendingTab', nextTab);
-              window.location.reload();
-          } else {
+              if (d.success) {
+                  setProjectPath(d.path);
+                  localStorage.setItem('currentProjectPath', d.path);
+                  localStorage.setItem('lastProjectPath', d.path);
+                  localStorage.setItem('resumeOnStartupOnce', 'true');
+                  recordRecentProject(d.path);
+                  if (nextTab) localStorage.setItem('pendingTab', nextTab);
+                  window.location.reload();
+              } else {
               notify('error', 'Open Failed', d.error || 'Could not open project');
           }
       } catch {
@@ -339,13 +382,14 @@ const DataAnalysisDashboard = () => {
               body: JSON.stringify({ parentPath, projectName })
           });
           const d = await res.json();
-          if (d.success) {
-              setProjectPath(d.path);
-              localStorage.setItem('currentProjectPath', d.path);
-              localStorage.setItem('lastProjectPath', d.path);
-              recordRecentProject(d.path);
-              window.location.reload();
-          } else {
+              if (d.success) {
+                  setProjectPath(d.path);
+                  localStorage.setItem('currentProjectPath', d.path);
+                  localStorage.setItem('lastProjectPath', d.path);
+                  localStorage.setItem('resumeOnStartupOnce', 'true');
+                  recordRecentProject(d.path);
+                  window.location.reload();
+              } else {
               notify('error', 'Create Failed', d.error || 'Could not create project');
           }
       } catch {
@@ -474,30 +518,29 @@ const DataAnalysisDashboard = () => {
       return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const importPlan = async () => {
-      if(!projectPath) return notify('error', 'Import Failed', 'Select project first');
+  const importPlan = () => {
+      if (!projectPath) return notify('error', 'Import Failed', 'Select project first');
+      setPlanPickerOpen(true);
+  };
+
+  const loadPlanFromPath = async (filePath, fileName) => {
       try {
-      const res = await fetch(`${apiBaseUrl}/load_plan_dialog`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ projectPath, allowFallback: window.location.protocol === 'file:' })
-      });
-      const d = await res.json();
-      if (d.success && d.data) {
-          setExperiments(d.data.experiments || []);
-          setPlanName(d.data.planName || "Loaded");
-          if (d.data.meta) setPlanMeta(d.data.meta);
-          if (d.fallback) {
-              notify('success', 'Imported Latest Plan', d.filename);
-          } else {
-              notify('success', 'Imported', d.filename);
+          const res = await fetch(
+              `${apiBaseUrl}/read_project_file?path=${encodeURIComponent(filePath)}&projectPath=${encodeURIComponent(projectPath || '')}`
+          );
+          const d = await res.json();
+          if (!d.success) {
+              notify('error', 'Import Failed', d.error || 'Could not read plan');
+              return;
           }
-          return;
+          const content = JSON.parse(d.content);
+          setExperiments(content.experiments || []);
+          setPlanName(content.planName || "Loaded");
+          if (content.meta) setPlanMeta(content.meta);
+          notify('success', 'Imported', fileName || 'Plan');
+      } catch {
+          notify('error', 'Import Error', 'Failed to load plan');
       }
-      notify('error', 'Import Failed', d.error || 'No file selected');
-  } catch {
-      notify('error', 'Import Error', 'Failed to open dialog');
-  }
   };
 
   const processFile = async (fileObj, type='pressure') => {
@@ -559,7 +602,13 @@ const DataAnalysisDashboard = () => {
       const res = [];
       if (activeTab === 'ewt') {
           const candidates = selectedCases.filter(c => c && c.content && c.type !== 'flame');
-          const selected = candidates.find(c => (c.path || c.name) === settings.ewtSelectedPath) || candidates[0];
+          if (!settings.ewtSelectedPath) {
+              setAnalysisResults([]);
+              setPlotData([]);
+              setIsProcessing(false);
+              return;
+          }
+          const selected = candidates.find(c => (c.path || c.name) === settings.ewtSelectedPath);
           if (selected) {
               const r = await processFile(selected, 'ewt');
               if (r) res.push(r);
@@ -599,14 +648,27 @@ const DataAnalysisDashboard = () => {
               if(r) res.push(r);
           }
       }
-      setAnalysisResults(res);
+      const seenNames = new Map();
+      const uniqueResults = res.map((item, idx) => {
+          const base = item.displayName || item.name || 'Series';
+          const count = seenNames.get(base) || 0;
+          seenNames.set(base, count + 1);
+          const displayName = count === 0 ? base : `${base} (${count + 1})`;
+          return {
+              ...item,
+              displayName,
+              // Use a fixed palette for clear visual separation.
+              color: SERIES_COLORS[idx % SERIES_COLORS.length]
+          };
+      });
+      setAnalysisResults(uniqueResults);
       try {
           const aggregateRes = await fetch(`${apiBaseUrl}/aggregate_plot`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                   activeTab,
-                  series: res.map((item) => ({
+                  series: uniqueResults.map((item) => ({
                       displayName: item.displayName,
                       plotData: item.plotData,
                   })),
@@ -633,7 +695,26 @@ const DataAnalysisDashboard = () => {
       setIsProcessing(false);
   };
 
-  useEffect(() => { const t = setTimeout(runAnalysis, 500); return () => clearTimeout(t); }, [selectedCases, activeTab, settings]);
+  const [analysisNonce, setAnalysisNonce] = useState(0);
+  const requestAnalysis = () => setAnalysisNonce((n) => n + 1);
+
+  useEffect(() => {
+      if (activeTab !== 'ewt') return;
+      if (!settings.ewtSelectedPath) {
+          setPlotData([]);
+          setAnalysisResults([]);
+          return;
+      }
+      const t = setTimeout(runAnalysis, 300);
+      return () => clearTimeout(t);
+  }, [activeTab, settings.ewtSelectedPath, settings.ewtNumModes, settings.ewtMaxPoints]);
+
+  useEffect(() => {
+      if (activeTab === 'ewt') return;
+      if (analysisNonce === 0) return;
+      const t = setTimeout(runAnalysis, 300);
+      return () => clearTimeout(t);
+  }, [analysisNonce, activeTab]);
 
   const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsText(f); });
 
@@ -978,6 +1059,15 @@ const onExpFolder = async (e) => {
                       handleDataFolderPick(pathValue, dataPicker.type);
                   }}
               />
+              <PlanPickerModal
+                  isOpen={planPickerOpen}
+                  projectPath={projectPath}
+                  onClose={() => setPlanPickerOpen(false)}
+                  onSelect={(file) => {
+                      setPlanPickerOpen(false);
+                      loadPlanFromPath(file.path, file.name);
+                  }}
+              />
               {showShortcuts && (
                   <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
                       <div className="bg-card border border-border rounded-xl w-[420px] p-6 shadow-2xl">
@@ -1030,6 +1120,15 @@ const onExpFolder = async (e) => {
                         onPick={(pathValue) => {
                             closeDataPicker();
                             handleDataFolderPick(pathValue, dataPicker.type);
+                        }}
+                    />
+                    <PlanPickerModal
+                        isOpen={planPickerOpen}
+                        projectPath={projectPath}
+                        onClose={() => setPlanPickerOpen(false)}
+                        onSelect={(file) => {
+                            setPlanPickerOpen(false);
+                            loadPlanFromPath(file.path, file.name);
                         }}
                     />
 
@@ -1300,7 +1399,7 @@ const onExpFolder = async (e) => {
                              )}
                              {activeTab === 'filter' && FLAGS.ENABLE_ANALYSIS && (
                                  <SafeComponent>
-                                     <Filter
+                                 <Filter
                                          plotData={plotData}
                                          analysisResults={analysisResults}
                                          experimentalData={experimentalData}
@@ -1308,6 +1407,7 @@ const onExpFolder = async (e) => {
                                          settings={settings}
                                          setSettings={setSettings}
                                          simulationData={simulationData}
+                                         onRunAnalysis={requestAnalysis}
                                          formatName={formatName}
                                      />
                                  </SafeComponent>

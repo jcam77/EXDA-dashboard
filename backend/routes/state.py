@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 import json
+from datetime import datetime
 import os
 
 from modules import project_manager
@@ -108,6 +109,35 @@ def list_raw_data():
                 rel_path = os.path.relpath(os.path.join(root, f), data_dir)
                 files_found.append(rel_path)
     return jsonify({"success": True, "files": sorted(files_found)})
+
+
+@state_bp.route('/list_plan_files', methods=['GET'])
+def list_plan_files():
+    project_path = request.args.get('projectPath')
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    plan_dir = os.path.join(project_root, "Plan")
+    if not os.path.exists(plan_dir):
+        return jsonify({"success": True, "files": []})
+    if not os.path.isdir(plan_dir):
+        return jsonify({"success": False, "error": "Plan path is not a directory"}), 400
+    files = []
+    for name in os.listdir(plan_dir):
+        if name.startswith('.'):
+            continue
+        if not name.lower().endswith('.json'):
+            continue
+        full = os.path.join(plan_dir, name)
+        if not os.path.isfile(full):
+            continue
+        try:
+            modified = datetime.fromtimestamp(os.path.getmtime(full)).strftime('%Y-%m-%d %H:%M')
+        except Exception:
+            modified = None
+        files.append({"name": name, "path": full, "modified": modified})
+    files.sort(key=lambda f: f.get("modified") or "", reverse=True)
+    return jsonify({"success": True, "files": files})
 
 
 @state_bp.route('/load_plan_dialog', methods=['POST'])

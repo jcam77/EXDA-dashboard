@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Info, Download, Settings, Activity } from 'lucide-react';
 
@@ -11,6 +11,7 @@ const PressureAnalysis = ({
   setSettings,
   simulationData,
   formatName,
+  onRunAnalysis,
 }) => {
   const exportToCSV = () => {
     if (!plotData || plotData.length === 0) return;
@@ -33,6 +34,45 @@ const PressureAnalysis = ({
     : [];
   const cfdCases = Array.isArray(simulationData) ? simulationData : [];
 
+  const [visibleSeries, setVisibleSeries] = useState({});
+  const [showExperimental, setShowExperimental] = useState(true);
+  const [localTickCount, setLocalTickCount] = useState(settings.pressureTickCount || 10);
+  const [localYTickCount, setLocalYTickCount] = useState(10);
+
+  useEffect(() => {
+    setVisibleSeries((prev) => {
+      const next = {};
+      analysisResults.forEach((item) => {
+        const key = item.displayName || item.name;
+        if (!key) return;
+        next[key] = prev[key] ?? true;
+      });
+      return next;
+    });
+  }, [analysisResults]);
+
+  const displayedSeries = useMemo(
+    () => analysisResults.filter((item) => visibleSeries[item.displayName] !== false),
+    [analysisResults, visibleSeries]
+  );
+
+  const formatTimeTick = (val) => {
+    const num = Number(val);
+    if (!Number.isFinite(num)) return val;
+    return num.toFixed(2);
+  };
+
+  const chartData = useMemo(() => {
+    if (!Array.isArray(plotData)) return [];
+    return plotData.map((row) => {
+      const timeNum = Number(row?.time);
+      return {
+        ...row,
+        time: Number.isFinite(timeNum) ? timeNum : row?.time,
+      };
+    });
+  }, [plotData]);
+
   const onCutoffChange = (e) => {
     const next = Number(e.target.value);
     setSettings({ ...settings, cutoff: Number.isFinite(next) ? next : settings.cutoff });
@@ -42,6 +82,18 @@ const PressureAnalysis = ({
     const next = Number(e.target.value);
     const safe = Number.isFinite(next) ? Math.max(1, Math.round(next)) : settings.order;
     setSettings({ ...settings, order: safe });
+  };
+
+  const onTickCountChange = (e) => {
+    const raw = Number(e.target.value);
+    const safe = Number.isFinite(raw) ? Math.max(3, Math.min(20, Math.round(raw))) : localTickCount;
+    setLocalTickCount(safe);
+  };
+
+  const onYTickCountChange = (e) => {
+    const raw = Number(e.target.value);
+    const safe = Number.isFinite(raw) ? Math.max(3, Math.min(20, Math.round(raw))) : localYTickCount;
+    setLocalYTickCount(safe);
   };
 
   const onValidationToggle = (e) => {
@@ -69,33 +121,6 @@ const PressureAnalysis = ({
     <div className="flex flex-col h-full gap-4">
       <div className="flex flex-wrap justify-between items-center gap-4 bg-card/60 p-4 rounded-xl border border-border">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex flex-col">
-            <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
-            <input
-              type="number"
-              min="1"
-              step="0.1"
-              value={settings.cutoff}
-              onChange={onCutoffChange}
-              className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
-            />
-          </div>
-          <div className="flex flex-col">
-            <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Order</label>
-            <input
-              type="number"
-              min="1"
-              max="10"
-              step="1"
-              value={settings.order}
-              onChange={onOrderChange}
-              className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
-            />
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-4">
-            <Settings size={14} />
-            <span>Butterworth low-pass filter applied before metrics.</span>
-          </div>
           <div className="flex items-center gap-2 mt-4">
             <input
               type="checkbox"
@@ -173,14 +198,24 @@ const PressureAnalysis = ({
           )}
         </div>
         <div>
-          {plotData && plotData.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={exportToCSV}
-              className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-3 py-2 rounded text-xs font-bold border border-border"
+              onClick={onRunAnalysis}
+              disabled={!onRunAnalysis || isProcessing}
+              className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded text-xs font-bold border border-primary/30 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Download size={14} /> Export CSV
+              <Activity size={14} />
+              Plot Selected
             </button>
-          )}
+            {plotData && plotData.length > 0 && (
+              <button
+                onClick={exportToCSV}
+                className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-3 py-2 rounded text-xs font-bold border border-border"
+              >
+                <Download size={14} /> Export CSV
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -209,13 +244,17 @@ const PressureAnalysis = ({
               </div>
             ) : plotData && plotData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={plotData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="time"
+                    type="number"
                     stroke="hsl(var(--muted-foreground))"
                     fontSize={12}
-                    tickFormatter={(val) => Number(val).toFixed(3)}
+                    tickFormatter={formatTimeTick}
+                    tickCount={localTickCount || 10}
+                    domain={[0, 'dataMax']}
+                    allowDataOverflow
                     label={{
                       value: 'Time (s)',
                       position: 'insideBottom',
@@ -227,6 +266,7 @@ const PressureAnalysis = ({
                   <YAxis
                     stroke="hsl(var(--muted-foreground))"
                     fontSize={12}
+                    tickCount={localYTickCount || 10}
                     label={{
                       value: 'Pressure (kPa)',
                       angle: -90,
@@ -247,7 +287,7 @@ const PressureAnalysis = ({
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
 
-                  {analysisResults.map((result, i) => (
+                  {displayedSeries.map((result, i) => (
                     <Line
                       key={i}
                       type="monotone"
@@ -260,7 +300,7 @@ const PressureAnalysis = ({
                     />
                   ))}
 
-                  {hasExperimental ? (
+                  {hasExperimental && showExperimental ? (
                     <Line
                       type="monotone"
                       dataKey="Experimental"
@@ -272,7 +312,7 @@ const PressureAnalysis = ({
                     />
                   ) : null}
 
-                  {analysisResults
+                  {displayedSeries
                     .filter((result) => typeof result.ventTime === 'number' && Number.isFinite(result.ventTime))
                     .map((result, i) => (
                       <ReferenceLine
@@ -289,9 +329,75 @@ const PressureAnalysis = ({
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                 <Activity size={48} className="mb-4 opacity-20" />
-                <p className="text-sm">Select cases from the Data tab to compare</p>
+                <p className="text-sm">Select cases from the Data tab, then click “Plot Selected”.</p>
               </div>
             )}
+          </div>
+
+          <div className="mt-4 bg-card/60 border border-border rounded-xl p-3">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Plot Controls</div>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex flex-col">
+                <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.1"
+                  value={settings.cutoff}
+                  onChange={onCutoffChange}
+                  className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Order</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={settings.order}
+                  onChange={onOrderChange}
+                  className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.useRaw}
+                  onChange={(e) => setSettings({ ...settings, useRaw: e.target.checked })}
+                  className="rounded bg-muted border-border"
+                />
+                <span className="text-xs text-muted-foreground">Plot raw data (no filter)</span>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] text-muted-foreground uppercase font-bold">X Ticks</label>
+                <input
+                  type="number"
+                  min="3"
+                  max="20"
+                  step="1"
+                  value={localTickCount}
+                  onChange={onTickCountChange}
+                  className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] text-muted-foreground uppercase font-bold">Y Ticks</label>
+                <input
+                  type="number"
+                  min="3"
+                  max="20"
+                  step="1"
+                  value={localYTickCount}
+                  onChange={onYTickCountChange}
+                  className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
+                />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+              <Settings size={14} />
+              <span>Butterworth low-pass filter applied before metrics.</span>
+            </div>
           </div>
         </div>
 
@@ -299,6 +405,43 @@ const PressureAnalysis = ({
           <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
             <Settings size={16} className="text-muted-foreground" /> Calculated Metrics
           </h3>
+          <div className="mb-4 rounded-lg border border-border/60 bg-black/20 p-3 text-xs text-muted-foreground">
+            <div className="text-[10px] uppercase tracking-widest font-bold mb-2">Visible Series</div>
+            <div className="flex flex-col gap-2">
+              {analysisResults.length === 0 && <span className="text-[11px] text-muted-foreground">No series yet.</span>}
+              {analysisResults.map((item) => (
+                <label key={item.displayName} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={visibleSeries[item.displayName] !== false}
+                    onChange={() =>
+                      setVisibleSeries((prev) => ({
+                        ...prev,
+                        [item.displayName]: prev[item.displayName] === false,
+                      }))
+                    }
+                  />
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                    {item.displayName}
+                  </span>
+                </label>
+              ))}
+              {hasExperimental && (
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={showExperimental}
+                    onChange={() => setShowExperimental((prev) => !prev)}
+                  />
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-foreground" />
+                    Experimental
+                  </span>
+                </label>
+              )}
+            </div>
+          </div>
           <div className="flex-1 overflow-auto custom-scrollbar">
             <table className="w-full text-left border-collapse">
               <thead>
