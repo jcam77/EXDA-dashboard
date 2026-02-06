@@ -153,6 +153,17 @@ const ProjectsPage = ({
   useEffect(() => {
     if (projectFolders.length > 0) return;
     const initFolders = async () => {
+      const savedFoldersRaw = localStorage.getItem('projectsFoldersList');
+      const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
+      if (Array.isArray(savedFolders) && savedFolders.length > 0) {
+        const normalized = savedFolders.map((item) => {
+          if (typeof item === 'string') return { path: item, mode: 'root' };
+          return item;
+        });
+        setProjectFolders(normalized);
+        setSelectedFolder('all');
+        return;
+      }
       if (demoMode) {
         try {
           const res = await fetch(`${apiBaseUrl}/list_directories`);
@@ -179,17 +190,6 @@ const ProjectsPage = ({
           setError('Failed to locate demo projects folder');
           return;
         }
-      }
-      const savedFoldersRaw = localStorage.getItem('projectsFoldersList');
-      const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
-      if (Array.isArray(savedFolders) && savedFolders.length > 0) {
-        const normalized = savedFolders.map((item) => {
-          if (typeof item === 'string') return { path: item, mode: 'root' };
-          return item;
-        });
-        setProjectFolders(normalized);
-        setSelectedFolder('all');
-        return;
       }
       try {
         const res = await fetch(`${apiBaseUrl}/list_directories`);

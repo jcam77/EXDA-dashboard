@@ -38,8 +38,12 @@ def apply_butterworth(t, y, cutoff_hz, order):
     t_uni, y_uni, fs = resample_uniform(t, y)
     if cutoff_hz >= 0.5 * fs:
         return t_uni, y_uni
-    sos = signal.butter(order, cutoff_hz, fs=fs, btype="low", output="sos")
-    return t_uni, signal.sosfiltfilt(sos, y_uni)
+    try:
+        sos = signal.butter(order, cutoff_hz, fs=fs, btype="low", output="sos")
+        return t_uni, signal.sosfiltfilt(sos, y_uni)
+    except Exception as e:
+        print(f"Butterworth Error: {e}")
+        return t_uni, y_uni
 
 
 def calculate_metrics(t, y, user_setting=1.0):

@@ -54,13 +54,29 @@ def resample_uniform(t, y):
 def perform_dwt_analysis(y, level=4):
     if not HAS_PYWT:
         return np.array([y])
-    max_level = pywt.swt_max_level(len(y))
-    use_level = min(level, max_level)
-    if use_level <= 0:
+    if level <= 0:
         return np.array([y])
+
+    original_len = len(y)
+    # SWT needs length to be a multiple of 2**level. Pad if needed.
+    use_level = int(level)
+    min_len = 2 ** use_level
+    if original_len < min_len:
+        use_level = int(np.floor(np.log2(max(original_len, 1))))
+        if use_level <= 0:
+            return np.array([y])
+
+    block = 2 ** use_level
+    target_len = int(np.ceil(original_len / block) * block)
+    if target_len != original_len:
+        y = np.pad(y, (0, target_len - original_len), mode='edge')
+
     coeffs = pywt.swt(y, "db4", level=use_level)
     modes = [coeffs[-1][0]] + [c[1] for c in reversed(coeffs)]
-    return np.array(modes)
+    modes_arr = np.array(modes)
+    if modes_arr.shape[1] > original_len:
+        modes_arr = modes_arr[:, :original_len]
+    return modes_arr
 
 
 def perform_ewt_analysis(y, fs, num_modes=5):
