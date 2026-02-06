@@ -178,7 +178,11 @@ const Ewt = ({
                                         min="1"
                                         max="10"
                                         value={settings.ewtNumModes}
-                                        onChange={(e) => setSettings(prev => ({ ...prev, ewtNumModes: Number(e.target.value || 1) }))}
+                                        onChange={(e) => {
+                                            const raw = Number(e.target.value || 1);
+                                            const next = Math.max(1, Math.min(10, raw));
+                                            setSettings(prev => ({ ...prev, ewtNumModes: next }));
+                                        }}
                                         className="mt-1 w-full bg-background border border-border rounded-md px-2 py-2 text-xs text-foreground outline-none"
                                     />
                                 </div>

@@ -119,6 +119,8 @@ def analyze_ewt():
         num_modes = int(req.get('numModes', 5))
         max_points = int(req.get('maxPoints', 2000))
         knee_modes = int(req.get('kneeModes', 10))
+        num_modes = max(1, min(10, num_modes))
+        knee_modes = max(1, min(10, knee_modes))
         result = ewt_analysis.analyze_ewt_content(
             content,
             num_modes=num_modes,
