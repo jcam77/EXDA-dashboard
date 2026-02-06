@@ -38,6 +38,9 @@ git push --delete origin v0.0
 
 ### Main Branch
 ```bash
+git branch -a
+git branch --show-current
+git switch main
 git status --short
 git add .
 git commit -m "Build app Update"
@@ -50,6 +53,9 @@ git log -1 --stat
 
 ### desktopBasedApp Branch
 ```bash
+git branch -a
+git branch --show-current
+git switch desktopBasedApp
 git status --short
 git add .
 git commit -m "Build app Update"
@@ -62,6 +68,9 @@ git log -1 --stat
 
 ### browserBasedApp Branch
 ```bash
+git branch -a
+git branch --show-current
+git switch browserBasedApp
 git status --short
 git add .
 git commit -m "Build app Update"
