@@ -11,6 +11,7 @@ const ProjectsPage = ({
   refreshKey,
 }) => {
   const apiBaseUrl = getBackendBaseUrl();
+  const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
   const [basePath, setBasePath] = useState('');
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -18,6 +19,9 @@ const ProjectsPage = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [basePickerOpen, setBasePickerOpen] = useState(false);
+  const [basePickerMode, setBasePickerMode] = useState('root');
+  const [projectFolders, setProjectFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState('all');
 
   const buildSummaryFromPlan = (data) => {
     if (!data || typeof data !== 'object') return null;
@@ -64,26 +68,39 @@ const ProjectsPage = ({
     return null;
   };
 
-  const loadProjects = async (path) => {
-    if (!path) return;
+  const loadProjects = async (paths) => {
+    const pathList = Array.isArray(paths) ? paths : [paths].filter(Boolean);
+    if (pathList.length === 0) return;
     setLoading(true);
     setError('');
     try {
       const cacheBuster = Date.now();
-      const res = await fetch(
-        `${apiBaseUrl}/list_directories?path=${encodeURIComponent(
-          path
-        )}&includeStatus=1&_ts=${cacheBuster}`
-      );
-      const data = await res.json();
-      if (!data.success) {
-        setError(data.error || 'Failed to load projects');
-        setProjects([]);
-        return;
+      const allEntries = [];
+      for (const item of pathList) {
+        const path = item.path || item;
+        const mode = item.mode || 'root';
+        if (!path) continue;
+        if (mode === 'project') {
+          const parts = String(path).split('/').filter(Boolean);
+          const name = parts[parts.length - 1] || path;
+          allEntries.push({ name, path });
+          continue;
+        }
+        const res = await fetch(
+          `${apiBaseUrl}/list_directories?path=${encodeURIComponent(
+            path
+          )}&includeStatus=1&_ts=${cacheBuster}`
+        );
+        const data = await res.json();
+        if (!data.success) {
+          continue;
+        }
+        (data.directories || []).forEach((entry) => {
+          allEntries.push(entry);
+        });
       }
-      const entries = data.directories || [];
       const summaries = await Promise.all(
-        entries.map(async (project) => {
+        allEntries.map(async (project) => {
           try {
             const summaryRes = await fetch(
               `${apiBaseUrl}/project_plan_summary?path=${encodeURIComponent(
@@ -116,11 +133,13 @@ const ProjectsPage = ({
           return acc;
         }, {});
 
-      const merged = entries.map((project) =>
-        summaryMap[project.path] ? { ...project, plan: summaryMap[project.path] } : project
-      );
+      const mergedMap = new Map();
+      allEntries.forEach((project) => {
+        const enriched = summaryMap[project.path] ? { ...project, plan: summaryMap[project.path] } : project;
+        mergedMap.set(project.path, enriched);
+      });
 
-      setProjects(merged);
+      setProjects(Array.from(mergedMap.values()));
       return true;
     } catch {
       setError('Failed to load projects');
@@ -132,23 +151,45 @@ const ProjectsPage = ({
   };
 
   useEffect(() => {
-    if (basePath) return;
-    const initBasePath = async () => {
-      const savedBase = localStorage.getItem('projectsBasePath');
-      if (savedBase) {
+    if (projectFolders.length > 0) return;
+    const initFolders = async () => {
+      if (demoMode) {
         try {
-          const res = await fetch(
-            `${apiBaseUrl}/list_directories?path=${encodeURIComponent(savedBase)}`
-          );
+          const res = await fetch(`${apiBaseUrl}/list_directories`);
           const data = await res.json();
-          if (data.success) {
-            setBasePath(data.path);
-            return;
-          }
+          if (!data.success) return;
+          const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
+          if (!projectsDir?.path) return;
+          const demoRes = await fetch(
+            `${apiBaseUrl}/list_directories?path=${encodeURIComponent(projectsDir.path)}`
+          );
+          const demoData = await demoRes.json();
+          const demoFolder = (demoData.directories || []).find((dir) => dir.name === 'Demo Projects');
+          if (!demoFolder?.path) return;
+          const demoProjectsRes = await fetch(
+            `${apiBaseUrl}/list_directories?path=${encodeURIComponent(demoFolder.path)}`
+          );
+          const demoProjectsData = await demoProjectsRes.json();
+          const vh2dProject = (demoProjectsData.directories || []).find((dir) => dir.name === 'VH2D-Project');
+          const resolved = vh2dProject?.path || demoFolder.path;
+          setProjectFolders([resolved]);
+          setSelectedFolder(resolved);
+          return;
         } catch {
-          // fall through to default
+          setError('Failed to locate demo projects folder');
+          return;
         }
-        localStorage.removeItem('projectsBasePath');
+      }
+      const savedFoldersRaw = localStorage.getItem('projectsFoldersList');
+      const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
+      if (Array.isArray(savedFolders) && savedFolders.length > 0) {
+        const normalized = savedFolders.map((item) => {
+          if (typeof item === 'string') return { path: item, mode: 'root' };
+          return item;
+        });
+        setProjectFolders(normalized);
+        setSelectedFolder('all');
+        return;
       }
       try {
         const res = await fetch(`${apiBaseUrl}/list_directories`);
@@ -156,33 +197,37 @@ const ProjectsPage = ({
         if (!data.success) return;
         const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
         if (projectsDir?.path) {
-          setBasePath(projectsDir.path);
-        } else if (data.path) {
-          setBasePath(data.path);
+          setError('Select a project folder to get started.');
         }
       } catch {
-        setError('Failed to locate Projects folder');
+        setError('Select a project folder to get started.');
       }
     };
-    initBasePath();
-  }, [basePath]);
+    initFolders();
+  }, [projectFolders.length, demoMode]);
 
   useEffect(() => {
-    if (!basePath) return;
-    loadProjects(basePath);
-  }, [refreshKey, basePath]);
+    if (projectFolders.length === 0) return;
+    if (selectedFolder === 'all') {
+      loadProjects(projectFolders);
+      return;
+    }
+    const selected = projectFolders.find((item) => item.path === selectedFolder);
+    loadProjects(selected || selectedFolder);
+  }, [refreshKey, projectFolders, selectedFolder]);
 
   const handlePickBasePath = (pathValue) => {
     setBasePickerOpen(false);
     if (!pathValue) return;
-    localStorage.setItem('projectsBasePath', pathValue);
-    setBasePath(pathValue);
+    const next = [
+      { path: pathValue, mode: basePickerMode },
+      ...projectFolders.filter((item) => item.path !== pathValue),
+    ];
+    setProjectFolders(next);
+    setSelectedFolder(pathValue);
+    localStorage.setItem('projectsFoldersList', JSON.stringify(next));
   };
 
-  const resetBasePath = () => {
-    localStorage.removeItem('projectsBasePath');
-    setBasePath('');
-  };
 
   const formatDate = (value) => {
     if (!value) return 'Unknown';
@@ -351,25 +396,94 @@ const ProjectsPage = ({
             <div className="flex items-center gap-2">
               <Home size={16} className="text-primary" />
               <span className="text-xs font-semibold uppercase text-muted-foreground">Project Folder</span>
-              <span className="text-foreground truncate max-w-[420px]" title={basePath}>
-                {basePath || 'Not set'}
+              <span className="text-foreground truncate max-w-[420px]" title={selectedFolder}>
+                {selectedFolder === 'all' ? 'All folders' : selectedFolder || 'Not set'}
               </span>
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => setBasePickerOpen(true)}
+                onClick={() => {
+                  setBasePickerMode('project');
+                  setBasePickerOpen(true);
+                }}
                 className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:border-ring hover:text-foreground"
+                title="Add a single project folder (contains Plan/Data/etc.)"
               >
-                Change Folder
+                Add Project Folder
               </button>
               <button
-                onClick={resetBasePath}
+                onClick={() => {
+                  setBasePickerMode('root');
+                  setBasePickerOpen(true);
+                }}
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:border-ring hover:text-foreground"
+                title="Add a folder that contains multiple projects"
+              >
+                Add Projects Root
+              </button>
+              <button
+                onClick={() => {
+                  setProjectFolders([]);
+                  setSelectedFolder('all');
+                  localStorage.removeItem('projectsFoldersList');
+                  setProjects([]);
+                  setError('');
+                }}
                 className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:border-ring hover:text-foreground"
               >
-                Use Default
+                Clear All
               </button>
             </div>
           </div>
+          {projectFolders.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedFolder('all')}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                  selectedFolder === 'all'
+                    ? 'border-primary text-primary bg-primary/10'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All folders
+              </button>
+              {projectFolders.map((folder) => (
+                <div
+                  key={folder.path}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                    selectedFolder === folder.path
+                      ? 'border-primary text-primary bg-primary/10'
+                      : 'border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                  title={folder.path}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFolder(folder.path)}
+                    className="text-xs font-semibold"
+                  >
+                    {folder.path.split('/').filter(Boolean).slice(-1)[0]}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = projectFolders.filter((item) => item.path !== folder.path);
+                      setProjectFolders(next);
+                      localStorage.setItem('projectsFoldersList', JSON.stringify(next));
+                      if (selectedFolder === folder.path) {
+                        setSelectedFolder(next.length ? next[0].path : 'all');
+                      }
+                    }}
+                    className="rounded-full border border-transparent px-1 text-[10px] text-muted-foreground hover:border-destructive/40 hover:text-destructive"
+                    aria-label={`Remove ${folder.path}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="relative">
             <Search
@@ -537,8 +651,8 @@ const ProjectsPage = ({
       <ProjectPickerModal
         isOpen={basePickerOpen}
         mode="pick"
-        title="Select Project Folder"
-        confirmLabel="Use Folder"
+        title={basePickerMode === 'project' ? 'Select Project Folder' : 'Select Projects Root'}
+        confirmLabel={basePickerMode === 'project' ? 'Add Project' : 'Add Root'}
         initialPath={basePath || localStorage.getItem('projectsBasePath') || ''}
         onClose={() => setBasePickerOpen(false)}
         onPick={handlePickBasePath}

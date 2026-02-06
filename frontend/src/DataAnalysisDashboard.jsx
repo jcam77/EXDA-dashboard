@@ -23,6 +23,8 @@ import HomePage from './pages/Home';
 import ProjectsPage from './pages/Projects';
 import ProjectPickerModal from './components/ProjectPickerModal';
 import { getBackendBaseUrl } from './utils/backendUrl';
+import { getPublicUrl } from './utils/assetUrl';
+import { recordRecentProject } from './utils/recentProjects';
 
 /**
  * Feature Flags for modular control
@@ -318,6 +320,7 @@ const DataAnalysisDashboard = () => {
               setProjectPath(d.path);
               localStorage.setItem('currentProjectPath', d.path);
               localStorage.setItem('lastProjectPath', d.path);
+              recordRecentProject(d.path);
               if (nextTab) localStorage.setItem('pendingTab', nextTab);
               window.location.reload();
           } else {
@@ -340,6 +343,7 @@ const DataAnalysisDashboard = () => {
               setProjectPath(d.path);
               localStorage.setItem('currentProjectPath', d.path);
               localStorage.setItem('lastProjectPath', d.path);
+              recordRecentProject(d.path);
               window.location.reload();
           } else {
               notify('error', 'Create Failed', d.error || 'Could not create project');
@@ -805,8 +809,8 @@ const onExpFolder = async (e) => {
                               rel="noreferrer"
                               aria-label="University research group"
                           >
-                              <img src="/university_logo-DarkMode.png" alt="U" className="h-12 object-contain logo-dark" onError={(e) => {e.target.style.display='none'}} />
-                              <img src="/university_logo-LightMode.png" alt="U" className="h-12 object-contain logo-light" onError={(e) => {e.target.style.display='none'}} />
+                              <img src={getPublicUrl('university_logo-DarkMode.png')} alt="U" className="h-12 object-contain logo-dark" onError={(e) => {e.target.style.display='none'}} />
+                              <img src={getPublicUrl('university_logo-LightMode.png')} alt="U" className="h-12 object-contain logo-light" onError={(e) => {e.target.style.display='none'}} />
                           </a>
                           <div className="h-7 w-px bg-sidebar-border mx-1 hidden md:block"></div>
                           <a
@@ -815,8 +819,8 @@ const onExpFolder = async (e) => {
                               rel="noreferrer"
                               aria-label="Institute research project"
                           >
-                              <img src="/institute_logo-DarkMode.png" alt="I" className="h-12 object-contain logo-dark" onError={(e) => {e.target.style.display='none'}} />
-                              <img src="/institute_logo-LightMode.png" alt="I" className="h-12 object-contain logo-light" onError={(e) => {e.target.style.display='none'}} />
+                              <img src={getPublicUrl('institute_logo-DarkMode.png')} alt="I" className="h-12 object-contain logo-dark" onError={(e) => {e.target.style.display='none'}} />
+                              <img src={getPublicUrl('institute_logo-LightMode.png')} alt="I" className="h-12 object-contain logo-light" onError={(e) => {e.target.style.display='none'}} />
                           </a>
                           {activeTab === 'projects' && (
                               <div className="ml-3 hidden md:block">
@@ -1032,8 +1036,8 @@ const onExpFolder = async (e) => {
                                                     rel="noreferrer"
                                                     aria-label="University research group"
                                                 >
-                                                    <img src="/university_logo-DarkMode.png" alt="U" className="h-10 object-contain logo-dark" onError={(e) => {e.target.style.display='none'}} />
-                                                    <img src="/university_logo-LightMode.png" alt="U" className="h-10 object-contain logo-light" onError={(e) => {e.target.style.display='none'}} />
+                                                    <img src={getPublicUrl('university_logo-DarkMode.png')} alt="U" className="h-10 object-contain logo-dark" onError={(e) => {e.target.style.display='none'}} />
+                                                    <img src={getPublicUrl('university_logo-LightMode.png')} alt="U" className="h-10 object-contain logo-light" onError={(e) => {e.target.style.display='none'}} />
                                                 </a>
                                                 <div className="h-8 w-px bg-sidebar-border mx-1 hidden md:block"></div> 
                                                 <a
@@ -1042,8 +1046,8 @@ const onExpFolder = async (e) => {
                                                     rel="noreferrer"
                                                     aria-label="Institute research project"
                                                 >
-                                                    <img src="/institute_logo-DarkMode.png" alt="I" className="h-10 object-contain logo-dark" onError={(e) => {e.target.style.display='none'}} />
-                                                    <img src="/institute_logo-LightMode.png" alt="I" className="h-10 object-contain logo-light" onError={(e) => {e.target.style.display='none'}} />
+                                                    <img src={getPublicUrl('institute_logo-DarkMode.png')} alt="I" className="h-10 object-contain logo-dark" onError={(e) => {e.target.style.display='none'}} />
+                                                    <img src={getPublicUrl('institute_logo-LightMode.png')} alt="I" className="h-10 object-contain logo-light" onError={(e) => {e.target.style.display='none'}} />
                                                 </a>
                                             <div className="ml-4">
                                                 <div className="flex flex-wrap items-center gap-3">

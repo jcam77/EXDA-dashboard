@@ -17,6 +17,8 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+import { getPublicUrl } from '../utils/assetUrl';
+import { getRecentProjects } from '../utils/recentProjects';
 
 const HomePage = ({
   onSelectTab,
@@ -27,6 +29,10 @@ const HomePage = ({
   allowAira = true,
 }) => {
   const apiBaseUrl = getBackendBaseUrl();
+  const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+  const defaultDevProjectsPath = import.meta.env.DEV
+    ? '/media/psf/Sim_Back_Up/EXDA-dashboard/Projects'
+    : '';
   const [isLight, setIsLight] = React.useState(() => {
     if (typeof window === 'undefined') return false;
     const root = document.documentElement;
@@ -63,14 +69,43 @@ const HomePage = ({
     let mounted = true;
     const loadRecent = async () => {
       try {
-        const res = await fetch(`${apiBaseUrl}/list_directories`);
-        const data = await res.json();
-        if (!data.success) return;
-        const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
-        if (!projectsDir?.path) return;
+        const storedRecents = getRecentProjects();
+        let basePath = '';
+        if (!demoMode && defaultDevProjectsPath) {
+          const devRes = await fetch(
+            `${apiBaseUrl}/list_directories?path=${encodeURIComponent(defaultDevProjectsPath)}`
+          );
+          const devData = await devRes.json();
+          if (devData.success) {
+            basePath = devData.path;
+          }
+        }
+        if (!basePath) {
+          const res = await fetch(`${apiBaseUrl}/list_directories`);
+          const data = await res.json();
+          if (!data.success) return;
+          const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
+          if (!projectsDir?.path) return;
+          basePath = projectsDir.path;
+        }
+        if (demoMode) {
+          const demoRes = await fetch(
+            `${apiBaseUrl}/list_directories?path=${encodeURIComponent(basePath)}`
+          );
+          const demoData = await demoRes.json();
+          const demoFolder = (demoData.directories || []).find((dir) => dir.name === 'Demo Projects');
+          if (demoFolder?.path) {
+            const demoProjectsRes = await fetch(
+              `${apiBaseUrl}/list_directories?path=${encodeURIComponent(demoFolder.path)}`
+            );
+            const demoProjectsData = await demoProjectsRes.json();
+            const vh2dProject = (demoProjectsData.directories || []).find((dir) => dir.name === 'VH2D-Project');
+            basePath = vh2dProject?.path || demoFolder.path;
+          }
+        }
         const listRes = await fetch(
           `${apiBaseUrl}/list_directories?path=${encodeURIComponent(
-            projectsDir.path
+            basePath
           )}&includeStatus=1`
         );
         const listData = await listRes.json();
@@ -89,9 +124,37 @@ const HomePage = ({
           .sort((a, b) => new Date(b.lastOpened || 0) - new Date(a.lastOpened || 0))
           .slice(0, 3);
 
-        if (mounted) setRecentProjects(recent);
+        const storedMapped = storedRecents.map((item) => {
+          const parts = String(item.path || '').split('/').filter(Boolean);
+          const name = parts[parts.length - 1] || item.path || 'Unknown';
+          return {
+            name,
+            path: item.path,
+            status: 'recent',
+            lastOpened: item.lastOpened || '',
+          };
+        });
+        const mergedMap = new Map();
+        [...recent, ...storedMapped].forEach((project) => {
+          if (project?.path) mergedMap.set(project.path, project);
+        });
+        const merged = Array.from(mergedMap.values());
+        if (mounted) setRecentProjects(merged);
       } catch {
-        if (mounted) setRecentProjects([]);
+        if (mounted) {
+          const storedRecents = getRecentProjects();
+          const storedMapped = storedRecents.map((item) => {
+            const parts = String(item.path || '').split('/').filter(Boolean);
+            const name = parts[parts.length - 1] || item.path || 'Unknown';
+            return {
+              name,
+              path: item.path,
+              status: 'recent',
+              lastOpened: item.lastOpened || '',
+            };
+          });
+          setRecentProjects(storedMapped);
+        }
       }
     };
 
@@ -129,7 +192,7 @@ const HomePage = ({
                 aria-label="University research group"
               >
                 <img
-                  src={isLight ? '/university_logo-LightMode.png' : '/university_logo-DarkMode.png'}
+                  src={getPublicUrl(isLight ? 'university_logo-LightMode.png' : 'university_logo-DarkMode.png')}
                   alt="University"
                   className="h-12 object-contain"
                   onError={(e) => {
@@ -145,7 +208,7 @@ const HomePage = ({
                 aria-label="Institute research project"
               >
                 <img
-                  src={isLight ? '/institute_logo-LightMode.png' : '/institute_logo-DarkMode.png'}
+                  src={getPublicUrl(isLight ? 'institute_logo-LightMode.png' : 'institute_logo-DarkMode.png')}
                   alt="Institute"
                   className="h-12 object-contain"
                   onError={(e) => {
