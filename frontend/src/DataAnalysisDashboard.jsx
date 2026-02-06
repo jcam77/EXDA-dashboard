@@ -477,19 +477,23 @@ const DataAnalysisDashboard = () => {
   const importPlan = async () => {
       if(!projectPath) return notify('error', 'Import Failed', 'Select project first');
       try {
-          const res = await fetch(`${apiBaseUrl}/load_plan_dialog`, {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ projectPath })
-          });
-          const d = await res.json();
-          if(d.success && d.data) {
-              setExperiments(d.data.experiments || []);
-              setPlanName(d.data.planName || "Loaded");
-              if (d.data.meta) setPlanMeta(d.data.meta);
-              notify('success', 'Imported', d.filename);
-          }
-      } catch { notify('error', 'Import Error', 'Failed to open dialog'); }
+      const res = await fetch(`${apiBaseUrl}/load_plan_dialog`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ projectPath })
+      });
+      const d = await res.json();
+      if (d.success && d.data) {
+          setExperiments(d.data.experiments || []);
+          setPlanName(d.data.planName || "Loaded");
+          if (d.data.meta) setPlanMeta(d.data.meta);
+          notify('success', 'Imported', d.filename);
+          return;
+      }
+      notify('error', 'Import Failed', d.error || 'No file selected');
+  } catch {
+      notify('error', 'Import Error', 'Failed to open dialog');
+  }
   };
 
   const processFile = async (fileObj, type='pressure') => {

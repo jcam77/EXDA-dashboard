@@ -112,15 +112,30 @@ def list_raw_data():
 
 @state_bp.route('/load_plan_dialog', methods=['POST'])
 def load_plan_dialog():
-    data = request.json
+    data = request.json or {}
     project_path = data.get('projectPath')
-    start_dir = os.path.join(project_path, "Plan") if project_path else os.getcwd()
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    plan_dir = os.path.join(project_root, "Plan")
+    start_dir = plan_dir if os.path.isdir(plan_dir) else project_root
     file_path = project_manager.select_file_dialog(start_dir)
-    if file_path and os.path.exists(file_path):
-        with open(file_path, 'r') as f:
+
+    if not file_path:
+        return jsonify({"success": False, "error": "Selection cancelled"})
+    if not os.path.exists(file_path):
+        return jsonify({"success": False, "error": "File not found"}), 404
+    if not project_manager.is_path_within(project_root, file_path):
+        return jsonify({"success": False, "error": "File path not allowed"}), 403
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
             content = json.load(f)
-        return jsonify({"success": True, "data": content, "filename": os.path.basename(file_path)})
-    return jsonify({"success": False})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+    return jsonify({"success": True, "data": content, "filename": os.path.basename(file_path)})
 
 
 @state_bp.route('/save_plan', methods=['POST'])
