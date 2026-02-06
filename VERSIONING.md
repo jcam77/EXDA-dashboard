@@ -33,6 +33,7 @@ git tag -d v0.0
 ```bash
 git push --delete origin v0.0
 ```
+
 7. If you moved the tag to a new commit (re‑tagged):
 ```bash
 git status --short
