@@ -19,6 +19,7 @@
     "dist:win": "npm run build:demo && electron-builder --win",
     "dist:mac": "npm run build:demo && electron-builder --mac",
     "dist:linux": "npm run build:demo && electron-builder --linux",
+    "dist:linux:arm64": "npm run build:demo && electron-builder --linux --arm64",
     "dist:linux:appimage": "npm run build:demo && electron-builder --linux AppImage",
     "lint": "eslint --config frontend/eslint.config.js frontend",
     "preview": "vite preview --config frontend/vite.config.js",
@@ -80,8 +81,19 @@
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "category": "Utility"
     },
