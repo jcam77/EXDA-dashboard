@@ -110,13 +110,14 @@ const createWindow = (port) => {
     width: 1400,
     height: 900,
     backgroundColor: '#0b0f14',
-    show: false,
+    show: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
+  mainWindow.setBounds({ x: 0, y: 0, width: 1400, height: 900 });
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     mainWindow.focus();
@@ -138,6 +139,10 @@ const createWindow = (port) => {
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error('Window failed to load:', { errorCode, errorDescription, validatedURL });
   });
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('Renderer process crashed:', details);
+  });
+  mainWindow.webContents.openDevTools({ mode: 'detach' });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
