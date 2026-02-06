@@ -35,8 +35,12 @@ git push --delete origin v0.0
 ```
 
 7. If you moved the tag to a new commit (re‑tagged):
+
 ### Main Branch
 ```bash
+git branch -a
+git branch --show-current
+git switch main
 git status --short
 git add .
 git commit -m "Build app Update"
@@ -49,6 +53,9 @@ git log -1 --stat
 
 ### desktopBasedApp Branch
 ```bash
+git branch -a
+git branch --show-current
+git switch desktopBasedApp
 git status --short
 git add .
 git commit -m "Build app Update"
@@ -61,6 +68,9 @@ git log -1 --stat
 
 ### browserBasedApp Branch
 ```bash
+git branch -a
+git branch --show-current
+git switch browserBasedApp
 git status --short
 git add .
 git commit -m "Build app Update"
@@ -69,15 +79,9 @@ git push origin browserBasedApp
 git tag -a browser-v0.0 -m "browser-v0.0"
 git push origin browser-v0.0
 git log -1 --stat
-
 ```
 
-8. Branch Handling:
-```bash
-git branch -a
-git branch --show-current
-git switch desktopBasedApp
-```
+
 ## Workflow With a Branch (Optional)
 1. Create a branch:
 ```bash
