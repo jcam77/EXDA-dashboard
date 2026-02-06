@@ -117,7 +117,16 @@ const createWindow = (port) => {
     },
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.focus();
+  });
+  setTimeout(() => {
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  }, 2000);
 
   const query = `?backendPort=${encodeURIComponent(port)}`;
   if (isDev) {
@@ -125,6 +134,10 @@ const createWindow = (port) => {
   } else {
     mainWindow.loadFile(path.join(app.getAppPath(), 'frontend', 'dist', 'index.html'), { query: { backendPort: String(port) } });
   }
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error('Window failed to load:', { errorCode, errorDescription, validatedURL });
+  });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
