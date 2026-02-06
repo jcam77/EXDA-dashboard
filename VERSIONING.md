@@ -46,7 +46,6 @@ git push origin v0.0
 git log -1 --stat
 ```
 
-
 ## Workflow With a Branch (Optional)
 1. Create a branch:
 ```bash
