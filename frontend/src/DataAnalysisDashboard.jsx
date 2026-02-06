@@ -480,14 +480,18 @@ const DataAnalysisDashboard = () => {
       const res = await fetch(`${apiBaseUrl}/load_plan_dialog`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ projectPath })
+          body: JSON.stringify({ projectPath, allowFallback: window.location.protocol === 'file:' })
       });
       const d = await res.json();
       if (d.success && d.data) {
           setExperiments(d.data.experiments || []);
           setPlanName(d.data.planName || "Loaded");
           if (d.data.meta) setPlanMeta(d.data.meta);
-          notify('success', 'Imported', d.filename);
+          if (d.fallback) {
+              notify('success', 'Imported Latest Plan', d.filename);
+          } else {
+              notify('success', 'Imported', d.filename);
+          }
           return;
       }
       notify('error', 'Import Failed', d.error || 'No file selected');

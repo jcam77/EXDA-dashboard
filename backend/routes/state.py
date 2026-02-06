@@ -122,7 +122,24 @@ def load_plan_dialog():
     start_dir = plan_dir if os.path.isdir(plan_dir) else project_root
     file_path = project_manager.select_file_dialog(start_dir)
 
-    if not file_path:
+    fallback_used = False
+    allow_fallback = bool(data.get('allowFallback'))
+    if not file_path and allow_fallback:
+        # Fallback: load the most recent plan file from the Plan folder
+        if os.path.isdir(plan_dir):
+            candidates = [
+                os.path.join(plan_dir, f)
+                for f in os.listdir(plan_dir)
+                if f.lower().endswith(".json") and not f.startswith(".")
+            ]
+            if candidates:
+                file_path = max(candidates, key=lambda p: os.path.getmtime(p))
+                fallback_used = True
+            else:
+                return jsonify({"success": False, "error": "No plan files found in Plan folder"})
+        else:
+            return jsonify({"success": False, "error": "Selection cancelled"})
+    elif not file_path:
         return jsonify({"success": False, "error": "Selection cancelled"})
     if not os.path.exists(file_path):
         return jsonify({"success": False, "error": "File not found"}), 404
@@ -135,7 +152,12 @@ def load_plan_dialog():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-    return jsonify({"success": True, "data": content, "filename": os.path.basename(file_path)})
+    return jsonify({
+        "success": True,
+        "data": content,
+        "filename": os.path.basename(file_path),
+        "fallback": bool(fallback_used)
+    })
 
 
 @state_bp.route('/save_plan', methods=['POST'])
