@@ -35,16 +35,40 @@ git push --delete origin v0.0
 ```
 
 7. If you moved the tag to a new commit (re‑tagged):
+
+### Main Branch
 ```bash
-git branch --show-current
 git status --short
-git tag -d v0.0
-git tag -a v0.0 -m "v0.0"
-git push --delete origin v0.0
 git add .
 git commit -m "Build app Update"
 git push origin main
-git push origin v0.0
+# Only when you want to mark a release:
+git tag -a main-v0.0 -m "main-v0.0"
+git push origin main-v0.0
+git log -1 --stat
+```
+
+### desktopBasedApp Branch
+```bash
+git status --short
+git add .
+git commit -m "Build app Update"
+git push origin desktopBasedApp
+# Only when you want to mark a desktop release:
+git tag -a desktop-v0.0 -m "desktop-v0.0"
+git push origin desktop-v0.0
+git log -1 --stat
+```
+
+### browserBasedApp Branch
+```bash
+git status --short
+git add .
+git commit -m "Build app Update"
+git push origin browserBasedApp
+# Only when you want to mark a browser release:
+git tag -a browser-v0.0 -m "browser-v0.0"
+git push origin browser-v0.0
 git log -1 --stat
 ```
 
