@@ -43,6 +43,7 @@ git add .
 git commit -m "Build app Update"
 git push origin main
 git push origin v0.0
+git log -1 --stat
 ```
 
 
