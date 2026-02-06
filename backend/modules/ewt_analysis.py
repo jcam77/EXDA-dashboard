@@ -80,19 +80,13 @@ def perform_dwt_analysis(y, level=4):
 
 
 def perform_ewt_analysis(y, fs, num_modes=5):
-    if HAS_EWT:
-        try:
-            ewt, _, _ = ewtpy.EWT1D(y, N=num_modes)
-            return ewt.T, None
-        except Exception as e:
-            if HAS_PYWT:
-                modes = perform_dwt_analysis(y, level=num_modes)
-                return modes, f"EWT failed ({e}); used DWT fallback"
-            return np.array([y]), f"EWT failed ({e}); returned raw signal only"
-    if HAS_PYWT:
-        modes = perform_dwt_analysis(y, level=num_modes)
-        return modes, "EWT library unavailable; used DWT fallback"
-    return np.array([y]), "EWT/PyWavelets unavailable; returned raw signal only"
+    if not HAS_EWT:
+        return None, "EWT library unavailable"
+    try:
+        ewt, _, _ = ewtpy.EWT1D(y, N=num_modes)
+        return ewt.T, None
+    except Exception as e:
+        return None, f"EWT failed ({e})"
 
 
 def calculate_energy(modes):
@@ -124,6 +118,8 @@ def analyze_ewt_content(content, num_modes=5, max_points=2000, knee_modes=10):
 
     t_uni, y_uni, fs = resample_uniform(t, y)
     modes, warning = perform_ewt_analysis(y_uni, fs, num_modes=num_modes)
+    if modes is None:
+        return {"error": warning or "EWT failed"}
     energies, pcts = calculate_energy(modes)
     plot_data = downsample_plot_data(t_uni, y_uni, modes, max_points=max_points)
     energy_table = []
