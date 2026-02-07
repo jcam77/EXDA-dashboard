@@ -61,8 +61,8 @@ git add .
 git commit -m "Build app Update"
 git push origin desktopBasedApp
 # Only when you want to mark a desktop release:
-git tag -a desktop-v0.0 -m "desktop-v0.0"
-git push origin desktop-v0.0
+git tag -a desktop-v0.1 -m "desktop-v0.1"
+git push origin desktop-v0.1
 git log -1 --stat
 ```
 
