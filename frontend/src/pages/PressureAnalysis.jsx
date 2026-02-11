@@ -291,7 +291,7 @@ const PressureAnalysis = ({
               {plotData && plotData.length > 0 && (
                 <button
                   onClick={exportToCSV}
-                  className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-3 py-2 rounded text-xs font-bold border border-border"
+                  className="flex items-center gap-2 border border-border/60 bg-background/40 hover:bg-background/70 text-muted-foreground hover:text-foreground px-3 py-2 rounded text-xs font-semibold transition-colors"
                 >
                   <Download size={14} /> Export CSV
                 </button>
