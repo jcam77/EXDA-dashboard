@@ -142,9 +142,7 @@ const DataAnalysisDashboard = () => {
     useRaw: false, cutoff: 100, order: 4, impulseDrop: 1.0, 
     showVentLines: true, useShortNames: true,
     ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
-    pressureTickCount: 10, ewtTickCount: 10,
-    validationMode: false, validationRefPath: '', validationCfdPath: '',
-    pressureExperimentPath: ''
+    pressureTickCount: 10, ewtTickCount: 10
   });
   const [sessionFiles, setSessionFiles] = useState([]);
     const [expFiles, setExpFiles] = useState([]);
@@ -618,34 +616,16 @@ const DataAnalysisDashboard = () => {
           setIsProcessing(false);
           return;
       }
-      const validationEnabled = activeTab === 'filter' && settings.validationMode && settings.validationRefPath;
-      const pressureOnly = activeTab === 'filter' && !settings.validationMode;
-      const selectedPressureExperiment = settings.pressureExperimentPath;
-      const selectedCfdPath = settings.validationCfdPath;
       for(const c of selectedCases) {
           if(activeTab === 'flame_speed' && c.toaContent) {
               const r = await processFile({name:c.name, path:c.path, content:c.toaContent}, 'flame_speed');
               if(r) res.push(r);
           } else if(['filter'].includes(activeTab)) {
-              if (pressureOnly && c.type !== 'pressure') {
+              if (c.type === 'flame') {
                   continue;
-              }
-              if (pressureOnly && selectedPressureExperiment && (c.path || c.name) !== selectedPressureExperiment) {
-                  continue;
-              }
-              if (validationEnabled) {
-                  if (c.type === 'pressure') {
-                      continue;
-                  }
-                  if ((c.path || c.name) === settings.validationRefPath) {
-                      continue;
-                  }
-                  if (selectedCfdPath && (c.path || c.name) !== selectedCfdPath) {
-                      continue;
-                  }
               }
               const r = await processFile(c, 'pressure');
-              if(r) res.push(r);
+              if(r) res.push({ ...r, sourceType: c.type === 'pressure' ? 'experiment' : 'simulation' });
           }
       }
       const seenNames = new Map();
@@ -676,12 +656,6 @@ const DataAnalysisDashboard = () => {
                       if (activeTab === 'flame_speed') {
                           const flame = Array.isArray(experimentalData) ? experimentalData.find(d => d.type === 'flame') : null;
                           return flame ? flame.plotData : null;
-                      }
-                      if (activeTab === 'filter' && settings.validationMode && settings.validationRefPath) {
-                          const pressure = Array.isArray(experimentalData)
-                              ? experimentalData.find(d => d.type === 'pressure' && (d.path || d.name) === settings.validationRefPath)
-                              : null;
-                          return pressure ? pressure.plotData : null;
                       }
                       return null;
                   })(),

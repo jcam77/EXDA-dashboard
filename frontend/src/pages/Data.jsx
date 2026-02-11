@@ -21,6 +21,39 @@ const DataPage = (props) => {
         formatName = (n) => n
     } = props;
 
+    const filteredExpFiles = Array.isArray(expFiles) ? expFiles.filter(f => {
+        if (!selectedExpFolder) return true;
+        if (f.webkitRelativePath) {
+            return f.webkitRelativePath.startsWith(selectedExpFolder);
+        }
+        if (f.path) {
+            return f.path.startsWith(selectedExpFolder);
+        }
+        return true;
+    }) : [];
+
+    const expPressureFiles = filteredExpFiles.filter(f => !f.isDirectory);
+    const expFlameFiles = filteredExpFiles.filter(f => !f.isDirectory);
+
+    const simCaseFiles = Array.isArray(sessionFiles) ? sessionFiles.filter(f => {
+        if ((f.webkitRelativePath && /pTProbes\/.*\/p$/.test(f.webkitRelativePath)) ||
+            (f.path && /pTProbes\/.*\/p$/.test(f.path))) {
+            return true;
+        }
+        return false;
+    }) : [];
+
+    const runSelectAll = (files, type, e) => {
+        files.forEach((f) => {
+            const val = f.webkitRelativePath || f.path;
+            if (!val) return;
+            onSelectionChange({ target: { value: val } }, type);
+        });
+        if (e?.target) {
+            e.target.value = "";
+        }
+    };
+
         return (
             <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -45,6 +78,10 @@ const DataPage = (props) => {
                                 <select
                                     onChange={(e) => {
                                         const val = e.target.value;
+                                        if (val === "__all__") {
+                                            runSelectAll(expPressureFiles, 'exp_pressure', e);
+                                            return;
+                                        }
                                         if (val) {
                                             // Only select files, not folders
                                             const fileObj = expFiles.find(f => (f.webkitRelativePath || f.path) === val && (!f.isDirectory));
@@ -58,17 +95,8 @@ const DataPage = (props) => {
                                     data-testid="pressure-csv-select"
                                 >
                                     <option value="">Pressure CSV...</option>
-                                    {(Array.isArray(expFiles) ? expFiles.filter(f => {
-                                        // Only show files from the selected folder
-                                        if (!selectedExpFolder) return true;
-                                        if (f.webkitRelativePath) {
-                                            return f.webkitRelativePath.startsWith(selectedExpFolder);
-                                        }
-                                        if (f.path) {
-                                            return f.path.startsWith(selectedExpFolder);
-                                        }
-                                        return true;
-                                    }) : []).map((f, i) => (
+                                    {expPressureFiles.length > 0 && <option value="__all__">Select All</option>}
+                                    {expPressureFiles.map((f, i) => (
                                         <option key={i} value={f.webkitRelativePath || f.path}>{f.name}</option>
                                     ))}
                                 </select>
@@ -80,6 +108,10 @@ const DataPage = (props) => {
                                 <select
                                     onChange={(e) => {
                                         const val = e.target.value;
+                                        if (val === "__all__") {
+                                            runSelectAll(expFlameFiles, 'exp_flame', e);
+                                            return;
+                                        }
                                         if (val) {
                                             // Only select files, not folders
                                             const fileObj = expFiles.find(f => (f.webkitRelativePath || f.path) === val && (!f.isDirectory));
@@ -93,17 +125,8 @@ const DataPage = (props) => {
                                     data-testid="flame-csv-select"
                                 >
                                     <option value="">Flame CSV...</option>
-                                    {(Array.isArray(expFiles) ? expFiles.filter(f => {
-                                        // Only show files from the selected folder
-                                        if (!selectedExpFolder) return true;
-                                        if (f.webkitRelativePath) {
-                                            return f.webkitRelativePath.startsWith(selectedExpFolder);
-                                        }
-                                        if (f.path) {
-                                            return f.path.startsWith(selectedExpFolder);
-                                        }
-                                        return true;
-                                    }) : []).map((f, i) => (
+                                    {expFlameFiles.length > 0 && <option value="__all__">Select All</option>}
+                                    {expFlameFiles.map((f, i) => (
                                         <option key={i} value={f.webkitRelativePath || f.path}>{f.name}</option>
                                     ))}
                                 </select>
@@ -156,18 +179,19 @@ const DataPage = (props) => {
                                     <Database size={14} className="text-primary" /> Case Selector
                                 </div>
                                 <select
-                                    onChange={(e) => onSelectionChange(e, 'simulation')}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "__all__") {
+                                            runSelectAll(simCaseFiles, 'simulation', e);
+                                            return;
+                                        }
+                                        onSelectionChange(e, 'simulation');
+                                    }}
                                     className="w-full p-2.5 bg-background border border-border rounded-md text-xs text-foreground outline-none focus:border-ring"
                                 >
                                     <option value="">Choose Case to Activate...</option>
-                                    {(Array.isArray(sessionFiles) ? sessionFiles.filter(f => {
-                                        // Only include 'p' files under a 'pTProbes' subfolder
-                                        if ((f.webkitRelativePath && /pTProbes\/.*\/p$/.test(f.webkitRelativePath)) ||
-                                            (f.path && /pTProbes\/.*\/p$/.test(f.path))) {
-                                            return true;
-                                        }
-                                        return false;
-                                    }) : []).map((f, i) => {
+                                    {simCaseFiles.length > 0 && <option value="__all__">Select All</option>}
+                                    {simCaseFiles.map((f, i) => {
                                         let rel = f.webkitRelativePath || f.path || '';
                                         // Extract case name using the same logic as the queue (from the path or name)
                                         let caseName = '';

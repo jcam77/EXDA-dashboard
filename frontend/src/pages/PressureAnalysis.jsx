@@ -5,12 +5,9 @@ import { Info, Download, Settings, Activity } from 'lucide-react';
 const PressureAnalysis = ({
   plotData,
   analysisResults,
-  experimentalData,
   isProcessing,
   settings,
   setSettings,
-  simulationData,
-  formatName,
   onRunAnalysis,
 }) => {
   const exportToCSV = () => {
@@ -28,11 +25,6 @@ const PressureAnalysis = ({
   const hasExperimental = Array.isArray(plotData)
     ? plotData.some((row) => row && row.Experimental !== undefined && row.Experimental !== null)
     : false;
-
-  const pressureExperiments = Array.isArray(experimentalData)
-    ? experimentalData.filter((item) => item.type === 'pressure')
-    : [];
-  const cfdCases = Array.isArray(simulationData) ? simulationData : [];
 
   const [visibleSeries, setVisibleSeries] = useState({});
   const [showExperimental, setShowExperimental] = useState(true);
@@ -96,129 +88,8 @@ const PressureAnalysis = ({
     setLocalYTickCount(safe);
   };
 
-  const onValidationToggle = (e) => {
-    const enabled = e.target.checked;
-    setSettings({
-      ...settings,
-      validationMode: enabled,
-      validationRefPath: enabled ? settings.validationRefPath : '',
-    });
-  };
-
-  const onPressureExperimentChange = (e) => {
-    setSettings({ ...settings, pressureExperimentPath: e.target.value });
-  };
-
-  const onValidationRefChange = (e) => {
-    setSettings({ ...settings, validationRefPath: e.target.value });
-  };
-
-  const onValidationCfdChange = (e) => {
-    setSettings({ ...settings, validationCfdPath: e.target.value });
-  };
-
   return (
     <div className="flex flex-col h-full gap-4">
-      <div className="flex flex-wrap justify-between items-center gap-4 bg-card/60 p-4 rounded-xl border border-border">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2 mt-4">
-            <input
-              type="checkbox"
-              checked={settings.validationMode}
-              onChange={onValidationToggle}
-              className="rounded bg-muted border-border"
-            />
-            <span className="text-xs text-muted-foreground">Validation mode (CFD vs experiment)</span>
-          </div>
-          {settings.validationMode && (
-            <div className="flex flex-col min-w-[220px]">
-              <label className="text-[10px] text-muted-foreground uppercase font-bold">Reference Experiment</label>
-              <select
-                value={settings.validationRefPath}
-                onChange={onValidationRefChange}
-                className="w-full p-2.5 bg-background border border-border rounded-md text-xs text-foreground outline-none"
-              >
-                <option value="">Select pressure CSV...</option>
-                {pressureExperiments.map((item, idx) => (
-                  <option key={idx} value={item.path || item.name}>
-                    {item.displayName || item.name}
-                  </option>
-                ))}
-              </select>
-              {pressureExperiments.length === 0 && (
-                <span className="text-[10px] text-muted-foreground mt-1">
-                  Import a pressure experiment to enable validation.
-                </span>
-              )}
-            </div>
-          )}
-          {settings.validationMode && (
-            <div className="flex flex-col min-w-[220px]">
-              <label className="text-[10px] text-muted-foreground uppercase font-bold">CFD Simulation</label>
-              <select
-                value={settings.validationCfdPath}
-                onChange={onValidationCfdChange}
-                className="w-full p-2.5 bg-background border border-border rounded-md text-xs text-foreground outline-none"
-              >
-                <option value="">All CFD simulations</option>
-                {cfdCases.map((item, idx) => (
-                  <option key={idx} value={item.path || item.name}>
-                    {formatName ? formatName(item.path || item.name) : item.name}
-                  </option>
-                ))}
-              </select>
-              {cfdCases.length === 0 && (
-                <span className="text-[10px] text-muted-foreground mt-1">
-                  Import CFD simulations to compare against the reference.
-                </span>
-              )}
-            </div>
-          )}
-          {!settings.validationMode && (
-            <div className="flex flex-col min-w-[220px]">
-              <label className="text-[10px] text-muted-foreground uppercase font-bold">Experiment Pressure Run</label>
-              <select
-                value={settings.pressureExperimentPath}
-                onChange={onPressureExperimentChange}
-                className="w-full p-2.5 bg-background border border-border rounded-md text-xs text-foreground outline-none"
-              >
-                <option value="">All pressure experiments</option>
-                {pressureExperiments.map((item, idx) => (
-                  <option key={idx} value={item.path || item.name}>
-                    {item.displayName || item.name}
-                  </option>
-                ))}
-              </select>
-              {pressureExperiments.length === 0 && (
-                <span className="text-[10px] text-muted-foreground mt-1">
-                  Import pressure experiments to plot them here.
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={onRunAnalysis}
-              disabled={!onRunAnalysis || isProcessing}
-              className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded text-xs font-bold border border-primary/30 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Activity size={14} />
-              Plot Selected
-            </button>
-            {plotData && plotData.length > 0 && (
-              <button
-                onClick={exportToCSV}
-                className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-3 py-2 rounded text-xs font-bold border border-border"
-              >
-                <Download size={14} /> Export CSV
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
         <div className="lg:col-span-2 bg-card/60 border border-border p-4 rounded-xl flex flex-col">
           <div className="flex justify-between items-start mb-2 gap-4">
@@ -293,6 +164,7 @@ const PressureAnalysis = ({
                       type="monotone"
                       dataKey={result.displayName}
                       stroke={result.color}
+                      strokeDasharray={result.sourceType === 'experiment' ? '6 4' : undefined}
                       dot={false}
                       strokeWidth={2}
                       connectNulls={true}
@@ -401,78 +273,105 @@ const PressureAnalysis = ({
           </div>
         </div>
 
-        <div className="bg-card/60 border border-border p-4 rounded-xl flex flex-col overflow-hidden">
-          <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-            <Settings size={16} className="text-muted-foreground" /> Calculated Metrics
-          </h3>
-          <div className="mb-4 rounded-lg border border-border/60 bg-black/20 p-3 text-xs text-muted-foreground">
-            <div className="text-[10px] uppercase tracking-widest font-bold mb-2">Visible Series</div>
-            <div className="flex flex-col gap-2">
-              {analysisResults.length === 0 && <span className="text-[11px] text-muted-foreground">No series yet.</span>}
-              {analysisResults.map((item) => (
-                <label key={item.displayName} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={visibleSeries[item.displayName] !== false}
-                    onChange={() =>
-                      setVisibleSeries((prev) => ({
-                        ...prev,
-                        [item.displayName]: prev[item.displayName] === false,
-                      }))
-                    }
-                  />
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                    {item.displayName}
-                  </span>
-                </label>
-              ))}
-              {hasExperimental && (
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={showExperimental}
-                    onChange={() => setShowExperimental((prev) => !prev)}
-                  />
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-foreground" />
-                    Experimental
-                  </span>
-                </label>
+        <div className="flex flex-col gap-4 min-h-0">
+          <div className="bg-card/60 border border-border p-4 rounded-xl">
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <Info size={12} className="text-muted-foreground" />
+              <span>Select experiments and simulations in Import Data, then Plot Selected.</span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                onClick={onRunAnalysis}
+                disabled={!onRunAnalysis || isProcessing}
+                className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded text-xs font-bold border border-primary/30 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <Activity size={14} />
+                Plot Selected
+              </button>
+              {plotData && plotData.length > 0 && (
+                <button
+                  onClick={exportToCSV}
+                  className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-3 py-2 rounded text-xs font-bold border border-border"
+                >
+                  <Download size={14} /> Export CSV
+                </button>
               )}
             </div>
           </div>
-          <div className="flex-1 overflow-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="text-[10px] text-muted-foreground uppercase border-b border-border">
-                  <th className="pb-2 font-bold">Case</th>
-                  <th className="pb-2 text-right">P_max</th>
-                  <th className="pb-2 text-right">t_peak</th>
-                  <th className="pb-2 text-right">Impulse</th>
-                  <th className="pb-2 text-right">t_vent</th>
-                </tr>
-              </thead>
-              <tbody className="text-xs text-foreground/80">
-                {analysisResults.map((res, i) => (
-                  <tr key={i} className="border-b border-border/60 hover:bg-muted/40 transition-colors">
-                    <td className="py-3 font-mono truncate max-w-[140px]" title={res.displayName}>
-                      <span className="w-2 h-2 inline-block rounded-full mr-2" style={{ backgroundColor: res.color }} />
-                      {res.displayName}
-                    </td>
-                    <td className="py-3 text-right font-bold text-foreground">{res.metrics?.pMax || '-'}</td>
-                    <td className="py-3 text-right text-muted-foreground">{res.metrics?.tMax || '-'}</td>
-                    <td className="py-3 text-right text-muted-foreground">{res.metrics?.impulse || '-'}</td>
-                    <td className="py-3 text-right text-muted-foreground">
-                      {res.ventTime ? res.ventTime.toFixed(4) : '-'}
-                    </td>
-                  </tr>
+
+          <div className="bg-card/60 border border-border p-4 rounded-xl flex flex-col overflow-hidden min-h-0 flex-1">
+            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+              <Settings size={16} className="text-muted-foreground" /> Calculated Metrics
+            </h3>
+            <div className="mb-4 rounded-lg border border-border/60 bg-black/20 p-3 text-xs text-muted-foreground">
+              <div className="text-[10px] uppercase tracking-widest font-bold mb-2">Visible Series</div>
+              <div className="flex flex-col gap-2">
+                {analysisResults.length === 0 && <span className="text-[11px] text-muted-foreground">No series yet.</span>}
+                {analysisResults.map((item) => (
+                  <label key={item.displayName} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={visibleSeries[item.displayName] !== false}
+                      onChange={() =>
+                        setVisibleSeries((prev) => ({
+                          ...prev,
+                          [item.displayName]: prev[item.displayName] === false,
+                        }))
+                      }
+                    />
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                      {item.displayName}
+                    </span>
+                  </label>
                 ))}
-              </tbody>
-            </table>
-            {analysisResults.length === 0 && (
-              <div className="text-center text-muted-foreground text-xs mt-10 italic">No metrics calculated yet</div>
-            )}
+                {hasExperimental && (
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={showExperimental}
+                      onChange={() => setShowExperimental((prev) => !prev)}
+                    />
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-foreground" />
+                      Experimental
+                    </span>
+                  </label>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="text-[10px] text-muted-foreground uppercase border-b border-border">
+                    <th className="pb-2 font-bold">Case</th>
+                    <th className="pb-2 text-right">P_max</th>
+                    <th className="pb-2 text-right">t_peak</th>
+                    <th className="pb-2 text-right">Impulse</th>
+                    <th className="pb-2 text-right">t_vent</th>
+                  </tr>
+                </thead>
+                <tbody className="text-xs text-foreground/80">
+                  {analysisResults.map((res, i) => (
+                    <tr key={i} className="border-b border-border/60 hover:bg-muted/40 transition-colors">
+                      <td className="py-3 font-mono truncate max-w-[140px]" title={res.displayName}>
+                        <span className="w-2 h-2 inline-block rounded-full mr-2" style={{ backgroundColor: res.color }} />
+                        {res.displayName}
+                      </td>
+                      <td className="py-3 text-right font-bold text-foreground">{res.metrics?.pMax || '-'}</td>
+                      <td className="py-3 text-right text-muted-foreground">{res.metrics?.tMax || '-'}</td>
+                      <td className="py-3 text-right text-muted-foreground">{res.metrics?.impulse || '-'}</td>
+                      <td className="py-3 text-right text-muted-foreground">
+                        {res.ventTime ? res.ventTime.toFixed(4) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {analysisResults.length === 0 && (
+                <div className="text-center text-muted-foreground text-xs mt-10 italic">No metrics calculated yet</div>
+              )}
+            </div>
           </div>
         </div>
       </div>

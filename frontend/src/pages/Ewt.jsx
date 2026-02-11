@@ -60,7 +60,7 @@ const Ewt = ({
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between bg-card/60 border border-border rounded-xl px-4 py-3">
+            <div className="flex items-center justify-between bg-card/60 border border-border rounded-xl px-4 py-3 max-w-[900px] w-full mx-auto lg:mx-0">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-bold">
                     <AudioLines size={16} className="text-primary" />
                     Empirical Wavelet Transform
