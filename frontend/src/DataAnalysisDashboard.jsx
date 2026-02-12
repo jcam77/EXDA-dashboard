@@ -830,16 +830,56 @@ const onExpFolder = async (e) => {
                       const d = await res.json();
                       return d.success ? d.content : null;
                   };
+                  const getFirstExisting = async (paths) => {
+                      for (const candidate of paths) {
+                          const fileContent = await getFile(candidate);
+                          if (fileContent) return fileContent;
+                      }
+                      return null;
+                  };
                   content = await getFile(main.path);
                   const dir = main.path.substring(0, main.path.lastIndexOf('/'));
-                  toaContent = await getFile(`${dir}/toaprobs`);
-                  ventContent = await getFile(`${dir}/venttoaprob`);
+                  const postProcessingBaseMatch = main.path.match(/^(.*\/postProcessing)\//i);
+                  const postProcessingBase = postProcessingBaseMatch ? postProcessingBaseMatch[1] : dir;
+                  toaContent = await getFirstExisting([
+                      `${postProcessingBase}/TOAProbs/0/b`,
+                      `${postProcessingBase}/TOAProbs/0/T`,
+                      `${postProcessingBase}/toaprobs`,
+                      `${dir}/toaprobs`,
+                  ]);
+                  ventContent = await getFirstExisting([
+                      `${postProcessingBase}/ventTOAProb/0/b`,
+                      `${postProcessingBase}/ventTOAProb/0/p`,
+                      `${postProcessingBase}/venttoaprob`,
+                      `${dir}/venttoaprob`,
+                  ]);
               } else {
                   // ...existing code...
                   content = await readFile(main);
-                  const root = main.webkitRelativePath.split('/').slice(0, -2).join('/');
-                  const flame = sessionFiles.find(f=>f.webkitRelativePath.startsWith(root) && f.webkitRelativePath.includes('toaprobs'));
-                  const vent = sessionFiles.find(f=>f.webkitRelativePath.startsWith(root) && f.webkitRelativePath.includes('venttoaprob'));
+                  const relPath = main.webkitRelativePath || '';
+                  const postProcessingRoot = relPath.replace(/\/pTProbes\/[^/]+\/p$/i, '');
+                  const normalizedRoot = postProcessingRoot.toLowerCase();
+                  const pickFileByPriority = (predicates) => {
+                      for (const predicate of predicates) {
+                          const found = sessionFiles.find((file) => {
+                              const rel = (file.webkitRelativePath || '').toLowerCase();
+                              return predicate(rel);
+                          });
+                          if (found) return found;
+                      }
+                      return null;
+                  };
+                  const flame = pickFileByPriority([
+                      (rel) => rel.startsWith(normalizedRoot) && /\/toaprobs\/[^/]+\/b$/i.test(rel),
+                      (rel) => rel.startsWith(normalizedRoot) && /\/toaprobs\/[^/]+\/t$/i.test(rel),
+                      (rel) => rel.startsWith(normalizedRoot) && rel.includes('/toaprobs/'),
+                      (rel) => rel.includes('toaprobs'),
+                  ]);
+                  const vent = pickFileByPriority([
+                      (rel) => rel.startsWith(normalizedRoot) && /\/venttoaprob\/[^/]+\/b$/i.test(rel),
+                      (rel) => rel.startsWith(normalizedRoot) && rel.includes('/venttoaprob/'),
+                      (rel) => rel.includes('venttoaprob'),
+                  ]);
                   toaContent = flame ? await readFile(flame) : null;
                   ventContent = vent ? await readFile(vent) : null;
               }

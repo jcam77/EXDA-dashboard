@@ -1,6 +1,9 @@
 import io
 import numpy as np
-from scipy import signal
+try:
+    from scipy import signal
+except Exception:
+    signal = None
 
 
 def parse_data_content(content):
@@ -36,6 +39,9 @@ def apply_butterworth(t, y, cutoff_hz, order):
     if len(t) < 10:
         return t, y
     t_uni, y_uni, fs = resample_uniform(t, y)
+    if signal is None:
+        # Fallback when scipy is unavailable in packaged environments.
+        return t_uni, y_uni
     if cutoff_hz >= 0.5 * fs:
         return t_uni, y_uni
     try:
@@ -82,15 +88,36 @@ def analyze_pressure_content(content, cutoff=100.0, order=4, impulse_drop=1.0, u
     if t is None:
         return {"error": "Parse Error"}
 
+    try:
+        cutoff = float(cutoff)
+    except (TypeError, ValueError):
+        cutoff = 100.0
+    if not np.isfinite(cutoff) or cutoff <= 0:
+        cutoff = 100.0
+
+    try:
+        order = int(float(order))
+    except (TypeError, ValueError):
+        order = 4
+    if order < 1:
+        order = 1
+
+    try:
+        impulse_drop = float(impulse_drop)
+    except (TypeError, ValueError):
+        impulse_drop = 1.0
+    if not np.isfinite(impulse_drop):
+        impulse_drop = 1.0
+
     if np.max(np.abs(val)) > 1000:
         val = (val - 101325.0) / 1000.0
 
     if use_raw:
         t_proc, p_proc = t, val
     else:
-        t_proc, p_proc = apply_butterworth(t, val, float(cutoff), int(order))
+        t_proc, p_proc = apply_butterworth(t, val, cutoff, order)
 
-    p_max, t_max, impulse, status = calculate_metrics(t_proc, p_proc, float(impulse_drop))
+    p_max, t_max, impulse, status = calculate_metrics(t_proc, p_proc, impulse_drop)
     step = max(1, len(t_proc) // 2000)
     return {
         "metrics": {
