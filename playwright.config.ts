@@ -9,17 +9,25 @@ export default defineConfig({
   reporter: [["html", { outputFolder: "test-report-results", open: "never" }]],
   outputDir: "test-report-results",
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://127.0.0.1:5173",
     trace: "off",
     screenshot: "off",
     video: "off",
   },
-  webServer: {
-    command: "npm run vite",
-    url: "http://localhost:5173",
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: "npm run vite:smoke",
+      url: "http://127.0.0.1:5173",
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      command: "npm run server:smoke",
+      url: "http://127.0.0.1:5000/list_directories?path=/tmp",
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+  ],
   projects: [
     {
       name: "chromium",

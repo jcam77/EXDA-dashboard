@@ -11,9 +11,11 @@
   "scripts": {
     "dev": "concurrently \"npm:vite\" \"npm:server\"",
     "vite": "vite --open --config frontend/vite.config.js",
+    "vite:smoke": "vite --config frontend/vite.config.js --host 127.0.0.1 --port 5173 --strictPort",
+    "server:smoke": "cross-env EXDA_BACKEND_DEBUG=0 EXDA_BACKEND_PORT=5000 python3 backend/app.py",
     "electron": "electron .",
     "electron:dev": "concurrently \"npm:vite\" \"npm:electron\"",
-    "server": "python3 backend/app.py",
+    "server": "cross-env EXDA_BACKEND_DEBUG=1 python3 backend/app.py",
     "build": "vite build --config frontend/vite.config.js",
     "build:demo": "cross-env VITE_DEMO_MODE=true vite build --config frontend/vite.config.js",
     "dist:win": "npm run build:demo && electron-builder --win",

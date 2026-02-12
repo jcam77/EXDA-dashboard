@@ -176,8 +176,10 @@ const HomePage = ({
   };
   const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
   const displayVersion = appVersion.replace(/\.0$/, '');
+  const hasUncommittedChanges = /-dirty$/.test(displayVersion);
   const lastUpdatedRaw = typeof __LAST_UPDATED__ !== 'undefined' ? __LAST_UPDATED__ : '';
-  const lastUpdatedLabel = lastUpdatedRaw ? formatDate(lastUpdatedRaw) : 'Unknown';
+  const effectiveLastUpdated = hasUncommittedChanges ? new Date().toISOString() : lastUpdatedRaw;
+  const lastUpdatedLabel = effectiveLastUpdated ? formatDate(effectiveLastUpdated) : 'Unknown';
 
   return (
     <div className="w-full h-full overflow-y-auto scroll-smooth snap-y snap-mandatory">
@@ -713,7 +715,7 @@ const HomePage = ({
           <span>© 2026 EXDA-Dashboard. All rights reserved.</span>
           <span>Built for explosion research and industrial engineering.</span>
           <span className="inline-block text-xs text-muted-foreground bg-card/70 rounded px-2 py-0.5 mt-1 md:mt-0 md:ml-4">
-            EXDA-Dashboard v{displayVersion} &nbsp;|&nbsp; Last updated: {lastUpdatedLabel}
+            EXDA-Dashboard {displayVersion} &nbsp;|&nbsp; Last updated: {lastUpdatedLabel}
           </span>
         </div>
       </section>

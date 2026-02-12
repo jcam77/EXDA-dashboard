@@ -135,17 +135,19 @@ test.describe("UI: Projects Page", () => {
       page.getByRole("heading", { name: /Research Projects/i })
     ).toBeVisible();
 
-    // Status filter dropdown
-    const statusSelect = page.locator("select").first();
-    await expect(statusSelect).toBeVisible();
+    // Status filter buttons
+    await expect(page.getByTestId("project-status-filters")).toBeVisible();
+    await expect(page.getByTestId("project-status-filter-all")).toBeVisible();
   });
 
   test("status filter has correct options", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Projects", exact: true }).click();
 
-    const statusSelect = page.locator("select").first();
-    await expect(statusSelect).toContainText(/All|Active|Completed|Pending/i);
+    await expect(page.getByTestId("project-status-filter-all")).toBeVisible();
+    await expect(page.getByTestId("project-status-filter-active")).toBeVisible();
+    await expect(page.getByTestId("project-status-filter-planning")).toBeVisible();
+    await expect(page.getByTestId("project-status-filter-archived")).toBeVisible();
   });
 });
 

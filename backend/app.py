@@ -13,6 +13,12 @@ from routes.literature import literature_bp
 
 app = Flask(__name__)
 
+def _env_flag(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
 def _cors_origins():
     raw = os.environ.get("EXDA_CORS_ORIGINS", "")
     if raw.strip():
@@ -30,4 +36,5 @@ app.register_blueprint(literature_bp)
 if __name__ == '__main__':
     print("🚀 EXDA DASHBOARD ENGINE READY")
     port = int(os.environ.get("EXDA_BACKEND_PORT", "5000"))
-    app.run(debug=True, port=port)
+    debug_enabled = _env_flag("EXDA_BACKEND_DEBUG", default=False)
+    app.run(debug=debug_enabled, use_reloader=debug_enabled, port=port)

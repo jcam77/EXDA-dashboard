@@ -499,10 +499,11 @@ const ProjectsPage = ({
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-testid="project-status-filters">
             {['all', 'active', 'planning', 'archived'].map((status) => (
               <button
                 key={status}
+                data-testid={`project-status-filter-${status}`}
                 onClick={() => setSelectedStatus(status)}
                 className={`rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
                   selectedStatus === status
