@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { Info, Download, Settings, Activity } from 'lucide-react';
+import { Info, Download, Settings, Activity, FlaskConical } from 'lucide-react';
 
 const PressureAnalysis = ({
   plotData,
@@ -28,6 +28,7 @@ const PressureAnalysis = ({
 
   const [visibleSeries, setVisibleSeries] = useState({});
   const [showExperimental, setShowExperimental] = useState(true);
+  const [seriesScope, setSeriesScope] = useState('all');
   const [localTickCount, setLocalTickCount] = useState(settings.pressureTickCount || 10);
   const [localYTickCount, setLocalYTickCount] = useState(10);
 
@@ -44,8 +45,23 @@ const PressureAnalysis = ({
   }, [analysisResults]);
 
   const displayedSeries = useMemo(
-    () => analysisResults.filter((item) => visibleSeries[item.displayName] !== false),
-    [analysisResults, visibleSeries]
+    () =>
+      analysisResults.filter((item) => {
+        if (visibleSeries[item.displayName] === false) return false;
+        if (seriesScope === 'experimental') return item.sourceType === 'experiment';
+        if (seriesScope === 'simulation') return item.sourceType === 'simulation';
+        return true;
+      }),
+    [analysisResults, visibleSeries, seriesScope]
+  );
+
+  const experimentalSeriesCount = useMemo(
+    () => analysisResults.filter((item) => item.sourceType === 'experiment').length,
+    [analysisResults]
+  );
+  const simulationSeriesCount = useMemo(
+    () => analysisResults.filter((item) => item.sourceType === 'simulation').length,
+    [analysisResults]
   );
 
   const formatTimeTick = (val) => {
@@ -296,6 +312,42 @@ const PressureAnalysis = ({
                   <Download size={14} /> Export CSV
                 </button>
               )}
+            </div>
+          </div>
+
+          <div className="bg-card/60 border border-border p-4 rounded-xl">
+            <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+              <FlaskConical size={16} className="text-primary" />
+              Experimental Data Controls
+            </h3>
+            <div className="space-y-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-muted-foreground uppercase font-bold">Series Filter</label>
+                <select
+                  value={seriesScope}
+                  onChange={(e) => setSeriesScope(e.target.value)}
+                  className="bg-background border border-border rounded px-2 py-1.5 text-xs text-foreground"
+                >
+                  <option value="all">All Series</option>
+                  <option value="experimental">Experimental Only</option>
+                  <option value="simulation">Simulation Only</option>
+                </select>
+                <div className="text-[11px] text-muted-foreground">
+                  Experimental: {experimentalSeriesCount} | Simulation: {simulationSeriesCount}
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={Boolean(settings.experimentalUseRaw)}
+                  onChange={(e) => setSettings({ ...settings, experimentalUseRaw: e.target.checked })}
+                  className="rounded bg-muted border-border"
+                />
+                Use raw data for experimental traces
+              </label>
+              <div className="text-[11px] text-muted-foreground">
+                Click Plot Selected to apply raw/filter changes to experimental analysis.
+              </div>
             </div>
           </div>
 

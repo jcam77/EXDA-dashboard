@@ -142,7 +142,8 @@ const DataAnalysisDashboard = () => {
     useRaw: false, cutoff: 100, order: 4, impulseDrop: 1.0, 
     showVentLines: true, useShortNames: true,
     ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
-    pressureTickCount: 10, ewtTickCount: 10
+    pressureTickCount: 10, ewtTickCount: 10,
+    experimentalUseRaw: false
   });
   const [sessionFiles, setSessionFiles] = useState([]);
     const [expFiles, setExpFiles] = useState([]);
@@ -541,8 +542,9 @@ const DataAnalysisDashboard = () => {
       }
   };
 
-  const processFile = async (fileObj, type='pressure') => {
+  const processFile = async (fileObj, type='pressure', options = {}) => {
       try {
+          const useRawValue = typeof options.useRaw === 'boolean' ? options.useRaw : settings.useRaw;
           if (type === 'ewt') {
               const res = await fetch(`${apiBaseUrl}/analyze_ewt`, {
                   method: 'POST',
@@ -572,7 +574,7 @@ const DataAnalysisDashboard = () => {
           const res = await fetch(`${apiBaseUrl}/analyze_pressure`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ content: fileObj.content, dataType: type, cutoff: settings.cutoff, order: settings.order, useRaw: settings.useRaw, impulseDrop: settings.impulseDrop })
+              body: JSON.stringify({ content: fileObj.content, dataType: type, cutoff: settings.cutoff, order: settings.order, useRaw: useRawValue, impulseDrop: settings.impulseDrop })
           });
           const d = await res.json();
           if(d.error) throw new Error(d.error);
@@ -624,7 +626,12 @@ const DataAnalysisDashboard = () => {
               if (c.type === 'flame') {
                   continue;
               }
-              const r = await processFile(c, 'pressure');
+              const isExperimentalPressure = c.type === 'pressure';
+              const experimentalUseRaw = typeof settings.experimentalUseRaw === 'boolean'
+                ? settings.experimentalUseRaw
+                : settings.useRaw;
+              const useRawForCase = isExperimentalPressure ? experimentalUseRaw : settings.useRaw;
+              const r = await processFile(c, 'pressure', { useRaw: useRawForCase });
               if(r) res.push({ ...r, sourceType: c.type === 'pressure' ? 'experiment' : 'simulation' });
           }
       }
