@@ -92,6 +92,23 @@ const PressureAnalysis = ({
     setSettings({ ...settings, order: safe });
   };
 
+  const onExperimentalCutoffChange = (e) => {
+    const next = Number(e.target.value);
+    const fallback = Number.isFinite(Number(settings.experimentalCutoff))
+      ? Number(settings.experimentalCutoff)
+      : settings.cutoff;
+    setSettings({ ...settings, experimentalCutoff: Number.isFinite(next) ? next : fallback });
+  };
+
+  const onExperimentalOrderChange = (e) => {
+    const next = Number(e.target.value);
+    const fallback = Number.isFinite(Number(settings.experimentalOrder))
+      ? Number(settings.experimentalOrder)
+      : settings.order;
+    const safe = Number.isFinite(next) ? Math.max(1, Math.round(next)) : fallback;
+    setSettings({ ...settings, experimentalOrder: safe });
+  };
+
   const onTickCountChange = (e) => {
     const raw = Number(e.target.value);
     const safe = Number.isFinite(raw) ? Math.max(3, Math.min(20, Math.round(raw))) : localTickCount;
@@ -224,38 +241,84 @@ const PressureAnalysis = ({
 
           <div className="mt-4 bg-card/60 border border-border rounded-xl p-3">
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Plot Controls</div>
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="flex flex-col">
-                <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
-                <input
-                  type="number"
-                  min="1"
-                  step="0.1"
-                  value={settings.cutoff}
-                  onChange={onCutoffChange}
-                  className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
-                />
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border/60 bg-black/20 p-3">
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                  Simulation Filter
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.1"
+                      value={settings.cutoff}
+                      onChange={onCutoffChange}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Order</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={settings.order}
+                      onChange={onOrderChange}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={settings.useRaw}
+                      onChange={(e) => setSettings({ ...settings, useRaw: e.target.checked })}
+                      className="rounded bg-muted border-border"
+                    />
+                    Use raw simulation data
+                  </label>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Order</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  step="1"
-                  value={settings.order}
-                  onChange={onOrderChange}
-                  className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={settings.useRaw}
-                  onChange={(e) => setSettings({ ...settings, useRaw: e.target.checked })}
-                  className="rounded bg-muted border-border"
-                />
-                <span className="text-xs text-muted-foreground">Plot raw data (no filter)</span>
+              <div className="rounded-lg border border-border/60 bg-black/20 p-3">
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                  Experimental Filter
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.1"
+                      value={settings.experimentalCutoff ?? settings.cutoff}
+                      onChange={onExperimentalCutoffChange}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Order</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={settings.experimentalOrder ?? settings.order}
+                      onChange={onExperimentalOrderChange}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(settings.experimentalUseRaw)}
+                      onChange={(e) => setSettings({ ...settings, experimentalUseRaw: e.target.checked })}
+                      className="rounded bg-muted border-border"
+                    />
+                    Use raw experimental data
+                  </label>
+                </div>
               </div>
               <div className="flex flex-col">
                 <label className="text-[10px] text-muted-foreground uppercase font-bold">X Ticks</label>
@@ -284,7 +347,7 @@ const PressureAnalysis = ({
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
               <Settings size={14} />
-              <span>Butterworth low-pass filter applied before metrics.</span>
+              <span>Click Plot Selected after changing filter settings to reprocess metrics.</span>
             </div>
           </div>
         </div>
@@ -318,7 +381,7 @@ const PressureAnalysis = ({
           <div className="bg-card/60 border border-border p-4 rounded-xl">
             <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
               <FlaskConical size={16} className="text-primary" />
-              Experimental Data Controls
+              Data Display Controls
             </h3>
             <div className="space-y-3">
               <div className="flex flex-col gap-1">
@@ -336,18 +399,7 @@ const PressureAnalysis = ({
                   Experimental: {experimentalSeriesCount} | Simulation: {simulationSeriesCount}
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={Boolean(settings.experimentalUseRaw)}
-                  onChange={(e) => setSettings({ ...settings, experimentalUseRaw: e.target.checked })}
-                  className="rounded bg-muted border-border"
-                />
-                Use raw data for experimental traces
-              </label>
-              <div className="text-[11px] text-muted-foreground">
-                Click Plot Selected to apply raw/filter changes to experimental analysis.
-              </div>
+              <div className="text-[11px] text-muted-foreground">Series visibility only. Metrics are unchanged.</div>
             </div>
           </div>
 

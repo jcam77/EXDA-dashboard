@@ -143,7 +143,9 @@ const DataAnalysisDashboard = () => {
     showVentLines: true, useShortNames: true,
     ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
     pressureTickCount: 10, ewtTickCount: 10,
-    experimentalUseRaw: false
+    experimentalUseRaw: false,
+    experimentalCutoff: 100,
+    experimentalOrder: 4
   });
   const [sessionFiles, setSessionFiles] = useState([]);
     const [expFiles, setExpFiles] = useState([]);
@@ -545,6 +547,8 @@ const DataAnalysisDashboard = () => {
   const processFile = async (fileObj, type='pressure', options = {}) => {
       try {
           const useRawValue = typeof options.useRaw === 'boolean' ? options.useRaw : settings.useRaw;
+          const cutoffValue = Number.isFinite(Number(options.cutoff)) ? Number(options.cutoff) : settings.cutoff;
+          const orderValue = Number.isFinite(Number(options.order)) ? Number(options.order) : settings.order;
           if (type === 'ewt') {
               const res = await fetch(`${apiBaseUrl}/analyze_ewt`, {
                   method: 'POST',
@@ -574,7 +578,7 @@ const DataAnalysisDashboard = () => {
           const res = await fetch(`${apiBaseUrl}/analyze_pressure`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ content: fileObj.content, dataType: type, cutoff: settings.cutoff, order: settings.order, useRaw: useRawValue, impulseDrop: settings.impulseDrop })
+              body: JSON.stringify({ content: fileObj.content, dataType: type, cutoff: cutoffValue, order: orderValue, useRaw: useRawValue, impulseDrop: settings.impulseDrop })
           });
           const d = await res.json();
           if(d.error) throw new Error(d.error);
@@ -631,7 +635,19 @@ const DataAnalysisDashboard = () => {
                 ? settings.experimentalUseRaw
                 : settings.useRaw;
               const useRawForCase = isExperimentalPressure ? experimentalUseRaw : settings.useRaw;
-              const r = await processFile(c, 'pressure', { useRaw: useRawForCase });
+              const experimentalCutoff = Number.isFinite(Number(settings.experimentalCutoff))
+                ? Number(settings.experimentalCutoff)
+                : settings.cutoff;
+              const experimentalOrder = Number.isFinite(Number(settings.experimentalOrder))
+                ? Number(settings.experimentalOrder)
+                : settings.order;
+              const cutoffForCase = isExperimentalPressure ? experimentalCutoff : settings.cutoff;
+              const orderForCase = isExperimentalPressure ? experimentalOrder : settings.order;
+              const r = await processFile(c, 'pressure', {
+                  useRaw: useRawForCase,
+                  cutoff: cutoffForCase,
+                  order: orderForCase
+              });
               if(r) res.push({ ...r, sourceType: c.type === 'pressure' ? 'experiment' : 'simulation' });
           }
       }
@@ -832,7 +848,17 @@ const onExpFolder = async (e) => {
                   return [...prev, expCase];
               });
               if (type === 'exp_pressure') {
-                  processFile({name: f.name, content}, 'pressure').then(r => {
+                  const experimentalCutoff = Number.isFinite(Number(settings.experimentalCutoff))
+                    ? Number(settings.experimentalCutoff)
+                    : settings.cutoff;
+                  const experimentalOrder = Number.isFinite(Number(settings.experimentalOrder))
+                    ? Number(settings.experimentalOrder)
+                    : settings.order;
+                  processFile({name: f.name, content}, 'pressure', {
+                      useRaw: Boolean(settings.experimentalUseRaw),
+                      cutoff: experimentalCutoff,
+                      order: experimentalOrder
+                  }).then(r => {
                       if (r) setExperimentalData(prev => [...prev.filter(d => d.name !== r.name || d.type !== 'pressure'), { ...r, type: 'pressure', path: f.path || f.webkitRelativePath }]);
                   });
               } else {
