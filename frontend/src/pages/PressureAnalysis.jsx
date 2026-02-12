@@ -31,6 +31,7 @@ const PressureAnalysis = ({
   const [seriesScope, setSeriesScope] = useState('all');
   const [localTickCount, setLocalTickCount] = useState(settings.pressureTickCount || 10);
   const [localYTickCount, setLocalYTickCount] = useState(10);
+  const showRawReferenceOverlay = settings.showRawReference !== false;
 
   useEffect(() => {
     setVisibleSeries((prev) => {
@@ -204,6 +205,24 @@ const PressureAnalysis = ({
                       isAnimationActive={false}
                     />
                   ))}
+                  {showRawReferenceOverlay &&
+                    displayedSeries
+                      .filter((result) => result.rawOverlayDisplayName)
+                      .map((result, i) => (
+                        <Line
+                          key={`raw-ref-${i}-${result.rawOverlayDisplayName}`}
+                          type="monotone"
+                          dataKey={result.rawOverlayDisplayName}
+                          stroke={result.color}
+                          strokeDasharray="3 3"
+                          strokeOpacity={0.28}
+                          dot={false}
+                          strokeWidth={1.5}
+                          connectNulls={true}
+                          isAnimationActive={false}
+                          legendType="none"
+                        />
+                      ))}
 
                   {hasExperimental && showExperimental ? (
                     <Line
@@ -400,6 +419,18 @@ const PressureAnalysis = ({
                 </div>
               </div>
               <div className="text-[11px] text-muted-foreground">Series visibility only. Metrics are unchanged.</div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={showRawReferenceOverlay}
+                  onChange={(e) => setSettings({ ...settings, showRawReference: e.target.checked })}
+                  className="rounded bg-muted border-border"
+                />
+                Show faded raw-reference overlay for filtered traces
+              </label>
+              <div className="text-[11px] text-muted-foreground">
+                Re-click Plot Selected after changing this option.
+              </div>
             </div>
           </div>
 

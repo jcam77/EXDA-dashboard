@@ -143,6 +143,7 @@ const DataAnalysisDashboard = () => {
     showVentLines: true, useShortNames: true,
     ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
     pressureTickCount: 10, ewtTickCount: 10,
+    showRawReference: true,
     experimentalUseRaw: false,
     experimentalCutoff: 100,
     experimentalOrder: 4
@@ -643,12 +644,28 @@ const DataAnalysisDashboard = () => {
                 : settings.order;
               const cutoffForCase = isExperimentalPressure ? experimentalCutoff : settings.cutoff;
               const orderForCase = isExperimentalPressure ? experimentalOrder : settings.order;
+              const shouldIncludeRawReference = Boolean(settings.showRawReference) && !useRawForCase;
               const r = await processFile(c, 'pressure', {
                   useRaw: useRawForCase,
                   cutoff: cutoffForCase,
                   order: orderForCase
               });
-              if(r) res.push({ ...r, sourceType: c.type === 'pressure' ? 'experiment' : 'simulation' });
+              if (r) {
+                  let rawOverlayPlotData = null;
+                  if (shouldIncludeRawReference) {
+                      const rawRef = await processFile(c, 'pressure', {
+                          useRaw: true,
+                          cutoff: cutoffForCase,
+                          order: orderForCase
+                      });
+                      rawOverlayPlotData = rawRef?.plotData || null;
+                  }
+                  res.push({
+                      ...r,
+                      sourceType: c.type === 'pressure' ? 'experiment' : 'simulation',
+                      rawOverlayPlotData
+                  });
+              }
           }
       }
       const seenNames = new Map();
@@ -661,7 +678,10 @@ const DataAnalysisDashboard = () => {
               ...item,
               displayName,
               // Use a fixed palette for clear visual separation.
-              color: SERIES_COLORS[idx % SERIES_COLORS.length]
+              color: SERIES_COLORS[idx % SERIES_COLORS.length],
+              rawOverlayDisplayName: Array.isArray(item.rawOverlayPlotData) && item.rawOverlayPlotData.length > 0
+                  ? `${displayName} (raw ref)`
+                  : null
           };
       });
       setAnalysisResults(uniqueResults);
@@ -671,10 +691,19 @@ const DataAnalysisDashboard = () => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                   activeTab,
-                  series: uniqueResults.map((item) => ({
-                      displayName: item.displayName,
-                      plotData: item.plotData,
-                  })),
+                  series: uniqueResults.flatMap((item) => {
+                      const primary = [{
+                          displayName: item.displayName,
+                          plotData: item.plotData,
+                      }];
+                      if (item.rawOverlayDisplayName && Array.isArray(item.rawOverlayPlotData)) {
+                          primary.push({
+                              displayName: item.rawOverlayDisplayName,
+                              plotData: item.rawOverlayPlotData,
+                          });
+                      }
+                      return primary;
+                  }),
                   experimental: (() => {
                       if (activeTab === 'flame_speed') {
                           const flame = Array.isArray(experimentalData) ? experimentalData.find(d => d.type === 'flame') : null;
