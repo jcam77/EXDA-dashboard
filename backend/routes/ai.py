@@ -74,6 +74,13 @@ IMPROVEMENT_REPORT_INSTRUCTIONS = (
     "5) If evidence is insufficient, say exactly what file/context is missing.\n"
     "6) After findings, include: ## Quick Wins with up to 5 bullet items."
 )
+MAIN_CALCULATION_FILES = [
+    ("backend/modules/pressure_analysis.py", "Pressure metrics pipeline (pMax, tMax, impulse, vent timing, filtering)."),
+    ("backend/modules/flame_analysis.py", "Flame-speed computation from probe crossings and dx/dt."),
+    ("backend/modules/ewt_analysis.py", "EWT modal decomposition, energy spectrum, and cutoff suggestion."),
+    ("backend/modules/plot_aggregation.py", "Interpolation/aggregation for cross-case comparison plots."),
+    ("backend/routes/analysis.py", "Analysis API dispatcher and numeric parameter plumbing."),
+]
 
 
 """
@@ -334,6 +341,10 @@ def _read_npm_scripts(max_items=24):
     return items
 
 
+def _main_calculation_file_lines():
+    return [f"- {path}: {description}" for path, description in MAIN_CALCULATION_FILES]
+
+
 def _build_repo_context():
     lines = [
         "Local repository context snapshot for application-level Q&A and code improvement guidance.",
@@ -350,6 +361,10 @@ def _build_repo_context():
         lines.append("")
         lines.append("NPM scripts:")
         lines.extend([f"- {entry}" for entry in scripts])
+
+    lines.append("")
+    lines.append("Primary calculation files (verify first):")
+    lines.extend(_main_calculation_file_lines())
 
     sections = [
         ("Electron files", _collect_files("electron", (".cjs", ".js", ".json"), max_depth=2, max_items=30)),
