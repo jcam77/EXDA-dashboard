@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StopCircle, Send, Trash2, Save, Bot, BrainCircuit, User, ShieldAlert, ChevronDown, Cloud, Cpu, RefreshCw, Copy, Check } from 'lucide-react';
 import { marked } from 'marked';
 import { getBackendBaseUrl } from '../utils/backendUrl';
@@ -11,7 +11,7 @@ marked.setOptions({
 });
 
 /**
- * AiPage Component - PhD Research Assistant Context Enhancement
+ * AiRAPage Component - PhD Research Assistant Context Enhancement
  * Incorporates experimental objectives and investigator metadata into the streaming request.
  * * @param {string} projectPath - Current system path
  * @param {Array} chatHistory - Global chat state
@@ -19,7 +19,7 @@ marked.setOptions({
  * @param {Object} planMeta - Metadata from TabPlan (objective/description)
  * @param {Object} checklistState - Sign-off data from TabChecklist (resp_name/inst_init)
  */
-const AiPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}, checklistState = {} }) => {
+const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}, checklistState = {} }) => {
     const apiBaseUrl = getBackendBaseUrl();
     const [query, setQuery] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -36,11 +36,12 @@ const AiPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}, 
     ]);
     const [aiStatus, setAiStatus] = useState('unknown');
     const [appContext, setAppContext] = useState('');
+    const [hasRepoContextSnapshot, setHasRepoContextSnapshot] = useState(false);
     const eventSourceRef = useRef(null);
     const scrollRef = useRef(null);
     const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
-    const checkAiConnection = () => {
+    const checkAiConnection = useCallback(() => {
         if (demoMode) {
             setAiStatus('disabled');
             return;
@@ -56,26 +57,59 @@ const AiPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}, 
                 }
             })
             .catch(() => setAiStatus('offline'));
-    };
+    }, [apiBaseUrl, demoMode]);
 
     // Fetch models for the dropdown
     useEffect(() => {
-        checkAiConnection();
-    }, [demoMode]);
+        const timer = window.setTimeout(() => {
+            checkAiConnection();
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }, [checkAiConnection]);
 
     useEffect(() => {
-        if (projectPath) return;
-        fetch(`${apiBaseUrl}/projects_overview`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.overview) {
-                    setAppContext(data.overview);
+        let cancelled = false;
+        const loadAppContext = async () => {
+            if (demoMode) {
+                if (!cancelled) {
+                    setAppContext('');
+                    setHasRepoContextSnapshot(false);
                 }
-            })
-            .catch(() => {
-                setAppContext('');
-            });
-    }, [projectPath]);
+                return;
+            }
+            const parts = [];
+            if (!projectPath) {
+                try {
+                    const res = await fetch(`${apiBaseUrl}/projects_overview`);
+                    const data = await res.json();
+                    if (data.success && data.overview) {
+                        parts.push(data.overview);
+                    }
+                } catch {
+                    // keep running; repo context can still be loaded below
+                }
+            }
+            try {
+                const repoRes = await fetch(`${apiBaseUrl}/app_repo_context`);
+                const repoData = await repoRes.json();
+                if (repoData.success && repoData.context) {
+                    parts.push(repoData.context);
+                    if (!cancelled) setHasRepoContextSnapshot(true);
+                } else if (!cancelled) {
+                    setHasRepoContextSnapshot(false);
+                }
+            } catch {
+                if (!cancelled) setHasRepoContextSnapshot(false);
+            }
+            if (!cancelled) {
+                setAppContext(parts.join('\n\n'));
+            }
+        };
+        loadAppContext();
+        return () => {
+            cancelled = true;
+        };
+    }, [apiBaseUrl, demoMode, projectPath]);
 
     const scrollToBottom = () => {
         if (scrollRef.current) {
@@ -288,7 +322,7 @@ const handleAsk = () => {
         contextParams.set('objective', planMeta?.objective || 'N/A');
         contextParams.set('plan_desc', planMeta?.description || 'N/A');
         contextParams.set('app_context', appContext || '');
-        contextParams.set('include_repo_context', '1');
+        contextParams.set('include_repo_context', hasRepoContextSnapshot ? '0' : '1');
         contextParams.set('expert_role', selectedExpert);
         activatedExperts.forEach(role => contextParams.append('expert_roles', role));
 
@@ -507,4 +541,4 @@ const handleAsk = () => {
     );
 };
 
-export default AiPage;
+export default AiRAPage;

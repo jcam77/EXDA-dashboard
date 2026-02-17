@@ -1,7 +1,8 @@
 import React from 'react';
 import { Trash2, FileText, Database, FlaskConical, FolderOpen, Activity, Flame, Upload, Layers,Import } from 'lucide-react';
+import { isSimulationCaseFile } from '../features/workspace/dataImportRules';
 
-const DataPage = (props) => {
+const ImportDataPage = (props) => {
     const { 
         projectPath: _projectPath,
         onSimFolderSelect: _onSimFolderSelect, 
@@ -35,13 +36,7 @@ const DataPage = (props) => {
     const expPressureFiles = filteredExpFiles.filter(f => !f.isDirectory);
     const expFlameFiles = filteredExpFiles.filter(f => !f.isDirectory);
 
-    const simCaseFiles = Array.isArray(sessionFiles) ? sessionFiles.filter(f => {
-        if ((f.webkitRelativePath && /pTProbes\/.*\/p$/.test(f.webkitRelativePath)) ||
-            (f.path && /pTProbes\/.*\/p$/.test(f.path))) {
-            return true;
-        }
-        return false;
-    }) : [];
+    const simCaseFiles = Array.isArray(sessionFiles) ? sessionFiles.filter(isSimulationCaseFile) : [];
 
     const runSelectAll = (files, type, e) => {
         files.forEach((f) => {
@@ -256,4 +251,4 @@ const DataPage = (props) => {
     );
 };
 
-export default DataPage;
+export default ImportDataPage;

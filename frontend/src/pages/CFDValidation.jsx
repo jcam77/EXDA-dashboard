@@ -1,5 +1,7 @@
-import PressureAnalysis from './PressureAnalysis';
+import PressureAnalysisWorkbench from '../features/analysis/PressureAnalysisWorkbench';
 
-const CFDValidation = (props) => <PressureAnalysis {...props} mode="validation" />;
+const CFDValidationPage = (props) => (
+  <PressureAnalysisWorkbench {...props} mode="validation" />
+);
 
-export default CFDValidation;
+export default CFDValidationPage;

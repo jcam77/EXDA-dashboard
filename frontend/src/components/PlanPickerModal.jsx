@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 
 const PlanPickerModal = ({ isOpen, projectPath, onClose, onSelect }) => {
@@ -7,7 +7,7 @@ const PlanPickerModal = ({ isOpen, projectPath, onClose, onSelect }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchPlans = async () => {
+  const fetchPlans = useCallback(async () => {
     if (!projectPath) {
       setError('Select a project first.');
       return;
@@ -30,12 +30,12 @@ const PlanPickerModal = ({ isOpen, projectPath, onClose, onSelect }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiBaseUrl, projectPath]);
 
   useEffect(() => {
     if (!isOpen) return;
     fetchPlans();
-  }, [isOpen, projectPath]);
+  }, [isOpen, fetchPlans]);
 
   if (!isOpen) return null;
 

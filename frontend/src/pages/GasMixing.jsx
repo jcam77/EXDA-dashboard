@@ -3,11 +3,11 @@ import { FlaskConical,Beaker, Wind, Gauge, RefreshCw, UserCheck } from 'lucide-r
 import { getBackendBaseUrl } from '../utils/backendUrl';
 
 /**
- * GasPage Component
+ * GasMixingPage Component
  * PhD Context: Handles verification of H2 vol% concentrations (8–14 vol%).
  * Ensures traceable stoichiometric calculations are performed in Python backend.
  */
-const GasPage = ({ projectPath }) => {
+const GasMixingPage = ({ projectPath }) => {
     const apiBaseUrl = getBackendBaseUrl();
     // Local state for stoichiometric inputs
     const [inputs, setInputs] = useState({ targetVol: 10, ambPressure: 1.01325 });
@@ -99,4 +99,4 @@ const GasPage = ({ projectPath }) => {
     );
 };
 
-export default GasPage;
+export default GasMixingPage;

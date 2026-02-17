@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AudioLines, Sliders, AlertTriangle } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
 
-const Ewt = ({
+const EwtAnalysisPage = ({
     plotData = [],
     analysisResults = [],
     isProcessing = false,
@@ -353,4 +353,4 @@ const Ewt = ({
     );
 };
 
-export default Ewt;
+export default EwtAnalysisPage;

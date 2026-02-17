@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FolderPlus, Folder, FileText, Trash2, Settings, Search, RefreshCw, Home } from 'lucide-react';
 import ProjectPickerModal from '../components/ProjectPickerModal';
 import { getBackendBaseUrl } from '../utils/backendUrl';
@@ -12,7 +12,6 @@ const ProjectsPage = ({
 }) => {
   const apiBaseUrl = getBackendBaseUrl();
   const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-  const [basePath, setBasePath] = useState('');
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -44,7 +43,7 @@ const ProjectsPage = ({
     };
   };
 
-  const fetchPlanFallback = async (projectPath) => {
+  const fetchPlanFallback = useCallback(async (projectPath) => {
     const candidates = [
       `${projectPath}/Plan/Experiment_Plan_v000.json`,
       `${projectPath}/Plan/Experiment_Plan.json`,
@@ -66,9 +65,9 @@ const ProjectsPage = ({
       }
     }
     return null;
-  };
+  }, [apiBaseUrl]);
 
-  const loadProjects = async (paths) => {
+  const loadProjects = useCallback(async (paths) => {
     const pathList = Array.isArray(paths) ? paths : [paths].filter(Boolean);
     if (pathList.length === 0) return;
     setLoading(true);
@@ -148,7 +147,7 @@ const ProjectsPage = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiBaseUrl, fetchPlanFallback]);
 
   useEffect(() => {
     if (projectFolders.length > 0) return;
@@ -204,7 +203,7 @@ const ProjectsPage = ({
       }
     };
     initFolders();
-  }, [projectFolders.length, demoMode]);
+  }, [apiBaseUrl, projectFolders.length, demoMode]);
 
   useEffect(() => {
     if (projectFolders.length === 0) return;
@@ -214,7 +213,15 @@ const ProjectsPage = ({
     }
     const selected = projectFolders.find((item) => item.path === selectedFolder);
     loadProjects(selected || selectedFolder);
-  }, [refreshKey, projectFolders, selectedFolder]);
+  }, [refreshKey, projectFolders, selectedFolder, loadProjects]);
+
+  const reloadProjects = useCallback(() => {
+    if (selectedFolder === 'all') {
+      return loadProjects(projectFolders);
+    }
+    const selected = projectFolders.find((item) => item.path === selectedFolder);
+    return loadProjects(selected || selectedFolder);
+  }, [loadProjects, projectFolders, selectedFolder]);
 
   const handlePickBasePath = (pathValue) => {
     setBasePickerOpen(false);
@@ -334,7 +341,7 @@ const ProjectsPage = ({
         alert(data.error || 'Failed to archive project');
         return;
       }
-      loadProjects(basePath);
+      reloadProjects();
     } catch {
       alert('Failed to archive project');
     }
@@ -363,7 +370,7 @@ const ProjectsPage = ({
             : item
         )
       );
-      loadProjects(basePath);
+      reloadProjects();
     } catch (e) {
       alert(`Failed to update status: ${e?.message || 'Unknown error'}`);
     }
@@ -654,7 +661,11 @@ const ProjectsPage = ({
         mode="pick"
         title={basePickerMode === 'project' ? 'Select Project Folder' : 'Select Projects Root'}
         confirmLabel={basePickerMode === 'project' ? 'Add Project' : 'Add Root'}
-        initialPath={basePath || localStorage.getItem('projectsBasePath') || ''}
+        initialPath={
+          (selectedFolder !== 'all' ? selectedFolder : projectFolders[0]?.path) ||
+          localStorage.getItem('projectsBasePath') ||
+          ''
+        }
         onClose={() => setBasePickerOpen(false)}
         onPick={handlePickBasePath}
       />

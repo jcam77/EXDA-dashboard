@@ -1,7 +1,7 @@
 import React from 'react';
 
 const FlameSpeedAnalysis = () => {
-  // TODO: Move Flame Speed Analysis-specific logic and UI here from AnalysisPage
+  // TODO: Replace this placeholder with the dedicated flame-speed analysis UI.
   return (
     <div>
       <h2 className="text-xl font-bold mb-4">Flame Speed Analysis</h2>

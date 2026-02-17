@@ -53,7 +53,7 @@ const HomePage = ({
     });
     observer.observe(root, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
-  }, []);
+  }, [apiBaseUrl, defaultDevProjectsPath, demoMode]);
 
   React.useEffect(() => {
     const root = document.documentElement;
@@ -162,7 +162,7 @@ const HomePage = ({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [apiBaseUrl, defaultDevProjectsPath, demoMode]);
 
   const formatDate = (value) => {
     if (!value) return 'Unknown';

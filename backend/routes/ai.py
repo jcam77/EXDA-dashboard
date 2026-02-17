@@ -81,6 +81,21 @@ MAIN_CALCULATION_FILES = [
     ("backend/modules/plot_aggregation.py", "Interpolation/aggregation for cross-case comparison plots."),
     ("backend/routes/analysis.py", "Analysis API dispatcher and numeric parameter plumbing."),
 ]
+APP_STRUCTURE_FILES = [
+    ("frontend/src/main.jsx", "Frontend entry point that mounts AppShell."),
+    ("frontend/src/app/AppShell.jsx", "Router shell selecting BrowserRouter/HashRouter for desktop packaging."),
+    ("frontend/src/features/workspace/WorkspacePage.jsx", "Main workspace orchestrator with navigation tabs and shared state."),
+    ("frontend/src/features/workspace/hooks/useAnalysisPipeline.js", "Shared analysis orchestration for pressure/EWT/flame tabs."),
+    ("frontend/src/features/analysis/PressureAnalysisWorkbench.jsx", "Shared pressure plotting/controls used by two tabs."),
+    ("frontend/src/pages/PressureAnalysis.jsx", "Pressure Analysis tab page wrapper (experiments mode)."),
+    ("frontend/src/pages/CFDValidation.jsx", "CFD Validation tab page wrapper (validation mode)."),
+    ("frontend/src/pages/EwtAnalysis.jsx", "Empirical Wavelet Transform (EWT) analysis page."),
+    ("frontend/src/pages/FlameSpeedAnalysis.jsx", "Flame speed analysis page."),
+    ("frontend/src/pages/ImportData.jsx", "Import Data tab page."),
+    ("frontend/src/pages/GasMixing.jsx", "Gas Mixing tab page."),
+    ("frontend/src/pages/AiRA.jsx", "AiRA chat UI and streaming client."),
+    ("backend/routes/ai.py", "AiRA backend route, prompt context, and repo snapshot generation."),
+]
 
 
 """
@@ -345,6 +360,10 @@ def _main_calculation_file_lines():
     return [f"- {path}: {description}" for path, description in MAIN_CALCULATION_FILES]
 
 
+def _app_structure_file_lines():
+    return [f"- {path}: {description}" for path, description in APP_STRUCTURE_FILES]
+
+
 def _build_repo_context():
     lines = [
         "Local repository context snapshot for application-level Q&A and code improvement guidance.",
@@ -361,6 +380,10 @@ def _build_repo_context():
         lines.append("")
         lines.append("NPM scripts:")
         lines.extend([f"- {entry}" for entry in scripts])
+
+    lines.append("")
+    lines.append("Primary app structure files:")
+    lines.extend(_app_structure_file_lines())
 
     lines.append("")
     lines.append("Primary calculation files (verify first):")

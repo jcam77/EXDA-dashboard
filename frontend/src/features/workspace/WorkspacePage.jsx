@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
     FlaskConical, AudioLines, ClipboardList, FileSpreadsheet, 
@@ -7,26 +7,27 @@ import {
 } from 'lucide-react';
 
 // --- MODULAR IMPORTS ---
-import UnifiedModal from './components/UnifiedModal';
-import ChecklistPage from './pages/Checklist';
-import PlanPage from './pages/Plan';
-import GasPage from './pages/Gas';
-import DataPage from './pages/Data';
- import AnalysisPage from './pages/Analysis';
-import Ewt from './pages/Ewt';
-import Filter from './pages/Filter';
-import CFDValidation from './pages/CFDValidation';
-import FlameSpeed from './pages/FlameSpeedAnalysis';
-import AiPage from './pages/Ai';
-import ReportPage from './pages/Report';
-import LiteraturePage from './pages/Literature';
-import HomePage from './pages/Home';
-import ProjectsPage from './pages/Projects';
-import ProjectPickerModal from './components/ProjectPickerModal';
-import PlanPickerModal from './components/PlanPickerModal';
-import { getBackendBaseUrl } from './utils/backendUrl';
-import { getPublicUrl } from './utils/assetUrl';
-import { recordRecentProject } from './utils/recentProjects';
+import UnifiedModal from '../../components/UnifiedModal';
+import ChecklistPage from '../../pages/Checklist';
+import PlanPage from '../../pages/Plan';
+import GasMixingPage from '../../pages/GasMixing';
+import ImportDataPage from '../../pages/ImportData';
+import EWTPage from '../../pages/EwtAnalysis';
+import FlameSpeed from '../../pages/FlameSpeedAnalysis';
+import AiRAPage from '../../pages/AiRA';
+import ReportPage from '../../pages/Report';
+import LiteraturePage from '../../pages/Literature';
+import HomePage from '../../pages/Home';
+import ProjectsPage from '../../pages/Projects';
+import PressureAnalysisPage from '../../pages/PressureAnalysis';
+import CFDValidationPage from '../../pages/CFDValidation';
+import ProjectPickerModal from '../../components/ProjectPickerModal';
+import PlanPickerModal from '../../components/PlanPickerModal';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
+import { getPublicUrl } from '../../utils/assetUrl';
+import { recordRecentProject } from '../../utils/recentProjects';
+import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
+import { useDataImportPipeline } from './hooks/useDataImportPipeline';
 
 /**
  * Feature Flags for modular control
@@ -45,7 +46,7 @@ const TAB_PATHS = {
     gas: '/gas',
     data: '/data',
     ewt: '/analysis/ewt',
-    filter: '/analysis/pressure',
+    pressure_analysis: '/analysis/pressure',
     cfd_validation: '/analysis/cfd-validation',
     flame_speed: '/analysis/flame',
     ai: '/ai',
@@ -64,7 +65,7 @@ const resolveTabFromPath = (pathname) => {
         if (pathname.includes('cfd-validation')) return 'cfd_validation';
         if (pathname.includes('ewt')) return 'ewt';
         if (pathname.includes('flame')) return 'flame_speed';
-        return 'filter';
+        return 'pressure_analysis';
     }
     if (pathname.startsWith('/ai')) return 'ai';
     if (pathname.startsWith('/report')) return 'report';
@@ -94,7 +95,7 @@ class SafeComponent extends React.Component {
     }
 }
 
-const DataAnalysisDashboard = () => {
+const WorkspacePage = () => {
     const apiBaseUrl = getBackendBaseUrl();
     // Add flame folder picker state
     const [selectedFlameFolder, setSelectedFlameFolder] = useState("");
@@ -132,15 +133,12 @@ const DataAnalysisDashboard = () => {
   const [planMeta, setPlanMeta] = useState({ objective: "", description: "" });
   
   const [saveFormat, setSaveFormat] = useState('json');
-    const [simulationData, setSimulationData] = useState([]);
-    const [experimentalData, setExperimentalData] = useState([]);
+  const [simulationData, setSimulationData] = useState([]);
+  const [experimentalData, setExperimentalData] = useState([]);
   const experimentalFlameData = null;
   const [selectedCases, setSelectedCases] = useState([]);
-  const [plotData, setPlotData] = useState([]);
-  const [analysisResults, setAnalysisResults] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-    const [lastSavedAt, setLastSavedAt] = useState(null);
-    const [showShortcuts, setShowShortcuts] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [settings, setSettings] = useState({ 
     useRaw: false, cutoff: 100, order: 4, impulseDrop: 1.0, 
     showVentLines: true, useShortNames: true,
@@ -156,17 +154,16 @@ const DataAnalysisDashboard = () => {
     const [selectedExpFolder, setSelectedExpFolder] = useState("");
 
   const activeTab = resolveTabFromPath(location.pathname) || 'home';
-  const setActiveTab = (tab) => {
+  const setActiveTab = useCallback((tab) => {
       const nextPath = TAB_PATHS[tab] || '/';
-      setPlotData([]);
       if (location.pathname !== nextPath) {
           navigate(nextPath);
       }
-  };
+  }, [location.pathname, navigate]);
 
   useEffect(() => {
       if (location.pathname === '/analysis') {
-          navigate(TAB_PATHS.filter, { replace: true });
+          navigate(TAB_PATHS.pressure_analysis, { replace: true });
           return;
       }
       if (!resolveTabFromPath(location.pathname)) {
@@ -179,7 +176,7 @@ const DataAnalysisDashboard = () => {
    * REFRESH PERSISTENCE LOGIC: Sync with Backend Folder State
    * Replaces volatile localStorage-only logic with server-side truth.
    */
-  const fetchJsonWithRetry = async (url, options = {}, retries = 4, delayMs = 600) => {
+  const fetchJsonWithRetry = useCallback(async (url, options = {}, retries = 4, delayMs = 600) => {
       let lastError = null;
       for (let attempt = 0; attempt <= retries; attempt += 1) {
           try {
@@ -196,7 +193,7 @@ const DataAnalysisDashboard = () => {
           }
       }
       throw lastError || new Error('Request failed');
-  };
+  }, []);
 
   useEffect(() => {
       const syncProject = async () => {
@@ -229,16 +226,26 @@ const DataAnalysisDashboard = () => {
                       setExpFiles(state.data_files);
                   }
                   
-                  notify('success', 'Project Rehydrated', 'Data and Plan restored from folder.');
+                  setModal({
+                      show: true,
+                      type: 'success',
+                      title: 'Project Rehydrated',
+                      content: 'Data and Plan restored from folder.',
+                  });
               }
           } catch (e) {
               console.error("Critical State Sync Error:", e);
-              notify('error', 'Sync Failed', 'Could not restore project state from disk.');
+              setModal({
+                  show: true,
+                  type: 'error',
+                  title: 'Sync Failed',
+                  content: 'Could not restore project state from disk.',
+              });
           }
       };
 
       syncProject();
-  }, []); // Run once on mount/refresh
+  }, [apiBaseUrl, fetchJsonWithRetry]); // Run once on mount/refresh
 
   /**
    * Effect: Local Backup (Redundancy)
@@ -256,11 +263,12 @@ const DataAnalysisDashboard = () => {
   useEffect(() => {
       if (!projectPath) return;
       const pendingTab = localStorage.getItem('pendingTab');
-      if (pendingTab && TAB_PATHS[pendingTab]) {
+      const resolvedPendingTab = pendingTab === 'filter' ? 'pressure_analysis' : pendingTab;
+      if (resolvedPendingTab && TAB_PATHS[resolvedPendingTab]) {
           localStorage.removeItem('pendingTab');
-          setActiveTab(pendingTab);
+          setActiveTab(resolvedPendingTab);
       }
-  }, [projectPath]);
+  }, [projectPath, setActiveTab]);
 
   useEffect(() => {
       const root = document.documentElement;
@@ -268,7 +276,9 @@ const DataAnalysisDashboard = () => {
       window.localStorage.setItem('exda-theme', isLight ? 'light' : 'dark');
   }, [isLight]);
 
-  const notify = (type, title, content) => setModal({ show: true, type, title, content });
+  const notify = useCallback((type, title, content) => {
+      setModal({ show: true, type, title, content });
+  }, []);
 
   const confirmWithModal = ({
       title,
@@ -305,30 +315,66 @@ const DataAnalysisDashboard = () => {
       });
   });
   
-  const formatName = (p) => {
+  const formatName = useCallback((p) => {
       if (!p) return "Unknown";
-      const parts = p.split(/[/\\]/);
-      const name = parts[parts.indexOf('postProcessing') - 1] || parts[0];
-      if (!settings.useShortNames) return name;
-      const m = name.match(/(VH2D-FMG-\d+).*?-(L\w+)-(D\w+)/);
-      return m ? `${m[1]}-${m[2]}-${m[3]}` : name.length>30 ? name.substring(0,27)+'...' : name;
-  };
+      const parts = String(p).split(/[/\\]/).filter(Boolean);
+      if (!parts.length) return "Unknown";
+      const postProcessingIdx = parts.indexOf('postProcessing');
+      const baseName =
+          postProcessingIdx > 0
+              ? (parts[postProcessingIdx - 1] || parts[parts.length - 1])
+              : parts[parts.length - 1];
+
+      if (!settings.useShortNames) return baseName;
+      const m = baseName.match(/(VH2D-FMG-\d+).*?-(L\w+)-(D\w+)/);
+      return m ? `${m[1]}-${m[2]}-${m[3]}` : baseName.length > 30 ? `${baseName.substring(0, 27)}...` : baseName;
+  }, [settings.useShortNames]);
   
-  const stringToColor = (str) => `hsl(${Math.abs(str.split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % 360}, 70%, 60%)`;
-  const SERIES_COLORS = [
-      'hsl(200, 80%, 60%)',
-      'hsl(20, 80%, 60%)',
-      'hsl(120, 70%, 55%)',
-      'hsl(280, 70%, 65%)',
-      'hsl(40, 85%, 55%)',
-      'hsl(160, 65%, 55%)',
-      'hsl(320, 70%, 60%)',
-      'hsl(90, 70%, 55%)',
-      'hsl(0, 75%, 60%)',
-      'hsl(240, 70%, 65%)',
-      'hsl(300, 60%, 60%)',
-      'hsl(60, 80%, 55%)'
-  ];
+  const stringToColor = useCallback(
+      (str) => `hsl(${Math.abs(String(str || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % 360}, 70%, 60%)`,
+      []
+  );
+
+  const {
+      plotData,
+      analysisResults,
+      isProcessing,
+      processFile,
+      requestAnalysis,
+  } = useAnalysisPipeline({
+      apiBaseUrl,
+      activeTab,
+      selectedCases,
+      experimentalData,
+      experimentalFlameData,
+      settings,
+      formatName,
+      stringToColor,
+  });
+
+  const {
+      onSimFolder,
+      onExpFolder,
+      onFileSelect,
+      onRemoveCase,
+      onToggleCase,
+  } = useDataImportPipeline({
+      apiBaseUrl,
+      projectPath,
+      sessionFiles,
+      expFiles,
+      simulationData,
+      experimentalData,
+      settings,
+      processFile,
+      notify,
+      setSessionFiles,
+      setExpFiles,
+      setSelectedExpFolder,
+      setSimulationData,
+      setSelectedCases,
+      setExperimentalData,
+  });
 
   const projectStatus = (() => {
       const explicit = (planMeta?.status || '').toString().toLowerCase();
@@ -408,7 +454,7 @@ const DataAnalysisDashboard = () => {
             else onExpFolder(manualEvent);
     };
 
-  const savePlan = async ({ silent = false } = {}) => {
+  const savePlan = useCallback(async ({ silent = false } = {}) => {
       if(!projectPath) return silent ? null : notify('error', 'Save Failed', 'No project selected');
       let content = JSON.stringify({ planName, experiments, meta: planMeta }, null, 2);
       try {
@@ -427,7 +473,7 @@ const DataAnalysisDashboard = () => {
       } catch {
           if (!silent) notify('error', 'Network Error', 'Save failed');
       }
-  };
+  }, [apiBaseUrl, experiments, notify, planMeta, planName, projectPath, saveFormat]);
 
   const handleCloseProject = async () => {
       const confirmClose = await confirmWithModal({
@@ -477,25 +523,21 @@ const DataAnalysisDashboard = () => {
       }
   };
 
-  const autoSaveRef = useRef({ ready: false, timer: null });
+  const autoSaveRef = useRef({ ready: false });
   useEffect(() => {
-      if (!projectPath) return;
+      if (!projectPath) {
+          autoSaveRef.current.ready = false;
+          return;
+      }
       if (!autoSaveRef.current.ready) {
           autoSaveRef.current.ready = true;
           return;
       }
-      if (autoSaveRef.current.timer) {
-          clearTimeout(autoSaveRef.current.timer);
-      }
-      autoSaveRef.current.timer = setTimeout(() => {
+      const timerId = setTimeout(() => {
           savePlan({ silent: true });
       }, 1200);
-      return () => {
-          if (autoSaveRef.current.timer) {
-              clearTimeout(autoSaveRef.current.timer);
-          }
-      };
-  }, [experiments, planMeta, planName, saveFormat, projectPath]);
+      return () => clearTimeout(timerId);
+  }, [projectPath, savePlan]);
 
   useEffect(() => {
       const handler = (event) => {
@@ -521,7 +563,7 @@ const DataAnalysisDashboard = () => {
       };
       window.addEventListener('keydown', handler);
       return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [setActiveTab]);
 
   const importPlan = () => {
       if (!projectPath) return notify('error', 'Import Failed', 'Select project first');
@@ -545,427 +587,6 @@ const DataAnalysisDashboard = () => {
           notify('success', 'Imported', fileName || 'Plan');
       } catch {
           notify('error', 'Import Error', 'Failed to load plan');
-      }
-  };
-
-  const processFile = async (fileObj, type='pressure', options = {}) => {
-      try {
-          const useRawValue = typeof options.useRaw === 'boolean' ? options.useRaw : settings.useRaw;
-          const cutoffValue = Number.isFinite(Number(options.cutoff)) ? Number(options.cutoff) : settings.cutoff;
-          const orderValue = Number.isFinite(Number(options.order)) ? Number(options.order) : settings.order;
-          if (type === 'ewt') {
-              const res = await fetch(`${apiBaseUrl}/analyze_ewt`, {
-                  method: 'POST',
-                  headers: {'Content-Type': 'application/json'},
-                  body: JSON.stringify({
-                      content: fileObj.content,
-                      numModes: settings.ewtNumModes,
-                      maxPoints: settings.ewtMaxPoints,
-                      kneeModes: 10
-                  })
-              });
-              const d = await res.json();
-              if (d.error) throw new Error(d.error);
-              const name = formatName(fileObj.path || fileObj.name);
-              const colorSeed = fileObj.path || fileObj.name || name;
-              return {
-                  name: fileObj.name,
-                  displayName: name,
-                  ewt: d,
-                  plotData: d.plot_data || [],
-                  energy: d.energy || [],
-                  summary: d.summary || {},
-                  warning: d.warning || null,
-                  color: stringToColor(colorSeed)
-              };
-          }
-          const res = await fetch(`${apiBaseUrl}/analyze_pressure`, {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ content: fileObj.content, dataType: type, cutoff: cutoffValue, order: orderValue, useRaw: useRawValue, impulseDrop: settings.impulseDrop })
-          });
-          const d = await res.json();
-          if(d.error) throw new Error(d.error);
-          const name = formatName(fileObj.path || fileObj.name);
-          const colorSeed = fileObj.path || fileObj.name || name;
-          if (type === 'flame_speed') return { name: fileObj.name, displayName: name, plotData: d.plot_data, color: stringToColor(colorSeed) };
-          let ventTime = null;
-          if (type === 'pressure' && fileObj.ventContent) {
-               const vRes = await fetch(`${apiBaseUrl}/analyze_vent`, {
-                   method: 'POST', headers: {'Content-Type': 'application/json'},
-                   body: JSON.stringify({ content: fileObj.ventContent })
-               });
-               const vData = await vRes.json();
-               if(vData.metrics && vData.metrics.tVent !== 'N/A') ventTime = parseFloat(vData.metrics.tVent);
-          }
-          return { name: fileObj.name, displayName: name, metrics: d.metrics, plotData: d.plot_data, color: stringToColor(colorSeed), ventTime };
-      } catch { return null; }
-  };
-
-  const runAnalysis = async () => {
-      if(selectedCases.length === 0 && !experimentalData && !experimentalFlameData) { 
-          setPlotData([]); setAnalysisResults([]); return; 
-      }
-      setIsProcessing(true);
-      const res = [];
-      if (activeTab === 'ewt') {
-          const candidates = selectedCases.filter(c => c && c.content && c.type !== 'flame');
-          if (!settings.ewtSelectedPath) {
-              setAnalysisResults([]);
-              setPlotData([]);
-              setIsProcessing(false);
-              return;
-          }
-          const selected = candidates.find(c => (c.path || c.name) === settings.ewtSelectedPath);
-          if (selected) {
-              const r = await processFile(selected, 'ewt');
-              if (r) res.push(r);
-          }
-          setAnalysisResults(res);
-          setPlotData(res[0]?.plotData || []);
-          setIsProcessing(false);
-          return;
-      }
-      for(const c of selectedCases) {
-          if(activeTab === 'flame_speed' && c.toaContent) {
-              const r = await processFile({name:c.name, path:c.path, content:c.toaContent}, 'flame_speed');
-              if(r) res.push(r);
-          } else if(['filter', 'cfd_validation'].includes(activeTab)) {
-              const isExperimentsOnlyPressure = activeTab === 'filter';
-              if (c.type === 'flame') {
-                  continue;
-              }
-              if (isExperimentsOnlyPressure && c.type !== 'pressure') {
-                  continue;
-              }
-              const isExperimentalPressure = c.type === 'pressure';
-              const experimentalUseRaw = typeof settings.experimentalUseRaw === 'boolean'
-                ? settings.experimentalUseRaw
-                : settings.useRaw;
-              const useRawForCase = isExperimentalPressure ? experimentalUseRaw : settings.useRaw;
-              const experimentalCutoff = Number.isFinite(Number(settings.experimentalCutoff))
-                ? Number(settings.experimentalCutoff)
-                : settings.cutoff;
-              const experimentalOrder = Number.isFinite(Number(settings.experimentalOrder))
-                ? Number(settings.experimentalOrder)
-                : settings.order;
-              const cutoffForCase = isExperimentalPressure ? experimentalCutoff : settings.cutoff;
-              const orderForCase = isExperimentalPressure ? experimentalOrder : settings.order;
-              const shouldIncludeRawReference = Boolean(settings.showRawReference) && !useRawForCase;
-              const r = await processFile(c, 'pressure', {
-                  useRaw: useRawForCase,
-                  cutoff: cutoffForCase,
-                  order: orderForCase
-              });
-              if (r) {
-                  let rawOverlayPlotData = null;
-                  if (shouldIncludeRawReference) {
-                      const rawRef = await processFile(c, 'pressure', {
-                          useRaw: true,
-                          cutoff: cutoffForCase,
-                          order: orderForCase
-                      });
-                      rawOverlayPlotData = rawRef?.plotData || null;
-                  }
-                  res.push({
-                      ...r,
-                      sourceType: isExperimentalPressure ? 'experiment' : 'simulation',
-                      rawOverlayPlotData
-                  });
-              }
-          }
-      }
-      const seenNames = new Map();
-      const uniqueResults = res.map((item, idx) => {
-          const base = item.displayName || item.name || 'Series';
-          const count = seenNames.get(base) || 0;
-          seenNames.set(base, count + 1);
-          const displayName = count === 0 ? base : `${base} (${count + 1})`;
-          return {
-              ...item,
-              displayName,
-              // Use a fixed palette for clear visual separation.
-              color: SERIES_COLORS[idx % SERIES_COLORS.length],
-              rawOverlayDisplayName: Array.isArray(item.rawOverlayPlotData) && item.rawOverlayPlotData.length > 0
-                  ? `${displayName} (raw ref)`
-                  : null
-          };
-      });
-      setAnalysisResults(uniqueResults);
-      try {
-          const aggregateRes = await fetch(`${apiBaseUrl}/aggregate_plot`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  activeTab,
-                  series: uniqueResults.flatMap((item) => {
-                      const primary = [{
-                          displayName: item.displayName,
-                          plotData: item.plotData,
-                      }];
-                      if (item.rawOverlayDisplayName && Array.isArray(item.rawOverlayPlotData)) {
-                          primary.push({
-                              displayName: item.rawOverlayDisplayName,
-                              plotData: item.rawOverlayPlotData,
-                          });
-                      }
-                      return primary;
-                  }),
-                  experimental: (() => {
-                      if (activeTab === 'flame_speed') {
-                          const flame = Array.isArray(experimentalData) ? experimentalData.find(d => d.type === 'flame') : null;
-                          return flame ? flame.plotData : null;
-                      }
-                      return null;
-                  })(),
-              })
-          });
-          const aggregateData = await aggregateRes.json();
-          setPlotData(aggregateData.plotData || []);
-      } catch {
-          setPlotData([]);
-      }
-      setIsProcessing(false);
-  };
-
-  const [analysisNonce, setAnalysisNonce] = useState(0);
-  const requestAnalysis = () => setAnalysisNonce((n) => n + 1);
-
-  useEffect(() => {
-      if (activeTab !== 'ewt') return;
-      if (!settings.ewtSelectedPath) {
-          setPlotData([]);
-          setAnalysisResults([]);
-          return;
-      }
-      const t = setTimeout(runAnalysis, 300);
-      return () => clearTimeout(t);
-  }, [activeTab, settings.ewtSelectedPath, settings.ewtNumModes, settings.ewtMaxPoints]);
-
-  useEffect(() => {
-      if (activeTab === 'ewt') return;
-      if (analysisNonce === 0) return;
-      const t = setTimeout(runAnalysis, 300);
-      return () => clearTimeout(t);
-  }, [analysisNonce, activeTab]);
-
-  const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsText(f); });
-
-  // --- UPDATED SMART FOLDER HANDLERS ---
-
-const onSimFolder = async (e) => {
-      const manualPath = e.target.manualPath; 
-      const browserFiles = e.target.files ? Array.from(e.target.files) : null;
-
-      if (manualPath) {
-          try {
-              // We pass the projectPath and specific folder type to the backend
-              const res = await fetch(`${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(projectPath)}&sync=true`);
-              const state = await res.json();
-              if (state.success && state.sim_files) {
-                  setSessionFiles(state.sim_files);
-                  // Only count files in the selected folder
-                  // Only count files in the selected folder that match the simulation selector filter
-                  let count = 0;
-                  if (manualPath && Array.isArray(state.sim_files)) {
-                      count = state.sim_files.filter(f => {
-                          const rel = f.webkitRelativePath || f.path || '';
-                          // Must be in selected folder and match pTProbes/.../p
-                          const inFolder = f.webkitRelativePath ? f.webkitRelativePath.startsWith(manualPath) : (f.path ? f.path.startsWith(manualPath) : false);
-                          const isSim = /pTProbes\/.*\/p$/.test(rel);
-                          return inFolder && isSim;
-                      }).length;
-                  } else if (Array.isArray(state.sim_files)) {
-                      count = state.sim_files.filter(f => {
-                          const rel = f.webkitRelativePath || f.path || '';
-                          return /pTProbes\/.*\/p$/.test(rel);
-                      }).length;
-                  } else {
-                      count = 0;
-                  }
-                  notify('success', 'Simulation Data Found', `${count} valid cases indexed in selected folder.`);
-              } else {
-                  throw new Error("No simulation files found in the directory.");
-              }
-          } catch (err) {
-              notify('error', 'Sync Failed', err.message || 'Could not scan simulation directory.');
-          }
-      } else if (browserFiles) {
-          setSessionFiles(browserFiles.sort((a,b)=>a.webkitRelativePath.localeCompare(b.webkitRelativePath)));
-      }
-  };
-
-const onExpFolder = async (e) => {
-    const manualPath = e.target.manualPath;
-    if (manualPath) {
-        setSelectedExpFolder(manualPath);
-        // We tell the backend: "Scan ONLY this specific folder I just picked"
-        const res = await fetch(`${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(projectPath)}&folderPath=${encodeURIComponent(manualPath)}`);
-        const state = await res.json();
-        if (state.success) {
-            setExpFiles(state.data_files);
-            // Count only files that would show in the experiment selector for the selected folder
-            let count = 0;
-            if (manualPath && Array.isArray(state.data_files)) {
-                count = state.data_files.filter(f => {
-                    if (f.webkitRelativePath) return f.webkitRelativePath.startsWith(manualPath);
-                    if (f.path) return f.path.startsWith(manualPath);
-                    return false;
-                }).length;
-            } else {
-                count = state.data_files.length;
-            }
-            notify('success', 'Folder Synced', `${count} files detected in selected directory.`);
-        }
-    }
-};
-
-  const onFileSelect = async (e, type) => {
-      const p = e.target.value; 
-      if(!p) return;
-
-      if(type==='simulation') {
-          // ...existing code...
-          const main = sessionFiles.find(f => (f.webkitRelativePath === p || f.path === p));
-          if(main) {
-              // ...existing code...
-              let content, toaContent, ventContent;
-              if (main.path) {
-                  // ...existing code...
-                  const getFile = async (filePath) => {
-                      const res = await fetch(`${apiBaseUrl}/read_project_file?path=${encodeURIComponent(filePath)}&projectPath=${encodeURIComponent(projectPath || '')}`);
-                      const d = await res.json();
-                      return d.success ? d.content : null;
-                  };
-                  const getFirstExisting = async (paths) => {
-                      for (const candidate of paths) {
-                          const fileContent = await getFile(candidate);
-                          if (fileContent) return fileContent;
-                      }
-                      return null;
-                  };
-                  content = await getFile(main.path);
-                  const dir = main.path.substring(0, main.path.lastIndexOf('/'));
-                  const postProcessingBaseMatch = main.path.match(/^(.*\/postProcessing)\//i);
-                  const postProcessingBase = postProcessingBaseMatch ? postProcessingBaseMatch[1] : dir;
-                  toaContent = await getFirstExisting([
-                      `${postProcessingBase}/TOAProbs/0/b`,
-                      `${postProcessingBase}/TOAProbs/0/T`,
-                      `${postProcessingBase}/toaprobs`,
-                      `${dir}/toaprobs`,
-                  ]);
-                  ventContent = await getFirstExisting([
-                      `${postProcessingBase}/ventTOAProb/0/b`,
-                      `${postProcessingBase}/ventTOAProb/0/p`,
-                      `${postProcessingBase}/venttoaprob`,
-                      `${dir}/venttoaprob`,
-                  ]);
-              } else {
-                  // ...existing code...
-                  content = await readFile(main);
-                  const relPath = main.webkitRelativePath || '';
-                  const postProcessingRoot = relPath.replace(/\/pTProbes\/[^/]+\/p$/i, '');
-                  const normalizedRoot = postProcessingRoot.toLowerCase();
-                  const pickFileByPriority = (predicates) => {
-                      for (const predicate of predicates) {
-                          const found = sessionFiles.find((file) => {
-                              const rel = (file.webkitRelativePath || '').toLowerCase();
-                              return predicate(rel);
-                          });
-                          if (found) return found;
-                      }
-                      return null;
-                  };
-                  const flame = pickFileByPriority([
-                      (rel) => rel.startsWith(normalizedRoot) && /\/toaprobs\/[^/]+\/b$/i.test(rel),
-                      (rel) => rel.startsWith(normalizedRoot) && /\/toaprobs\/[^/]+\/t$/i.test(rel),
-                      (rel) => rel.startsWith(normalizedRoot) && rel.includes('/toaprobs/'),
-                      (rel) => rel.includes('toaprobs'),
-                  ]);
-                  const vent = pickFileByPriority([
-                      (rel) => rel.startsWith(normalizedRoot) && /\/venttoaprob\/[^/]+\/b$/i.test(rel),
-                      (rel) => rel.startsWith(normalizedRoot) && rel.includes('/venttoaprob/'),
-                      (rel) => rel.includes('venttoaprob'),
-                  ]);
-                  toaContent = flame ? await readFile(flame) : null;
-                  ventContent = vent ? await readFile(vent) : null;
-              }
-              const newCase = { 
-                  name: main.name, 
-                  path: main.path || main.webkitRelativePath, 
-                  content, 
-                  toaContent, 
-                  ventContent 
-              };
-              setSimulationData(prev => [...prev.filter(x=>x.path!==newCase.path), newCase]);
-              setSelectedCases(prev => [...prev.filter(x=>x.path!==newCase.path), newCase]);
-          }
-      } else if(type==='exp_pressure' || type==='exp_flame') {
-          const f = expFiles.find(f => (f.webkitRelativePath === p || f.path === p));
-          if(f) {
-              let content;
-              if (f.path) {
-                  const res = await fetch(`${apiBaseUrl}/read_project_file?path=${encodeURIComponent(f.path)}&projectPath=${encodeURIComponent(projectPath || '')}`);
-                  const d = await res.json();
-                  content = d.content;
-              } else {
-                  content = await readFile(f);
-              }
-              // Add experiment file to selectedCases for queue/tick sync
-              const expCase = { 
-                  name: f.name, 
-                  path: f.path || f.webkitRelativePath, 
-                  content,
-                  type: type === 'exp_pressure' ? 'pressure' : 'flame'
-              };
-              setSelectedCases(prev => {
-                  // Avoid duplicates
-                  if (prev.some(c => (c.path || c.name) === (expCase.path || expCase.name))) return prev;
-                  return [...prev, expCase];
-              });
-              if (type === 'exp_pressure') {
-                  const experimentalCutoff = Number.isFinite(Number(settings.experimentalCutoff))
-                    ? Number(settings.experimentalCutoff)
-                    : settings.cutoff;
-                  const experimentalOrder = Number.isFinite(Number(settings.experimentalOrder))
-                    ? Number(settings.experimentalOrder)
-                    : settings.order;
-                  processFile({name: f.name, content}, 'pressure', {
-                      useRaw: Boolean(settings.experimentalUseRaw),
-                      cutoff: experimentalCutoff,
-                      order: experimentalOrder
-                  }).then(r => {
-                      if (r) setExperimentalData(prev => [...prev.filter(d => d.name !== r.name || d.type !== 'pressure'), { ...r, type: 'pressure', path: f.path || f.webkitRelativePath }]);
-                  });
-              } else {
-                  processFile({name: f.name, content}, 'flame_speed').then(r => {
-                      if (r) setExperimentalData(prev => [...prev.filter(d => d.name !== r.name || d.type !== 'flame'), { ...r, type: 'flame', path: f.path || f.webkitRelativePath }]);
-                  });
-              }
-          }
-      }
-      e.target.value = "";
-  };
-
-
-
-    const onRemoveCase = (path) => {
-        setSelectedCases(selectedCases.filter(c => c.path !== path));
-        setSimulationData(simulationData.filter(c => c.path !== path));
-        setExperimentalData(prev => prev.filter(d => (d.path || d.name) !== path));
-    };
-  const onToggleCase = (path) => {
-      if(selectedCases.find(c=>c.path===path || c.name===path)) {
-          setSelectedCases(selectedCases.filter(c=>!(c.path===path || c.name===path)));
-      } else {
-          // Try to find in simulationData first
-          const s = simulationData.find(c=>c.path===path);
-          if(s) setSelectedCases([...selectedCases, s]);
-          else {
-              // Try to find in experimentalData
-              const e = experimentalData.find(c=>c.path===path || c.name===path);
-              if(e) setSelectedCases([...selectedCases, e]);
-          }
       }
   };
 
@@ -1098,7 +719,7 @@ const onExpFolder = async (e) => {
                           refreshKey={projectsRefreshKey}
                       />
                   ) : activeTab === 'ai' ? (
-                      <AiPage
+                      <AiRAPage
                           projectPath={null}
                           chatHistory={aiChatHistory}
                           setChatHistory={setAiChatHistory}
@@ -1365,7 +986,7 @@ const onExpFolder = async (e) => {
                                             {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas}, 
                                             {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data}, 
                                             {id:'ewt', l:'EWT', i:AudioLines, to: TAB_PATHS.ewt},
-                                            {id:'filter', l:'Pressure Analysis', i:Activity, to: TAB_PATHS.filter}, 
+                                            {id:'pressure_analysis', l:'Pressure Analysis', i:Activity, to: TAB_PATHS.pressure_analysis}, 
                                             {id:'cfd_validation', l:'CFD Validation', i:Beaker, to: TAB_PATHS.cfd_validation},
                                             {id:'flame_speed', l:'Flame Speed Analysis', i:Flame, to: TAB_PATHS.flame_speed},
                                             {id:'ai', l:'AiRA', i:BrainCircuit, to: TAB_PATHS.ai},
@@ -1426,7 +1047,7 @@ const onExpFolder = async (e) => {
 
               {activeTab === 'gas' && (
                   <SafeComponent>
-                                            <GasPage 
+                                            <GasMixingPage 
                         projectPath={projectPath} 
                         checklistState={checklistState} 
                         setChecklistState={setChecklistState} 
@@ -1436,7 +1057,7 @@ const onExpFolder = async (e) => {
 
               {activeTab === 'data' && FLAGS.ENABLE_SOURCES && (
                                     <SafeComponent>
-                                        <DataPage 
+                                        <ImportDataPage 
                                                 projectPath={projectPath}
                                                 onSimFolderSelect={onSimFolder} 
                                                 onExpFolderSelect={onExpFolder} 
@@ -1469,7 +1090,7 @@ const onExpFolder = async (e) => {
 
                              {activeTab === 'ewt' && FLAGS.ENABLE_ANALYSIS && (
                                  <SafeComponent>
-                                     <Ewt
+                                     <EWTPage
                                          plotData={plotData}
                                          analysisResults={analysisResults}
                                          experimentalData={experimentalData}
@@ -1481,9 +1102,9 @@ const onExpFolder = async (e) => {
                                      />
                                  </SafeComponent>
                              )}
-                             {activeTab === 'filter' && FLAGS.ENABLE_ANALYSIS && (
+                             {activeTab === 'pressure_analysis' && FLAGS.ENABLE_ANALYSIS && (
                                  <SafeComponent>
-                                 <Filter
+                                 <PressureAnalysisPage
                                          plotData={plotData}
                                          analysisResults={analysisResults}
                                          experimentalData={experimentalData}
@@ -1498,7 +1119,7 @@ const onExpFolder = async (e) => {
                              )}
                              {activeTab === 'cfd_validation' && FLAGS.ENABLE_ANALYSIS && (
                                  <SafeComponent>
-                                 <CFDValidation
+                                 <CFDValidationPage
                                          plotData={plotData}
                                          analysisResults={analysisResults}
                                          experimentalData={experimentalData}
@@ -1526,7 +1147,7 @@ const onExpFolder = async (e) => {
 
               {activeTab === 'ai' && (
                   <SafeComponent>
-                      <AiPage 
+                      <AiRAPage 
                           projectPath={projectPath} 
                           chatHistory={aiChatHistory} 
                           setChatHistory={setAiChatHistory} 
@@ -1578,4 +1199,4 @@ const onExpFolder = async (e) => {
   );
 };
 
-export default DataAnalysisDashboard;
+export default WorkspacePage;
