@@ -1,3 +1,5 @@
 import PressureAnalysis from './PressureAnalysis';
 
-export default PressureAnalysis;
+const Filter = (props) => <PressureAnalysis {...props} mode="experiments" />;
+
+export default Filter;

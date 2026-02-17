@@ -15,6 +15,7 @@ import DataPage from './pages/Data';
  import AnalysisPage from './pages/Analysis';
 import Ewt from './pages/Ewt';
 import Filter from './pages/Filter';
+import CFDValidation from './pages/CFDValidation';
 import FlameSpeed from './pages/FlameSpeedAnalysis';
 import AiPage from './pages/Ai';
 import ReportPage from './pages/Report';
@@ -45,6 +46,7 @@ const TAB_PATHS = {
     data: '/data',
     ewt: '/analysis/ewt',
     filter: '/analysis/pressure',
+    cfd_validation: '/analysis/cfd-validation',
     flame_speed: '/analysis/flame',
     ai: '/ai',
     report: '/report',
@@ -59,6 +61,7 @@ const resolveTabFromPath = (pathname) => {
     if (pathname.startsWith('/gas')) return 'gas';
     if (pathname.startsWith('/data')) return 'data';
     if (pathname.startsWith('/analysis')) {
+        if (pathname.includes('cfd-validation')) return 'cfd_validation';
         if (pathname.includes('ewt')) return 'ewt';
         if (pathname.includes('flame')) return 'flame_speed';
         return 'filter';
@@ -627,8 +630,12 @@ const DataAnalysisDashboard = () => {
           if(activeTab === 'flame_speed' && c.toaContent) {
               const r = await processFile({name:c.name, path:c.path, content:c.toaContent}, 'flame_speed');
               if(r) res.push(r);
-          } else if(['filter'].includes(activeTab)) {
+          } else if(['filter', 'cfd_validation'].includes(activeTab)) {
+              const isExperimentsOnlyPressure = activeTab === 'filter';
               if (c.type === 'flame') {
+                  continue;
+              }
+              if (isExperimentsOnlyPressure && c.type !== 'pressure') {
                   continue;
               }
               const isExperimentalPressure = c.type === 'pressure';
@@ -662,7 +669,7 @@ const DataAnalysisDashboard = () => {
                   }
                   res.push({
                       ...r,
-                      sourceType: c.type === 'pressure' ? 'experiment' : 'simulation',
+                      sourceType: isExperimentalPressure ? 'experiment' : 'simulation',
                       rawOverlayPlotData
                   });
               }
@@ -1359,6 +1366,7 @@ const onExpFolder = async (e) => {
                                             {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data}, 
                                             {id:'ewt', l:'EWT', i:AudioLines, to: TAB_PATHS.ewt},
                                             {id:'filter', l:'Pressure Analysis', i:Activity, to: TAB_PATHS.filter}, 
+                                            {id:'cfd_validation', l:'CFD Validation', i:Beaker, to: TAB_PATHS.cfd_validation},
                                             {id:'flame_speed', l:'Flame Speed Analysis', i:Flame, to: TAB_PATHS.flame_speed},
                                             {id:'ai', l:'AiRA', i:BrainCircuit, to: TAB_PATHS.ai},
                                             {id:'report', l:'Report', i:FileText, to: TAB_PATHS.report},
@@ -1476,6 +1484,21 @@ const onExpFolder = async (e) => {
                              {activeTab === 'filter' && FLAGS.ENABLE_ANALYSIS && (
                                  <SafeComponent>
                                  <Filter
+                                         plotData={plotData}
+                                         analysisResults={analysisResults}
+                                         experimentalData={experimentalData}
+                                         isProcessing={isProcessing}
+                                         settings={settings}
+                                         setSettings={setSettings}
+                                         simulationData={simulationData}
+                                         onRunAnalysis={requestAnalysis}
+                                         formatName={formatName}
+                                     />
+                                 </SafeComponent>
+                             )}
+                             {activeTab === 'cfd_validation' && FLAGS.ENABLE_ANALYSIS && (
+                                 <SafeComponent>
+                                 <CFDValidation
                                          plotData={plotData}
                                          analysisResults={analysisResults}
                                          experimentalData={experimentalData}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Info, Download, Settings, Activity, FlaskConical } from 'lucide-react';
 
@@ -9,6 +9,7 @@ const PressureAnalysis = ({
   settings,
   setSettings,
   onRunAnalysis,
+  mode = 'validation',
 }) => {
   const exportToCSV = () => {
     if (!plotData || plotData.length === 0) return;
@@ -28,32 +29,34 @@ const PressureAnalysis = ({
 
   const [visibleSeries, setVisibleSeries] = useState({});
   const [showExperimental, setShowExperimental] = useState(true);
-  const [seriesScope, setSeriesScope] = useState('all');
+  const [seriesScope, setSeriesScope] = useState(mode === 'validation' ? 'all' : 'experimental');
   const [localTickCount, setLocalTickCount] = useState(settings.pressureTickCount || 10);
   const [localYTickCount, setLocalYTickCount] = useState(10);
   const showRawReferenceOverlay = settings.showRawReference !== false;
+  const isValidationMode = mode === 'validation';
+  const chartTitle = isValidationMode ? 'CFD Validation: Pressure vs Time' : 'Pressure vs Time (Experiments)';
+  const effectiveSeriesScope = isValidationMode ? seriesScope : 'experimental';
 
-  useEffect(() => {
-    setVisibleSeries((prev) => {
-      const next = {};
-      analysisResults.forEach((item) => {
-        const key = item.displayName || item.name;
-        if (!key) return;
-        next[key] = prev[key] ?? true;
-      });
-      return next;
+  const normalizedVisibleSeries = useMemo(() => {
+    const next = {};
+    analysisResults.forEach((item) => {
+      const key = item.displayName || item.name;
+      if (!key) return;
+      next[key] = visibleSeries[key] ?? true;
     });
-  }, [analysisResults]);
+    return next;
+  }, [analysisResults, visibleSeries]);
 
   const displayedSeries = useMemo(
     () =>
       analysisResults.filter((item) => {
-        if (visibleSeries[item.displayName] === false) return false;
-        if (seriesScope === 'experimental') return item.sourceType === 'experiment';
-        if (seriesScope === 'simulation') return item.sourceType === 'simulation';
+        if (!isValidationMode && item.sourceType !== 'experiment') return false;
+        if (normalizedVisibleSeries[item.displayName] === false) return false;
+        if (effectiveSeriesScope === 'experimental') return item.sourceType === 'experiment';
+        if (effectiveSeriesScope === 'simulation') return item.sourceType === 'simulation';
         return true;
       }),
-    [analysisResults, visibleSeries, seriesScope]
+    [analysisResults, normalizedVisibleSeries, effectiveSeriesScope, isValidationMode]
   );
 
   const experimentalSeriesCount = useMemo(
@@ -129,7 +132,7 @@ const PressureAnalysis = ({
           <div className="flex justify-between items-start mb-2 gap-4">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               <Activity className="text-cyan-400" size={16} />
-              Pressure vs Time
+              {chartTitle}
             </h3>
             {plotData && plotData.length > 0 && (
               <div className="flex items-start gap-2 bg-yellow-900/10 border border-yellow-900/30 p-2 rounded max-w-md">
@@ -261,45 +264,47 @@ const PressureAnalysis = ({
           <div className="mt-4 bg-card/60 border border-border rounded-xl p-3">
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Plot Controls</div>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-              <div className="rounded-lg border border-border/60 bg-black/20 p-3">
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
-                  Simulation Filter
-                </div>
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="0.1"
-                      value={settings.cutoff}
-                      onChange={onCutoffChange}
-                      className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
-                    />
+              {isValidationMode && (
+                <div className="rounded-lg border border-border/60 bg-black/20 p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                    Simulation Filter
                   </div>
-                  <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Order</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      step="1"
-                      value={settings.order}
-                      onChange={onOrderChange}
-                      className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
-                    />
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="flex flex-col">
+                      <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="0.1"
+                        value={settings.cutoff}
+                        onChange={onCutoffChange}
+                        className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Order</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        step="1"
+                        value={settings.order}
+                        onChange={onOrderChange}
+                        className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={settings.useRaw}
+                        onChange={(e) => setSettings({ ...settings, useRaw: e.target.checked })}
+                        className="rounded bg-muted border-border"
+                      />
+                      Use raw simulation data
+                    </label>
                   </div>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={settings.useRaw}
-                      onChange={(e) => setSettings({ ...settings, useRaw: e.target.checked })}
-                      className="rounded bg-muted border-border"
-                    />
-                    Use raw simulation data
-                  </label>
                 </div>
-              </div>
+              )}
               <div className="rounded-lg border border-border/60 bg-black/20 p-3">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
                   Experimental Filter
@@ -375,7 +380,11 @@ const PressureAnalysis = ({
           <div className="bg-card/60 border border-border p-4 rounded-xl">
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
               <Info size={12} className="text-muted-foreground" />
-              <span>Select experiments and simulations in Import Data, then Plot Selected.</span>
+              <span>
+                {isValidationMode
+                  ? 'Select experiments and simulations in Import Data, then Plot Selected.'
+                  : 'Select pressure experiment files in Import Data, then Plot Selected.'}
+              </span>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
@@ -403,21 +412,27 @@ const PressureAnalysis = ({
               Data Display Controls
             </h3>
             <div className="space-y-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-muted-foreground uppercase font-bold">Series Filter</label>
-                <select
-                  value={seriesScope}
-                  onChange={(e) => setSeriesScope(e.target.value)}
-                  className="bg-background border border-border rounded px-2 py-1.5 text-xs text-foreground"
-                >
-                  <option value="all">All Series</option>
-                  <option value="experimental">Experimental Only</option>
-                  <option value="simulation">Simulation Only</option>
-                </select>
-                <div className="text-[11px] text-muted-foreground">
-                  Experimental: {experimentalSeriesCount} | Simulation: {simulationSeriesCount}
+              {isValidationMode ? (
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase font-bold">Series Filter</label>
+                  <select
+                    value={seriesScope}
+                    onChange={(e) => setSeriesScope(e.target.value)}
+                    className="bg-background border border-border rounded px-2 py-1.5 text-xs text-foreground"
+                  >
+                    <option value="all">All Series</option>
+                    <option value="experimental">Experimental Only</option>
+                    <option value="simulation">Simulation Only</option>
+                  </select>
+                  <div className="text-[11px] text-muted-foreground">
+                    Experimental: {experimentalSeriesCount} | Simulation: {simulationSeriesCount}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-[11px] text-muted-foreground">
+                  Experimental series only.
+                </div>
+              )}
               <div className="text-[11px] text-muted-foreground">Series visibility only. Metrics are unchanged.</div>
               <label className="flex items-center gap-2 text-xs text-muted-foreground">
                 <input
@@ -446,7 +461,7 @@ const PressureAnalysis = ({
                   <label key={item.displayName} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={visibleSeries[item.displayName] !== false}
+                      checked={normalizedVisibleSeries[item.displayName] !== false}
                       onChange={() =>
                         setVisibleSeries((prev) => ({
                           ...prev,
