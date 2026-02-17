@@ -288,6 +288,7 @@ const handleAsk = () => {
         contextParams.set('objective', planMeta?.objective || 'N/A');
         contextParams.set('plan_desc', planMeta?.description || 'N/A');
         contextParams.set('app_context', appContext || '');
+        contextParams.set('include_repo_context', '1');
         contextParams.set('expert_role', selectedExpert);
         activatedExperts.forEach(role => contextParams.append('expert_roles', role));
 

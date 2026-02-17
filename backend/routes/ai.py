@@ -1,13 +1,79 @@
 
 
 from flask import Blueprint, jsonify, request, Response
+import json
 import os
+import re
 import socket
+import time
 from urllib.parse import urlparse
 
 from modules import project_manager
 
 ai_bp = Blueprint("ai", __name__)
+
+APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+REPO_CONTEXT_MAX_CHARS = int(os.environ.get("EXDA_REPO_CONTEXT_MAX_CHARS", "7000"))
+REPO_CONTEXT_TTL_SECONDS = int(os.environ.get("EXDA_REPO_CONTEXT_TTL", "120"))
+REPO_SCAN_IGNORE_DIRS = {
+    ".git",
+    "node_modules",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "dist",
+    "build",
+    "dist-electron",
+    "playwright-report",
+    "test-results",
+    "test-report-results",
+}
+REPO_SCAN_ALLOW_HIDDEN_DIRS = {".github"}
+REPO_SCAN_IGNORE_PREFIXES = ("._",)
+_REPO_CONTEXT_CACHE = {
+    "context": "",
+    "generated_at": 0.0,
+}
+IMPROVEMENT_QUERY_HINTS = (
+    "improve",
+    "improvement",
+    "improvements",
+    "review",
+    "refactor",
+    "optimize",
+    "bug",
+    "issue",
+    "fix",
+    "tech debt",
+    "technical debt",
+    "architecture review",
+    "code quality",
+    "how can",
+)
+IMPROVEMENT_REPORT_INSTRUCTIONS = (
+    "IMPROVEMENT REPORT MODE:\n"
+    "If the user asks about app quality, improvements, architecture risks, or what should be changed, "
+    "respond using this exact structure.\n"
+    "1) Start with a heading: ## Improvement Findings.\n"
+    "2) List findings ordered by severity: Critical, High, Medium, Low.\n"
+    "3) For each finding, use this block:\n"
+    "### [Severity] Short Title\n"
+    "- File: `<repo/path>` (required)\n"
+    "- Issue: concise defect/risk statement\n"
+    "- Impact: what can break or degrade\n"
+    "- Recommendation: concrete fix direction\n"
+    "- Suggested Patch:\n"
+    "```diff\n"
+    "--- a/<repo/path>\n"
+    "+++ b/<repo/path>\n"
+    "@@\n"
+    "- old line(s)\n"
+    "+ new line(s)\n"
+    "```\n"
+    "4) Include only findings you can justify from APPLICATION CODEBASE CONTEXT.\n"
+    "5) If evidence is insufficient, say exactly what file/context is missing.\n"
+    "6) After findings, include: ## Quick Wins with up to 5 bullet items."
+)
 
 
 """
@@ -152,6 +218,185 @@ def get_pdf_context(project_path):
     return context_text[:15000]
 
 
+def _should_skip_dir(name):
+    if not name:
+        return True
+    if name in REPO_SCAN_ALLOW_HIDDEN_DIRS:
+        return False
+    if name in REPO_SCAN_IGNORE_DIRS:
+        return True
+    if name.startswith("."):
+        return True
+    if name.startswith(REPO_SCAN_IGNORE_PREFIXES):
+        return True
+    return False
+
+
+def _should_skip_file(name):
+    if not name:
+        return True
+    if name.startswith(REPO_SCAN_IGNORE_PREFIXES):
+        return True
+    if name.startswith("."):
+        return True
+    return False
+
+
+def _collect_files(base_rel, suffixes, max_depth=3, max_items=80):
+    base_abs = os.path.join(APP_ROOT, base_rel)
+    if not os.path.isdir(base_abs):
+        return []
+    suffixes = tuple(s.lower() for s in suffixes) if suffixes else ()
+    collected = []
+    for current, dirs, files in os.walk(base_abs):
+        rel_from_base = os.path.relpath(current, base_abs)
+        depth = 0 if rel_from_base == "." else rel_from_base.count(os.sep) + 1
+        if depth > max_depth:
+            dirs[:] = []
+            continue
+        dirs[:] = [d for d in sorted(dirs) if not _should_skip_dir(d)]
+        for filename in sorted(files):
+            if _should_skip_file(filename):
+                continue
+            if suffixes and not filename.lower().endswith(suffixes):
+                continue
+            rel_file = os.path.relpath(os.path.join(current, filename), APP_ROOT).replace("\\", "/")
+            collected.append(rel_file)
+            if len(collected) >= max_items:
+                return collected
+    return collected
+
+
+def _top_level_entries(max_items=40):
+    try:
+        names = sorted(os.listdir(APP_ROOT))
+    except Exception:
+        return []
+    entries = []
+    for name in names:
+        if _should_skip_file(name):
+            continue
+        full = os.path.join(APP_ROOT, name)
+        suffix = "/" if os.path.isdir(full) else ""
+        entries.append(f"{name}{suffix}")
+        if len(entries) >= max_items:
+            break
+    return entries
+
+
+def _extract_backend_endpoints(max_items=80):
+    routes_dir = os.path.join(APP_ROOT, "backend", "routes")
+    if not os.path.isdir(routes_dir):
+        return []
+    route_pattern = re.compile(
+        r"@\w+\.route\(\s*['\"]([^'\"]+)['\"](?:\s*,\s*methods\s*=\s*\[([^\]]+)\])?"
+    )
+    method_pattern = re.compile(r"['\"]([A-Z]+)['\"]")
+    found = []
+    for filename in sorted(os.listdir(routes_dir)):
+        if not filename.endswith(".py") or filename.startswith("."):
+            continue
+        file_path = os.path.join(routes_dir, filename)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
+        except Exception:
+            continue
+        rel = os.path.relpath(file_path, APP_ROOT).replace("\\", "/")
+        for match in route_pattern.finditer(text):
+            path = match.group(1)
+            raw_methods = match.group(2) or ""
+            methods = method_pattern.findall(raw_methods) or ["GET"]
+            found.append(f"{','.join(methods)} {path} ({rel})")
+            if len(found) >= max_items:
+                break
+        if len(found) >= max_items:
+            break
+    return sorted(set(found))
+
+
+def _read_npm_scripts(max_items=24):
+    package_path = os.path.join(APP_ROOT, "package.json")
+    try:
+        with open(package_path, "r", encoding="utf-8") as f:
+            pkg = json.load(f)
+    except Exception:
+        return []
+    scripts = pkg.get("scripts") or {}
+    items = []
+    for name in sorted(scripts.keys()):
+        cmd = " ".join(str(scripts[name]).split())
+        if len(cmd) > 92:
+            cmd = f"{cmd[:89]}..."
+        items.append(f"{name}: {cmd}")
+        if len(items) >= max_items:
+            break
+    return items
+
+
+def _build_repo_context():
+    lines = [
+        "Local repository context snapshot for application-level Q&A and code improvement guidance.",
+    ]
+
+    top = _top_level_entries()
+    if top:
+        lines.append("")
+        lines.append("Top-level entries:")
+        lines.extend([f"- {entry}" for entry in top])
+
+    scripts = _read_npm_scripts()
+    if scripts:
+        lines.append("")
+        lines.append("NPM scripts:")
+        lines.extend([f"- {entry}" for entry in scripts])
+
+    sections = [
+        ("Electron files", _collect_files("electron", (".cjs", ".js", ".json"), max_depth=2, max_items=30)),
+        ("Frontend app files", _collect_files("frontend/src", (".jsx", ".js", ".tsx", ".ts", ".css"), max_depth=4, max_items=120)),
+        ("Backend route files", _collect_files("backend/routes", (".py",), max_depth=2, max_items=80)),
+        ("Backend module files", _collect_files("backend/modules", (".py",), max_depth=3, max_items=80)),
+        ("Backend core files", _collect_files("backend", (".py", ".txt", ".md", ".spec", ".sh", ".ps1"), max_depth=2, max_items=40)),
+    ]
+
+    for title, items in sections:
+        if not items:
+            continue
+        lines.append("")
+        lines.append(f"{title}:")
+        lines.extend([f"- {item}" for item in items])
+
+    endpoints = _extract_backend_endpoints()
+    if endpoints:
+        lines.append("")
+        lines.append("Backend HTTP endpoints:")
+        lines.extend([f"- {entry}" for entry in endpoints])
+
+    context = "\n".join(lines)
+    if len(context) > REPO_CONTEXT_MAX_CHARS:
+        context = f"{context[:REPO_CONTEXT_MAX_CHARS]}\n\n[Context truncated for prompt size.]"
+    return context
+
+
+def get_repo_context(force_refresh=False):
+    now = time.time()
+    cached = _REPO_CONTEXT_CACHE.get("context") or ""
+    generated_at = float(_REPO_CONTEXT_CACHE.get("generated_at") or 0.0)
+    if not force_refresh and cached and (now - generated_at) <= REPO_CONTEXT_TTL_SECONDS:
+        return cached
+    context = _build_repo_context()
+    _REPO_CONTEXT_CACHE["context"] = context
+    _REPO_CONTEXT_CACHE["generated_at"] = now
+    return context
+
+
+def _is_improvement_request(text):
+    if not text:
+        return False
+    lower = str(text).lower()
+    return any(hint in lower for hint in IMPROVEMENT_QUERY_HINTS)
+
+
 EXPERT_ROLE_DESCRIPTIONS = {
     "combustion_dynamics_expert": (
         "Expert in hydrogen combustion dynamics covering deflagration, detonation, flame acceleration, "
@@ -220,6 +465,12 @@ def get_models():
         return jsonify({"success": True, "models": ['deepseek-v3.1:671b-cloud']})
 
 
+@ai_bp.route('/app_repo_context', methods=['GET'])
+def app_repo_context():
+    refresh = (request.args.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    return jsonify({"success": True, "context": get_repo_context(force_refresh=refresh)})
+
+
 @ai_bp.route('/ai_research_stream')
 def ai_research_stream():
     if not HAS_OLLAMA:
@@ -241,7 +492,10 @@ def ai_research_stream():
     objective = request.args.get('objective') or 'hydrogen explosion research'
     plan_desc = request.args.get('plan_desc') or ''
     app_context = request.args.get('app_context') or ''
+    include_repo_context = (request.args.get('include_repo_context') or '1').strip().lower() not in {'0', 'false', 'no', 'off'}
+    repo_context = get_repo_context() if include_repo_context else ''
     pdf_context = get_pdf_context(project_path)
+    improvement_mode = _is_improvement_request(user_query)
 
     def generate():
         try:
@@ -266,6 +520,7 @@ def ai_research_stream():
                 f"Primary Expert Role: {primary_role or 'general'}. "
                 f"Active Expert Personas:\n{expert_block}\n"
                 f"\n--- APP CONTEXT ---\n{app_context}\n"
+                f"\n--- APPLICATION CODEBASE CONTEXT ---\n{repo_context}\n"
                 f"\n--- ATTACHED LITERATURE CONTEXT ---\n{pdf_context}\n"
                 "Provide PhD-level technical insights.\n"
                 "CRITICAL FORMATTING INSTRUCTIONS:\n"
@@ -275,8 +530,12 @@ def ai_research_stream():
                 "4. Ensure there is a double line break between different items in a list.\n"
                 "5. If a user asks for a list, DO NOT write a paragraph; provide a clean, vertical list.\n"
                 "6. If more than one Active Expert Persona is listed above, begin with an 'Active Experts:' line\n"
-                "   listing every role, then provide short role-labeled sections with 2-4 bullets each."
+                "   listing every role, then provide short role-labeled sections with 2-4 bullets each.\n"
+                "7. When asked about this application's architecture, behavior, or improvements, ground your answer\n"
+                "   in the APPLICATION CODEBASE CONTEXT and cite concrete repository paths."
             )
+            if improvement_mode:
+                system_content += f"\n\n{IMPROVEMENT_REPORT_INSTRUCTIONS}"
 
             if len(active_roles) > 1:
                 preface_lines = ["## Active Experts", ""]

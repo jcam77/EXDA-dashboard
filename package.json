@@ -76,6 +76,10 @@
       {
         "from": "Demo Projects",
         "to": "Demo Projects"
+      },
+      {
+        "from": "appsTestEnviroment",
+        "to": "appsTestEnviroment"
       }
     ],
     "win": {

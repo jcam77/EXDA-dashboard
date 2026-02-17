@@ -37,5 +37,8 @@ __pycache__/
 *.pyc
 
 
-# Environment variables
-appsTestEnviroment/
+# Environment variables / local app test environment
+# Keep only folder skeleton via .gitkeep so structure is recoverable.
+appsTestEnviroment/*
+!appsTestEnviroment/**/
+!appsTestEnviroment/**/.gitkeep
