@@ -32,6 +32,15 @@ const PressureAnalysis = ({
   const [seriesScope, setSeriesScope] = useState(mode === 'validation' ? 'all' : 'experimental');
   const [localTickCount, setLocalTickCount] = useState(settings.pressureTickCount || 10);
   const [localYTickCount, setLocalYTickCount] = useState(10);
+  const effectiveImpulseDrop = useMemo(() => {
+    const raw = Number(settings.impulseDrop);
+    if (!Number.isFinite(raw) || raw <= 0) return 0.05;
+    return raw > 1 ? Math.min(raw / 100, 1) : raw;
+  }, [settings.impulseDrop]);
+  const impulseDropPercent = useMemo(
+    () => Math.max(0.1, Math.min(100, Number((effectiveImpulseDrop * 100).toFixed(2)))),
+    [effectiveImpulseDrop]
+  );
   const showRawReferenceOverlay = settings.showRawReference !== false;
   const isValidationMode = mode === 'validation';
   const chartTitle = isValidationMode ? 'CFD Validation: Pressure vs Time' : 'Pressure vs Time (Experiments)';
@@ -123,6 +132,12 @@ const PressureAnalysis = ({
     const raw = Number(e.target.value);
     const safe = Number.isFinite(raw) ? Math.max(3, Math.min(20, Math.round(raw))) : localYTickCount;
     setLocalYTickCount(safe);
+  };
+
+  const onImpulseDropChange = (e) => {
+    const rawPercent = Number(e.target.value);
+    const safePercent = Number.isFinite(rawPercent) ? Math.max(0.1, Math.min(100, rawPercent)) : impulseDropPercent;
+    setSettings({ ...settings, impulseDrop: safePercent / 100.0 });
   };
 
   return (
@@ -368,10 +383,22 @@ const PressureAnalysis = ({
                   className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
                 />
               </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] text-muted-foreground uppercase font-bold">Impulse Cutoff (% Peak)</label>
+                <input
+                  type="number"
+                  min="0.1"
+                  max="100"
+                  step="0.1"
+                  value={impulseDropPercent}
+                  onChange={onImpulseDropChange}
+                  className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
+                />
+              </div>
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
               <Settings size={14} />
-              <span>Click Plot Selected after changing filter settings to reprocess metrics.</span>
+              <span>Impulse is integrated from peak until pressure decays below this % of Pmax. Click Plot Selected to refresh.</span>
             </div>
           </div>
         </div>

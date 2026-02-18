@@ -1,3 +1,5 @@
+"""Filesystem helpers for project creation, status, dialogs, and plan persistence."""
+
 import os
 import sys
 import subprocess
@@ -8,6 +10,7 @@ from datetime import datetime, timezone
 STATUS_FILENAME = "project_status.json"
 
 def resolve_project_path(project_path, require_project_folder=False):
+    """Validate and resolve a project path on disk."""
     if not project_path:
         return None, "Project path is required"
     resolved = os.path.realpath(project_path)
@@ -20,6 +23,7 @@ def resolve_project_path(project_path, require_project_folder=False):
     return resolved, None
 
 def is_path_within(base_path, target_path):
+    """Check whether target_path is inside base_path."""
     if not base_path or not target_path:
         return False
     base = os.path.realpath(base_path)
@@ -30,6 +34,7 @@ def is_path_within(base_path, target_path):
         return False
 
 def sanitize_filename(filename):
+    """Return a safe basename suitable for writing into project folders."""
     if not filename:
         return None
     safe_name = os.path.basename(filename.strip())
@@ -38,27 +43,33 @@ def sanitize_filename(filename):
     return safe_name
 
 def _now_iso():
+    """Return current UTC timestamp in ISO-8601 format."""
     return datetime.now(timezone.utc).isoformat()
 
 def _status_path(base_path):
+    """Return canonical path to the status file in Plan/."""
     return os.path.join(base_path, "Plan", STATUS_FILENAME)
 
 def _legacy_status_path(base_path):
+    """Return legacy path to status file at project root."""
     return os.path.join(base_path, STATUS_FILENAME)
 
 def _safe_mtime_iso(path):
+    """Return file modification date as ISO date or None."""
     try:
         return datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc).date().isoformat()
     except Exception:
         return None
 
 def is_project_folder(base_path):
+    """Check whether path looks like an initialized project folder."""
     if not base_path or not os.path.exists(base_path):
         return False
     expected = ["Plan", "Raw_Data", "aiChat", "Reports", "Literature"]
     return any(os.path.exists(os.path.join(base_path, f)) for f in expected)
 
 def read_project_status(base_path):
+    """Read project status JSON from canonical or legacy location."""
     if not base_path or not os.path.exists(base_path):
         return None
     status_file = _status_path(base_path)
@@ -78,6 +89,7 @@ def read_project_status(base_path):
     return None
 
 def ensure_project_status(base_path):
+    """Create/update project status file with default metadata."""
     if not base_path or not os.path.exists(base_path):
         return None
 
@@ -111,6 +123,7 @@ def ensure_project_status(base_path):
         return None
 
 def _latest_plan_file(plan_dir):
+    """Return newest plan JSON file in a Plan directory."""
     if not plan_dir or not os.path.exists(plan_dir):
         return None
     plan_files = [
@@ -123,6 +136,7 @@ def _latest_plan_file(plan_dir):
     return max(plan_files, key=os.path.getmtime)
 
 def get_project_plan_summary(base_path):
+    """Build a compact plan summary used by project list views."""
     if not base_path or not os.path.exists(base_path):
         return None
 
@@ -197,6 +211,7 @@ def get_project_plan_summary(base_path):
     }
 
 def archive_project(project_path):
+    """Move a project into a local .trash archive directory."""
     if not project_path or not os.path.exists(project_path):
         return False, "Project path not found"
     if not os.path.isdir(project_path):
@@ -215,6 +230,7 @@ def archive_project(project_path):
         return False, str(e)
 
 def update_project_status(project_path, status_value):
+    """Persist status in status file and mirror it into latest plan meta."""
     if not project_path or not os.path.exists(project_path):
         return False, "Project path not found"
     if status_value not in ["planning", "active", "archived"]:
@@ -252,6 +268,7 @@ def update_project_status(project_path, status_value):
     return True, status
 
 def open_folder(path):
+    """Open a folder using platform-specific file explorer integration."""
     if not path or not os.path.exists(path):
         return False, "Path not found"
 
@@ -341,6 +358,7 @@ def initialize_project_structure(base_path):
         return False, str(e)
 
 def create_project_structure(parent_path, project_name):
+    """Create a new project folder and initialize required structure."""
     if not parent_path or not os.path.exists(parent_path):
         return False, "Invalid parent path", None
     if not project_name:
@@ -359,6 +377,7 @@ def create_project_structure(parent_path, project_name):
     return success, msg, project_path
 
 def save_plan_to_project(project_path, filename, content):
+    """Write plan content into the project's Plan directory."""
     resolved_path, err = resolve_project_path(project_path)
     if err:
         return False, err

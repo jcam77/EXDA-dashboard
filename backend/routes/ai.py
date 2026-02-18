@@ -1,4 +1,5 @@
 
+"""AiRA routes and helpers for model listing, SSE chat, and repo context snapshots."""
 
 from flask import Blueprint, jsonify, request, Response
 import json
@@ -118,6 +119,7 @@ like 10.211.55.x instead of the Mac's Wi-Fi IP (en0). That's expected and OK.
 """
 
 def _hostname_resolves(hostname):
+    """Return True when hostname resolves via local DNS lookup."""
     if not hostname:
         return False
     try:
@@ -128,6 +130,7 @@ def _hostname_resolves(hostname):
 
 
 def _read_hostname_file():
+    """Read optional Ollama hostname override from .ollama_hostname."""
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     hostname_path = os.path.join(project_root, ".ollama_hostname")
     try:
@@ -142,6 +145,7 @@ def _read_hostname_file():
 
 
 def _resolve_ollama_host():
+    """Resolve Ollama host URL from env vars, hostname file, or localhost fallback."""
     port = os.environ.get("OLLAMA_PORT", "11434")
     env_host = os.environ.get("OLLAMA_HOST")
     if env_host:
@@ -167,6 +171,7 @@ def _resolve_ollama_host():
 
 
 def _log_resolved_ip(host_url):
+    """Log resolved host IP for easier VM/network diagnostics."""
     try:
         parsed = urlparse(host_url)
         hostname = parsed.hostname
@@ -201,6 +206,7 @@ except ImportError:
 
 
 def get_pdf_context(project_path):
+    """Extract truncated text context from project Literature PDFs."""
     if not HAS_PDF_LIB or not project_path or project_path == 'Unknown':
         return ""
 
@@ -241,6 +247,7 @@ def get_pdf_context(project_path):
 
 
 def _should_skip_dir(name):
+    """Return True when directory should be excluded from repository scans."""
     if not name:
         return True
     if name in REPO_SCAN_ALLOW_HIDDEN_DIRS:
@@ -255,6 +262,7 @@ def _should_skip_dir(name):
 
 
 def _should_skip_file(name):
+    """Return True when file should be excluded from repository scans."""
     if not name:
         return True
     if name.startswith(REPO_SCAN_IGNORE_PREFIXES):
@@ -265,6 +273,7 @@ def _should_skip_file(name):
 
 
 def _collect_files(base_rel, suffixes, max_depth=3, max_items=80):
+    """Collect repository file paths with depth, suffix, and item limits."""
     base_abs = os.path.join(APP_ROOT, base_rel)
     if not os.path.isdir(base_abs):
         return []
@@ -290,6 +299,7 @@ def _collect_files(base_rel, suffixes, max_depth=3, max_items=80):
 
 
 def _top_level_entries(max_items=40):
+    """Return visible top-level repository entries."""
     try:
         names = sorted(os.listdir(APP_ROOT))
     except Exception:
@@ -307,6 +317,7 @@ def _top_level_entries(max_items=40):
 
 
 def _extract_backend_endpoints(max_items=80):
+    """Parse Flask route decorators and return endpoint summaries."""
     routes_dir = os.path.join(APP_ROOT, "backend", "routes")
     if not os.path.isdir(routes_dir):
         return []
@@ -338,6 +349,7 @@ def _extract_backend_endpoints(max_items=80):
 
 
 def _read_npm_scripts(max_items=24):
+    """Read and format package.json scripts for prompt context."""
     package_path = os.path.join(APP_ROOT, "package.json")
     try:
         with open(package_path, "r", encoding="utf-8") as f:
@@ -357,14 +369,17 @@ def _read_npm_scripts(max_items=24):
 
 
 def _main_calculation_file_lines():
+    """Return labeled lines for the main backend calculation files."""
     return [f"- {path}: {description}" for path, description in MAIN_CALCULATION_FILES]
 
 
 def _app_structure_file_lines():
+    """Return labeled lines for key frontend/backend structure files."""
     return [f"- {path}: {description}" for path, description in APP_STRUCTURE_FILES]
 
 
 def _build_repo_context():
+    """Build a bounded-size repository context snapshot for AiRA prompts."""
     lines = [
         "Local repository context snapshot for application-level Q&A and code improvement guidance.",
     ]
@@ -417,6 +432,7 @@ def _build_repo_context():
 
 
 def get_repo_context(force_refresh=False):
+    """Return cached repo context, rebuilding when cache is stale or forced."""
     now = time.time()
     cached = _REPO_CONTEXT_CACHE.get("context") or ""
     generated_at = float(_REPO_CONTEXT_CACHE.get("generated_at") or 0.0)
@@ -429,6 +445,7 @@ def get_repo_context(force_refresh=False):
 
 
 def _is_improvement_request(text):
+    """Detect whether user query asks for improvements/review style output."""
     if not text:
         return False
     lower = str(text).lower()
@@ -473,6 +490,7 @@ EXPERT_ROLE_DESCRIPTIONS = {
 
 
 def _parse_expert_roles(raw_roles):
+    """Normalize expert role selections from query parameters."""
     if not raw_roles:
         return []
     if isinstance(raw_roles, list):
@@ -491,6 +509,7 @@ def _parse_expert_roles(raw_roles):
 
 @ai_bp.route('/get_models', methods=['GET'])
 def get_models():
+    """List available Ollama models (or fallback default)."""
     if not HAS_OLLAMA:
         return jsonify({"success": True, "models": ['deepseek-v3.1:671b-cloud']})
     try:
@@ -505,12 +524,14 @@ def get_models():
 
 @ai_bp.route('/app_repo_context', methods=['GET'])
 def app_repo_context():
+    """Return repository context used by AiRA prompts."""
     refresh = (request.args.get('refresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     return jsonify({"success": True, "context": get_repo_context(force_refresh=refresh)})
 
 
 @ai_bp.route('/ai_research_stream')
 def ai_research_stream():
+    """Stream AI responses as server-sent events with context-aware prompting."""
     if not HAS_OLLAMA:
         def generate_unavailable():
             yield "data: [Error: AI service unavailable]\n\n"

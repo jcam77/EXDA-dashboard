@@ -1,3 +1,5 @@
+"""Project management routes for creating, listing, opening, and status updates."""
+
 from flask import Blueprint, jsonify, request
 import os
 
@@ -6,11 +8,13 @@ from modules import project_manager
 projects_bp = Blueprint("projects", __name__)
 
 def _projects_root_default():
+    """Return the configured projects root path, if provided."""
     return os.environ.get("EXDA_PROJECTS_ROOT")
 
 
 @projects_bp.route('/select_project_folder', methods=['POST'])
 def select_project_folder():
+    """Open a folder picker and initialize the selected project structure."""
     path = project_manager.select_folder_dialog()
     if path:
         success, msg = project_manager.initialize_project_structure(path)
@@ -22,6 +26,7 @@ def select_project_folder():
 
 @projects_bp.route('/open_project_path', methods=['POST'])
 def open_project_path():
+    """Open an existing project path and ensure required folders exist."""
     data = request.json or {}
     project_path = (data.get('projectPath') or '').strip()
     if not project_path or not os.path.exists(project_path):
@@ -35,6 +40,7 @@ def open_project_path():
 
 @projects_bp.route('/reveal_project_path', methods=['POST'])
 def reveal_project_path():
+    """Open the current project directory in the OS file explorer."""
     data = request.json or {}
     project_path = (data.get('projectPath') or '').strip()
     if not project_path or not os.path.exists(project_path):
@@ -48,6 +54,7 @@ def reveal_project_path():
 
 @projects_bp.route('/create_project', methods=['POST'])
 def create_project():
+    """Create a new project under a user-selected parent directory."""
     data = request.json or {}
     project_name = (data.get('projectName') or '').strip()
     if not project_name:
@@ -65,6 +72,7 @@ def create_project():
 
 @projects_bp.route('/create_project_at_path', methods=['POST'])
 def create_project_at_path():
+    """Create a new project in a provided parent path."""
     data = request.json or {}
     parent_path = (data.get('parentPath') or '').strip()
     project_name = (data.get('projectName') or '').strip()
@@ -81,6 +89,7 @@ def create_project_at_path():
 
 @projects_bp.route('/delete_project', methods=['POST'])
 def delete_project():
+    """Archive (soft-delete) a project into the local trash folder."""
     data = request.json or {}
     project_path = (data.get('projectPath') or '').strip()
     if not project_path:
@@ -94,6 +103,7 @@ def delete_project():
 
 @projects_bp.route('/update_project_status', methods=['POST'])
 def update_project_status():
+    """Update persisted project lifecycle status."""
     data = request.json or {}
     project_path = (data.get('projectPath') or '').strip()
     status_value = (data.get('status') or '').strip().lower()
@@ -107,6 +117,7 @@ def update_project_status():
 
 @projects_bp.route('/list_directories', methods=['GET'])
 def list_directories():
+    """List child directories for navigation and project selection."""
     app_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     apps_root = os.path.dirname(app_root)
     path = request.args.get('path') or _projects_root_default() or apps_root
@@ -149,6 +160,7 @@ def list_directories():
 
 @projects_bp.route('/projects_overview', methods=['GET'])
 def projects_overview():
+    """Return a text summary for all projects under the projects root."""
     app_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     apps_root = os.path.dirname(app_root)
     projects_root = _projects_root_default() or os.path.join(apps_root, 'Projects')
@@ -183,6 +195,7 @@ def projects_overview():
 
 @projects_bp.route('/project_plan_summary', methods=['GET'])
 def project_plan_summary():
+    """Return parsed plan summary metadata for one project."""
     project_path = request.args.get('path')
     if not project_path or not os.path.exists(project_path):
         return jsonify({"success": False, "error": "Invalid project path"}), 400

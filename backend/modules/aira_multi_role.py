@@ -48,10 +48,12 @@ if __name__ == "__main__":
 
 # Helper to get project context (reuse from ai.py if needed)
 def get_project_context(project_path: str) -> str:
+    """Return lightweight project context text for multi-agent prompts."""
     # Placeholder: You can import or copy the real implementation
     return f"Project context for {project_path} (implement as needed)"
 
 async def query_model_async(client, model: str, system_content: str, user_query: str) -> str:
+    """Send one async chat request to a specific model/client pair."""
     try:
         response = client.chat(model=model, messages=[
             {"role": "system", "content": system_content},
@@ -128,7 +130,9 @@ def run_multi_agents(
 
 # Remove multi-model/port logic and focus on multi-role (expert personas roles)
 class HydrogenResearchAgents:
+    """Coordinator for role-based expert prompts over a single Ollama model."""
     def __init__(self, base_url: str = "http://localhost:11434"):
+        """Initialize role catalog, history buffers, and model settings."""
         self.base_url = base_url
         self.model = "deepseek-v3.1:671b-cloud"
         # CONSOLIDATED ROLES FOR HYDROGEN SAFETY RESEARCH
@@ -171,9 +175,11 @@ class HydrogenResearchAgents:
         self.deactivated_roles = set()
 
     def deactivate_role(self, role: str):
+        """Disable one expert persona for subsequent calls."""
         self.deactivated_roles.add(role)
 
     def activate_role(self, role: str):
+        """Re-enable one expert persona for subsequent calls."""
         self.deactivated_roles.discard(role)
 
     def generate(self, agent_role: str, prompt: str, use_history: bool = True) -> str:

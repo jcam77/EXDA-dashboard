@@ -1,9 +1,12 @@
+"""Utilities for interpolating and aggregating multi-series plot payloads."""
+
 from typing import Dict, List, Optional
 
 from .models import AggregatePlotRequest
 
 
 def _get_keys(active_tab: str) -> Dict[str, str]:
+    """Return axis keys and sampling resolution per analysis tab."""
     is_flame = active_tab == "flame_speed"
     return {
         "is_flame": is_flame,
@@ -14,12 +17,14 @@ def _get_keys(active_tab: str) -> Dict[str, str]:
 
 
 def _max_axis(data: Optional[List[Dict[str, float]]], key_x: str) -> float:
+    """Return the maximum x-axis value in a series."""
     if not data:
         return 0.0
     return max((pt.get(key_x, 0.0) for pt in data), default=0.0)
 
 
 def _interpolate(target: float, src_data: List[Dict[str, float]], key_x: str, key_y: str) -> Optional[float]:
+    """Linearly interpolate y-value at target x for one series."""
     if not src_data or len(src_data) < 2:
         return None
     for i in range(len(src_data) - 1):
@@ -37,6 +42,7 @@ def _interpolate(target: float, src_data: List[Dict[str, float]], key_x: str, ke
 
 
 def aggregate_plot_data(payload: dict) -> List[Dict[str, float]]:
+    """Build a common-grid plot dataset from heterogeneous input series."""
     request = AggregatePlotRequest.from_dict(payload or {})
     keys = _get_keys(request.active_tab)
     key_x = keys["key_x"]

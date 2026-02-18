@@ -1,3 +1,5 @@
+"""Empirical Wavelet Transform analysis pipeline for pressure signals."""
+
 import io
 import numpy as np
 from scipy import signal
@@ -16,6 +18,7 @@ except Exception:
 
 
 def parse_data_content(content):
+    """Parse time/signal columns from raw text content."""
     try:
         lines = [line.strip() for line in io.StringIO(content) if not line.strip().startswith("#")]
         if not lines:
@@ -34,6 +37,7 @@ def parse_data_content(content):
 
 
 def resample_uniform(t, y):
+    """Resample irregular samples onto a uniform time basis."""
     t = np.asarray(t)
     y = np.asarray(y)
     if t.size < 2:
@@ -52,6 +56,7 @@ def resample_uniform(t, y):
 
 
 def perform_dwt_analysis(y, level=4):
+    """Compute SWT/DWT modes as a fallback spectral decomposition."""
     if not HAS_PYWT:
         return np.array([y])
     if level <= 0:
@@ -80,6 +85,7 @@ def perform_dwt_analysis(y, level=4):
 
 
 def perform_ewt_analysis(y, fs, num_modes=5):
+    """Run EWT decomposition and return modes or an error message."""
     if not HAS_EWT:
         return None, "EWT library unavailable"
     try:
@@ -90,6 +96,7 @@ def perform_ewt_analysis(y, fs, num_modes=5):
 
 
 def calculate_energy(modes):
+    """Compute absolute and relative mode energies."""
     energies = [float(np.sum(m ** 2)) for m in modes]
     total = sum(energies) if sum(energies) > 0 else 1.0
     pcts = [float((e / total) * 100.0) for e in energies]
@@ -97,6 +104,7 @@ def calculate_energy(modes):
 
 
 def downsample_plot_data(t, raw, modes, max_points=2000):
+    """Prepare downsampled raw/mode data for frontend plotting."""
     if len(t) == 0:
         return []
     step = max(1, int(len(t) / max_points))
@@ -110,6 +118,7 @@ def downsample_plot_data(t, raw, modes, max_points=2000):
 
 
 def analyze_ewt_content(content, num_modes=5, max_points=2000, knee_modes=10):
+    """Run full EWT workflow and return summary, modes, and recommendations."""
     t, y, err = parse_data_content(content)
     if err:
         return {"error": err}

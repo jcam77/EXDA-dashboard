@@ -1,3 +1,5 @@
+"""Backend application entrypoint for the EXDA Flask API."""
+
 from flask import Flask
 from flask_cors import CORS
 import os
@@ -14,12 +16,14 @@ from routes.literature import literature_bp
 app = Flask(__name__)
 
 def _env_flag(name, default=False):
+    """Parse a boolean-like environment variable."""
     value = os.environ.get(name)
     if value is None:
         return default
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 def _cors_origins():
+    """Build allowed CORS origins from environment or defaults."""
     raw = os.environ.get("EXDA_CORS_ORIGINS", "")
     if raw.strip():
         return [o.strip() for o in raw.split(",") if o.strip()]

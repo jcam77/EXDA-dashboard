@@ -140,7 +140,7 @@ const WorkspacePage = () => {
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [settings, setSettings] = useState({ 
-    useRaw: false, cutoff: 100, order: 4, impulseDrop: 1.0, 
+    useRaw: false, cutoff: 100, order: 4, impulseDrop: 0.05, 
     showVentLines: true, useShortNames: true,
     ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
     pressureTickCount: 10, ewtTickCount: 10,

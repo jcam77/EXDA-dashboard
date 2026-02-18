@@ -1,3 +1,5 @@
+"""Signal parsing, filtering, and pressure/vent metric calculations."""
+
 import io
 import numpy as np
 try:
@@ -7,6 +9,7 @@ except Exception:
 
 
 def parse_data_content(content):
+    """Parse time/value columns from delimited text content."""
     try:
         f = io.StringIO(content)
         lines = [line.strip() for line in f if not line.strip().startswith("#")]
@@ -24,6 +27,7 @@ def parse_data_content(content):
 
 
 def resample_uniform(t, y):
+    """Resample a signal onto a uniform time grid."""
     t, y = np.asarray(t), np.asarray(y)
     if t.size < 2:
         return t, y, 1.0
@@ -36,6 +40,7 @@ def resample_uniform(t, y):
 
 
 def apply_butterworth(t, y, cutoff_hz, order):
+    """Apply low-pass Butterworth filtering with safe fallbacks."""
     if len(t) < 10:
         return t, y
     t_uni, y_uni, fs = resample_uniform(t, y)
@@ -52,7 +57,23 @@ def apply_butterworth(t, y, cutoff_hz, order):
         return t_uni, y_uni
 
 
-def calculate_metrics(t, y, user_setting=1.0):
+def _normalize_impulse_drop(user_setting):
+    """Normalize impulse cutoff setting into a [0, 1] decay fraction."""
+    # Expected as a fraction in [0, 1].
+    # Backward compatibility: values > 1 are interpreted as percentages (e.g., 5 -> 5%).
+    try:
+        value = float(user_setting)
+    except (TypeError, ValueError):
+        return 0.05
+    if not np.isfinite(value) or value <= 0:
+        return 0.05
+    if value > 1.0:
+        value = value / 100.0
+    return float(np.clip(value, 0.001, 1.0))
+
+
+def calculate_metrics(t, y, user_setting=0.05):
+    """Compute pMax, tMax, impulse, and impulse integration status."""
     if len(y) == 0:
         return 0.0, 0.0, 0.0, "No Data"
     idx_max = np.argmax(y)
@@ -60,20 +81,17 @@ def calculate_metrics(t, y, user_setting=1.0):
     if p_max <= 0:
         return p_max, t_max, 0.0, "Peak <= 0"
 
-    cutoff_fraction = 0.05 if user_setting >= 0.99 else (1.0 if user_setting <= 0.01 else user_setting)
-    status = "Full Pulse" if user_setting >= 0.99 else f"Decay {int(cutoff_fraction * 100)}%"
-
-    if cutoff_fraction >= 0.99:
-        idx_cutoff = idx_max
-    else:
-        below = np.where(y[idx_max:] < cutoff_fraction * p_max)[0]
-        idx_cutoff = idx_max + below[0] if len(below) > 0 else len(y) - 1
+    cutoff_fraction = _normalize_impulse_drop(user_setting)
+    below = np.where(y[idx_max:] <= cutoff_fraction * p_max)[0]
+    idx_cutoff = idx_max + below[0] if len(below) > 0 else len(y) - 1
+    status = f"Decay to {cutoff_fraction * 100:.1f}% Pmax"
 
     impulse = np.trapz(y[: idx_cutoff + 1], t[: idx_cutoff + 1])
     return p_max, t_max, impulse, status
 
 
 def calculate_vent_time(t, b, threshold=0.5):
+    """Estimate vent opening time from a threshold crossing trace."""
     if len(b) < 2:
         return None
     crossings = np.where((b[:-1] >= threshold) & (b[1:] < threshold))[0]
@@ -83,7 +101,8 @@ def calculate_vent_time(t, b, threshold=0.5):
     return None
 
 
-def analyze_pressure_content(content, cutoff=100.0, order=4, impulse_drop=1.0, use_raw=False):
+def analyze_pressure_content(content, cutoff=100.0, order=4, impulse_drop=0.05, use_raw=False):
+    """Analyze pressure trace content and return metrics with plot-ready data."""
     t, val = parse_data_content(content)
     if t is None:
         return {"error": "Parse Error"}
@@ -105,9 +124,9 @@ def analyze_pressure_content(content, cutoff=100.0, order=4, impulse_drop=1.0, u
     try:
         impulse_drop = float(impulse_drop)
     except (TypeError, ValueError):
-        impulse_drop = 1.0
+        impulse_drop = 0.05
     if not np.isfinite(impulse_drop):
-        impulse_drop = 1.0
+        impulse_drop = 0.05
 
     if np.max(np.abs(val)) > 1000:
         val = (val - 101325.0) / 1000.0
@@ -133,6 +152,7 @@ def analyze_pressure_content(content, cutoff=100.0, order=4, impulse_drop=1.0, u
 
 
 def analyze_vent_content(content):
+    """Analyze vent trace content and return tVent with plot-ready data."""
     t, val = parse_data_content(content)
     if t is None:
         return {"error": "Parse Error"}

@@ -1,3 +1,5 @@
+"""Analysis routes for pressure, vent, flame, EWT, and plot aggregation APIs."""
+
 from flask import Blueprint, jsonify, request
 from functools import lru_cache
 
@@ -6,30 +8,35 @@ analysis_bp = Blueprint("analysis", __name__)
 
 @lru_cache(maxsize=1)
 def _pressure_analysis():
+    """Lazy-load pressure analysis helpers."""
     from modules import pressure_analysis
     return pressure_analysis
 
 
 @lru_cache(maxsize=1)
 def _flame_analysis():
+    """Lazy-load flame analysis helpers."""
     from modules import flame_analysis
     return flame_analysis
 
 
 @lru_cache(maxsize=1)
 def _ewt_analysis():
+    """Lazy-load EWT analysis helpers."""
     from modules import ewt_analysis
     return ewt_analysis
 
 
 @lru_cache(maxsize=1)
 def _plot_aggregation():
+    """Lazy-load plot aggregation helpers."""
     from modules import plot_aggregation
     return plot_aggregation
 
 
 @analysis_bp.route('/analyze', methods=['POST'])
 def analyze():
+    """Analyze payload content using the requested data type."""
     try:
         req = request.json or {}
         content = req.get('content', '')
@@ -49,7 +56,7 @@ def analyze():
             content,
             cutoff=req.get('cutoff', 100),
             order=req.get('order', 4),
-            impulse_drop=req.get('impulseDrop', 1.0),
+            impulse_drop=req.get('impulseDrop', 0.05),
             use_raw=bool(req.get('useRaw', False)),
         )
         if result.get("error"):
@@ -61,6 +68,7 @@ def analyze():
 
 @analysis_bp.route('/analyze_pressure', methods=['POST'])
 def analyze_pressure():
+    """Analyze pressure content and return metrics plus downsampled series."""
     try:
         pressure_analysis = _pressure_analysis()
         req = request.json or {}
@@ -71,7 +79,7 @@ def analyze_pressure():
             content,
             cutoff=req.get('cutoff', 100),
             order=req.get('order', 4),
-            impulse_drop=req.get('impulseDrop', 1.0),
+            impulse_drop=req.get('impulseDrop', 0.05),
             use_raw=bool(req.get('useRaw', False)),
         )
         if result.get("error"):
@@ -83,6 +91,7 @@ def analyze_pressure():
 
 @analysis_bp.route('/analyze_vent', methods=['POST'])
 def analyze_vent():
+    """Analyze vent trace and extract vent opening timing."""
     try:
         pressure_analysis = _pressure_analysis()
         req = request.json or {}
@@ -99,6 +108,7 @@ def analyze_vent():
 
 @analysis_bp.route('/aggregate_plot', methods=['POST'])
 def aggregate_plot():
+    """Merge multiple analyzed series into a common plot grid."""
     try:
         plot_aggregation = _plot_aggregation()
         req = request.json or {}
@@ -110,6 +120,7 @@ def aggregate_plot():
 
 @analysis_bp.route('/analyze_ewt', methods=['POST'])
 def analyze_ewt():
+    """Run Empirical Wavelet Transform analysis for a pressure signal."""
     try:
         ewt_analysis = _ewt_analysis()
         req = request.json or {}

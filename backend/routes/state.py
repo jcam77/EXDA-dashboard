@@ -1,3 +1,5 @@
+"""State routes for loading project files, plan data, and raw-data inventory."""
+
 from flask import Blueprint, jsonify, request
 import json
 from datetime import datetime
@@ -10,6 +12,7 @@ state_bp = Blueprint("state", __name__)
 
 @state_bp.route('/get_project_state', methods=['GET'])
 def get_project_state():
+    """Return the latest plan and indexed raw/simulation files for a project."""
     project_path = request.args.get('projectPath')
     project_root, err = project_manager.resolve_project_path(project_path)
     if err:
@@ -56,6 +59,7 @@ def get_project_state():
 
 @state_bp.route('/read_project_file', methods=['GET'])
 def read_project_file():
+    """Safely read a project-scoped file and return its text content."""
     project_path = request.args.get('projectPath')
     file_path = request.args.get('path')
     project_root, err = project_manager.resolve_project_path(project_path)
@@ -77,6 +81,7 @@ def read_project_file():
 
 @state_bp.route('/select_data_folder', methods=['POST'])
 def select_data_folder():
+    """Open a folder picker rooted in the project's Raw_Data directory."""
     try:
         data = request.json
         project_path = data.get('projectPath')
@@ -95,6 +100,7 @@ def select_data_folder():
 
 @state_bp.route('/list_raw_data', methods=['GET'])
 def list_raw_data():
+    """List all non-hidden files under a project's Raw_Data directory."""
     project_path = request.args.get('projectPath')
     project_root, err = project_manager.resolve_project_path(project_path)
     if err:
@@ -113,6 +119,7 @@ def list_raw_data():
 
 @state_bp.route('/list_plan_files', methods=['GET'])
 def list_plan_files():
+    """List available JSON plan files for a project."""
     project_path = request.args.get('projectPath')
     project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
     if err:
@@ -142,6 +149,7 @@ def list_plan_files():
 
 @state_bp.route('/load_plan_dialog', methods=['POST'])
 def load_plan_dialog():
+    """Open a file picker and load a selected plan JSON into memory."""
     data = request.json or {}
     project_path = data.get('projectPath')
     project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
@@ -192,6 +200,7 @@ def load_plan_dialog():
 
 @state_bp.route('/save_plan', methods=['POST'])
 def save_plan():
+    """Persist a plan file in the project's Plan directory."""
     data = request.json
     success, result = project_manager.save_plan_to_project(
         data.get('projectPath'), data.get('filename'), data.get('content')
