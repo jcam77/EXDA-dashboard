@@ -30,9 +30,16 @@ Examples:
 - `browser-v0.1`
 - `v1.0.0`
 
+## SemVer Note (NPM)
+- `package.json` uses SemVer: `MAJOR.MINOR.PATCH`.
+- `0.7` is not a valid npm version.
+- Use `0.7.0` as the equivalent of your `0.7` release.
+- Tiny fix (no feature change): `0.7.1`.
+- New feature: `0.8.0`.
+- Breaking change: `1.0.0`.
+
 ## Branch-specific Example
 ### `desktopBasedApp`
-SemVer format: MAJOR.MINOR.PATCH
 ```bash
 git branch --show-current
 git switch desktopBasedApp
