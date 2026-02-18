@@ -80,6 +80,7 @@ Useful endpoint:
 A project uses this structure:
 - `Plan/`
 - `Raw_Data/`
+- `Clean_Data/`
 - `Literature/` (`Books/`, `Papers/`, `Standards/`)
 - `aiChat/`
 

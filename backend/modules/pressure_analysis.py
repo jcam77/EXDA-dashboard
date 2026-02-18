@@ -1,29 +1,20 @@
 """Signal parsing, filtering, and pressure/vent metric calculations."""
 
-import io
 import numpy as np
+from modules.data_parser import normalize_pressure_to_kpa, parse_time_signal_content
 try:
     from scipy import signal
 except Exception:
     signal = None
 
 
-def parse_data_content(content):
+def parse_data_content(content, channel_index=0):
     """Parse time/value columns from delimited text content."""
-    try:
-        f = io.StringIO(content)
-        lines = [line.strip() for line in f if not line.strip().startswith("#")]
-        if not lines:
-            return None, None
-        data = np.loadtxt(io.StringIO("\n".join(lines).replace(",", " ")))
-        if data.ndim == 1:
-            data = data.reshape(1, -1)
-        t, y = data[:, 0], data[:, 1]
-        idx = np.argsort(t)
-        return t[idx], y[idx]
-    except Exception as e:
-        print(f"Parser Error: {e}")
+    t, y, err = parse_time_signal_content(content, channel_index=channel_index)
+    if err:
+        print(f"Parser Error: {err}")
         return None, None
+    return t, y
 
 
 def resample_uniform(t, y):
@@ -108,9 +99,18 @@ def calculate_vent_time(t, b, threshold=0.5):
     return None
 
 
-def analyze_pressure_content(content, cutoff=100.0, order=4, impulse_drop=0.05, use_raw=False):
+def analyze_pressure_content(
+    content,
+    cutoff=100.0,
+    order=4,
+    impulse_drop=0.05,
+    use_raw=False,
+    channel_index=0,
+    input_unit="auto",
+    convert_to_kpa=True,
+):
     """Analyze pressure trace content and return metrics with plot-ready data."""
-    t, val = parse_data_content(content)
+    t, val = parse_data_content(content, channel_index=channel_index)
     if t is None:
         return {"error": "Parse Error"}
 
@@ -135,8 +135,12 @@ def analyze_pressure_content(content, cutoff=100.0, order=4, impulse_drop=0.05, 
     if not np.isfinite(impulse_drop):
         impulse_drop = 0.05
 
-    if np.max(np.abs(val)) > 1000:
-        val = (val - 101325.0) / 1000.0
+    val, unit_note, pressure_unit = normalize_pressure_to_kpa(
+        val,
+        content=content,
+        input_unit=input_unit,
+        convert_to_kpa=bool(convert_to_kpa),
+    )
 
     if use_raw:
         t_proc, p_proc = t, val
@@ -151,6 +155,8 @@ def analyze_pressure_content(content, cutoff=100.0, order=4, impulse_drop=0.05, 
             "tMax": f"{t_max:.4f}",
             "impulse": f"{impulse:.4f}",
             "status": status,
+            "pressureUnit": pressure_unit,
+            "unitNote": unit_note,
         },
         "plot_data": [
             {"t": float(t_proc[i]), "p": float(p_proc[i])} for i in range(0, len(t_proc), step)

@@ -19,6 +19,7 @@ const SERIES_ORDER = [
   { key: 'noisy_raw', label: 'Noisy (input)' },
   { key: 'noisy_filtered', label: 'Noisy filtered' },
 ];
+const PRESSURE_DIGITS = 5;
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === '') return null;
@@ -30,7 +31,7 @@ const formatDelta = (pythonValue, referenceValue) => {
   const p = toNumber(pythonValue);
   const m = toNumber(referenceValue);
   if (p === null || m === null) return '-';
-  return Math.abs(p - m).toFixed(4);
+  return Math.abs(p - m).toFixed(PRESSURE_DIGITS);
 };
 
 const formatFixed = (value, digits = 3) => {
@@ -47,7 +48,6 @@ const AppCalculationsVerificationPage = () => {
     cutoffHz: 20,
     order: 4,
     ewtNumModes: 5,
-    ewtKneeModes: 8,
     ewtMaxPoints: 1200,
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -74,7 +74,6 @@ const AppCalculationsVerificationPage = () => {
         cutoffHz: String(settings.cutoffHz),
         order: String(settings.order),
         ewtNumModes: String(settings.ewtNumModes),
-        ewtKneeModes: String(settings.ewtKneeModes),
         ewtMaxPoints: String(settings.ewtMaxPoints),
       });
       const response = await fetch(`${apiBaseUrl}/calculation_verification?${params.toString()}`);
@@ -92,7 +91,6 @@ const AppCalculationsVerificationPage = () => {
     apiBaseUrl,
     settings.cutoffHz,
     settings.decayPercent,
-    settings.ewtKneeModes,
     settings.ewtMaxPoints,
     settings.ewtNumModes,
     settings.order,
@@ -139,10 +137,19 @@ const AppCalculationsVerificationPage = () => {
   const ewtSummary = payload.ewtData?.summary || {};
   const ewtWarning = payload.ewtError || payload.ewtData?.warning || '';
   const ewtPeakAlignment = payload.ewtPeakAlignment || [];
+  const ewtPlottedPointCount = ewtPlotData.length;
+  const ewtFullSampleCount = Number.isFinite(Number(ewtSummary.samples)) ? Number(ewtSummary.samples) : null;
+  const ewtMaxPlotPoints = Number.isFinite(Number(payload?.ewtSettings?.maxPoints))
+    ? Number(payload.ewtSettings.maxPoints)
+    : settings.ewtMaxPoints;
+  const ewtDownsampleApplied =
+    ewtFullSampleCount !== null &&
+    Number.isFinite(Number(ewtPlottedPointCount)) &&
+    ewtPlottedPointCount < ewtFullSampleCount;
 
   const renderPressureSection = () => (
     <div className="flex flex-col gap-6">
-      <div className="bg-card/60 border border-border rounded-xl p-4 h-[420px]">
+      <div className="bg-card/60 border border-border rounded-xl p-4 h-[530px]">
         <h3 className="text-sm font-bold text-foreground mb-3">Pressure Trace Verification</h3>
         {isLoading ? (
           <div className="h-full flex items-center justify-center text-primary animate-pulse text-sm">
@@ -155,7 +162,7 @@ const AppCalculationsVerificationPage = () => {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={pressureChartData} margin={{ top: 8, right: 20, left: 0, bottom: 8 }}>
+            <LineChart data={pressureChartData} margin={{ top: 20, right: 20, left: 0, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="time"
@@ -167,8 +174,8 @@ const AppCalculationsVerificationPage = () => {
                 allowDataOverflow
                 label={{
                   value: 'Time (s)',
-                  position: 'insideBottom',
-                  offset: -4,
+                  position: 'bottom',
+                  offset: 10,
                   fill: 'hsl(var(--muted-foreground))',
                   fontSize: 10,
                 }}
@@ -191,7 +198,25 @@ const AppCalculationsVerificationPage = () => {
                 }}
                 formatter={(value) => (value == null ? '-' : Number(value).toFixed(4))}
               />
-              <Legend wrapperStyle={{ fontSize: '11px' }} />
+              <Legend
+                verticalAlign="top"
+                align="center"
+                content={({ payload: legendPayload }) => (
+                  <div className="px-2 pt-1">
+                    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                      {(legendPayload || []).map((entry) => (
+                        <span key={entry.value} className="inline-flex items-center gap-1.5">
+                          <span
+                            className="inline-block h-0.5 w-4 rounded-sm"
+                            style={{ backgroundColor: entry.color }}
+                          />
+                          <span>{entry.value}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              />
               <Line type="monotone" dataKey="Clean (reference)" stroke="#22c55e" dot={false} strokeWidth={2} isAnimationActive={false} />
               <Line type="monotone" dataKey="Noisy (input)" stroke="#f97316" dot={false} strokeWidth={2} isAnimationActive={false} />
               <Line type="monotone" dataKey="Noisy filtered" stroke="#38bdf8" dot={false} strokeWidth={2} isAnimationActive={false} />
@@ -211,17 +236,17 @@ const AppCalculationsVerificationPage = () => {
         <div className="overflow-auto">
           <table className="w-full border-collapse text-xs">
             <thead>
-              <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+              <tr className="text-[10px] tracking-widest text-muted-foreground border-b border-border">
                 <th className="text-left pb-2">Series</th>
-                <th className="text-right pb-2">Python Pmax</th>
-                <th className="text-right pb-2">MATLAB/Octave Pmax</th>
-                <th className="text-right pb-2">|Delta|</th>
-                <th className="text-right pb-2">Python tPeak</th>
-                <th className="text-right pb-2">MATLAB/Octave tPeak</th>
-                <th className="text-right pb-2">|Delta|</th>
-                <th className="text-right pb-2">Python Impulse</th>
-                <th className="text-right pb-2">MATLAB/Octave Impulse</th>
-                <th className="text-right pb-2">|Delta|</th>
+                <th className="text-right pb-2">Python Pmax (kPa)</th>
+                <th className="text-right pb-2">MATLAB/Octave Pmax (kPa)</th>
+                <th className="text-right pb-2">|Δ| (kPa)</th>
+                <th className="text-right pb-2">Python tPeak (s)</th>
+                <th className="text-right pb-2">MATLAB/Octave tPeak (s)</th>
+                <th className="text-right pb-2">|Δ| (s)</th>
+                <th className="text-right pb-2">Python Impulse (kPa·s)</th>
+                <th className="text-right pb-2">MATLAB/Octave Impulse (kPa·s)</th>
+                <th className="text-right pb-2">|Δ| (kPa·s)</th>
               </tr>
             </thead>
             <tbody className="text-foreground/90">
@@ -231,14 +256,14 @@ const AppCalculationsVerificationPage = () => {
                 return (
                   <tr key={row.key} className="border-b border-border/60">
                     <td className="py-2 font-semibold">{row.label}</td>
-                    <td className="py-2 text-right">{py.pMax || '-'}</td>
-                    <td className="py-2 text-right">{ml.pMax || '-'}</td>
+                    <td className="py-2 text-right">{formatFixed(py.pMax, PRESSURE_DIGITS)}</td>
+                    <td className="py-2 text-right">{formatFixed(ml.pMax, PRESSURE_DIGITS)}</td>
                     <td className="py-2 text-right">{formatDelta(py.pMax, ml.pMax)}</td>
-                    <td className="py-2 text-right">{py.tMax || '-'}</td>
-                    <td className="py-2 text-right">{ml.tMax || '-'}</td>
+                    <td className="py-2 text-right">{formatFixed(py.tMax, PRESSURE_DIGITS)}</td>
+                    <td className="py-2 text-right">{formatFixed(ml.tMax, PRESSURE_DIGITS)}</td>
                     <td className="py-2 text-right">{formatDelta(py.tMax, ml.tMax)}</td>
-                    <td className="py-2 text-right">{py.impulse || '-'}</td>
-                    <td className="py-2 text-right">{ml.impulse || '-'}</td>
+                    <td className="py-2 text-right">{formatFixed(py.impulse, PRESSURE_DIGITS)}</td>
+                    <td className="py-2 text-right">{formatFixed(ml.impulse, PRESSURE_DIGITS)}</td>
                     <td className="py-2 text-right">{formatDelta(py.impulse, ml.impulse)}</td>
                   </tr>
                 );
@@ -299,6 +324,7 @@ const AppCalculationsVerificationPage = () => {
           <div className="space-y-3">
             <div className="rounded border border-border/60 bg-black/20 p-3 text-xs text-muted-foreground">
               <div>Samples: <span className="text-foreground">{ewtSummary.samples ?? '-'}</span></div>
+              <div>Plotted points: <span className="text-foreground">{ewtPlottedPointCount || 0}</span></div>
               <div>Sampling rate: <span className="text-foreground">{formatFixed(ewtSummary.fs, 2)} Hz</span></div>
               <div>Modes returned: <span className="text-foreground">{ewtSummary.numModes ?? '-'}</span></div>
             </div>
@@ -343,7 +369,7 @@ const AppCalculationsVerificationPage = () => {
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Python EWT Mode Peaks</div>
           <table className="w-full border-collapse text-xs">
             <thead>
-              <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+              <tr className="text-[10px] tracking-widest text-muted-foreground border-b border-border">
                 <th className="text-left pb-2">Mode</th>
                 <th className="text-right pb-2">Peak (Hz)</th>
                 <th className="text-right pb-2">Energy (%)</th>
@@ -377,11 +403,11 @@ const AppCalculationsVerificationPage = () => {
           ) : (
             <table className="w-full border-collapse text-xs">
               <thead>
-                <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+                <tr className="text-[10px] tracking-widest text-muted-foreground border-b border-border">
                   <th className="text-left pb-2">Mode</th>
                   <th className="text-right pb-2">Python (Hz)</th>
                   <th className="text-right pb-2">Octave (Hz)</th>
-                  <th className="text-right pb-2">|Delta| (Hz)</th>
+                  <th className="text-right pb-2">|Δ| (Hz)</th>
                 </tr>
               </thead>
               <tbody className="text-foreground/90">
@@ -397,6 +423,16 @@ const AppCalculationsVerificationPage = () => {
             </table>
           )}
         </div>
+      </div>
+
+      <div className="text-[11px] text-muted-foreground border border-border/60 bg-black/20 rounded px-3 py-2">
+        Note: chart data is downsampled only for display.
+        {' '}
+        {ewtDownsampleApplied
+          ? `Downsampling applied (${ewtPlottedPointCount} plotted, ${ewtFullSampleCount} full, max ${ewtMaxPlotPoints}).`
+          : `No downsampling applied for this run (${ewtPlottedPointCount} plotted, max ${ewtMaxPlotPoints}).`}
+        {' '}
+        Python and Octave EWT peak metrics are always computed from full-resolution processed data.
       </div>
     </div>
   );
@@ -448,8 +484,8 @@ const AppCalculationsVerificationPage = () => {
         </div>
 
         {activeSection === 'pressure' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="flex flex-col">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col items-start">
               <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
                 Allowed Decay From Pmax (%)
               </label>
@@ -465,10 +501,10 @@ const AppCalculationsVerificationPage = () => {
                     decayPercent: Number(event.target.value),
                   }))
                 }
-                className="mt-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                className="mt-1 w-28 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
               />
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col items-start">
               <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
                 Cutoff (Hz)
               </label>
@@ -483,10 +519,10 @@ const AppCalculationsVerificationPage = () => {
                     cutoffHz: Number(event.target.value),
                   }))
                 }
-                className="mt-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                className="mt-1 w-28 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
               />
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col items-start">
               <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
                 Filter Order
               </label>
@@ -502,13 +538,13 @@ const AppCalculationsVerificationPage = () => {
                     order: Number(event.target.value),
                   }))
                 }
-                className="mt-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                className="mt-1 w-28 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
               />
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="flex flex-col">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col items-start">
               <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Num Modes</label>
               <input
                 type="number"
@@ -522,27 +558,10 @@ const AppCalculationsVerificationPage = () => {
                     ewtNumModes: Math.max(1, Math.min(10, Number(event.target.value) || 1)),
                   }))
                 }
-                className="mt-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                className="mt-1 w-28 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
               />
             </div>
-            <div className="flex flex-col">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Knee Modes</label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                step="1"
-                value={settings.ewtKneeModes}
-                onChange={(event) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    ewtKneeModes: Math.max(1, Math.min(10, Number(event.target.value) || 1)),
-                  }))
-                }
-                className="mt-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
-              />
-            </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col items-start">
               <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Max Points</label>
               <input
                 type="number"
@@ -556,12 +575,8 @@ const AppCalculationsVerificationPage = () => {
                     ewtMaxPoints: Math.max(200, Math.min(5000, Number(event.target.value) || 1200)),
                   }))
                 }
-                className="mt-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                className="mt-1 w-28 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
               />
-            </div>
-            <div className="md:col-span-3 text-[11px] text-muted-foreground">
-              <strong>Knee Modes:</strong> temporary number of EWT modes used to estimate the cumulative-energy "knee"
-              and suggested cutoff. It does not change the main displayed decomposition count.
             </div>
           </div>
         )}

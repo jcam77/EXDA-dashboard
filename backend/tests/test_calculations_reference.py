@@ -32,6 +32,19 @@ PRESSURE_SIGNAL = "\n".join(
     ]
 )
 
+MULTICHANNEL_WAVEFORM_SIGNAL = "\n".join(
+    [
+        "waveform;[0];[1];[2];[3]",
+        "t0;10/9/2025  12:39:59.915312;10/9/2025  12:39:59.915312;10/9/2025  12:39:59.915312;10/9/2025  12:39:59.915312",
+        "delta t;4.800008E-6;4.800008E-6;4.800008E-6;4.800008E-6",
+        "",
+        "time;Y[0];Y[1];Y[2];Y[3]",
+        "10/9/2025  12:39:59.915312;6.212507E-4;9.482248E-4;5.231585E-4;-2.454049E-1",
+        "10/9/2025  12:39:59.915317;3.487723E-4;4.032680E-4;9.809222E-5;-2.455139E-1",
+        "10/9/2025  12:39:59.915321;0.000000E+0;3.051758E-4;4.468645E-4;-2.459172E-1",
+    ]
+)
+
 EXPERIMENTAL_SIGNAL_PATH = (
     REPO_ROOT / "Projects" / "VH2D-Project" / "Raw_Data" / "expData" / "FMG" / "Pressure" / "Experimental_Data_001.csv"
 )
@@ -59,6 +72,37 @@ class CalculationReferenceTests(unittest.TestCase):
 
         self.assertAlmostEqual(float(half_peak["metrics"]["impulse"]), 17.0, places=4)
         self.assertIn("50.0% Pmax", half_peak["metrics"]["status"])
+
+    def test_multichannel_waveform_format_is_parsed(self):
+        """Verify semicolon time+channels waveform export is parsed as signal data."""
+        t, y = pressure_analysis.parse_data_content(MULTICHANNEL_WAVEFORM_SIGNAL)
+        self.assertIsNotNone(t)
+        self.assertIsNotNone(y)
+        self.assertEqual(len(t), 3)
+        self.assertEqual(len(y), 3)
+        self.assertAlmostEqual(float(t[1]), 4.800008e-6, places=12)
+        self.assertAlmostEqual(float(y[0]), 6.212507e-4, places=12)
+
+        t_ch2, y_ch2 = pressure_analysis.parse_data_content(MULTICHANNEL_WAVEFORM_SIGNAL, channel_index=1)
+        self.assertIsNotNone(t_ch2)
+        self.assertIsNotNone(y_ch2)
+        self.assertAlmostEqual(float(y_ch2[0]), 9.482248e-4, places=12)
+
+        ewt_t, ewt_y, ewt_err = ewt_analysis.parse_data_content(MULTICHANNEL_WAVEFORM_SIGNAL)
+        self.assertIsNone(ewt_err)
+        self.assertEqual(len(ewt_t), 3)
+        self.assertEqual(len(ewt_y), 3)
+
+        pressure_auto = analyze_pressure_content(
+            MULTICHANNEL_WAVEFORM_SIGNAL,
+            use_raw=True,
+            channel_index=0,
+            input_unit="auto",
+        )
+        self.assertNotIn("error", pressure_auto)
+        self.assertAlmostEqual(float(pressure_auto["metrics"]["pMax"]), 0.0621, places=4)
+        self.assertEqual(pressure_auto["metrics"].get("pressureUnit"), "kPa")
+        self.assertIn("bar to kPa", pressure_auto["metrics"].get("unitNote", ""))
 
     def test_api_pressure_matches_module_output(self):
         """Verify /analyze_pressure returns values consistent with module logic."""

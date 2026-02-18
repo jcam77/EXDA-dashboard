@@ -2,6 +2,20 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AudioLines, Sliders, AlertTriangle } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
 
+const CHANNEL_OPTIONS = [
+    { value: 0, label: 'Y[0] (Ch 1)' },
+    { value: 1, label: 'Y[1] (Ch 2)' },
+    { value: 2, label: 'Y[2] (Ch 3)' },
+    { value: 3, label: 'Y[3] (Ch 4)' },
+];
+const UNIT_OPTIONS = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'bar', label: 'bar' },
+    { value: 'kPa', label: 'kPa' },
+    { value: 'Pa', label: 'Pa' },
+    { value: 'V', label: 'V (trigger)' },
+];
+
 const EwtAnalysisPage = ({
     plotData = [],
     analysisResults = [],
@@ -57,6 +71,15 @@ const EwtAnalysisPage = ({
             };
         });
     }, [plotData]);
+    const ewtDisplayUnit = useMemo(() => {
+        if (settings.ewtConvertToKpa !== false) return 'kPa';
+        const selected = String(settings.ewtInputUnit || 'raw').toLowerCase();
+        if (selected === 'bar') return 'bar';
+        if (selected === 'kpa') return 'kPa';
+        if (selected === 'pa') return 'Pa';
+        if (selected === 'v') return 'V';
+        return 'raw';
+    }, [settings.ewtConvertToKpa, settings.ewtInputUnit]);
 
     return (
         <div className="flex flex-col gap-6">
@@ -135,7 +158,7 @@ const EwtAnalysisPage = ({
                                                         fontSize={10}
                                                         tickCount={localYTickCount || 10}
                                                         label={{
-                                                            value: idx === 0 ? 'Pressure (kPa)' : `${series.label} (kPa)`,
+                                                            value: idx === 0 ? `Pressure (${ewtDisplayUnit})` : `${series.label} (${ewtDisplayUnit})`,
                                                             angle: -90,
                                                             position: 'insideLeft',
                                                             fill: 'hsl(var(--muted-foreground))',
@@ -191,9 +214,53 @@ const EwtAnalysisPage = ({
                                         );
                                     })}
                                 </select>
-                                <p className="mt-1 text-[10px] text-muted-foreground">Assumes column 1 = time, column 2 = pressure.</p>
+                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                    For waveform files, select Y[n] channel and choose input units. Optional conversion to kPa is available.
+                                </p>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Channel</label>
+                                    <select
+                                        value={Number(settings.ewtChannelIndex ?? 0)}
+                                        onChange={(e) =>
+                                            setSettings(prev => ({
+                                                ...prev,
+                                                ewtChannelIndex: Math.max(0, Math.round(Number(e.target.value) || 0)),
+                                            }))
+                                        }
+                                        className="mt-1 w-full bg-background border border-border rounded-md px-2 py-2 text-xs text-foreground outline-none"
+                                    >
+                                        {CHANNEL_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Input Unit</label>
+                                    <select
+                                        value={settings.ewtInputUnit || 'auto'}
+                                        onChange={(e) => setSettings(prev => ({ ...prev, ewtInputUnit: e.target.value }))}
+                                        className="mt-1 w-full bg-background border border-border rounded-md px-2 py-2 text-xs text-foreground outline-none"
+                                    >
+                                        {UNIT_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.ewtConvertToKpa !== false}
+                                        onChange={(e) => setSettings(prev => ({ ...prev, ewtConvertToKpa: e.target.checked }))}
+                                        className="rounded bg-muted border-border"
+                                    />
+                                    Convert to kPa
+                                </label>
                                 <div>
                                     <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Num Modes</label>
                                     <input

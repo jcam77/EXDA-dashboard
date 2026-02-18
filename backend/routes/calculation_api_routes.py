@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from flask import Blueprint, jsonify, request
 
-from modules import ewt_analysis, flame_analysis, plot_interpolation, pressure_analysis
+from modules import data_parser, ewt_analysis, flame_analysis, plot_interpolation, pressure_analysis
 
 calculation_api_bp = Blueprint("calculation_api", __name__)
 TESTS_DIR = Path(__file__).resolve().parents[1] / "tests"
@@ -76,6 +76,30 @@ def _safe_float(value, default):
     return parsed
 
 
+def _safe_int(value, default):
+    """Parse int with fallback."""
+    try:
+        parsed = int(float(value))
+    except (TypeError, ValueError):
+        return default
+    return parsed
+
+
+def _safe_bool(value, default):
+    """Parse bool with fallback."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        token = value.strip().lower()
+        if token in ("1", "true", "yes", "on"):
+            return True
+        if token in ("0", "false", "no", "off"):
+            return False
+    return default
+
+
 def _load_matlab_metrics():
     """Load optional MATLAB/Octave-exported metrics keyed by series name."""
     metrics_path = _first_existing_path(PRESSURE_METRICS_CANDIDATES)
@@ -126,6 +150,9 @@ def analyze():
         req = request.json or {}
         content = req.get('content', '')
         data_type = req.get('dataType', 'pressure')
+        channel_index = max(0, _safe_int(req.get('channelIndex', 0), 0))
+        pressure_unit = str(req.get('pressureUnit', 'auto') or 'auto')
+        convert_to_kpa = _safe_bool(req.get('convertToKpa', True), True)
         if data_type == 'flame_speed':
             x, v = flame_analysis.calculate_flame_speed(content)
             return jsonify({"plot_data": [{'x': px, 'v': pv} for px, pv in zip(x, v)]})
@@ -140,6 +167,9 @@ def analyze():
             order=req.get('order', 4),
             impulse_drop=req.get('impulseDrop', 0.05),
             use_raw=bool(req.get('useRaw', False)),
+            channel_index=channel_index,
+            input_unit=pressure_unit,
+            convert_to_kpa=convert_to_kpa,
         )
         if result.get("error"):
             return jsonify({"error": result["error"]}), 400
@@ -156,12 +186,18 @@ def analyze_pressure():
         content = req.get('content', '')
         if not content:
             return jsonify({"error": "Missing content"}), 400
+        channel_index = max(0, _safe_int(req.get('channelIndex', 0), 0))
+        pressure_unit = str(req.get('pressureUnit', 'auto') or 'auto')
+        convert_to_kpa = _safe_bool(req.get('convertToKpa', True), True)
         result = pressure_analysis.analyze_pressure_content(
             content,
             cutoff=req.get('cutoff', 100),
             order=req.get('order', 4),
             impulse_drop=req.get('impulseDrop', 0.05),
             use_raw=bool(req.get('useRaw', False)),
+            channel_index=channel_index,
+            input_unit=pressure_unit,
+            convert_to_kpa=convert_to_kpa,
         )
         if result.get("error"):
             return jsonify({"error": result["error"]}), 400
@@ -207,18 +243,94 @@ def analyze_ewt():
             return jsonify({"error": "Missing content"}), 400
         num_modes = int(req.get('numModes', 5))
         max_points = int(req.get('maxPoints', 2000))
-        knee_modes = int(req.get('kneeModes', 10))
         num_modes = max(1, min(10, num_modes))
-        knee_modes = max(1, min(10, knee_modes))
+        channel_index = max(0, _safe_int(req.get('channelIndex', 0), 0))
+        pressure_unit = str(req.get('pressureUnit', 'auto') or 'auto')
+        convert_to_kpa = _safe_bool(req.get('convertToKpa', True), True)
         result = ewt_analysis.analyze_ewt_content(
             content,
             num_modes=num_modes,
             max_points=max_points,
-            knee_modes=knee_modes
+            channel_index=channel_index,
+            input_unit=pressure_unit,
+            convert_to_kpa=convert_to_kpa,
         )
         if result.get("error"):
             return jsonify({"error": result["error"]}), 400
         return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@calculation_api_bp.route('/preview_multichannel', methods=['POST'])
+def preview_multichannel():
+    """Parse and downsample a multichannel text signal for Clean Data plotting."""
+    try:
+        req = request.json or {}
+        content = req.get('content', '')
+        if not content:
+            return jsonify({"error": "Missing content"}), 400
+
+        full_resolution = _safe_bool(req.get('fullResolution', False), False)
+        max_points = _safe_int(req.get('maxPoints', 1500), 1500)
+        max_points = max(100, min(2_000_000, max_points))
+
+        t, y, channel_names, err = data_parser.parse_multichannel_content(content)
+        if err:
+            return jsonify({"error": err}), 400
+
+        if t is None or y is None or y.size == 0:
+            return jsonify({"error": "No numeric data parsed"}), 400
+
+        sample_count = int(t.shape[0])
+        channel_count = int(y.shape[1])
+        plotted_count = sample_count
+
+        if (not full_resolution) and sample_count > max_points:
+            idx = np.linspace(0, sample_count - 1, max_points, dtype=int)
+            idx = np.unique(idx)
+            t_plot = t[idx]
+            y_plot = y[idx, :]
+            plotted_count = int(len(idx))
+        else:
+            t_plot = t
+            y_plot = y
+
+        plot_data = []
+        for row_idx in range(plotted_count):
+            row = {"t": float(t_plot[row_idx])}
+            for col_idx in range(channel_count):
+                key = f"ch_{col_idx}"
+                row[key] = float(y_plot[row_idx, col_idx])
+            plot_data.append(row)
+
+        sampling_rate_hz = None
+        if sample_count > 1:
+            dt = np.diff(t)
+            dt = dt[np.isfinite(dt) & (dt > 0)]
+            if dt.size > 0:
+                sampling_rate_hz = float(1.0 / np.median(dt))
+
+        channels = []
+        for idx, label in enumerate(channel_names or []):
+            channels.append({"index": idx, "key": f"ch_{idx}", "label": label})
+        if not channels:
+            channels = [{"index": idx, "key": f"ch_{idx}", "label": f"Channel {idx + 1}"} for idx in range(channel_count)]
+
+        return jsonify(
+            {
+                "plotData": plot_data,
+                "channels": channels,
+                "summary": {
+                    "sampleCount": sample_count,
+                    "plottedCount": plotted_count,
+                    "channelCount": channel_count,
+                    "samplingRateHz": sampling_rate_hz,
+                    "downsampleApplied": plotted_count < sample_count,
+                    "fullResolution": full_resolution,
+                },
+            }
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -238,8 +350,6 @@ def calculation_verification():
         order = max(1, min(10, order))
         ewt_num_modes = int(round(_safe_float(request.args.get("ewtNumModes", 5), 5.0)))
         ewt_num_modes = max(1, min(10, ewt_num_modes))
-        ewt_knee_modes = int(round(_safe_float(request.args.get("ewtKneeModes", 8), 8.0)))
-        ewt_knee_modes = max(1, min(10, ewt_knee_modes))
         ewt_max_points = int(round(_safe_float(request.args.get("ewtMaxPoints", 1200), 1200.0)))
         ewt_max_points = max(200, min(5000, ewt_max_points))
 
@@ -277,7 +387,6 @@ def calculation_verification():
             noisy_content,
             num_modes=ewt_num_modes,
             max_points=ewt_max_points,
-            knee_modes=ewt_knee_modes,
         )
         if ewt_raw.get("error"):
             ewt_data = None
@@ -351,7 +460,6 @@ def calculation_verification():
                 },
                 "ewtSettings": {
                     "numModes": ewt_num_modes,
-                    "kneeModes": ewt_knee_modes,
                     "maxPoints": ewt_max_points,
                 },
                 "plotData": plot_data,

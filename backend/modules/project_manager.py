@@ -65,7 +65,7 @@ def is_project_folder(base_path):
     """Check whether path looks like an initialized project folder."""
     if not base_path or not os.path.exists(base_path):
         return False
-    expected = ["Plan", "Raw_Data", "aiChat", "Reports", "Literature"]
+    expected = ["Plan", "Raw_Data", "Clean_Data", "aiChat", "Reports", "Literature"]
     return any(os.path.exists(os.path.join(base_path, f)) for f in expected)
 
 def read_project_status(base_path):
@@ -333,12 +333,12 @@ def select_file_dialog(initial_dir):
 def initialize_project_structure(base_path):
     """
     Creates the PhD project folder hierarchy.
-    Updated: Now includes Books and Papers subdirectories for Literature.
+    Updated: includes Clean_Data plus Literature subdirectories.
     """
     if not base_path or not os.path.exists(base_path): return False, "Invalid path"
     
     # Primary PhD project folders
-    folders = ["Plan", "Raw_Data", "aiChat", "Reports", "Literature"]
+    folders = ["Plan", "Raw_Data", "Clean_Data", "aiChat", "Reports", "Literature"]
     
     # Specific Literature subcategories as requested
     sub_resources = [os.path.join("Literature", "Books"), os.path.join("Literature", "Papers"),os.path.join("Literature","Standards")]

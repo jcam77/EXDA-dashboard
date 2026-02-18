@@ -37,6 +37,9 @@ export const useAnalysisPipeline = ({
         const useRawValue = typeof options.useRaw === 'boolean' ? options.useRaw : settings.useRaw;
         const cutoffValue = Number.isFinite(Number(options.cutoff)) ? Number(options.cutoff) : settings.cutoff;
         const orderValue = Number.isFinite(Number(options.order)) ? Number(options.order) : settings.order;
+        const channelValue = Number.isFinite(Number(options.channelIndex))
+          ? Math.max(0, Math.round(Number(options.channelIndex)))
+          : Math.max(0, Math.round(Number(type === 'ewt' ? settings.ewtChannelIndex : settings.pressureChannelIndex) || 0));
         const includeVent = typeof options.includeVent === 'boolean' ? options.includeVent : true;
         if (type === 'ewt') {
           const res = await fetch(`${apiBaseUrl}/analyze_ewt`, {
@@ -46,7 +49,9 @@ export const useAnalysisPipeline = ({
               content: fileObj.content,
               numModes: settings.ewtNumModes,
               maxPoints: settings.ewtMaxPoints,
-              kneeModes: 10,
+              channelIndex: channelValue,
+              pressureUnit: settings.ewtInputUnit || 'auto',
+              convertToKpa: settings.ewtConvertToKpa !== false,
             }),
           });
           const d = await res.json();
@@ -74,6 +79,9 @@ export const useAnalysisPipeline = ({
             order: orderValue,
             useRaw: useRawValue,
             impulseDrop: settings.impulseDrop,
+            channelIndex: channelValue,
+            pressureUnit: settings.pressureInputUnit || 'auto',
+            convertToKpa: settings.pressureConvertToKpa !== false,
           }),
         });
         const d = await res.json();
@@ -256,6 +264,7 @@ export const useAnalysisPipeline = ({
     const t = setTimeout(runAnalysis, 300);
     return () => clearTimeout(t);
   }, [activeTab, runAnalysis, settings.ewtMaxPoints, settings.ewtNumModes, settings.ewtSelectedPath]);
+  
 
   useEffect(() => {
     if (activeTab === 'ewt') return;

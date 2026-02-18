@@ -12,6 +12,7 @@ import ChecklistPage from '../../pages/Checklist';
 import PlanPage from '../../pages/Plan';
 import GasMixingPage from '../../pages/GasMixing';
 import ImportDataPage from '../../pages/ImportData';
+import CleanDataPage from '../../pages/CleanData';
 import EWTPage from '../../pages/EwtAnalysis';
 import FlameSpeed from '../../pages/FlameSpeedAnalysis';
 import AiRAPage from '../../pages/AiRA';
@@ -47,6 +48,7 @@ const TAB_PATHS = {
     plan: '/plan',
     gas: '/gas',
     data: '/data',
+    clean_data: '/data/clean',
     ewt: '/analysis/ewt',
     pressure_analysis: '/analysis/pressure',
     cfd_validation: '/analysis/cfd-validation',
@@ -63,6 +65,7 @@ const resolveTabFromPath = (pathname) => {
     if (pathname.startsWith('/checklist')) return 'checklist';
     if (pathname.startsWith('/plan')) return 'plan';
     if (pathname.startsWith('/gas')) return 'gas';
+    if (pathname.startsWith('/data/clean')) return 'clean_data';
     if (pathname.startsWith('/data')) return 'data';
     if (pathname.startsWith('/analysis')) {
         if (pathname.includes('calculations-verification')) return 'verification';
@@ -147,6 +150,9 @@ const WorkspacePage = () => {
     useRaw: false, cutoff: 100, order: 4, impulseDrop: 0.05, 
     showVentLines: true, useShortNames: true,
     ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
+    pressureChannelIndex: 0, ewtChannelIndex: 0,
+    pressureInputUnit: 'auto', ewtInputUnit: 'auto',
+    pressureConvertToKpa: true, ewtConvertToKpa: true,
     pressureTickCount: 10, ewtTickCount: 10,
     showRawReference: true,
     experimentalUseRaw: false,
@@ -1015,6 +1021,7 @@ const WorkspacePage = () => {
                                             {id:'plan', l:'Plan', i:FileSpreadsheet, to: TAB_PATHS.plan}, 
                                             {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas}, 
                                             {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data}, 
+                                            {id:'clean_data', l:'Clean Data', i:FolderOpen, to: TAB_PATHS.clean_data},
                                             {id:'ewt', l:'EWT', i:AudioLines, to: TAB_PATHS.ewt},
                                             {id:'pressure_analysis', l:'Pressure Analysis', i:Activity, to: TAB_PATHS.pressure_analysis}, 
                                             {id:'cfd_validation', l:'CFD Validation', i:Beaker, to: TAB_PATHS.cfd_validation},
@@ -1119,6 +1126,15 @@ const WorkspacePage = () => {
                                                 initialPath={projectPath ? `${projectPath}/Raw_Data` : ''}
                                                 onClose={closeFlamePicker}
                                                 onPick={handleFlameFolderPick}
+                                        />
+                                    </SafeComponent>
+              )}
+              {activeTab === 'clean_data' && FLAGS.ENABLE_SOURCES && (
+                                    <SafeComponent>
+                                        <CleanDataPage
+                                            apiBaseUrl={apiBaseUrl}
+                                            projectPath={projectPath}
+                                            expFiles={expFiles}
                                         />
                                     </SafeComponent>
               )}

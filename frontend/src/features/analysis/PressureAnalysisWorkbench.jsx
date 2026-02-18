@@ -2,6 +2,20 @@ import React, { useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Info, Download, Settings, Activity, FlaskConical } from 'lucide-react';
 
+const CHANNEL_OPTIONS = [
+  { value: 0, label: 'Y[0] (Ch 1)' },
+  { value: 1, label: 'Y[1] (Ch 2)' },
+  { value: 2, label: 'Y[2] (Ch 3)' },
+  { value: 3, label: 'Y[3] (Ch 4)' },
+];
+const UNIT_OPTIONS = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'bar', label: 'bar' },
+  { value: 'kPa', label: 'kPa' },
+  { value: 'Pa', label: 'Pa' },
+  { value: 'V', label: 'V (trigger)' },
+];
+
 const PressureAnalysis = ({
   plotData,
   analysisResults,
@@ -76,6 +90,19 @@ const PressureAnalysis = ({
     () => analysisResults.filter((item) => item.sourceType === 'simulation').length,
     [analysisResults]
   );
+  const unitNotes = useMemo(
+    () => Array.from(new Set(analysisResults.map((item) => item?.metrics?.unitNote).filter(Boolean))),
+    [analysisResults]
+  );
+  const pressureDisplayUnit = useMemo(() => {
+    if (settings.pressureConvertToKpa !== false) return 'kPa';
+    const selected = String(settings.pressureInputUnit || 'raw').toLowerCase();
+    if (selected === 'bar') return 'bar';
+    if (selected === 'kpa') return 'kPa';
+    if (selected === 'pa') return 'Pa';
+    if (selected === 'v') return 'V';
+    return 'raw';
+  }, [settings.pressureConvertToKpa, settings.pressureInputUnit]);
 
   const formatTimeTick = (val) => {
     const num = Number(val);
@@ -192,7 +219,7 @@ const PressureAnalysis = ({
                     fontSize={12}
                     tickCount={localYTickCount || 10}
                     label={{
-                      value: 'Pressure (kPa)',
+                      value: `Pressure (${pressureDisplayUnit})`,
                       angle: -90,
                       position: 'insideLeft',
                       fill: 'hsl(var(--muted-foreground))',
@@ -358,6 +385,48 @@ const PressureAnalysis = ({
                     />
                     Use raw experimental data
                   </label>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Channel</label>
+                    <select
+                      value={Number(settings.pressureChannelIndex ?? 0)}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          pressureChannelIndex: Math.max(0, Math.round(Number(e.target.value) || 0)),
+                        })
+                      }
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-32 text-foreground"
+                    >
+                      {CHANNEL_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Input Unit</label>
+                    <select
+                      value={settings.pressureInputUnit || 'auto'}
+                      onChange={(e) => setSettings({ ...settings, pressureInputUnit: e.target.value })}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
+                    >
+                      {UNIT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={settings.pressureConvertToKpa !== false}
+                      onChange={(e) => setSettings({ ...settings, pressureConvertToKpa: e.target.checked })}
+                      className="rounded bg-muted border-border"
+                    />
+                    Convert to kPa
+                  </label>
                 </div>
               </div>
               <div className="xl:col-span-2 rounded-lg border border-border/60 bg-black/20 p-3">
@@ -417,6 +486,12 @@ const PressureAnalysis = ({
                 0.5*P<sub>max</sub>, 95% = stop at 0.05*P<sub>max</sub>. Click Plot Selected to refresh.
               </span>
             </div>
+            {unitNotes.length > 0 && (
+              <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                <Info size={14} />
+                <span>{unitNotes.join(' ')}</span>
+              </div>
+            )}
           </div>
         </div>
 

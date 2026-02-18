@@ -1,8 +1,8 @@
 """Empirical Wavelet Transform analysis pipeline for pressure signals."""
 
-import io
 import numpy as np
 from scipy import signal
+from modules.data_parser import normalize_pressure_to_kpa, parse_time_signal_content
 
 try:
     import ewtpy
@@ -17,23 +17,9 @@ except Exception:
     HAS_PYWT = False
 
 
-def parse_data_content(content):
+def parse_data_content(content, channel_index=0):
     """Parse time/signal columns from raw text content."""
-    try:
-        lines = [line.strip() for line in io.StringIO(content) if not line.strip().startswith("#")]
-        if not lines:
-            return None, None, "No data rows found"
-        data = np.loadtxt(io.StringIO("\n".join(lines).replace(",", " ")))
-        if data.ndim == 1:
-            data = data.reshape(1, -1)
-        if data.shape[1] < 2:
-            return None, None, "Expected at least 2 columns (time + signal)"
-        t = data[:, 0]
-        y = data[:, 1]
-        idx = np.argsort(t)
-        return t[idx], y[idx], None
-    except Exception as e:
-        return None, None, str(e)
+    return parse_time_signal_content(content, channel_index=channel_index)
 
 
 def resample_uniform(t, y):
@@ -107,7 +93,9 @@ def downsample_plot_data(t, raw, modes, max_points=2000):
     """Prepare downsampled raw/mode data for frontend plotting."""
     if len(t) == 0:
         return []
-    step = max(1, int(len(t) / max_points))
+    safe_max_points = int(max_points) if max_points and int(max_points) > 0 else 2000
+    # Use ceil so returned points are truly bounded by max_points.
+    step = max(1, int(np.ceil(len(t) / safe_max_points)))
     plot = []
     for i in range(0, len(t), step):
         row = {"time": float(t[i]), "raw": float(raw[i])}
@@ -117,13 +105,36 @@ def downsample_plot_data(t, raw, modes, max_points=2000):
     return plot
 
 
-def analyze_ewt_content(content, num_modes=5, max_points=2000, knee_modes=10):
+def _resolve_knee_modes(num_modes, knee_modes=None):
+    """Resolve internal mode count used for knee estimation."""
+    if knee_modes is None:
+        return max(2, min(10, max(int(num_modes), 8)))
+    try:
+        candidate = int(knee_modes)
+    except (TypeError, ValueError):
+        return max(2, min(10, max(int(num_modes), 8)))
+    return max(2, min(10, max(int(num_modes), candidate)))
+
+
+def analyze_ewt_content(
+    content,
+    num_modes=5,
+    max_points=2000,
+    knee_modes=None,
+    channel_index=0,
+    input_unit="auto",
+    convert_to_kpa=True,
+):
     """Run full EWT workflow and return summary, modes, and recommendations."""
-    t, y, err = parse_data_content(content)
+    t, y, err = parse_data_content(content, channel_index=channel_index)
     if err:
         return {"error": err}
-    if np.max(np.abs(y)) > 1000:
-        y = (y - 101325.0) / 1000.0
+    y, unit_note, pressure_unit = normalize_pressure_to_kpa(
+        y,
+        content=content,
+        input_unit=input_unit,
+        convert_to_kpa=bool(convert_to_kpa),
+    )
 
     t_uni, y_uni, fs = resample_uniform(t, y)
     modes, warning = perform_ewt_analysis(y_uni, fs, num_modes=num_modes)
@@ -171,10 +182,7 @@ def analyze_ewt_content(content, num_modes=5, max_points=2000, knee_modes=10):
     cumulative = []
     ewt_cumulative = []
     mode_spectrum = []
-    knee_modes = int(knee_modes) if knee_modes else num_modes
-    if knee_modes < 2:
-        knee_modes = 2
-    knee_modes = max(knee_modes, num_modes)
+    knee_modes = _resolve_knee_modes(num_modes=num_modes, knee_modes=knee_modes)
 
     knee_modes_data, knee_warning = perform_ewt_analysis(y_uni, fs, num_modes=knee_modes)
     knee_energies, knee_pcts = calculate_energy(knee_modes_data)
@@ -248,6 +256,8 @@ def analyze_ewt_content(content, num_modes=5, max_points=2000, knee_modes=10):
             "usesEWT": bool(HAS_EWT),
             "usesPyWT": bool(HAS_PYWT),
             "kneeModesUsed": int(knee_modes),
+            "pressureUnit": pressure_unit,
+            "unitNote": unit_note,
             "suggestedFilter": suggestion
         },
         "energy": energy_table,
