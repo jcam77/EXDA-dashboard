@@ -35,7 +35,7 @@ Examples:
 - `0.7` is not a valid npm version.
 - Use `0.7.0` as the equivalent of your `0.7` release.
 - Tiny fix (no feature change): `0.7.1`.
-- New feature: `0.9.0`.
+- New feature: `0.0.0`.
 - Breaking change: `1.0.0`.
 
 ## Branch-specific Example
@@ -47,12 +47,12 @@ git status --short
 git add .
 git commit -m "Build app update"
 git push origin desktopBasedApp
-npm version 0.9.0 --no-git-tag-version
+npm version 1.0.0 --no-git-tag-version
 git add package.json package-lock.json
-git commit -m "Bump app version to 0.9.0"
+git commit -m "Bump app version to 1.0.0"
 git push origin desktopBasedApp
-git tag -a desktop-v0.9.0 -m "desktop-v0.9.0"
-git push origin desktop-v0.9.0
+git tag -a desktop-v1.0.0 -m "desktop-v1.0.0"
+git push origin desktop-v1.0.0
 git log -1 --stat
 ```
 
