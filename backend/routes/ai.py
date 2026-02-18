@@ -81,6 +81,8 @@ MAIN_CALCULATION_FILES = [
     ("backend/modules/ewt_analysis.py", "EWT modal decomposition, energy spectrum, and cutoff suggestion."),
     ("backend/modules/plot_interpolation.py", "Interpolation/aggregation for cross-case comparison plots."),
     ("backend/routes/calculation_api_routes.py", "Calculation API dispatcher and numeric parameter plumbing."),
+    ("backend/tests/test_calculations_reference.py", "Reference verification tests for calculation/API parity and filtering behavior."),
+    ("backend/tests/scripts/comparison/octave/verify_ewt_peak_metrics_octave.m", "Octave script comparing EWT mode peak frequencies against Python reference."),
 ]
 APP_STRUCTURE_FILES = [
     ("frontend/src/main.jsx", "Frontend entry point that mounts AppShell."),
@@ -90,6 +92,7 @@ APP_STRUCTURE_FILES = [
     ("frontend/src/features/analysis/PressureAnalysisWorkbench.jsx", "Shared pressure plotting/controls used by two tabs."),
     ("frontend/src/pages/PressureAnalysis.jsx", "Pressure Analysis tab page wrapper (experiments mode)."),
     ("frontend/src/pages/CFDValidation.jsx", "CFD Validation tab page wrapper (validation mode)."),
+    ("frontend/src/pages/AppCalculationsVerification.jsx", "Verification page plotting clean/noisy fixtures and Python-vs-MATLAB metric comparisons."),
     ("frontend/src/pages/EwtAnalysis.jsx", "Empirical Wavelet Transform (EWT) analysis page."),
     ("frontend/src/pages/FlameSpeedAnalysis.jsx", "Flame speed analysis page."),
     ("frontend/src/pages/ImportData.jsx", "Import Data tab page."),

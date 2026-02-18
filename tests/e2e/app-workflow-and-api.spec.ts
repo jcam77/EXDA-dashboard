@@ -128,6 +128,7 @@ test.describe("UI: Home and Shell", () => {
     await expect(page.getByRole("heading", { name: /Hydrogen Explosion/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "Home", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Projects", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Verification", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "AiRA", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Open Project" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Create Project" }).first()).toBeVisible();
@@ -176,6 +177,7 @@ test.describe("UI: Workspace Tabs With Loaded Project", () => {
     await expect(page.getByRole("link", { name: "AiRA", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Report", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Literature", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Verification", exact: true })).toBeVisible();
   });
 
   test("navigates key analysis/report/resource pages", async ({ page }) => {
@@ -190,6 +192,9 @@ test.describe("UI: Workspace Tabs With Loaded Project", () => {
 
     await page.getByRole("link", { name: "CFD Validation", exact: true }).click();
     await expect(page.getByText(/CFD Validation: Pressure vs Time/i)).toBeVisible();
+
+    await page.getByRole("button", { name: "Verification", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "App Calculations Verification" })).toBeVisible();
 
     await page.getByRole("link", { name: "Report", exact: true }).click();
     await expect(page.getByText(/Experimental Test Report/i)).toBeVisible();

@@ -1,10 +1,122 @@
 """Calculation API routes for pressure, vent, flame, EWT, and plot interpolation."""
 
+import csv
+from pathlib import Path
+
+import numpy as np
 from flask import Blueprint, jsonify, request
 
 from modules import ewt_analysis, flame_analysis, plot_interpolation, pressure_analysis
 
 calculation_api_bp = Blueprint("calculation_api", __name__)
+TESTS_DIR = Path(__file__).resolve().parents[1] / "tests"
+REFERENCE_DATA_DIR = TESTS_DIR / "reference_data"
+RESULTS_DIR = TESTS_DIR / "results"
+LEGACY_FIXTURES_DIR = TESTS_DIR / "fixtures"
+PRESSURE_METRICS_CANDIDATES = (
+    RESULTS_DIR / "pressure_metrics_octave.csv",
+    LEGACY_FIXTURES_DIR / "pressure_metrics_octave.csv",
+    LEGACY_FIXTURES_DIR / "matlab_pressure_metrics.csv",
+)
+EWT_REFERENCE_CANDIDATES = (
+    RESULTS_DIR / "ewt_peak_metrics_octave.csv",
+    LEGACY_FIXTURES_DIR / "ewt_peak_metrics_octave.csv",
+    LEGACY_FIXTURES_DIR / "octave_ewt_peak_reference.csv",
+)
+VERIFICATION_CLEAN_CANDIDATES = (
+    REFERENCE_DATA_DIR / "experimental_data_001_clean.csv",
+    LEGACY_FIXTURES_DIR / "experimental_data_001_clean.csv",
+)
+VERIFICATION_NOISY_CANDIDATES = (
+    REFERENCE_DATA_DIR / "experimental_data_001_noisy.csv",
+    LEGACY_FIXTURES_DIR / "experimental_data_001_noisy.csv",
+)
+
+
+def _first_existing_path(paths):
+    """Return the first existing path from a candidate list, else the first path."""
+    for path in paths:
+        if path.exists():
+            return path
+    return paths[0]
+
+
+def _read_fixture_signal(csv_path: Path):
+    """Read a two-column fixture CSV as sorted time and pressure arrays."""
+    data = np.loadtxt(csv_path, delimiter=",")
+    if data.ndim != 2 or data.shape[1] < 2:
+        raise ValueError(f"Expected at least two columns in {csv_path.name}")
+    t = data[:, 0]
+    p = data[:, 1]
+    idx = np.argsort(t)
+    return t[idx], p[idx]
+
+
+def _normalize_pressure_units(values):
+    """Apply the same Pa->kPa normalization rule used by pressure analysis."""
+    arr = np.asarray(values, dtype=float)
+    if arr.size and float(np.max(np.abs(arr))) > 1000.0:
+        return (arr - 101325.0) / 1000.0
+    return arr
+
+
+def _series_to_content(t, p):
+    """Render numeric arrays to the parser format expected by calculation modules."""
+    return "\n".join(f"{float(ti):.12g} {float(pi):.12g}" for ti, pi in zip(t, p))
+
+
+def _safe_float(value, default):
+    """Parse float with fallback."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    if not np.isfinite(parsed):
+        return default
+    return parsed
+
+
+def _load_matlab_metrics():
+    """Load optional MATLAB/Octave-exported metrics keyed by series name."""
+    metrics_path = _first_existing_path(PRESSURE_METRICS_CANDIDATES)
+    if not metrics_path.exists():
+        return {}
+    metrics = {}
+    with metrics_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            series = (row.get("series") or row.get("dataset") or "").strip().lower()
+            if not series:
+                continue
+            metrics[series] = {
+                "pMax": row.get("pMax", "").strip(),
+                "tMax": row.get("tMax", "").strip(),
+                "impulse": row.get("impulse", "").strip(),
+                "status": row.get("status", "").strip(),
+            }
+    return metrics
+
+
+def _load_octave_ewt_reference():
+    """Load optional Octave EWT mode peak/fraction rows."""
+    reference_path = _first_existing_path(EWT_REFERENCE_CANDIDATES)
+    if not reference_path.exists():
+        return []
+    rows = []
+    with reference_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            try:
+                rows.append(
+                    {
+                        "mode": int(float(row.get("mode", 0))),
+                        "octavePeakHz": float(row.get("peak_hz", 0.0)),
+                        "octaveEnergyPct": float(row.get("energy_pct", 0.0)),
+                    }
+                )
+            except (TypeError, ValueError):
+                continue
+    return rows
 
 
 @calculation_api_bp.route('/analyze', methods=['POST'])
@@ -107,5 +219,151 @@ def analyze_ewt():
         if result.get("error"):
             return jsonify({"error": result["error"]}), 400
         return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@calculation_api_bp.route('/calculation_verification', methods=['GET'])
+def calculation_verification():
+    """Return clean/noisy verification series and Python-vs-MATLAB/Octave metrics."""
+    try:
+        decay_percent = _safe_float(request.args.get("decayPercent", 95.0), 95.0)
+        decay_percent = float(np.clip(decay_percent, 0.0, 99.9))
+        impulse_drop = float(np.clip((100.0 - decay_percent) / 100.0, 0.001, 1.0))
+
+        cutoff_hz = _safe_float(request.args.get("cutoffHz", 20.0), 20.0)
+        cutoff_hz = max(1e-6, cutoff_hz)
+
+        order = int(round(_safe_float(request.args.get("order", 4), 4.0)))
+        order = max(1, min(10, order))
+        ewt_num_modes = int(round(_safe_float(request.args.get("ewtNumModes", 5), 5.0)))
+        ewt_num_modes = max(1, min(10, ewt_num_modes))
+        ewt_knee_modes = int(round(_safe_float(request.args.get("ewtKneeModes", 8), 8.0)))
+        ewt_knee_modes = max(1, min(10, ewt_knee_modes))
+        ewt_max_points = int(round(_safe_float(request.args.get("ewtMaxPoints", 1200), 1200.0)))
+        ewt_max_points = max(200, min(5000, ewt_max_points))
+
+        clean_path = _first_existing_path(VERIFICATION_CLEAN_CANDIDATES)
+        noisy_path = _first_existing_path(VERIFICATION_NOISY_CANDIDATES)
+        missing = [path.name for path in (clean_path, noisy_path) if not path.exists()]
+        if missing:
+            return jsonify({"error": f"Missing verification reference data: {', '.join(missing)}"}), 404
+
+        t_clean, p_clean = _read_fixture_signal(clean_path)
+        t_noisy, p_noisy = _read_fixture_signal(noisy_path)
+
+        p_clean_norm = _normalize_pressure_units(p_clean)
+        p_noisy_norm = _normalize_pressure_units(p_noisy)
+        t_filtered, p_filtered_norm = pressure_analysis.apply_butterworth(
+            t_noisy, p_noisy_norm, cutoff_hz=cutoff_hz, order=order
+        )
+
+        clean_content = _series_to_content(t_clean, p_clean)
+        noisy_content = _series_to_content(t_noisy, p_noisy)
+
+        python_metrics = {
+            "clean_raw": pressure_analysis.analyze_pressure_content(
+                clean_content, cutoff=cutoff_hz, order=order, impulse_drop=impulse_drop, use_raw=True
+            ).get("metrics", {}),
+            "noisy_raw": pressure_analysis.analyze_pressure_content(
+                noisy_content, cutoff=cutoff_hz, order=order, impulse_drop=impulse_drop, use_raw=True
+            ).get("metrics", {}),
+            "noisy_filtered": pressure_analysis.analyze_pressure_content(
+                noisy_content, cutoff=cutoff_hz, order=order, impulse_drop=impulse_drop, use_raw=False
+            ).get("metrics", {}),
+        }
+
+        ewt_raw = ewt_analysis.analyze_ewt_content(
+            noisy_content,
+            num_modes=ewt_num_modes,
+            max_points=ewt_max_points,
+            knee_modes=ewt_knee_modes,
+        )
+        if ewt_raw.get("error"):
+            ewt_data = None
+            ewt_error = ewt_raw.get("error")
+        else:
+            ewt_data = ewt_raw
+            ewt_error = None
+
+        plot_data = plot_interpolation.aggregate_plot_data(
+            {
+                "activeTab": "pressure_analysis",
+                "series": [
+                    {
+                        "displayName": "Clean (reference)",
+                        "plotData": [{"t": float(t), "p": float(p)} for t, p in zip(t_clean, p_clean_norm)],
+                    },
+                    {
+                        "displayName": "Noisy (input)",
+                        "plotData": [{"t": float(t), "p": float(p)} for t, p in zip(t_noisy, p_noisy_norm)],
+                    },
+                    {
+                        "displayName": "Noisy filtered",
+                        "plotData": [{"t": float(t), "p": float(p)} for t, p in zip(t_filtered, p_filtered_norm)],
+                    },
+                ],
+            }
+        )
+
+        matlab_metrics = _load_matlab_metrics()
+        octave_ewt_reference = _load_octave_ewt_reference()
+        python_ewt_peaks = {}
+        if ewt_data and isinstance(ewt_data.get("energy"), list):
+            for row in ewt_data["energy"]:
+                try:
+                    python_ewt_peaks[int(row.get("mode", 0))] = float(row.get("peakHz", 0.0))
+                except (TypeError, ValueError):
+                    continue
+        ewt_alignment = []
+        for row in octave_ewt_reference:
+            mode = row.get("mode")
+            octave_peak = row.get("octavePeakHz")
+            python_peak = python_ewt_peaks.get(mode)
+            if python_peak is None or not np.isfinite(python_peak):
+                abs_delta = None
+            elif octave_peak is None or not np.isfinite(octave_peak):
+                abs_delta = None
+            else:
+                abs_delta = float(abs(float(python_peak) - float(octave_peak)))
+            ewt_alignment.append(
+                {
+                    "mode": mode,
+                    "pythonPeakHz": python_peak,
+                    "octavePeakHz": octave_peak,
+                    "octaveEnergyPct": row.get("octaveEnergyPct"),
+                    "absDeltaHz": abs_delta,
+                }
+            )
+        pressure_metrics_path = _first_existing_path(PRESSURE_METRICS_CANDIDATES)
+        try:
+            matlab_metrics_file = str(pressure_metrics_path.relative_to(Path.cwd()))
+        except ValueError:
+            matlab_metrics_file = str(pressure_metrics_path)
+        return jsonify(
+            {
+                "success": True,
+                "settings": {
+                    "decayPercent": decay_percent,
+                    "endThresholdPercent": impulse_drop * 100.0,
+                    "cutoffHz": cutoff_hz,
+                    "order": order,
+                },
+                "ewtSettings": {
+                    "numModes": ewt_num_modes,
+                    "kneeModes": ewt_knee_modes,
+                    "maxPoints": ewt_max_points,
+                },
+                "plotData": plot_data,
+                "pythonMetrics": python_metrics,
+                "matlabMetrics": matlab_metrics,
+                "matlabMetricsAvailable": bool(matlab_metrics),
+                "matlabMetricsFile": matlab_metrics_file,
+                "ewtData": ewt_data,
+                "ewtError": ewt_error,
+                "ewtPeakAlignment": ewt_alignment,
+                "ewtAlignmentAvailable": bool(ewt_alignment),
+            }
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500

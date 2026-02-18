@@ -28,6 +28,8 @@
     "smoke": "playwright test tests/e2e/app-workflow-and-api.spec.ts",
     "test:e2e": "playwright test tests/e2e",
     "test:backend": "python3 -m unittest -v backend/tests/test_calculations_reference.py",
+    "test:octave": "bash backend/tests/run_octave_verification.sh",
+    "test:ewt:octave": "bash backend/tests/run_octave_ewt_verification.sh",
     "test:frontend": "vitest run --config frontend/vitest.config.js",
     "test:frontend:watch": "vitest --config frontend/vitest.config.js",
     "test:all": "npm run test:backend && npm run test:frontend && npm run test:e2e",

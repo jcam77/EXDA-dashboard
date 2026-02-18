@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
     FlaskConical, AudioLines, ClipboardList, FileSpreadsheet, 
-    Folder, Activity, Flame, FolderOpen, BrainCircuit, BotMessageSquare,
-    FileText, Beaker, BookOpen, Home, Layers, Sun, Moon, FolderPlus, RefreshCw, X, Import
+    Folder, Activity, Flame, FolderOpen, BrainCircuit,
+    FileText, Beaker, BookOpen, Home, Layers, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck
 } from 'lucide-react';
 
 // --- MODULAR IMPORTS ---
@@ -21,6 +21,7 @@ import HomePage from '../../pages/Home';
 import ProjectsPage from '../../pages/Projects';
 import PressureAnalysisPage from '../../pages/PressureAnalysis';
 import CFDValidationPage from '../../pages/CFDValidation';
+import AppCalculationsVerificationPage from '../../pages/AppCalculationsVerification';
 import ProjectPickerModal from '../../components/ProjectPickerModal';
 import PlanPickerModal from '../../components/PlanPickerModal';
 import { getBackendBaseUrl } from '../../utils/backendUrl';
@@ -41,6 +42,7 @@ const FLAGS = {
 const TAB_PATHS = {
     home: '/',
     projects: '/projects',
+    verification: '/verification',
     checklist: '/checklist',
     plan: '/plan',
     gas: '/gas',
@@ -57,11 +59,13 @@ const TAB_PATHS = {
 const resolveTabFromPath = (pathname) => {
     if (pathname === '/' || pathname === '/home') return 'home';
     if (pathname.startsWith('/projects')) return 'projects';
+    if (pathname.startsWith('/verification')) return 'verification';
     if (pathname.startsWith('/checklist')) return 'checklist';
     if (pathname.startsWith('/plan')) return 'plan';
     if (pathname.startsWith('/gas')) return 'gas';
     if (pathname.startsWith('/data')) return 'data';
     if (pathname.startsWith('/analysis')) {
+        if (pathname.includes('calculations-verification')) return 'verification';
         if (pathname.includes('cfd-validation')) return 'cfd_validation';
         if (pathname.includes('ewt')) return 'ewt';
         if (pathname.includes('flame')) return 'flame_speed';
@@ -634,6 +638,14 @@ const WorkspacePage = () => {
                                   </p>
                               </div>
                           )}
+                          {activeTab === 'verification' && (
+                              <div className="ml-3 hidden md:block">
+                                  <h1 className="text-lg font-bold text-foreground">Verification Workspace</h1>
+                                  <p className="text-xs text-muted-foreground">
+                                      Dedicated environment to validate app calculations before project decisions
+                                  </p>
+                              </div>
+                          )}
                       </div>
                       <div className="flex items-center gap-2">
                           <div className="hidden md:flex items-center gap-2">
@@ -652,6 +664,14 @@ const WorkspacePage = () => {
                                   aria-label="Projects"
                               >
                                   <Layers size={16} />
+                              </button>
+                              <button
+                                  onClick={() => setActiveTab('verification')}
+                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'verification' ? 'border-primary bg-primary/15 text-primary shadow-[0_0_12px_rgba(56,189,248,0.25)]' : 'border-border text-foreground hover:border-ring'}`}
+                                  title="Verification"
+                                  aria-label="Verification"
+                              >
+                                  <ShieldCheck size={16} />
                               </button>
                               <button
                                   onClick={() => setActiveTab('ai')}
@@ -718,6 +738,8 @@ const WorkspacePage = () => {
                           onBackHome={() => setActiveTab('home')}
                           refreshKey={projectsRefreshKey}
                       />
+                  ) : activeTab === 'verification' ? (
+                      <AppCalculationsVerificationPage />
                   ) : activeTab === 'ai' ? (
                       <AiRAPage
                           projectPath={null}
@@ -913,6 +935,14 @@ const WorkspacePage = () => {
                                                     <Layers size={16} />
                                                 </button>
                                                 <button
+                                                    onClick={() => setActiveTab('verification')}
+                                                    className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'verification' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
+                                                    title="Verification"
+                                                    aria-label="Verification"
+                                                >
+                                                    <ShieldCheck size={16} />
+                                                </button>
+                                                <button
                                                     onClick={() => setActiveTab('ai')}
                                                     className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'ai' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
                                                     title="AiRA"
@@ -1024,6 +1054,11 @@ const WorkspacePage = () => {
                                                 activeProjectPath={projectPath}
                                                 onEditProject={(pathValue) => openProjectByPath(pathValue, 'plan')}
                                             />
+                  </SafeComponent>
+              )}
+              {activeTab === 'verification' && (
+                  <SafeComponent>
+                      <AppCalculationsVerificationPage />
                   </SafeComponent>
               )}
 

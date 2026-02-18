@@ -1,0 +1,4 @@
+series,pMax,tMax,impulse,status
+clean_raw,7.10397,0.18577,0.41089,End threshold 5.0% Pmax reached
+noisy_raw,7.21789,0.18850,0.36251,End threshold 5.0% Pmax reached
+noisy_filtered,5.53381,0.18401,0.41372,End threshold 5.0% Pmax reached

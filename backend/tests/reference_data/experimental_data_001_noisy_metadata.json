@@ -1,0 +1,14 @@
+{
+  "source": "/media/psf/Sim_Back_Up/EXDA-dashboard/Projects/VH2D-Project/Raw_Data/expData/FMG/Pressure/Experimental_Data_001.csv",
+  "seed": 20260218,
+  "frequencies_hz": [
+    35.0,
+    70.0,
+    120.0
+  ],
+  "rows": 348,
+  "columns": [
+    "time",
+    "pressure"
+  ]
+}
