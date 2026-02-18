@@ -43,3 +43,4 @@ __pycache__/
 appsTestEnviroment/*
 !appsTestEnviroment/**/
 !appsTestEnviroment/**/.gitkeep
+octave-workspace
