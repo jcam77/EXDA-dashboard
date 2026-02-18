@@ -37,8 +37,8 @@ const PressureAnalysis = ({
     if (!Number.isFinite(raw) || raw <= 0) return 0.05;
     return raw > 1 ? Math.min(raw / 100, 1) : raw;
   }, [settings.impulseDrop]);
-  const impulseDropPercent = useMemo(
-    () => Math.max(0.1, Math.min(100, Number((effectiveImpulseDrop * 100).toFixed(2)))),
+  const decayAmountPercent = useMemo(
+    () => Math.max(0, Math.min(99.9, Number(((1 - effectiveImpulseDrop) * 100).toFixed(1)))),
     [effectiveImpulseDrop]
   );
   const showRawReferenceOverlay = settings.showRawReference !== false;
@@ -134,10 +134,11 @@ const PressureAnalysis = ({
     setLocalYTickCount(safe);
   };
 
-  const onImpulseDropChange = (e) => {
+  const onDecayAmountChange = (e) => {
     const rawPercent = Number(e.target.value);
-    const safePercent = Number.isFinite(rawPercent) ? Math.max(0.1, Math.min(100, rawPercent)) : impulseDropPercent;
-    setSettings({ ...settings, impulseDrop: safePercent / 100.0 });
+    const safePercent = Number.isFinite(rawPercent) ? Math.max(0, Math.min(99.9, rawPercent)) : decayAmountPercent;
+    const impulseThresholdFraction = Math.max(0.001, Math.min(1, (100 - safePercent) / 100));
+    setSettings({ ...settings, impulseDrop: impulseThresholdFraction });
   };
 
   return (
@@ -384,21 +385,26 @@ const PressureAnalysis = ({
                 />
               </div>
               <div className="flex flex-col">
-                <label className="text-[10px] text-muted-foreground uppercase font-bold">Impulse Cutoff (% Peak)</label>
+                <label className="text-[10px] text-muted-foreground uppercase font-bold">
+                  Allowed Decay From P<sub>max</sub> (%)
+                </label>
                 <input
                   type="number"
-                  min="0.1"
-                  max="100"
+                  min="0"
+                  max="99.9"
                   step="0.1"
-                  value={impulseDropPercent}
-                  onChange={onImpulseDropChange}
+                  value={decayAmountPercent}
+                  onChange={onDecayAmountChange}
                   className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
                 />
               </div>
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
               <Settings size={14} />
-              <span>Impulse is integrated from peak until pressure decays below this % of Pmax. Click Plot Selected to refresh.</span>
+              <span>
+                End level is P<sub>end</sub> = (1 - D/100) * P<sub>max</sub>. 0% = stop at peak, 50% = stop at
+                0.5*P<sub>max</sub>, 95% = stop at 0.05*P<sub>max</sub>. Click Plot Selected to refresh.
+              </span>
             </div>
           </div>
         </div>
@@ -522,10 +528,10 @@ const PressureAnalysis = ({
                 <thead>
                   <tr className="text-[10px] text-muted-foreground uppercase border-b border-border">
                     <th className="pb-2 font-bold">Case</th>
-                    <th className="pb-2 text-right">P_max</th>
-                    <th className="pb-2 text-right">t_peak</th>
+                    <th className="pb-2 text-right">P<sub>max</sub></th>
+                    <th className="pb-2 text-right">t<sub>peak</sub></th>
                     <th className="pb-2 text-right">Impulse</th>
-                    {isValidationMode && <th className="pb-2 text-right">t_vent</th>}
+                    {isValidationMode && <th className="pb-2 text-right">t<sub>vent</sub></th>}
                   </tr>
                 </thead>
                 <tbody className="text-xs text-foreground/80">

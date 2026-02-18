@@ -1,57 +1,50 @@
-# Playwright Tests
+# Testing Guide
 
-## Test Files
+## Test Types
 
-- `tests/smoke.spec.ts` (15 tests)
-- `tests/experiment-selection.spec.ts` (4 tests)
+- Backend calculations: `backend/tests/test_calculations_reference.py`
+- Frontend unit tests: `frontend/tests/*.test.js`
+- End-to-end (Playwright): `tests/e2e/*.spec.ts`
 
-Total: 19 tests.
+## E2E Files
 
-## Coverage Overview
+- `tests/e2e/app-workflow-and-api.spec.ts` (15 tests)
+- `tests/e2e/import-data-selection.spec.ts` (4 tests)
 
-### `smoke.spec.ts`
-- Home shell and top-level navigation.
-- Loaded-project workspace tabs and page navigation.
-- Core backend endpoints and validation paths.
-- AI endpoints (`/get_models`, `/app_repo_context`, SSE headers).
-- Stability checks (console errors, viewport rendering).
+## Commands
 
-### `experiment-selection.spec.ts`
-- Import Data selectors for pressure/flame files.
-- Queue insertion + checkbox state after selection.
-- Dropdown options exclude directory entries.
-- Queue item removal sync.
+- Backend only:
+```bash
+npm run test:backend
+```
 
-## How to run
+- Frontend unit only:
+```bash
+npm run test:frontend
+```
 
-Run complete suite:
+- E2E only:
+```bash
+npm run test:e2e
+```
 
+- Full suite:
+```bash
+npm run test:all
+```
+
+- Default `npm test`:
 ```bash
 npm test
 ```
 
-Run smoke-only:
-
-```bash
-npm run smoke
-```
-
-Run experiment-selection only:
-
-```bash
-npx playwright test tests/experiment-selection.spec.ts
-```
-
-## Reports
-
+- E2E HTML report:
 ```bash
 npm run test:report
 ```
 
-Artifacts are stored in `test-report-results/`.
-
 ## Notes
 
-- Playwright starts frontend and backend using `playwright.config.ts` web servers.
-- Both specs create isolated temp projects under `/tmp` for deterministic test data.
-- Override backend URL with `BACKEND_URL` if needed.
+- Playwright output is stored in `test-report-results/`.
+- Playwright starts frontend/backend servers from `playwright.config.ts`.
+- Backend verification output is terminal-based (not in Playwright HTML).

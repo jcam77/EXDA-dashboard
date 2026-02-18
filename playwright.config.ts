@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "./tests",
+  testDir: "./tests/e2e",
   timeout: 30_000,
   expect: {
     timeout: 5_000,
@@ -18,13 +18,13 @@ export default defineConfig({
     {
       command: "npm run vite:smoke",
       url: "http://127.0.0.1:5173",
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 120_000,
     },
     {
       command: "npm run server:smoke",
       url: "http://127.0.0.1:5000/list_directories?path=/tmp",
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 120_000,
     },
   ],

@@ -82,11 +82,18 @@ def calculate_metrics(t, y, user_setting=0.05):
         return p_max, t_max, 0.0, "Peak <= 0"
 
     cutoff_fraction = _normalize_impulse_drop(user_setting)
-    below = np.where(y[idx_max:] <= cutoff_fraction * p_max)[0]
-    idx_cutoff = idx_max + below[0] if len(below) > 0 else len(y) - 1
-    status = f"Decay to {cutoff_fraction * 100:.1f}% Pmax"
+    threshold = cutoff_fraction * p_max
+    below = np.where(y[idx_max:] <= threshold)[0]
+    if len(below) > 0:
+        idx_cutoff = idx_max + below[0]
+        status = f"End threshold {cutoff_fraction * 100:.1f}% Pmax reached"
+    else:
+        idx_cutoff = len(y) - 1
+        status = f"End threshold {cutoff_fraction * 100:.1f}% Pmax not reached; integrated to end"
 
-    impulse = np.trapz(y[: idx_cutoff + 1], t[: idx_cutoff + 1])
+    # Use `trapezoid` to avoid NumPy deprecation warnings; fall back for older NumPy.
+    integrate = getattr(np, "trapezoid", np.trapz)
+    impulse = integrate(y[: idx_cutoff + 1], t[: idx_cutoff + 1])
     return p_max, t_max, impulse, status
 
 

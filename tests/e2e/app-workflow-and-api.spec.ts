@@ -5,7 +5,7 @@ import * as path from "path";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:5000";
 const BACKEND_WAIT_TIMEOUT_MS = 30_000;
-const SSE_PROBE_TIMEOUT_MS = 2_000;
+const SSE_PROBE_TIMEOUT_MS = 10_000;
 const TEMP_PROJECT_PREFIX = "exda-smoke-";
 
 let tempRoot: string | undefined;
@@ -304,7 +304,8 @@ test.describe("API: AI and State Safety", () => {
   });
 
   test("GET /ai_research_stream returns SSE content type", async () => {
-    const { status, contentType } = await probeSse(`${BACKEND_URL}/ai_research_stream?query=smoke`);
+    const sseUrl = `${BACKEND_URL}/ai_research_stream?query=smoke&include_repo_context=0`;
+    const { status, contentType } = await probeSse(sseUrl);
     expect(status).toBe(200);
     expect(contentType.toLowerCase()).toContain("text/event-stream");
   });

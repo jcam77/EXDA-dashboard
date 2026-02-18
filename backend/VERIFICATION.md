@@ -23,14 +23,17 @@ Notes:
 
 - `pMax`: maximum pressure value in processed signal.
 - `tMax`: timestamp at `pMax`.
-- `Impulse`: integral from start of signal to first point where pressure decays below the configured cutoff fraction of `pMax`.
-- `Impulse cutoff`: user-configurable as `% of Pmax` in UI.
+- `Impulse`: integral from start of signal to the first post-peak point where pressure is at or below the configured end threshold.
+- `End threshold`: backend threshold as `% of Pmax`.
+- UI control is `Allowed Decay From Pmax (%)` (`D`), mapped as:
+  - `threshold = 100 - D`
+  - `P_end = (1 - D/100) * Pmax`
 
 Interpretation:
 
-- `100%` means integrate from start to peak only.
-- `50%` means integrate until pressure decays below `0.5 * Pmax`.
-- `5%` means integrate until pressure decays below `0.05 * Pmax`.
+- `D = 0%` means integrate from start to peak only.
+- `D = 50%` means integrate until pressure decays below `0.5 * Pmax`.
+- `D = 95%` means integrate until pressure decays below `0.05 * Pmax`.
 
 ### EWT Metadata
 
@@ -56,5 +59,11 @@ These tests validate:
 Run all calculation verification checks:
 
 ```bash
-python3 -m unittest -v backend/tests/test_calculations_reference.py
+npm run test:backend
+```
+
+Run full verification sequence (backend + frontend unit + E2E):
+
+```bash
+npm run test:all
 ```

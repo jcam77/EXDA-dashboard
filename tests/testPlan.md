@@ -9,12 +9,16 @@ Summary
 - Keep API smoke coverage broad and deterministic with temp project fixtures.
 
 Current Test Inventory
-- `tests/smoke.spec.ts`:
+- `frontend/tests/backend-url.test.js`:
+  - Backend URL parsing and default port behavior.
+- `frontend/tests/recent-projects.test.js`:
+  - Recent-project persistence, de-duplication, and max-size behavior.
+- `tests/e2e/app-workflow-and-api.spec.ts`:
   - UI shell navigation and workspace tab coverage.
   - Backend API happy-path and validation checks.
   - AI endpoint availability and SSE header checks.
   - Integration sanity (console errors + viewport render).
-- `tests/experiment-selection.spec.ts`:
+- `tests/e2e/import-data-selection.spec.ts`:
   - Pressure/flame selector interaction.
   - Queue row and checkbox behavior.
   - Directory filtering in selector options.
@@ -22,8 +26,9 @@ Current Test Inventory
 
 Execution
 - Full verification: `npm test`
+- Frontend unit only: `npm run test:frontend`
 - Smoke only: `npm run smoke`
-- Import workflow only: `npx playwright test tests/experiment-selection.spec.ts`
+- Import workflow only: `npx playwright test tests/e2e/import-data-selection.spec.ts`
 
 Assumptions
 - Backend is reachable at `http://127.0.0.1:5000` unless `BACKEND_URL` is set.
