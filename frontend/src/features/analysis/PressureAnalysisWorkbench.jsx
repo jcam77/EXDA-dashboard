@@ -360,43 +360,54 @@ const PressureAnalysis = ({
                   </label>
                 </div>
               </div>
-              <div className="flex flex-col">
-                <label className="text-[10px] text-muted-foreground uppercase font-bold">X Ticks</label>
-                <input
-                  type="number"
-                  min="3"
-                  max="20"
-                  step="1"
-                  value={localTickCount}
-                  onChange={onTickCountChange}
-                  className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-[10px] text-muted-foreground uppercase font-bold">Y Ticks</label>
-                <input
-                  type="number"
-                  min="3"
-                  max="20"
-                  step="1"
-                  value={localYTickCount}
-                  onChange={onYTickCountChange}
-                  className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-[10px] text-muted-foreground uppercase font-bold">
-                  Allowed Decay From P<sub>max</sub> (%)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="99.9"
-                  step="0.1"
-                  value={decayAmountPercent}
-                  onChange={onDecayAmountChange}
-                  className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
-                />
+              <div className="xl:col-span-2 rounded-lg border border-border/60 bg-black/20 p-3">
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                  Display & Impulse
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold min-h-[24px] flex items-end">
+                      X Ticks
+                    </label>
+                    <input
+                      type="number"
+                      min="3"
+                      max="20"
+                      step="1"
+                      value={localTickCount}
+                      onChange={onTickCountChange}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-full text-foreground"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold min-h-[24px] flex items-end">
+                      Y Ticks
+                    </label>
+                    <input
+                      type="number"
+                      min="3"
+                      max="20"
+                      step="1"
+                      value={localYTickCount}
+                      onChange={onYTickCountChange}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-full text-foreground"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold min-h-[24px] flex items-end">
+                      Allowed Decay From P<sub>max</sub> (%)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99.9"
+                      step="0.1"
+                      value={decayAmountPercent}
+                      onChange={onDecayAmountChange}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-full text-foreground"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
