@@ -525,7 +525,7 @@ const PressureAnalysis = ({
                     <th className="pb-2 text-right">P_max</th>
                     <th className="pb-2 text-right">t_peak</th>
                     <th className="pb-2 text-right">Impulse</th>
-                    <th className="pb-2 text-right">t_vent</th>
+                    {isValidationMode && <th className="pb-2 text-right">t_vent</th>}
                   </tr>
                 </thead>
                 <tbody className="text-xs text-foreground/80">
@@ -538,9 +538,11 @@ const PressureAnalysis = ({
                       <td className="py-3 text-right font-bold text-foreground">{res.metrics?.pMax || '-'}</td>
                       <td className="py-3 text-right text-muted-foreground">{res.metrics?.tMax || '-'}</td>
                       <td className="py-3 text-right text-muted-foreground">{res.metrics?.impulse || '-'}</td>
-                      <td className="py-3 text-right text-muted-foreground">
-                        {res.ventTime ? res.ventTime.toFixed(4) : '-'}
-                      </td>
+                      {isValidationMode && (
+                        <td className="py-3 text-right text-muted-foreground">
+                          {res.ventTime ? res.ventTime.toFixed(4) : '-'}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

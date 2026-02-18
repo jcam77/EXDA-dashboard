@@ -12,7 +12,14 @@ git commit -m "Your message"
 ```bash
 git push origin <branch>
 ```
-3. Create and push a release tag:
+3. Sync `package.json` version (so `npm run ...` shows the same release family):
+```bash
+npm version <semver> --no-git-tag-version
+git add package.json package-lock.json
+git commit -m "Bump app version to <semver>"
+git push origin <branch>
+```
+4. Create and push a release tag:
 ```bash
 git tag -a <tag-name> -m "<tag-name>"
 git push origin <tag-name>
@@ -25,6 +32,7 @@ Examples:
 
 ## Branch-specific Example
 ### `desktopBasedApp`
+SemVer format: MAJOR.MINOR.PATCH
 ```bash
 git branch --show-current
 git switch desktopBasedApp
@@ -32,8 +40,12 @@ git status --short
 git add .
 git commit -m "Build app update"
 git push origin desktopBasedApp
-git tag -a desktop-v0.7 -m "desktop-v0.7"
-git push origin desktop-v0.7
+npm version 0.8.0 --no-git-tag-version
+git add package.json package-lock.json
+git commit -m "Bump app version to 0.8.0"
+git push origin desktopBasedApp
+git tag -a desktop-v0.8.0 -m "desktop-v0.8.0"
+git push origin desktop-v0.8.0
 git log -1 --stat
 ```
 

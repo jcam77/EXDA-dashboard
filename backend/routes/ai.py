@@ -79,8 +79,8 @@ MAIN_CALCULATION_FILES = [
     ("backend/modules/pressure_analysis.py", "Pressure metrics pipeline (pMax, tMax, impulse, vent timing, filtering)."),
     ("backend/modules/flame_analysis.py", "Flame-speed computation from probe crossings and dx/dt."),
     ("backend/modules/ewt_analysis.py", "EWT modal decomposition, energy spectrum, and cutoff suggestion."),
-    ("backend/modules/plot_aggregation.py", "Interpolation/aggregation for cross-case comparison plots."),
-    ("backend/routes/analysis.py", "Analysis API dispatcher and numeric parameter plumbing."),
+    ("backend/modules/plot_interpolation.py", "Interpolation/aggregation for cross-case comparison plots."),
+    ("backend/routes/calculation_api_routes.py", "Calculation API dispatcher and numeric parameter plumbing."),
 ]
 APP_STRUCTURE_FILES = [
     ("frontend/src/main.jsx", "Frontend entry point that mounts AppShell."),

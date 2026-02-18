@@ -61,8 +61,8 @@ Backend analysis/calculation files to verify first:
 - `backend/modules/pressure_analysis.py`
 - `backend/modules/flame_analysis.py`
 - `backend/modules/ewt_analysis.py`
-- `backend/modules/plot_aggregation.py`
-- `backend/routes/analysis.py`
+- `backend/modules/plot_interpolation.py`
+- `backend/routes/calculation_api_routes.py`
 
 ## AiRA Context Awareness
 AiRA receives both:

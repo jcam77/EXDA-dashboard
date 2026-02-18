@@ -37,6 +37,7 @@ export const useAnalysisPipeline = ({
         const useRawValue = typeof options.useRaw === 'boolean' ? options.useRaw : settings.useRaw;
         const cutoffValue = Number.isFinite(Number(options.cutoff)) ? Number(options.cutoff) : settings.cutoff;
         const orderValue = Number.isFinite(Number(options.order)) ? Number(options.order) : settings.order;
+        const includeVent = typeof options.includeVent === 'boolean' ? options.includeVent : true;
         if (type === 'ewt') {
           const res = await fetch(`${apiBaseUrl}/analyze_ewt`, {
             method: 'POST',
@@ -83,7 +84,7 @@ export const useAnalysisPipeline = ({
           return { name: fileObj.name, displayName: name, plotData: d.plot_data, color: stringToColor(colorSeed) };
         }
         let ventTime = null;
-        if (type === 'pressure' && fileObj.ventContent) {
+        if (type === 'pressure' && includeVent && fileObj.ventContent) {
           const vRes = await fetch(`${apiBaseUrl}/analyze_vent`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -158,10 +159,12 @@ export const useAnalysisPipeline = ({
         const cutoffForCase = isExperimentalPressure ? experimentalCutoff : settings.cutoff;
         const orderForCase = isExperimentalPressure ? experimentalOrder : settings.order;
         const shouldIncludeRawReference = Boolean(settings.showRawReference) && !useRawForCase;
+        const includeVentForCase = activeTab === 'cfd_validation';
         const r = await processFile(c, 'pressure', {
           useRaw: useRawForCase,
           cutoff: cutoffForCase,
           order: orderForCase,
+          includeVent: includeVentForCase,
         });
         if (r) {
           let rawOverlayPlotData = null;
@@ -170,6 +173,7 @@ export const useAnalysisPipeline = ({
               useRaw: true,
               cutoff: cutoffForCase,
               order: orderForCase,
+              includeVent: false,
             });
             rawOverlayPlotData = rawRef?.plotData || null;
           }

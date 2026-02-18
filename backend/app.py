@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from routes.projects import projects_bp
 from routes.state import state_bp
-from routes.analysis import analysis_bp
+from routes.calculation_api_routes import calculation_api_bp
 from routes.ai import ai_bp
 from routes.literature import literature_bp
 
@@ -33,7 +33,7 @@ CORS(app, resources={r"/*": {"origins": _cors_origins()}})
 
 app.register_blueprint(projects_bp)
 app.register_blueprint(state_bp)
-app.register_blueprint(analysis_bp)
+app.register_blueprint(calculation_api_bp)
 app.register_blueprint(ai_bp)
 app.register_blueprint(literature_bp)
 

@@ -5,7 +5,7 @@
     "email": "javier.camacho@brand.lth.se"
   },
   "private": true,
-  "version": "0.0.0",
+  "version": "0.7.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -27,6 +27,7 @@
     "preview": "vite preview --config frontend/vite.config.js",
     "smoke": "playwright test tests/smoke.spec.ts",
     "experiment-selection": "concurrently \"npm run vite\" \"playwright test tests/experiment-selection.spec.ts\"",
+    "verify:calc": "python3 -m unittest -v backend/tests/test_calculations_reference.py",
     "test": "playwright test",
     "test:report": "playwright show-report"
   },
