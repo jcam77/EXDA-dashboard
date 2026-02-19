@@ -1,0 +1,64 @@
+{
+  "planName": "DBI-TunnelExplosion-Project-000",
+  "experiments": [
+    {
+      "id": 1771477703104,
+      "name": "test1",
+      "done": false,
+      "meta": {
+        "h2": "18",
+        "p0": "1.013",
+        "t0": "293",
+        "ignition": "back ignition",
+        "vent": "fix plastic film",
+        "cfdHash": ""
+      },
+      "notes": "Binary file, no time stamp or sample rate metadata"
+    },
+    {
+      "id": 1771478007022,
+      "name": "test2",
+      "done": false,
+      "meta": {
+        "h2": "18",
+        "p0": "1.013",
+        "t0": "293",
+        "ignition": "back ignition",
+        "vent": "fix plastic film",
+        "cfdHash": ""
+      }
+    },
+    {
+      "id": 1771478019174,
+      "name": "test3",
+      "done": false,
+      "meta": {
+        "h2": "",
+        "p0": "1.013",
+        "t0": "293",
+        "ignition": "",
+        "vent": "",
+        "cfdHash": ""
+      }
+    },
+    {
+      "id": 1771478040452,
+      "name": "test4",
+      "done": false,
+      "meta": {
+        "h2": "",
+        "p0": "1.013",
+        "t0": "293",
+        "ignition": "",
+        "vent": "",
+        "cfdHash": ""
+      }
+    }
+  ],
+  "meta": {
+    "objective": "",
+    "description": "",
+    "deadline": "2025-10-10",
+    "startDate": "2025-10-07"
+  }
+}

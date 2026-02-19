@@ -62,16 +62,106 @@ def _looks_like_multichannel_waveform(lines: list[str]) -> bool:
 
 
 def _parse_numeric_two_column(lines: list[str]):
-    """Parse standard numeric files with at least two columns."""
-    data = np.loadtxt(io.StringIO("\n".join(lines).replace(",", " ")))
-    if data.ndim == 1:
-        data = data.reshape(1, -1)
+    """Parse numeric table with optional header; return one selected signal."""
+    header, numeric_lines = _extract_header_row(lines)
+    data, err = _parse_numeric_table(numeric_lines)
+    if err is not None and header is not None:
+        # Fallback if first line looked like header but was actually numeric.
+        data, err = _parse_numeric_table(lines)
+        if err is not None:
+            return None, None, err
+        header = None
+    elif err is not None:
+        return None, None, err
+
     if data.shape[1] < 2:
-        return None, None, "Expected at least 2 columns (time + signal)"
-    t = data[:, 0]
-    y = data[:, 1]
+        return None, None, "Expected at least 2 numeric columns (time + signal)"
+
+    time_col = _select_time_column(header, data.shape[1])
+    signal_cols = _select_signal_columns(header, data.shape[1], time_col)
+    if not signal_cols:
+        return None, None, "No signal columns detected"
+
+    t = data[:, time_col]
+    y = data[:, signal_cols[0]]
     idx = np.argsort(t)
     return t[idx], y[idx], None
+
+
+def _split_tokens(line: str) -> list[str]:
+    """Split one row into tokens using common separators."""
+    if ";" in line:
+        return [p.strip() for p in line.split(";") if p.strip() != ""]
+    if "," in line:
+        return [p.strip() for p in line.split(",") if p.strip() != ""]
+    return [p.strip() for p in line.split() if p.strip() != ""]
+
+
+def _extract_header_row(lines: list[str]):
+    """Return (header_tokens_or_None, numeric_lines)."""
+    if not lines:
+        return None, lines
+    first_tokens = _split_tokens(lines[0])
+    if len(first_tokens) < 2:
+        return None, lines
+    has_text = any(_safe_float(tok) is None for tok in first_tokens)
+    if has_text:
+        return first_tokens, lines[1:]
+    return None, lines
+
+
+def _parse_numeric_table(lines: list[str]):
+    """Parse a numeric table with 2+ columns from cleaned lines."""
+    rows: list[list[float]] = []
+    for line in lines:
+        tokens = _split_tokens(line)
+        if len(tokens) < 2:
+            continue
+        values: list[float] = []
+        valid = True
+        for token in tokens:
+            value = _safe_float(token)
+            if value is None:
+                valid = False
+                break
+            values.append(float(value))
+        if valid:
+            rows.append(values)
+
+    if not rows:
+        return None, "No numeric rows found"
+
+    min_cols = min(len(row) for row in rows)
+    if min_cols < 2:
+        return None, "Expected at least 2 numeric columns"
+    table = np.asarray([row[:min_cols] for row in rows], dtype=float)
+    return table, None
+
+
+def _select_time_column(header_tokens, ncols: int) -> int:
+    """Pick the most likely time column index."""
+    if header_tokens:
+        for idx, token in enumerate(header_tokens[:ncols]):
+            low = token.strip().lower()
+            if "time" in low or low in ("t", "t(s)", "time_s", "times"):
+                return idx
+    return 0
+
+
+def _select_signal_columns(header_tokens, ncols: int, time_col: int) -> list[int]:
+    """Pick likely signal columns excluding time/index metadata."""
+    if header_tokens and len(header_tokens) >= ncols:
+        cols = []
+        for idx, token in enumerate(header_tokens[:ncols]):
+            if idx == time_col:
+                continue
+            low = token.strip().lower()
+            if "index" in low or low in ("idx", "sample", "sample_index"):
+                continue
+            cols.append(idx)
+        if cols:
+            return cols
+    return [idx for idx in range(ncols) if idx != time_col]
 
 
 def _parse_semicolon_multichannel(lines: list[str], channel_index: int = 0):
@@ -242,7 +332,30 @@ def parse_time_signal_content(content: str, channel_index: int = 0):
             return t, y, None
 
     try:
-        return _parse_numeric_two_column(lines)
+        header, numeric_lines = _extract_header_row(lines)
+        data, err = _parse_numeric_table(numeric_lines)
+        if err is not None and header is not None:
+            data, err = _parse_numeric_table(lines)
+            header = None
+        if err is not None:
+            return None, None, err
+
+        ncols = data.shape[1]
+        if ncols < 2:
+            return None, None, "Expected at least 2 numeric columns"
+
+        time_col = _select_time_column(header, ncols)
+        signal_cols = _select_signal_columns(header, ncols, time_col)
+        if not signal_cols:
+            return None, None, "No signal columns detected"
+
+        chosen_idx = min(max(0, int(channel_index)), len(signal_cols) - 1)
+        signal_col = signal_cols[chosen_idx]
+
+        t = data[:, time_col]
+        y = data[:, signal_col]
+        idx = np.argsort(t)
+        return t[idx], y[idx], None
     except Exception as exc:
         return None, None, str(exc)
 
@@ -258,10 +371,38 @@ def parse_multichannel_content(content: str):
         if err is None:
             return t, y, names, None
 
-    t, y, err = _parse_numeric_two_column(lines)
+    header, numeric_lines = _extract_header_row(lines)
+    data, err = _parse_numeric_table(numeric_lines)
+    if err is not None and header is not None:
+        data, err = _parse_numeric_table(lines)
+        header = None
     if err is not None:
         return None, None, None, err
-    return t, y.reshape(-1, 1), ["Signal"], None
+
+    ncols = data.shape[1]
+    if ncols < 2:
+        return None, None, None, "Expected at least 2 numeric columns"
+
+    time_col = _select_time_column(header, ncols)
+    signal_cols = _select_signal_columns(header, ncols, time_col)
+    if not signal_cols:
+        return None, None, None, "No signal columns detected"
+
+    t = data[:, time_col]
+    y = data[:, signal_cols]
+    idx = np.argsort(t)
+    t = t[idx]
+    y = y[idx, :]
+
+    if header and len(header) >= ncols:
+        names = []
+        for col_idx, sig_col in enumerate(signal_cols):
+            token = (header[sig_col] or "").strip()
+            names.append(token if token else f"Signal {col_idx + 1}")
+    else:
+        names = [f"Signal {idx + 1}" for idx in range(len(signal_cols))]
+
+    return t, y, names, None
 
 
 def is_multichannel_waveform_content(content: str) -> bool:
