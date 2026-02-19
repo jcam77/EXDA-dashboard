@@ -25,21 +25,35 @@ const formatSamplingRate = (value) => {
   return `${Number(value).toFixed(2)} Hz`;
 };
 
-const CleanDataPage = ({ apiBaseUrl, projectPath, expFiles = [] }) => {
+const CleanDataPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) => {
   const [selectedPath, setSelectedPath] = useState('');
   const [maxPoints, setMaxPoints] = useState(2000);
   const [fullResolution, setFullResolution] = useState(false);
+  const [plotLayout, setPlotLayout] = useState('stacked');
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const dataFiles = useMemo(() => {
-    if (!Array.isArray(expFiles)) return [];
-    return expFiles
-      .filter((fileObj) => !fileObj?.isDirectory && (fileObj?.path || fileObj?.webkitRelativePath))
-      .filter((fileObj) => /\.(txt|csv|dat)$/i.test(fileObj?.name || fileObj?.path || ''))
+    if (!Array.isArray(selectedCases)) return [];
+    const seen = new Set();
+    const selectedOnly = selectedCases
+      .filter((item) => item && (item.type === 'pressure' || item.type === 'flame'))
+      .filter((item) => (item.path || item.name) && /\.(txt|csv|dat)$/i.test(item.name || item.path || ''))
+      .map((item) => {
+        const path = item.path || item.name;
+        const name = item.name || formatFileName(path);
+        return { path, name };
+      })
+      .filter((item) => {
+        if (seen.has(item.path)) return false;
+        seen.add(item.path);
+        return true;
+      })
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [expFiles]);
+
+    return selectedOnly;
+  }, [selectedCases]);
 
   useEffect(() => {
     if (!dataFiles.length) {
@@ -101,24 +115,25 @@ const CleanDataPage = ({ apiBaseUrl, projectPath, expFiles = [] }) => {
   const channels = Array.isArray(preview?.channels) ? preview.channels : [];
   const plotData = Array.isArray(preview?.plotData) ? preview.plotData : [];
   const summary = preview?.summary || {};
+  const hasMixedUnits = Boolean(summary.hasMixedUnits);
 
   return (
     <div className="space-y-5">
       <div className="bg-card/60 border border-border rounded-xl p-5 shadow-2xl">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[280px] flex-1">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="w-full sm:w-[320px]">
             <label className="block text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">
               Source File
             </label>
             <select
               value={selectedPath}
               onChange={(event) => setSelectedPath(event.target.value)}
-              className="w-full p-2.5 bg-background border border-border rounded-md text-xs text-foreground outline-none"
+              className="w-full max-w-full p-2.5 bg-background border border-border rounded-md text-xs text-foreground outline-none"
               disabled={!dataFiles.length}
             >
-              {!dataFiles.length && <option value="">No imported .txt/.csv/.dat files found</option>}
+              {!dataFiles.length && <option value="">No selected files from Import Data queue</option>}
               {dataFiles.map((fileObj) => {
-                const value = fileObj.path || fileObj.webkitRelativePath;
+                const value = fileObj.path;
                 return (
                   <option key={value} value={value}>
                     {formatFileName(value)}
@@ -127,7 +142,7 @@ const CleanDataPage = ({ apiBaseUrl, projectPath, expFiles = [] }) => {
               })}
             </select>
           </div>
-          <div className="w-[130px]">
+          <div className="w-[120px]">
             <label className="block text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">
               Max Points
             </label>
@@ -142,7 +157,7 @@ const CleanDataPage = ({ apiBaseUrl, projectPath, expFiles = [] }) => {
               disabled={fullResolution}
             />
           </div>
-          <label className="inline-flex items-center gap-2 text-xs text-foreground pb-2">
+          <label className="inline-flex items-center gap-2 text-xs text-foreground px-2 pb-2">
             <input
               type="checkbox"
               checked={fullResolution}
@@ -160,9 +175,30 @@ const CleanDataPage = ({ apiBaseUrl, projectPath, expFiles = [] }) => {
             Reload
           </button>
         </div>
+        <div className="mt-3 inline-flex rounded-md border border-border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setPlotLayout('stacked')}
+            className={`px-3 py-1.5 text-xs font-semibold transition ${plotLayout === 'stacked' ? 'bg-primary/20 text-primary' : 'bg-background text-muted-foreground hover:text-foreground'}`}
+          >
+            Separate Channels
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlotLayout('overlay')}
+            className={`px-3 py-1.5 text-xs font-semibold border-l border-border transition ${plotLayout === 'overlay' ? 'bg-primary/20 text-primary' : 'bg-background text-muted-foreground hover:text-foreground'}`}
+          >
+            Overlay
+          </button>
+        </div>
         <p className="mt-2 text-xs text-muted-foreground">
           Plot preview of all channels in one view. Use this tab to inspect signal quality before EWT/Pressure analysis.
         </p>
+        {hasMixedUnits && (
+          <p className="mt-1 text-xs text-amber-300">
+            Mixed channel units detected. Pressure and trigger channels are displayed together; check unit tags.
+          </p>
+        )}
         {fullResolution && (
           <p className="mt-1 text-xs text-amber-300">
             Full-resolution plotting can be heavy for large files. If UI becomes slow, uncheck this and use Max Points.
@@ -201,14 +237,50 @@ const CleanDataPage = ({ apiBaseUrl, projectPath, expFiles = [] }) => {
             </div>
           </div>
 
-          <div className="w-full h-[440px] bg-background border border-border rounded-xl p-3">
-            <HighResMultiChannelPlot
-              plotData={plotData}
-              channels={channels}
-              height={416}
-              colors={CHANNEL_COLORS}
-            />
-          </div>
+          {!!channels.length && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {channels.map((channel) => (
+                <span
+                  key={channel.key}
+                  className="inline-flex items-center gap-2 rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] text-muted-foreground"
+                >
+                  <span className="text-foreground font-semibold">{channel.label || `Channel ${channel.index + 1}`}</span>
+                  <span>/</span>
+                  <span>{channel.unit || 'raw'}</span>
+                  {channel.role ? <span className="text-primary">({channel.role})</span> : null}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {plotLayout === 'overlay' ? (
+            <div className="w-full h-[440px] bg-background border border-border rounded-xl p-3">
+              <HighResMultiChannelPlot
+                plotData={plotData}
+                channels={channels}
+                height={416}
+                colors={CHANNEL_COLORS}
+              />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {channels.map((channel, idx) => (
+                <div key={channel.key} className="bg-background border border-border rounded-xl p-3">
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    <span className="text-foreground font-semibold">{channel.label || `Channel ${channel.index + 1}`}</span>
+                    {channel.unit ? ` (${channel.unit})` : ''}
+                    {channel.role ? ` - ${channel.role}` : ''}
+                  </div>
+                  <HighResMultiChannelPlot
+                    plotData={plotData}
+                    channels={[channel]}
+                    height={220}
+                    colors={[CHANNEL_COLORS[idx % CHANNEL_COLORS.length]]}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
           <p className="mt-3 text-xs text-muted-foreground">
             Note: this view may downsample for plotting performance. Raw analysis in other tabs still uses full data.

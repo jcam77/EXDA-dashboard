@@ -53,11 +53,15 @@ const HighResMultiChannelPlot = ({ plotData = [], channels = [], height = 440, c
     const xMax = xValues[xValues.length - 1];
 
     const series = [
-      { label: 't (s)' },
+      {
+        label: 't (s)',
+        value: (_u, v) => (Number.isFinite(Number(v)) ? Number(v).toExponential(4) : ''),
+      },
       ...channels.map((channel, idx) => ({
-        label: channel.label || `Channel ${channel.index + 1}`,
+        label: `${channel.label || `Channel ${channel.index + 1}`}${channel.unit && channel.unit !== 'raw' ? ` (${channel.unit})` : ''}`,
         stroke: colors[idx % colors.length],
         width: 1.2,
+        value: (_u, v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(5) : ''),
       })),
     ];
 
@@ -66,7 +70,7 @@ const HighResMultiChannelPlot = ({ plotData = [], channels = [], height = 440, c
       height,
       series,
       scales: {
-        x: { auto: false, range: [xMin, xMax] },
+        x: { auto: true, time: false },
         y: { auto: true },
       },
       axes: [

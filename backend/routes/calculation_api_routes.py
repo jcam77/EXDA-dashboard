@@ -312,10 +312,54 @@ def preview_multichannel():
                 sampling_rate_hz = float(1.0 / np.median(dt))
 
         channels = []
-        for idx, label in enumerate(channel_names or []):
-            channels.append({"index": idx, "key": f"ch_{idx}", "label": label})
-        if not channels:
-            channels = [{"index": idx, "key": f"ch_{idx}", "label": f"Channel {idx + 1}"} for idx in range(channel_count)]
+        inferred_units = ["raw"] * channel_count
+        inferred_roles = ["signal"] * channel_count
+        labels = channel_names or [f"Channel {idx + 1}" for idx in range(channel_count)]
+        labels_lower = [str(label).strip().lower() for label in labels]
+        is_waveform = data_parser.is_multichannel_waveform_content(content)
+
+        # 1) Direct name-based hints.
+        trigger_keywords = ("trigger", "trig", "ign", "ttl", "volt", "voltage")
+        for idx, label in enumerate(labels_lower):
+            if any(token in label for token in trigger_keywords):
+                inferred_units[idx] = "V"
+                inferred_roles[idx] = "trigger"
+
+        # 1b) Common acquisition convention:
+        # waveform exports with generic Y[n] labels often use the last channel as trigger voltage.
+        generic_y_labels = all(label.startswith("y[") and label.endswith("]") for label in labels_lower)
+        if is_waveform and generic_y_labels and channel_count >= 4:
+            last_idx = channel_count - 1
+            if inferred_units[last_idx] == "raw":
+                inferred_units[last_idx] = "V"
+                inferred_roles[last_idx] = "trigger"
+
+        # 2) Acquisition-layout heuristic: last channel is often trigger voltage.
+        if channel_count >= 4 and all(unit == "raw" for unit in inferred_units):
+            max_abs = np.max(np.abs(y), axis=0)
+            last_idx = channel_count - 1
+            median_other = float(np.median(max_abs[:-1])) if channel_count > 1 else 0.0
+            if median_other > 0.0 and float(max_abs[last_idx]) >= 10.0 * median_other:
+                inferred_units[last_idx] = "V"
+                inferred_roles[last_idx] = "trigger"
+
+        # 3) Pressure channels default to bar for waveform exports when not trigger-like.
+        if is_waveform:
+            for idx in range(channel_count):
+                if inferred_units[idx] == "raw":
+                    inferred_units[idx] = "bar"
+                    inferred_roles[idx] = "pressure"
+
+        for idx, label in enumerate(labels):
+            channels.append(
+                {
+                    "index": idx,
+                    "key": f"ch_{idx}",
+                    "label": label,
+                    "unit": inferred_units[idx],
+                    "role": inferred_roles[idx],
+                }
+            )
 
         return jsonify(
             {
@@ -328,6 +372,7 @@ def preview_multichannel():
                     "samplingRateHz": sampling_rate_hz,
                     "downsampleApplied": plotted_count < sample_count,
                     "fullResolution": full_resolution,
+                    "hasMixedUnits": len(set(inferred_units)) > 1,
                 },
             }
         )

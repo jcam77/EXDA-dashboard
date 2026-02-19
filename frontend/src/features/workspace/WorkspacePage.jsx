@@ -1134,7 +1134,7 @@ const WorkspacePage = () => {
                                         <CleanDataPage
                                             apiBaseUrl={apiBaseUrl}
                                             projectPath={projectPath}
-                                            expFiles={expFiles}
+                                            selectedCases={selectedCases}
                                         />
                                     </SafeComponent>
               )}
