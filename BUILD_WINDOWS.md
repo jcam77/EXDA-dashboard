@@ -23,7 +23,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 ### 1) Build backend exe
-From `EXDA-dashboard-v0.3/backend` on Windows:
+From `EXDA-dashboard/backend` on Windows:
 
 ```powershell
 py -m venv .venv
@@ -51,7 +51,7 @@ From `EXDA-dashboard`:
 npm run dist:win
 ```
 
-Installer output: `EXDA-dashboard-v0.3/dist-electron/`
+Installer output: `EXDA-dashboard/appsTestEnviroment/builds/windows/`
 
 Notes:
 - Demo projects are copied on first run to `Documents\EXDA Projects\Demo Projects`.
@@ -69,7 +69,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 ### npm install fails on shared drives
 If you see `EINVAL` or symlink errors in `node_modules`:
-- Copy the project to a short local path (e.g., `C:\EXDA-dashboard-v0.3-win`) and run builds there.
+- Copy the project to a short local path (e.g., `C:\EXDA-dashboard-win`) and run builds there.
 - Avoid reusing `node_modules` created on Linux.
 
 ### Installer launches but shows spawn ENOENT

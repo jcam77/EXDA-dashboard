@@ -19,7 +19,7 @@ step targeting ARM64 so the final AppImage launches correctly.
    npm install
    npm run dist:linux:arm64
    ```
-2) The output artifacts are written to `dist-electron/`.
+2) The output artifacts are written to `appsTestEnviroment/builds/linux/`.
 
 ## Notes
 - The packaged app searches for `backend/dist/exda-backend` at runtime. If the

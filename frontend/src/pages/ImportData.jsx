@@ -64,11 +64,11 @@ const ImportDataPage = (props) => {
                         >
                             <Import size={16} /> Select Import Folder
                         </button>
-                        <p className="mt-1 text-xs text-muted-foreground">Select the folder containing experimental CSV files for Pressure and Flame separately.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Select the folder containing experimental data files (CSV/TXT/DAT/MF4) for Pressure and Flame.</p>
                         <div className="mt-4 grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                    <Activity size={14} className="text-primary" /> Pressure CSV
+                                    <Activity size={14} className="text-primary" /> Pressure Data
                                 </div>
                                 <select
                                     onChange={(e) => {
@@ -89,7 +89,7 @@ const ImportDataPage = (props) => {
                                     className="w-full p-2.5 bg-background border border-border rounded-md text-xs text-foreground outline-none"
                                     data-testid="pressure-csv-select"
                                 >
-                                    <option value="">Pressure CSV...</option>
+                                    <option value="">Pressure data...</option>
                                     {expPressureFiles.length > 0 && <option value="__all__">Select All</option>}
                                     {expPressureFiles.map((f, i) => (
                                         <option key={i} value={f.webkitRelativePath || f.path}>{f.name}</option>
@@ -98,7 +98,7 @@ const ImportDataPage = (props) => {
                             </div>
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                    <Flame size={14} className="text-primary" /> Flame CSV
+                                    <Flame size={14} className="text-primary" /> Flame Data
                                 </div>
                                 <select
                                     onChange={(e) => {
@@ -119,7 +119,7 @@ const ImportDataPage = (props) => {
                                     className="w-full p-2.5 bg-background border border-border rounded-md text-xs text-foreground outline-none"
                                     data-testid="flame-csv-select"
                                 >
-                                    <option value="">Flame CSV...</option>
+                                    <option value="">Flame data...</option>
                                     {expFlameFiles.length > 0 && <option value="__all__">Select All</option>}
                                     {expFlameFiles.map((f, i) => (
                                         <option key={i} value={f.webkitRelativePath || f.path}>{f.name}</option>

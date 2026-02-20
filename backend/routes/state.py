@@ -5,9 +5,10 @@ import json
 from datetime import datetime
 import os
 
-from modules import project_manager
+from modules import mf4_parser, project_manager
 
 state_bp = Blueprint("state", __name__)
+ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".mf4")
 
 
 @state_bp.route('/get_project_state', methods=['GET'])
@@ -44,7 +45,7 @@ def get_project_state():
 
                 file_info = {"name": f, "path": full_path, "rel": rel_path}
 
-                if f.lower().endswith(('.csv', '.txt', '.dat')):
+                if f.lower().endswith(ALLOWED_DATA_EXTENSIONS):
                     data_files.append(file_info)
                 if f in ['p', 'p_rgh'] or 'vol' in f:
                     sim_files.append(file_info)
@@ -73,6 +74,11 @@ def read_project_file():
     if not os.path.exists(target):
         return jsonify({"success": False, "error": "File not found"}), 404
     try:
+        if target.lower().endswith(".mf4"):
+            content, parse_err = mf4_parser.mf4_to_content(target)
+            if parse_err:
+                return jsonify({"success": False, "error": parse_err}), 400
+            return jsonify({"success": True, "content": content})
         with open(target, 'r', encoding='utf-8') as f:
             return jsonify({"success": True, "content": f.read()})
     except Exception as e:
