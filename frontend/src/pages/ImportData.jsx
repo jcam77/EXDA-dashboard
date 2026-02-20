@@ -64,7 +64,7 @@ const ImportDataPage = (props) => {
                         >
                             <Import size={16} /> Select Import Folder
                         </button>
-                        <p className="mt-1 text-xs text-muted-foreground">Select the folder containing experimental data files (CSV/TXT/DAT/MF4) for Pressure and Flame.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Select the folder containing experimental data files (CSV/TXT/DAT/ASC/ASCII/MF4/TPC5) for Pressure and Flame.</p>
                         <div className="mt-4 grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">

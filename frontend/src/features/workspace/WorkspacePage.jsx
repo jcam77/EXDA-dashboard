@@ -239,7 +239,7 @@ const WorkspacePage = () => {
                   setModal({
                       show: true,
                       type: 'success',
-                      title: 'Project Rehydrated',
+                      title: 'Project Loaded',
                       content: 'Data and Plan restored from folder.',
                   });
               }

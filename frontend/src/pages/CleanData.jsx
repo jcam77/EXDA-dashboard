@@ -71,7 +71,7 @@ const CleanDataPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) => {
     const seen = new Set();
     const selectedOnly = selectedCases
       .filter((item) => item && (item.type === 'pressure' || item.type === 'flame'))
-      .filter((item) => (item.path || item.name) && /\.(txt|csv|dat|mf4)$/i.test(item.name || item.path || ''))
+      .filter((item) => (item.path || item.name) && /\.(txt|csv|dat|asc|ascii|mf4|tpc5)$/i.test(item.name || item.path || ''))
       .map((item) => {
         const path = item.path || item.name;
         const name = item.name || formatFileName(path);

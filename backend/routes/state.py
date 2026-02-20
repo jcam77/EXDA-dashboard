@@ -5,10 +5,10 @@ import json
 from datetime import datetime
 import os
 
-from modules import mf4_parser, project_manager
+from modules import mf4_parser, project_manager, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
-ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".mf4")
+ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
 
 
 @state_bp.route('/get_project_state', methods=['GET'])
@@ -74,8 +74,14 @@ def read_project_file():
     if not os.path.exists(target):
         return jsonify({"success": False, "error": "File not found"}), 404
     try:
-        if target.lower().endswith(".mf4"):
+        lower_target = target.lower()
+        if lower_target.endswith(".mf4"):
             content, parse_err = mf4_parser.mf4_to_content(target)
+            if parse_err:
+                return jsonify({"success": False, "error": parse_err}), 400
+            return jsonify({"success": True, "content": content})
+        if lower_target.endswith(".tpc5"):
+            content, parse_err = tpc5_parser.tpc5_to_content(target)
             if parse_err:
                 return jsonify({"success": False, "error": parse_err}), 400
             return jsonify({"success": True, "content": content})
