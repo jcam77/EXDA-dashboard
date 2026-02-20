@@ -1,20 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Info, Download, Settings, Activity, FlaskConical } from 'lucide-react';
-
-const CHANNEL_OPTIONS = [
-  { value: 0, label: 'Y[0] (Ch 1)' },
-  { value: 1, label: 'Y[1] (Ch 2)' },
-  { value: 2, label: 'Y[2] (Ch 3)' },
-  { value: 3, label: 'Y[3] (Ch 4)' },
-];
-const UNIT_OPTIONS = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'bar', label: 'bar' },
-  { value: 'kPa', label: 'kPa' },
-  { value: 'Pa', label: 'Pa' },
-  { value: 'V', label: 'V (trigger)' },
-];
+import { deriveChannelOptionsFromCases } from '../../utils/channelOptions';
+import { DEFAULT_INPUT_UNIT, UNIT_OPTIONS, getDisplayUnitFromSetting } from '../../utils/units';
+import HighResMultiChannelPlot from '../../components/HighResMultiChannelPlot';
 
 const PressureAnalysis = ({
   plotData,
@@ -23,6 +11,7 @@ const PressureAnalysis = ({
   settings,
   setSettings,
   onRunAnalysis,
+  selectedCases = [],
   mode = 'validation',
 }) => {
   const exportToCSV = () => {
@@ -35,6 +24,16 @@ const PressureAnalysis = ({
     a.href = url;
     a.download = 'pressure_analysis_export.csv';
     a.click();
+  };
+
+  const withAlpha = (color, alpha = 0.28) => {
+    const safeAlpha = Number.isFinite(Number(alpha)) ? Math.max(0, Math.min(1, Number(alpha))) : 0.28;
+    if (typeof color !== 'string') return `hsl(var(--muted-foreground) / ${safeAlpha})`;
+    const value = color.trim();
+    if (!value) return `hsl(var(--muted-foreground) / ${safeAlpha})`;
+    if (/^hsl\(/i.test(value)) return value.replace(/^hsl\((.*)\)$/i, `hsla($1, ${safeAlpha})`);
+    if (/^rgb\(/i.test(value)) return value.replace(/^rgb\((.*)\)$/i, `rgba($1, ${safeAlpha})`);
+    return `hsl(var(--muted-foreground) / ${safeAlpha})`;
   };
 
   const hasExperimental = Array.isArray(plotData)
@@ -95,20 +94,22 @@ const PressureAnalysis = ({
     [analysisResults]
   );
   const pressureDisplayUnit = useMemo(() => {
-    if (settings.pressureConvertToKpa !== false) return 'kPa';
-    const selected = String(settings.pressureInputUnit || 'raw').toLowerCase();
-    if (selected === 'bar') return 'bar';
-    if (selected === 'kpa') return 'kPa';
-    if (selected === 'pa') return 'Pa';
-    if (selected === 'v') return 'V';
-    return 'raw';
+    return getDisplayUnitFromSetting(settings.pressureInputUnit, settings.pressureConvertToKpa);
   }, [settings.pressureConvertToKpa, settings.pressureInputUnit]);
-
-  const formatTimeTick = (val) => {
-    const num = Number(val);
-    if (!Number.isFinite(num)) return val;
-    return num.toFixed(2);
-  };
+  const channelOptions = useMemo(() => {
+    const eligible = (Array.isArray(selectedCases) ? selectedCases : []).filter(
+      (item) => item && item.content && item.type !== 'flame'
+    );
+    const inferred = deriveChannelOptionsFromCases(eligible);
+    return inferred.length ? inferred : [{ value: 0, label: 'Ch 1' }];
+  }, [selectedCases]);
+  useEffect(() => {
+    const current = Number(settings.pressureChannelIndex ?? 0);
+    const max = Math.max(0, channelOptions.length - 1);
+    if (current > max) {
+      setSettings((prev) => ({ ...prev, pressureChannelIndex: max }));
+    }
+  }, [channelOptions, setSettings, settings.pressureChannelIndex]);
 
   const chartData = useMemo(() => {
     if (!Array.isArray(plotData)) return [];
@@ -120,6 +121,53 @@ const PressureAnalysis = ({
       };
     });
   }, [plotData]);
+  const pressurePlotConfig = useMemo(() => {
+    const series = [];
+    displayedSeries.forEach((result) => {
+      series.push({
+        key: result.displayName,
+        label: result.displayName,
+        unit: pressureDisplayUnit,
+        role: 'pressure',
+        color: result.color,
+      });
+      if (showRawReferenceOverlay && result.rawOverlayDisplayName) {
+        series.push({
+          key: result.rawOverlayDisplayName,
+          label: `${result.displayName} (raw ref)`,
+          unit: pressureDisplayUnit,
+          role: 'pressure',
+          color: withAlpha(result.color, 0.4),
+        });
+      }
+    });
+    if (hasExperimental && showExperimental) {
+      series.push({
+        key: 'Experimental',
+        label: 'Experimental',
+        unit: pressureDisplayUnit,
+        role: 'pressure',
+        color: 'hsl(var(--foreground))',
+      });
+    }
+    const channels = series.map((entry, idx) => ({
+      key: entry.key,
+      label: entry.label,
+      unit: entry.unit,
+      role: entry.role,
+      index: idx,
+    }));
+    const colors = series.map((entry) => entry.color);
+    const rows = chartData.map((row) => {
+      const nextRow = { t: Number(row?.time) };
+      series.forEach((entry) => {
+        const y = Number(row?.[entry.key]);
+        nextRow[entry.key] = Number.isFinite(y) ? y : NaN;
+      });
+      return nextRow;
+    });
+    return { channels, colors, rows };
+  }, [chartData, displayedSeries, hasExperimental, pressureDisplayUnit, showExperimental, showRawReferenceOverlay]);
 
   const onCutoffChange = (e) => {
     const next = Number(e.target.value);
@@ -177,15 +225,17 @@ const PressureAnalysis = ({
               <Activity className="text-cyan-400" size={16} />
               {chartTitle}
             </h3>
-            {plotData && plotData.length > 0 && (
-              <div className="flex items-start gap-2 bg-yellow-900/10 border border-yellow-900/30 p-2 rounded max-w-md">
-                <Info size={14} className="text-yellow-500 mt-0.5 shrink-0" />
-                <p className="text-[10px] text-yellow-500/80 leading-tight">
-                  <strong>Visualization Note:</strong> Data is interpolated to a common grid for comparison. Exact
-                  peak values are computed from raw data in the table.
-                </p>
-              </div>
-            )}
+            <div className="flex items-start gap-2">
+              {plotData && plotData.length > 0 && (
+                <div className="flex items-start gap-2 bg-yellow-900/10 border border-yellow-900/30 p-2 rounded max-w-md">
+                  <Info size={14} className="text-yellow-500 mt-0.5 shrink-0" />
+                  <p className="text-[10px] text-yellow-500/80 leading-tight">
+                    <strong>Visualization Note:</strong> Data is interpolated to a common grid for comparison. Exact
+                    peak values are computed from raw data in the table.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex-1 min-h-0 relative">
@@ -194,108 +244,12 @@ const PressureAnalysis = ({
                 Processing Pressure Data...
               </div>
             ) : plotData && plotData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="time"
-                    type="number"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickFormatter={formatTimeTick}
-                    tickCount={localTickCount || 10}
-                    domain={[0, 'dataMax']}
-                    allowDataOverflow
-                    label={{
-                      value: 'Time (s)',
-                      position: 'insideBottom',
-                      offset: -5,
-                      fill: 'hsl(var(--muted-foreground))',
-                      fontSize: 10,
-                    }}
-                  />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickCount={localYTickCount || 10}
-                    label={{
-                      value: `Pressure (${pressureDisplayUnit})`,
-                      angle: -90,
-                      position: 'insideLeft',
-                      fill: 'hsl(var(--muted-foreground))',
-                      fontSize: 10,
-                    }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '4px',
-                    }}
-                    labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}
-                    itemStyle={{ fontSize: '12px', padding: 0 }}
-                    formatter={(val) => (val !== null && val !== undefined ? Number(val).toFixed(3) : 'No Data')}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-
-                  {displayedSeries.map((result, i) => (
-                    <Line
-                      key={i}
-                      type="monotone"
-                      dataKey={result.displayName}
-                      stroke={result.color}
-                      strokeDasharray={result.sourceType === 'experiment' ? '6 4' : undefined}
-                      dot={false}
-                      strokeWidth={2}
-                      connectNulls={true}
-                      isAnimationActive={false}
-                    />
-                  ))}
-                  {showRawReferenceOverlay &&
-                    displayedSeries
-                      .filter((result) => result.rawOverlayDisplayName)
-                      .map((result, i) => (
-                        <Line
-                          key={`raw-ref-${i}-${result.rawOverlayDisplayName}`}
-                          type="monotone"
-                          dataKey={result.rawOverlayDisplayName}
-                          stroke={result.color}
-                          strokeDasharray="3 3"
-                          strokeOpacity={0.28}
-                          dot={false}
-                          strokeWidth={1.5}
-                          connectNulls={true}
-                          isAnimationActive={false}
-                          legendType="none"
-                        />
-                      ))}
-
-                  {hasExperimental && showExperimental ? (
-                    <Line
-                      type="monotone"
-                      dataKey="Experimental"
-                      stroke="hsl(var(--foreground))"
-                      strokeDasharray="5 5"
-                      dot={false}
-                      strokeWidth={2}
-                      connectNulls={true}
-                    />
-                  ) : null}
-
-                  {displayedSeries
-                    .filter((result) => typeof result.ventTime === 'number' && Number.isFinite(result.ventTime))
-                    .map((result, i) => (
-                      <ReferenceLine
-                        key={`vent-${i}`}
-                        x={result.ventTime}
-                        stroke={result.color}
-                        strokeDasharray="4 4"
-                        strokeWidth={1.5}
-                        ifOverflow="extendDomain"
-                      />
-                    ))}
-                </LineChart>
-              </ResponsiveContainer>
+              <HighResMultiChannelPlot
+                plotData={pressurePlotConfig.rows}
+                channels={pressurePlotConfig.channels}
+                colors={pressurePlotConfig.colors}
+                height={420}
+              />
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                 <Activity size={48} className="mb-4 opacity-20" />
@@ -308,7 +262,7 @@ const PressureAnalysis = ({
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Plot Controls</div>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
               {isValidationMode && (
-                <div className="rounded-lg border border-border/60 bg-black/20 p-3">
+                <div className="rounded-lg border border-border/60 bg-card/40 p-3">
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
                     Simulation Filter
                   </div>
@@ -348,7 +302,7 @@ const PressureAnalysis = ({
                   </div>
                 </div>
               )}
-              <div className="rounded-lg border border-border/60 bg-black/20 p-3">
+              <div className="rounded-lg border border-border/60 bg-card/40 p-3">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
                   Experimental Filter
                 </div>
@@ -397,7 +351,7 @@ const PressureAnalysis = ({
                       }
                       className="bg-background border border-border rounded px-2 py-1 text-xs w-32 text-foreground"
                     >
-                      {CHANNEL_OPTIONS.map((option) => (
+                      {channelOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -407,7 +361,7 @@ const PressureAnalysis = ({
                   <div className="flex flex-col">
                     <label className="text-[10px] text-muted-foreground uppercase font-bold">Input Unit</label>
                     <select
-                      value={settings.pressureInputUnit || 'auto'}
+                      value={String(settings.pressureInputUnit || '').toLowerCase() === 'auto' ? DEFAULT_INPUT_UNIT : (settings.pressureInputUnit || DEFAULT_INPUT_UNIT)}
                       onChange={(e) => setSettings({ ...settings, pressureInputUnit: e.target.value })}
                       className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
                     >
@@ -429,9 +383,9 @@ const PressureAnalysis = ({
                   </label>
                 </div>
               </div>
-              <div className="xl:col-span-2 rounded-lg border border-border/60 bg-black/20 p-3">
+              <div className="xl:col-span-2 rounded-lg border border-border/60 bg-card/40 p-3">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
-                  Display & Impulse
+                  Display, Impulse & Input Scope
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                   <div className="flex flex-col">
@@ -474,6 +428,50 @@ const PressureAnalysis = ({
                       value={decayAmountPercent}
                       onChange={onDecayAmountChange}
                       className="bg-background border border-border rounded px-2 py-1 text-xs w-full text-foreground"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-end gap-3">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(settings.analysisFullResolution)}
+                      onChange={(e) => setSettings({ ...settings, analysisFullResolution: e.target.checked })}
+                      className="rounded bg-muted border-border"
+                    />
+                    Use full-resolution input (slower)
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(settings.analysisLimitTimeWindow)}
+                      onChange={(e) => setSettings({ ...settings, analysisLimitTimeWindow: e.target.checked })}
+                      className="rounded bg-muted border-border"
+                    />
+                    Limit input time window (s)
+                  </label>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Start (s)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={settings.analysisWindowStart ?? ''}
+                      disabled={!settings.analysisLimitTimeWindow}
+                      onChange={(e) => setSettings({ ...settings, analysisWindowStart: e.target.value })}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-24 text-foreground disabled:opacity-50"
+                      placeholder="auto"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">End (s)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={settings.analysisWindowEnd ?? ''}
+                      disabled={!settings.analysisLimitTimeWindow}
+                      onChange={(e) => setSettings({ ...settings, analysisWindowEnd: e.target.value })}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-24 text-foreground disabled:opacity-50"
+                      placeholder="auto"
                     />
                   </div>
                 </div>
@@ -572,7 +570,7 @@ const PressureAnalysis = ({
             <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
               <Settings size={16} className="text-muted-foreground" /> Calculated Metrics
             </h3>
-            <div className="mb-4 rounded-lg border border-border/60 bg-black/20 p-3 text-xs text-muted-foreground">
+            <div className="mb-4 rounded-lg border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground">
               <div className="text-[10px] uppercase tracking-widest font-bold mb-2">Visible Series</div>
               <div className="flex flex-col gap-2">
                 {analysisResults.length === 0 && <span className="text-[11px] text-muted-foreground">No series yet.</span>}
@@ -609,10 +607,10 @@ const PressureAnalysis = ({
                 )}
               </div>
             </div>
-            <div className="flex-1 overflow-auto custom-scrollbar">
+            <div className="flex-1 overflow-auto custom-scrollbar rounded-lg border border-primary/30 bg-primary/10 p-3">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="text-[10px] text-muted-foreground uppercase border-b border-border">
+                  <tr className="text-[10px] text-primary uppercase border-b border-primary/20">
                     <th className="pb-2 font-bold">Case</th>
                     <th className="pb-2 text-right">P<sub>max</sub></th>
                     <th className="pb-2 text-right">t<sub>peak</sub></th>
@@ -622,7 +620,7 @@ const PressureAnalysis = ({
                 </thead>
                 <tbody className="text-xs text-foreground/80">
                   {analysisResults.map((res, i) => (
-                    <tr key={i} className="border-b border-border/60 hover:bg-muted/40 transition-colors">
+                    <tr key={i} className="border-b border-primary/15 hover:bg-primary/5 transition-colors">
                       <td className="py-3 font-mono truncate max-w-[140px]" title={res.displayName}>
                         <span className="w-2 h-2 inline-block rounded-full mr-2" style={{ backgroundColor: res.color }} />
                         {res.displayName}

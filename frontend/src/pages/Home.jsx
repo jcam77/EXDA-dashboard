@@ -64,6 +64,78 @@ const HomePage = ({
 
   const [recentProjects, setRecentProjects] = React.useState([]);
   const [activeTechCard, setActiveTechCard] = React.useState(null);
+  const [showLicenseModal, setShowLicenseModal] = React.useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = React.useState(false);
+
+  const mitLicenseText = `MIT License
+
+Copyright (c) 2026 EXDA-Dashboard contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`;
+
+  const privacyPolicyText = `Privacy Policy (GDPR)
+
+Effective date: February 20, 2026
+
+This Privacy Policy describes how EXDA-Dashboard processes personal data in connection with the desktop and browser-based application used for explosion research and engineering analysis.
+
+1. Data We Process
+- Project metadata (project names, paths, timestamps)
+- User-provided research files
+- Analysis outputs and derived metrics
+- Optional AI chat prompts/responses (when enabled)
+
+2. Purpose
+- Load and analyze datasets
+- Save and restore project state
+- Generate plots/reports
+- Support optional AI-assisted workflows
+
+3. Storage and Location
+- Local/offline mode: data is primarily processed/stored on your machine.
+- If external AI/cloud features are enabled, selected content may be sent to configured providers.
+
+4. Legal Bases (GDPR Art. 6)
+- Contract performance, legitimate interests, consent (where required), and legal obligations (as applicable).
+
+5. Data Sharing
+- No sale of personal data.
+- Sharing only with required service providers, authorized collaborators, or legal authorities when required.
+
+6. Retention
+- Data retention depends on deployment and project setup.
+- Keep data only as long as needed for analysis purposes.
+
+7. Security
+- Reasonable technical/organizational safeguards are applied.
+- Avoid uploading unnecessary personal data.
+
+8. Your Rights
+- Access, rectification, erasure, restriction, portability, objection, withdrawal of consent, complaint to supervisory authority.
+
+9. Contact
+- Add your official privacy contact email in PRIVACY_POLICY.md.
+
+10. Changes
+- This policy may be updated; effective date will be revised.
+
+Full version is available in repository file: PRIVACY_POLICY.md`;
 
   React.useEffect(() => {
     let mounted = true;
@@ -343,7 +415,7 @@ const HomePage = ({
             {onSelectTab && (
               <button
                 onClick={() => onSelectTab('projects')}
-                className="inline-flex items-center gap-2 rounded-md border border-primary/30 px-4 py-2 text-sm font-semibold text-foreground hover:border-primary/60 hover:shadow-[0_0_12px_rgba(56,189,248,0.25)] transition"
+                className="inline-flex items-center gap-2 rounded-md border border-primary/30 px-4 py-2 text-sm font-semibold text-foreground hover:border-primary/60 hover: transition"
               >
                 <Layers size={18} /> View Projects
               </button>
@@ -351,7 +423,7 @@ const HomePage = ({
             {onOpenProject && (
               <button
                 onClick={onOpenProject}
-                className="inline-flex items-center gap-2 rounded-md border border-primary/30 px-4 py-2 text-sm font-semibold text-foreground hover:border-primary/60 hover:shadow-[0_0_12px_rgba(56,189,248,0.25)] transition"
+                className="inline-flex items-center gap-2 rounded-md border border-primary/30 px-4 py-2 text-sm font-semibold text-foreground hover:border-primary/60 hover: transition"
               >
                 <FolderOpen size={18} /> Open Project
               </button>
@@ -359,7 +431,7 @@ const HomePage = ({
             {onCreateProject && (
               <button
                 onClick={onCreateProject}
-                className="inline-flex items-center gap-2 rounded-md border border-primary/30 px-4 py-2 text-sm font-semibold text-foreground hover:border-primary/60 hover:shadow-[0_0_12px_rgba(56,189,248,0.25)] transition"
+                className="inline-flex items-center gap-2 rounded-md border border-primary/30 px-4 py-2 text-sm font-semibold text-foreground hover:border-primary/60 hover: transition"
               >
                 <FolderPlus size={18} /> Create Project
               </button>
@@ -511,15 +583,15 @@ const HomePage = ({
               },
               {
                 title: 'Collect & Process Data',
-                body: 'Import experimental CSV/TXT logs and OpenFOAM simulation data. Apply advanced signal processing (EWT:Empirical Wavelet Transform) and filters.'
+                body: 'Import experimental CSV/TXT/DAT/ASC/ASCII/MF4/TPC5 files and OpenFOAM simulation data. Apply advanced signal processing (EWT: Empirical Wavelet Transform) and filters; time-window optimization is format-dependent.'
               },
               {
                 title: 'Analyse & Visualise',
-                body: 'Visualise complex metrics and patterns. Create publication-ready charts with interactive Recharts dashboards.'
+                body: 'Visualise complex metrics and patterns. Create publication-ready charts with interactive dashboards using Recharts and high-resolution uPlot views.'
               },
               {
                 title: 'AI-Assisted Research',
-                body: 'Leverage AiRA for intelligent literature review. The AI indexes your research papers and provides context-aware insights.'
+                body: 'Leverage AiRA for intelligent literature review and analysis guidance with project-aware, context-rich responses.'
               }
             ].map((step, idx) => (
               <div key={step.title} className="flex gap-6 items-start">
@@ -554,7 +626,7 @@ const HomePage = ({
                   <ArrowRight size={12} className="text-primary/60" />
                   <span className="px-2 py-1 rounded-md border border-primary/20 bg-primary/10 text-primary">Charts</span>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">React + Tailwind + Recharts pipeline</p>
+                <p className="mt-2 text-xs text-muted-foreground">React + Tailwind + Recharts/uPlot pipeline</p>
               </div>
               <div
                 className="rounded-xl border border-sidebar-border bg-card/40 p-8 h-full cursor-pointer hover:border-primary/50 transition"
@@ -588,6 +660,10 @@ const HomePage = ({
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
+                  uPlot high-resolution charts
+                </li>
+                <li className="flex items-center gap-2">
+                  <Shield size={14} className="text-primary" />
                   Marked (Markdown rendering)
                 </li>
                 <li className="flex items-center gap-2">
@@ -602,7 +678,7 @@ const HomePage = ({
                 {activeTechCard === 'frontend' && (
                   <div className="mt-4 rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                     The frontend handles navigation, plan entry, data import, and analysis views. It renders
-                    plots with Recharts and supports Markdown responses from AiRA using the marked renderer.
+                    plots with Recharts and uPlot, and supports Markdown responses from AiRA using the marked renderer.
                   </div>
                 )}
               </div>
@@ -677,6 +753,29 @@ const HomePage = ({
         </div>
       </section>
 
+      <section className="px-4 sm:px-6 lg:px-8 pb-8 snap-start">
+        <div className="max-w-6xl mx-auto">
+          <div className="rounded-xl border border-warning/40 bg-warning/10 p-4 sm:p-5">
+            <div className="flex items-center gap-2 text-warning font-bold text-[11px] uppercase tracking-widest">
+              <Shield size={14} />
+              Usage Disclaimer
+            </div>
+            <p className="mt-2 text-sm text-foreground text-justify">
+              EXDA-Dashboard is designed to support rapid on-site engineering assessment and preliminary interpretation
+              of experimental data during explosion tests. The implemented tools are intended to facilitate timely operational
+              decisions (e.g., assessing data quality and determining whether a test repetition may be warranted). Outputs generated
+              by the application are therefore indicative and must not be treated as final, publication-grade results or as
+              definitive scientific conclusions.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground text-justify">
+              All results intended for reporting, publication, verification and validation (V&V), or uncertainty quantification (UQ)
+              must be independently reviewed and processed using validated workflows outside this application, including appropriate
+              documentation of assumptions, processing steps, and uncertainty evaluation.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section className="py-0 px-4 sm:px-6 lg:px-8 border-t border-sidebar-border/60 snap-start">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="md:col-span-1">
@@ -707,7 +806,24 @@ const HomePage = ({
             <ul className="mt-1 space-y-0.5 text-[11px] text-foreground">
               <li>About Us</li>
               <li>Contact</li>
-              <li>Privacy Policy</li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacyModal(true)}
+                  className="text-left text-foreground hover:text-primary transition"
+                >
+                  Privacy Policy
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setShowLicenseModal(true)}
+                  className="text-left text-foreground hover:text-primary transition"
+                >
+                  MIT License
+                </button>
+              </li>
             </ul>
           </div>
         </div>
@@ -719,6 +835,66 @@ const HomePage = ({
           </span>
         </div>
       </section>
+
+      {showLicenseModal && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowLicenseModal(false)}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-3xl max-h-[85vh] overflow-auto rounded-xl border border-border bg-card p-5 shadow-sm"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="MIT License"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-foreground">MIT License</h3>
+              <button
+                type="button"
+                onClick={() => setShowLicenseModal(false)}
+                className="text-xs text-muted-foreground hover:text-foreground transition"
+              >
+                Close
+              </button>
+            </div>
+            <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground font-mono">
+              {mitLicenseText}
+            </pre>
+          </div>
+        </div>
+      )}
+
+      {showPrivacyModal && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowPrivacyModal(false)}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-3xl max-h-[85vh] overflow-auto rounded-xl border border-border bg-card p-5 shadow-sm"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Privacy Policy"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-foreground">Privacy Policy (GDPR)</h3>
+              <button
+                type="button"
+                onClick={() => setShowPrivacyModal(false)}
+                className="text-xs text-muted-foreground hover:text-foreground transition"
+              >
+                Close
+              </button>
+            </div>
+            <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground font-mono">
+              {privacyPolicyText}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

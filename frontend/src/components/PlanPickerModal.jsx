@@ -41,7 +41,7 @@ const PlanPickerModal = ({ isOpen, projectPath, onClose, onSelect }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-sidebar-border bg-card p-6 shadow-2xl">
+      <div className="w-full max-w-lg rounded-2xl border border-sidebar-border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Select Plan File</h2>
           <button

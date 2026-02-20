@@ -11,6 +11,11 @@ marked.setOptions({
 });
 
 const ROLE_SUGGESTED_QUESTIONS = {
+    auto_router: [
+        "Can you analyze this issue and choose the right expert perspective automatically?",
+        "What are the top risks and next actions based on my current project context?",
+        "Review this workflow and suggest the most critical improvements."
+    ],
     combustion_dynamics_expert: [
         "Which signals indicate flame acceleration or DDT risk in this dataset?",
         "How should I interpret pressure-wave and flame-front coupling here?",
@@ -56,12 +61,47 @@ const ROLE_SUGGESTED_QUESTIONS = {
         "Which dependencies or risks could delay the current plan?",
         "How should tasks be split across the team this week?"
     ],
-    computational_it_engineer: [
-        "Where in the app is EWT calculated and how does data flow end-to-end?",
+    it_engineer: [
+        "Where in the app is this feature implemented and how does data flow end-to-end?",
         "What refactor would most improve maintainability without breaking behavior?",
         "Which performance bottlenecks should we prioritize in this pipeline?"
     ],
+    computational_data_scientist: [
+        "Where is EWT calculated and how should we validate its outputs?",
+        "How should we handle uncertainty and reproducibility in this analysis pipeline?",
+        "Which statistical checks should we add for robust interpretation?"
+    ],
 };
+
+const EXPERT_ROLES = [
+    "combustion_dynamics_expert",
+    "dispersion_cfd_expert",
+    "experimental_instrumentation_analyst",
+    "risk_safety_engineer",
+    "structural_analyst",
+    "literature_reviewer",
+    "regulatory_specialist",
+    "thesis_advisor",
+    "project_coordinator",
+    "it_engineer",
+    "computational_data_scientist"
+];
+
+const ROLE_LABELS = {
+    combustion_dynamics_expert: "Combustion Dynamics Expert",
+    dispersion_cfd_expert: "Dispersion CFD Expert",
+    experimental_instrumentation_analyst: "Experimental Instrumentation Analyst",
+    risk_safety_engineer: "Risk Safety Engineer",
+    structural_analyst: "Structural Analyst",
+    literature_reviewer: "Literature Reviewer",
+    regulatory_specialist: "Regulatory Specialist",
+    thesis_advisor: "Thesis Advisor",
+    project_coordinator: "Project Coordinator",
+    it_engineer: "IT Engineer",
+    computational_data_scientist: "Computational Data Scientist",
+};
+
+const getRoleLabel = (role) => ROLE_LABELS[role] || role.replace(/_/g, " ");
 
 /**
  * AiRAPage Component - PhD Research Assistant Context Enhancement
@@ -80,6 +120,7 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
     const [selectedModel, setSelectedModel] = useState('deepseek-v3.1:671b-cloud');
     const [copiedIndex, setCopiedIndex] = useState(null);
     const [isAtBottom, setIsAtBottom] = useState(true);
+    const [strictFormat, setStrictFormat] = useState(false);
     // Multi-Agent mode state
     const [_multiAgentMode, _setMultiAgentMode] = useState(false);
     const [_multiAgentModels, _setMultiAgentModels] = useState([
@@ -227,20 +268,9 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
 
     useEffect(() => () => stopStreaming(), [stopStreaming]);
 
-    const EXPERT_ROLES = [
-        "combustion_dynamics_expert",
-        "dispersion_cfd_expert",
-        "experimental_instrumentation_analyst",
-        "risk_safety_engineer",
-        "structural_analyst",
-        "literature_reviewer",
-        "regulatory_specialist",
-        "thesis_advisor",
-        "project_coordinator",
-        "computational_it_engineer"
-    ];
-    const [selectedExpert, setSelectedExpert] = useState(EXPERT_ROLES[0]);
-    const [activatedExperts, setActivatedExperts] = useState([EXPERT_ROLES[0]]);
+    const AUTO_ROLE = "auto_router";
+    const [selectedExpert, setSelectedExpert] = useState(AUTO_ROLE);
+    const [activatedExperts, setActivatedExperts] = useState([]);
     const suggestedQuestions = ROLE_SUGGESTED_QUESTIONS[selectedExpert] || [];
 
     const formatAiContent = useCallback((content) => {
@@ -252,6 +282,65 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
             text = text.replace(/\t/g, ' ');
             text = text.replace(/^\s{2,}(?=\S)/gm, '');
 
+            // Repair common model markdown concatenation artifacts.
+            text = text.replace(/---\s*(?=#{2,6}\s)/g, '---\n\n');
+            text = text.replace(/([^\n])\s*(#{2,6}\s+)/g, '$1\n\n$2');
+            text = text.replace(/(#{2,6}\s+[^\n#]+)\s*(#{2,6}\s+)/g, '$1\n\n$2');
+            text = text.replace(/(\*\*[^*]+\*\*)\s*(#{2,6}\s+)/g, '$1\n\n$2');
+            text = text.replace(/(^|\n)##\s*Active Experts\s*\*\*([^\n*]+)\*\*/g, '$1## Active Experts\n- **$2**');
+            text = text.replace(/(^|\n)##\s*Active Experts\s+([^\n#]+)/g, (_, p1, roles) => {
+                const knownRoles = EXPERT_ROLES.filter((role) => roles.includes(role));
+                const roleItems = knownRoles.map((r) => `- ${r}`).join('\n');
+                return `${p1}## Active Experts\n${roleItems}`;
+            });
+            text = text.replace(/Role Inputs###/g, 'Role Inputs\n\n###');
+            text = text.replace(/(\n|^)(Validation Notes|Next Steps|Integrated Recommendation)\s+(?=\S)/g, '$1## $2\n');
+            text = text.replace(/(^|\n)(Active Experts|Role Inputs|Integrated Recommendation|Validation Notes|Next Steps)\s*(?=\S|$)/g, '$1## $2\n');
+            text = text.replace(/([.!?])\s+(Active Experts|Role Inputs|Integrated Recommendation|Validation Notes|Next Steps)\s+(?=\S)/g, '$1\n\n## $2\n');
+            text = text.replace(/(^|\n)(combustion_dynamics_expert|dispersion_cfd_expert|experimental_instrumentation_analyst|risk_safety_engineer|structural_analyst|literature_reviewer|regulatory_specialist|thesis_advisor|project_coordinator|it_engineer|computational_data_scientist|computational_it_engineer)\s*(?=\S|$)/g, '$1### $2\n');
+            text = text.replace(/([a-z0-9])\s+(combustion_dynamics_expert|dispersion_cfd_expert|experimental_instrumentation_analyst|risk_safety_engineer|structural_analyst|literature_reviewer|regulatory_specialist|thesis_advisor|project_coordinator|it_engineer|computational_data_scientist|computational_it_engineer)\b/g, '$1\n\n### $2');
+            text = text.replace(/([a-z0-9])\s+(Role Inputs|Integrated Recommendation|Validation Notes|Next Steps)\b/g, '$1\n\n## $2');
+            text = text.replace(/\*\*([^*\n]+)\*/g, '**$1**');
+            text = text.replace(/(\*\*[^*\n]+)\*(?!\*)/g, '$1**');
+            text = text.replace(/(##\s+EWT Implementation Location)([A-Z])/g, '$1\n$2');
+            text = text.replace(/(\*\*[^*\n]+\*\*)\*/g, '$1');
+            for (const role of EXPERT_ROLES) {
+                const label = getRoleLabel(role);
+                const roleRegex = new RegExp(`\\b${role}\\b`, 'g');
+                text = text.replace(roleRegex, label);
+            }
+            text = text.replace(/\bcomputational_it_engineer\b/g, getRoleLabel('it_engineer'));
+            for (const label of Object.values(ROLE_LABELS)) {
+                const esc = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                text = text.replace(new RegExp(`(^|\\n)${esc}\\s*(?=\\S|$)`, 'g'), `$1### ${label}\n`);
+                text = text.replace(new RegExp(`([.!?])\\s+${esc}\\b`, 'g'), `$1\n\n### ${label}`);
+                text = text.replace(new RegExp(`(##\\s+Role Inputs)\\s+${esc}\\b`, 'g'), `$1\n\n### ${label}`);
+                text = text.replace(new RegExp(`(##\\s+Active Experts)\\s+${esc}\\b`, 'g'), `$1\n- ${label}`);
+                text = text.replace(new RegExp(`(###\\s+${esc})\\s+([A-Z])`, 'g'), `$1\n- $2`);
+            }
+            text = text.replace(/(##\s+(?:Integrated Recommendation|Validation Notes|Next Steps|EWT Calculation Locations?))\s+([A-Z])/g, '$1\n- $2');
+            text = text.replace(/(\.)(\s+Frontend calls? from)/g, '$1\n- $2');
+
+            // Fix occasional model output where the first role heading is concatenated
+            // at the end of "Experts used: ..." on the same line.
+            const expertsInline = text.match(/^Experts used:\s*([^\n]+)/);
+            if (expertsInline) {
+                const fullLine = expertsInline[0];
+                const rolesPart = expertsInline[1];
+                for (const label of Object.values(ROLE_LABELS)) {
+                    const token = ` ${label}`;
+                    const idx = rolesPart.lastIndexOf(token);
+                    if (idx <= 0) continue;
+                    const before = rolesPart.slice(0, idx).trim();
+                    const after = rolesPart.slice(idx + 1).trim();
+                    if (!before.includes(',')) continue;
+                    if (!after.startsWith(label)) continue;
+                    if (text.includes(`### ${label}`)) break;
+                    text = text.replace(fullLine, `Experts used: ${before}\n\n### ${after}`);
+                    break;
+                }
+            }
+
             // Force newlines before inline bullet markers.
             text = text.replace(/([^\n])\s*\*(?=(Books|Papers|Standards)\/)/gi, '$1\n*');
             text = text.replace(/([^\n])\s*(Books|Papers|Standards)\//gi, '$1\n$2/');
@@ -260,6 +349,8 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
             text = text.replace(/([^\n])\s*(\d+\.)\s+(?=\S)/g, '$1\n$2 ');
             text = text.replace(/(^|\n)\s*[*•]\s*(?=\S)/g, '$1- ');
             text = text.replace(/(^|\n)\s*-\s*(?=\S)/g, '$1- ');
+            text = text.replace(/([^\n])\s+(###\s+)/g, '$1\n\n$2');
+            text = text.replace(/([^\n])\s+(##\s+(?:Role Inputs|Validation Notes|Next Steps|Integrated Recommendation))/g, '$1\n\n$2');
 
             // Ensure section labels like "Available Resources:" sit on their own line.
             text = text.replace(/Available Resources:\s*/gi, 'Available Resources:\n');
@@ -442,7 +533,12 @@ const handleAsk = () => {
         contextParams.set('plan_desc', planMeta?.description || 'N/A');
         contextParams.set('app_context', appContext || '');
         contextParams.set('include_repo_context', hasRepoContextSnapshot ? '0' : '1');
-        contextParams.set('expert_role', selectedExpert);
+        contextParams.set('structured', strictFormat ? '1' : '0');
+        const useAutoRole = selectedExpert === AUTO_ROLE && activatedExperts.length === 0;
+        if (!useAutoRole) {
+            contextParams.set('expert_role', selectedExpert);
+        }
+        contextParams.set('auto_role', useAutoRole ? '1' : '0');
         activatedExperts.forEach(role => contextParams.append('expert_roles', role));
 
         const url = `${apiBaseUrl}/ai_research_stream?${contextParams.toString()}`;
@@ -509,12 +605,12 @@ const handleAsk = () => {
                                         </div>
                                         {!isUser && (
                                             <button
-                                                onClick={() => handleCopy(msg.content, idx)}
+                                                onClick={() => handleCopy(formatAiContent(msg.content || ''), idx)}
                                                 className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/30 px-2 py-0.5 text-[9px] font-semibold text-muted-foreground hover:text-foreground hover:border-ring transition"
-                                                title="Copy response"
+                                                title="Copy markdown response"
                                             >
                                                 {copiedIndex === idx ? <Check size={10} /> : <Copy size={10} />}
-                                                {copiedIndex === idx ? 'Copied' : 'Copy'}
+                                                {copiedIndex === idx ? 'Copied' : 'Copy MD'}
                                             </button>
                                         )}
                                     </div>
@@ -546,7 +642,7 @@ const handleAsk = () => {
                 {!isAtBottom && (
                     <button
                         onClick={scrollToBottom}
-                        className="sticky bottom-4 ml-auto mr-2 inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shadow-lg backdrop-blur hover:text-foreground hover:border-ring transition"
+                        className="sticky bottom-4 ml-auto mr-2 inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shadow-sm backdrop-blur hover:text-foreground hover:border-ring transition"
                         title="Jump to latest"
                     >
                         <ChevronDown size={12} />
@@ -601,16 +697,18 @@ const handleAsk = () => {
                                 onChange={e => setSelectedExpert(e.target.value)}
                                 className="appearance-none bg-card/60 border border-border text-[9px] text-muted-foreground pl-2 pr-6 py-0.5 rounded outline-none cursor-pointer hover:border-ring transition-colors"
                             >
-                                {EXPERT_ROLES.map(role => <option key={role} value={role}>{role.replace(/_/g, ' ')}</option>)}
+                                <option value={AUTO_ROLE}>auto router</option>
+                                {EXPERT_ROLES.map(role => <option key={role} value={role}>{getRoleLabel(role)}</option>)}
                             </select>
                             <button
                                 className={`ml-2 px-2 py-1 rounded text-[9px] font-bold border border-border bg-muted/60 text-muted-foreground hover:bg-muted/80 transition-colors ${activatedExperts.includes(selectedExpert) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 onClick={() => {
+                                    if (selectedExpert === AUTO_ROLE) return;
                                     if (!activatedExperts.includes(selectedExpert)) {
                                         setActivatedExperts([...activatedExperts, selectedExpert]);
                                     }
                                 }}
-                                disabled={activatedExperts.includes(selectedExpert)}
+                                disabled={selectedExpert === AUTO_ROLE || activatedExperts.includes(selectedExpert)}
                             >Activate</button>
                             <div className="flex gap-1 ml-2">
                                 {activatedExperts.map(role => (
@@ -620,11 +718,20 @@ const handleAsk = () => {
                                         title="Double-click to deactivate"
                                         onDoubleClick={() => setActivatedExperts(activatedExperts.filter(r => r !== role))}
                                     >
-                                        {role.replace(/_/g, ' ')}
+                                        {getRoleLabel(role)}
                                     </span>
                                 ))}
                             </div>
                         </div>
+                        <label className="ml-2 inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1 text-[9px] text-muted-foreground">
+                            <input
+                                type="checkbox"
+                                checked={strictFormat}
+                                onChange={(e) => setStrictFormat(e.target.checked)}
+                                className="h-3 w-3 accent-primary"
+                            />
+                            Strict Format
+                        </label>
                         <div className="ml-2 flex items-center gap-2">
                             <label className="text-[10px]">Model:</label>
                             <select

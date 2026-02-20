@@ -53,7 +53,7 @@ const ImportDataPage = (props) => {
             <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* EXPERIMENTS CARD */}
-                    <div className="bg-card/60 border border-border p-6 rounded-xl flex flex-col h-full overflow-hidden shadow-2xl">
+                    <div className="bg-card/60 border border-border p-6 rounded-xl flex flex-col h-full overflow-hidden shadow-sm">
                         <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                             <FlaskConical size={20} className="text-primary" />
                             Experiments Data
@@ -156,7 +156,7 @@ const ImportDataPage = (props) => {
                         </div>
                     </div>
                     {/* SIMULATIONS CARD */}
-                    <div className="bg-card/60 border border-border p-6 rounded-xl flex flex-col h-full overflow-hidden shadow-2xl">
+                    <div className="bg-card/60 border border-border p-6 rounded-xl flex flex-col h-full overflow-hidden shadow-sm">
                         <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                             <Layers size={20} className="text-primary" />
                             CFD Simulations Data

@@ -10,7 +10,13 @@ except Exception:  # pragma: no cover - optional dependency
     MDF = None
 
 
-def mf4_to_content(file_path: str, max_channels: int = 64):
+def mf4_to_content(
+    file_path: str,
+    max_channels: int = 64,
+    max_samples: int = 200000,
+    time_start: float | None = None,
+    time_end: float | None = None,
+):
     """Return MF4 as CSV-like text content compatible with existing parsers."""
     if MDF is None:
         return None, (
@@ -53,6 +59,26 @@ def mf4_to_content(file_path: str, max_channels: int = 64):
     order = np.argsort(t)
     t = t[order]
     y = y[order]
+
+    start = float(time_start) if time_start is not None and np.isfinite(time_start) else None
+    end = float(time_end) if time_end is not None and np.isfinite(time_end) else None
+    if start is not None and end is not None and start > end:
+        start, end = end, start
+    if start is not None or end is not None:
+        window_mask = np.ones_like(t, dtype=bool)
+        if start is not None:
+            window_mask &= t >= start
+        if end is not None:
+            window_mask &= t <= end
+        if not np.any(window_mask):
+            return None, "MF4 time window has no samples."
+        t = t[window_mask]
+        y = y[window_mask]
+
+    if max_samples > 0 and len(t) > max_samples:
+        idx = np.linspace(0, len(t) - 1, max_samples, dtype=np.int64)
+        t = t[idx]
+        y = y[idx]
 
     header = ["time"] + [
         (str(col).strip() if str(col).strip() else f"Signal {idx + 1}")

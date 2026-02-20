@@ -65,7 +65,7 @@ def is_project_folder(base_path):
     """Check whether path looks like an initialized project folder."""
     if not base_path or not os.path.exists(base_path):
         return False
-    expected = ["Plan", "Raw_Data", "Clean_Data", "aiChat", "Reports", "Literature"]
+    expected = ["Plan", "Raw_Data", "Clean_Data", "CFD_Data", "aiChat", "Reports", "Literature"]
     return any(os.path.exists(os.path.join(base_path, f)) for f in expected)
 
 def read_project_status(base_path):
@@ -337,8 +337,8 @@ def initialize_project_structure(base_path):
     """
     if not base_path or not os.path.exists(base_path): return False, "Invalid path"
     
-    # Primary PhD project folders
-    folders = ["Plan", "Raw_Data", "Clean_Data", "aiChat", "Reports", "Literature"]
+    # Primary project folders
+    folders = ["Plan", "Raw_Data", "Clean_Data", "CFD_Data", "aiChat", "Reports", "Literature"]
     
     # Specific Literature subcategories as requested
     sub_resources = [os.path.join("Literature", "Books"), os.path.join("Literature", "Papers"),os.path.join("Literature","Standards")]

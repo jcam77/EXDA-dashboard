@@ -12,7 +12,7 @@ import ChecklistPage from '../../pages/Checklist';
 import PlanPage from '../../pages/Plan';
 import GasMixingPage from '../../pages/GasMixing';
 import ImportDataPage from '../../pages/ImportData';
-import CleanDataPage from '../../pages/CleanData';
+import DataPreprocessingPage from '../../pages/DataPreprocessingPage';
 import EWTPage from '../../pages/EwtAnalysis';
 import FlameSpeed from '../../pages/FlameSpeedAnalysis';
 import AiRAPage from '../../pages/AiRA';
@@ -28,6 +28,7 @@ import PlanPickerModal from '../../components/PlanPickerModal';
 import { getBackendBaseUrl } from '../../utils/backendUrl';
 import { getPublicUrl } from '../../utils/assetUrl';
 import { recordRecentProject } from '../../utils/recentProjects';
+import { DEFAULT_INPUT_UNIT } from '../../utils/units';
 import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
 import { useDataImportPipeline } from './hooks/useDataImportPipeline';
 
@@ -48,7 +49,7 @@ const TAB_PATHS = {
     plan: '/plan',
     gas: '/gas',
     data: '/data',
-    clean_data: '/data/clean',
+    data_preprocessing: '/data/preprocessing',
     ewt: '/analysis/ewt',
     pressure_analysis: '/analysis/pressure',
     cfd_validation: '/analysis/cfd-validation',
@@ -65,7 +66,8 @@ const resolveTabFromPath = (pathname) => {
     if (pathname.startsWith('/checklist')) return 'checklist';
     if (pathname.startsWith('/plan')) return 'plan';
     if (pathname.startsWith('/gas')) return 'gas';
-    if (pathname.startsWith('/data/clean')) return 'clean_data';
+    if (pathname.startsWith('/data/preprocessing')) return 'data_preprocessing';
+    if (pathname.startsWith('/data/clean')) return 'data_preprocessing';
     if (pathname.startsWith('/data')) return 'data';
     if (pathname.startsWith('/analysis')) {
         if (pathname.includes('calculations-verification')) return 'verification';
@@ -144,6 +146,7 @@ const WorkspacePage = () => {
   const [experimentalData, setExperimentalData] = useState([]);
   const experimentalFlameData = null;
   const [selectedCases, setSelectedCases] = useState([]);
+  const [projectStatusFromFile, setProjectStatusFromFile] = useState('');
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [settings, setSettings] = useState({ 
@@ -151,13 +154,17 @@ const WorkspacePage = () => {
     showVentLines: true, useShortNames: true,
     ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
     pressureChannelIndex: 0, ewtChannelIndex: 0,
-    pressureInputUnit: 'auto', ewtInputUnit: 'auto',
+    pressureInputUnit: DEFAULT_INPUT_UNIT, ewtInputUnit: DEFAULT_INPUT_UNIT,
     pressureConvertToKpa: true, ewtConvertToKpa: true,
     pressureTickCount: 10, ewtTickCount: 10,
     showRawReference: true,
     experimentalUseRaw: false,
     experimentalCutoff: 100,
-    experimentalOrder: 4
+    experimentalOrder: 4,
+    analysisFullResolution: false,
+    analysisLimitTimeWindow: false,
+    analysisWindowStart: '',
+    analysisWindowEnd: '',
   });
   const [sessionFiles, setSessionFiles] = useState([]);
     const [expFiles, setExpFiles] = useState([]);
@@ -229,6 +236,8 @@ const WorkspacePage = () => {
                       setPlanName(state.plan.planName || "Loaded_Plan");
                       if (state.plan.meta) setPlanMeta(state.plan.meta);
                   }
+                  const statusFromFile = (state.project_status?.status || '').toString().toLowerCase();
+                  setProjectStatusFromFile(statusFromFile);
                   
                   // 2. Recover the Data file list from the project folder
                   // This ensures the Data tab doesn't go empty after a browser refresh
@@ -298,27 +307,32 @@ const WorkspacePage = () => {
       type = 'error',
       confirmVariant = 'destructive'
   }) => new Promise((resolve) => {
-      const closeModal = () => setModal((prev) => ({ ...prev, show: false }));
+      let settled = false;
+      const finalize = (value) => {
+          if (settled) return;
+          settled = true;
+          setModal((prev) => ({ ...prev, show: false }));
+          resolve(value);
+      };
       setModal({
           show: true,
           type,
           title,
           content,
+          onClose: () => finalize(false),
           actions: [
               {
                   label: cancelLabel,
                   variant: 'ghost',
                   onClick: () => {
-                      closeModal();
-                      resolve(false);
+                      finalize(false);
                   }
               },
               {
                   label: confirmLabel,
                   variant: confirmVariant,
                   onClick: () => {
-                      closeModal();
-                      resolve(true);
+                      finalize(true);
                   }
               }
           ]
@@ -353,6 +367,7 @@ const WorkspacePage = () => {
       requestAnalysis,
   } = useAnalysisPipeline({
       apiBaseUrl,
+      projectPath,
       activeTab,
       selectedCases,
       experimentalData,
@@ -387,6 +402,8 @@ const WorkspacePage = () => {
   });
 
   const projectStatus = (() => {
+      const fromFile = (projectStatusFromFile || '').toString().toLowerCase();
+      if (['planning', 'active', 'archived'].includes(fromFile)) return fromFile;
       const explicit = (planMeta?.status || '').toString().toLowerCase();
       if (['planning', 'active', 'archived'].includes(explicit)) return explicit;
       const total = experiments.length;
@@ -512,6 +529,7 @@ const WorkspacePage = () => {
           notify('error', 'Auto-save Failed', 'Could not save the latest plan before closing.');
       } finally {
           setProjectPath(null);
+          setProjectStatusFromFile('');
           localStorage.removeItem('currentProjectPath');
       }
   };
@@ -657,7 +675,7 @@ const WorkspacePage = () => {
                           <div className="hidden md:flex items-center gap-2">
                               <button
                                   onClick={() => setActiveTab('home')}
-                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'home' ? 'border-primary bg-primary/15 text-primary shadow-[0_0_12px_rgba(56,189,248,0.25)]' : 'border-border text-foreground hover:border-ring'}`}
+                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'home' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
                                   title="Home"
                                   aria-label="Home"
                               >
@@ -665,7 +683,7 @@ const WorkspacePage = () => {
                               </button>
                               <button
                                   onClick={() => setActiveTab('projects')}
-                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'projects' ? 'border-primary bg-primary/15 text-primary shadow-[0_0_12px_rgba(56,189,248,0.25)]' : 'border-border text-foreground hover:border-ring'}`}
+                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'projects' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
                                   title="Projects"
                                   aria-label="Projects"
                               >
@@ -673,7 +691,7 @@ const WorkspacePage = () => {
                               </button>
                               <button
                                   onClick={() => setActiveTab('verification')}
-                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'verification' ? 'border-primary bg-primary/15 text-primary shadow-[0_0_12px_rgba(56,189,248,0.25)]' : 'border-border text-foreground hover:border-ring'}`}
+                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'verification' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
                                   title="Verification"
                                   aria-label="Verification"
                               >
@@ -681,7 +699,7 @@ const WorkspacePage = () => {
                               </button>
                               <button
                                   onClick={() => setActiveTab('ai')}
-                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'ai' ? 'border-primary bg-primary/15 text-primary shadow-[0_0_12px_rgba(56,189,248,0.25)]' : 'border-border text-foreground hover:border-ring'}`}
+                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'ai' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
                                   title="AiRA"
                                   aria-label="AiRA"
                               >
@@ -802,7 +820,7 @@ const WorkspacePage = () => {
               />
               {showShortcuts && (
                   <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-                      <div className="bg-card border border-border rounded-xl w-[420px] p-6 shadow-2xl">
+                      <div className="bg-card border border-border rounded-xl w-[420px] p-6 shadow-sm">
                           <div className="flex items-center justify-between">
                               <h3 className="text-lg font-bold">Keyboard Shortcuts</h3>
                               <button
@@ -913,7 +931,7 @@ const WorkspacePage = () => {
                                                                 ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10'
                                                                 : projectStatus === 'archived'
                                                                 ? 'border-muted text-muted-foreground bg-muted/20'
-                                                                : 'border-secondary/30 text-secondary bg-secondary/10'
+                                                                : 'border-amber-500/30 text-amber-400 bg-amber-500/10'
                                                         }`}
                                                     >
                                                         {projectStatus}
@@ -1007,7 +1025,7 @@ const WorkspacePage = () => {
                                             </div>
                                             <button 
                                                 onClick={handleCloseProject} 
-                                                className="text-[10px] font-bold uppercase tracking-widest bg-red-500/15 px-4 py-2 rounded border border-red-500/40 hover:bg-red-500/25 transition-all shadow-lg text-red-500 flex items-center gap-2"
+                                                className="text-[10px] font-bold uppercase tracking-widest bg-red-500/15 px-4 py-2 rounded border border-red-500/40 hover:bg-red-500/25 transition-all shadow-sm text-red-500 flex items-center gap-2"
                                             >
                                                 <X size={12} /> Close Project
                                             </button>
@@ -1021,7 +1039,7 @@ const WorkspacePage = () => {
                                             {id:'plan', l:'Plan', i:FileSpreadsheet, to: TAB_PATHS.plan}, 
                                             {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas}, 
                                             {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data}, 
-                                            {id:'clean_data', l:'Clean Data', i:FolderOpen, to: TAB_PATHS.clean_data},
+                                            {id:'data_preprocessing', l:'Data Preprocessing', i:FolderOpen, to: TAB_PATHS.data_preprocessing},
                                             {id:'ewt', l:'EWT', i:AudioLines, to: TAB_PATHS.ewt},
                                             {id:'pressure_analysis', l:'Pressure Analysis', i:Activity, to: TAB_PATHS.pressure_analysis}, 
                                             {id:'cfd_validation', l:'CFD Validation', i:Beaker, to: TAB_PATHS.cfd_validation},
@@ -1037,7 +1055,7 @@ const WorkspacePage = () => {
                                                         to={t.to} 
                                                         title={t.id === 'ewt' ? 'Empirical Wavelet Transform filter data analysis' : undefined}
                                                         aria-label={t.id === 'ewt' ? 'Empirical Wavelet Transform filter data analysis' : t.l}
-                                                        className={`flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-semibold transition ${isActive ? 'border-primary bg-primary/15 text-primary shadow-[0_0_12px_rgba(56,189,248,0.25)]' : 'border-sidebar-border text-muted-foreground hover:border-primary/60 hover:text-foreground'}`}
+                                                        className={`flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-semibold transition ${isActive ? 'border-primary bg-primary/15 text-primary' : 'border-sidebar-border text-muted-foreground hover:border-primary/60 hover:text-foreground'}`}
                                                     >
                                                         <t.i size={16} className={isActive ? 'text-primary' : 'text-muted-foreground'} />
                                                         <span className="tracking-wide">{t.l}</span>
@@ -1082,6 +1100,7 @@ const WorkspacePage = () => {
                           planName={planName} setPlanName={setPlanName} 
                           planMeta={planMeta} setPlanMeta={setPlanMeta}
                           saveFormat={saveFormat} setSaveFormat={setSaveFormat} 
+                          projectPath={projectPath}
                           onSave={savePlan} onImport={importPlan}
                       />
                   </SafeComponent>
@@ -1129,9 +1148,9 @@ const WorkspacePage = () => {
                                         />
                                     </SafeComponent>
               )}
-              {activeTab === 'clean_data' && FLAGS.ENABLE_SOURCES && (
+              {activeTab === 'data_preprocessing' && FLAGS.ENABLE_SOURCES && (
                                     <SafeComponent>
-                                        <CleanDataPage
+                                        <DataPreprocessingPage
                                             apiBaseUrl={apiBaseUrl}
                                             projectPath={projectPath}
                                             selectedCases={selectedCases}
@@ -1159,6 +1178,7 @@ const WorkspacePage = () => {
                                          plotData={plotData}
                                          analysisResults={analysisResults}
                                          experimentalData={experimentalData}
+                                         selectedCases={selectedCases}
                                          isProcessing={isProcessing}
                                          settings={settings}
                                          setSettings={setSettings}
@@ -1174,6 +1194,7 @@ const WorkspacePage = () => {
                                          plotData={plotData}
                                          analysisResults={analysisResults}
                                          experimentalData={experimentalData}
+                                         selectedCases={selectedCases}
                                          isProcessing={isProcessing}
                                          settings={settings}
                                          setSettings={setSettings}
@@ -1227,7 +1248,7 @@ const WorkspacePage = () => {
           </div>
           {showShortcuts && (
               <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-                  <div className="bg-card border border-border rounded-xl w-[420px] p-6 shadow-2xl">
+                  <div className="bg-card border border-border rounded-xl w-[420px] p-6 shadow-sm">
                       <div className="flex items-center justify-between">
                           <h3 className="text-lg font-bold">Keyboard Shortcuts</h3>
                           <button

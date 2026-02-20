@@ -264,7 +264,7 @@ def analyze_ewt():
 
 @calculation_api_bp.route('/preview_multichannel', methods=['POST'])
 def preview_multichannel():
-    """Parse and downsample a multichannel text signal for Clean Data plotting."""
+    """Parse and downsample a multichannel text signal for Data Preprocessing plotting."""
     try:
         req = request.json or {}
         content = req.get('content', '')

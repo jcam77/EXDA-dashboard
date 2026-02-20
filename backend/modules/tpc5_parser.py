@@ -92,7 +92,13 @@ def _collect_channels(handle):
     return channels
 
 
-def tpc5_to_content(file_path: str, max_channels: int = 64):
+def tpc5_to_content(
+    file_path: str,
+    max_channels: int = 64,
+    max_samples: int = 200000,
+    time_start: float | None = None,
+    time_end: float | None = None,
+):
     """Return TPC5 as CSV-like text content compatible with existing parsers."""
     if h5py is None:
         return None, (
@@ -119,8 +125,34 @@ def tpc5_to_content(file_path: str, max_channels: int = 64):
     channels = [{**ch, "values": ch["values"][:min_len]} for ch in channels]
 
     ref = channels[0]
-    idx = np.arange(min_len, dtype=float)
-    t = (idx - float(ref["trigger_sample"])) / float(ref["sample_rate"]) + float(ref["trigger_time"])
+    sample_idx = np.arange(min_len, dtype=np.int64)
+    t_all = (
+        sample_idx.astype(float) - float(ref["trigger_sample"])
+    ) / float(ref["sample_rate"]) + float(ref["trigger_time"])
+
+    start = float(time_start) if time_start is not None and np.isfinite(time_start) else None
+    end = float(time_end) if time_end is not None and np.isfinite(time_end) else None
+    if start is not None and end is not None and start > end:
+        start, end = end, start
+
+    if start is not None or end is not None:
+        window_mask = np.ones_like(t_all, dtype=bool)
+        if start is not None:
+            window_mask &= t_all >= start
+        if end is not None:
+            window_mask &= t_all <= end
+        sample_idx = sample_idx[window_mask]
+        if sample_idx.size == 0:
+            return None, "TPC5 time window has no samples."
+
+    if max_samples > 0 and sample_idx.size > max_samples:
+        pick = np.linspace(0, sample_idx.size - 1, max_samples, dtype=np.int64)
+        sample_idx = sample_idx[pick]
+
+    t = (
+        sample_idx.astype(float) - float(ref["trigger_sample"])
+    ) / float(ref["sample_rate"]) + float(ref["trigger_time"])
+    channels = [{**ch, "values": ch["values"][sample_idx]} for ch in channels]
 
     finite_mask = np.isfinite(t)
     for ch in channels:
@@ -138,4 +170,3 @@ def tpc5_to_content(file_path: str, max_channels: int = 64):
         lines.append(f"{float(t[row_idx]):.12g},{row_values}")
 
     return "\n".join(lines), None
-

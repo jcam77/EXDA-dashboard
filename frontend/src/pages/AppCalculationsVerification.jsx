@@ -4,15 +4,13 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+import HighResMultiChannelPlot from '../components/HighResMultiChannelPlot';
 
 const SERIES_ORDER = [
   { key: 'clean_raw', label: 'Clean (reference)' },
@@ -124,10 +122,10 @@ const AppCalculationsVerificationPage = () => {
   const ewtSeries = useMemo(
     () => [
       { key: 'raw', label: 'Raw Signal', color: '#ef4444' },
-      ...ewtModeKeys.map((key, index) => ({
+      ...ewtModeKeys.map((key) => ({
         key,
         label: `Mode ${key.replace('mode_', '')}`,
-        color: `hsl(${(index * 53 + 195) % 360} 72% 56%)`,
+        color: '#38bdf8',
       })),
     ],
     [ewtModeKeys]
@@ -161,67 +159,22 @@ const AppCalculationsVerificationPage = () => {
             {error || 'No verification data available.'}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={pressureChartData} margin={{ top: 20, right: 20, left: 0, bottom: 40 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="time"
-                type="number"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                tickFormatter={(value) => Number(value).toFixed(2)}
-                domain={[0, 'dataMax']}
-                allowDataOverflow
-                label={{
-                  value: 'Time (s)',
-                  position: 'bottom',
-                  offset: 10,
-                  fill: 'hsl(var(--muted-foreground))',
-                  fontSize: 10,
-                }}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                label={{
-                  value: 'Pressure (kPa)',
-                  angle: -90,
-                  position: 'insideLeft',
-                  fill: 'hsl(var(--muted-foreground))',
-                  fontSize: 10,
-                }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                }}
-                formatter={(value) => (value == null ? '-' : Number(value).toFixed(4))}
-              />
-              <Legend
-                verticalAlign="top"
-                align="center"
-                content={({ payload: legendPayload }) => (
-                  <div className="px-2 pt-1">
-                    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                      {(legendPayload || []).map((entry) => (
-                        <span key={entry.value} className="inline-flex items-center gap-1.5">
-                          <span
-                            className="inline-block h-0.5 w-4 rounded-sm"
-                            style={{ backgroundColor: entry.color }}
-                          />
-                          <span>{entry.value}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              />
-              <Line type="monotone" dataKey="Clean (reference)" stroke="#22c55e" dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line type="monotone" dataKey="Noisy (input)" stroke="#f97316" dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line type="monotone" dataKey="Noisy filtered" stroke="#38bdf8" dot={false} strokeWidth={2} isAnimationActive={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          <HighResMultiChannelPlot
+            plotData={pressureChartData.map((row) => ({
+              t: Number(row?.time),
+              'Clean (reference)': Number(row?.['Clean (reference)']),
+              'Noisy (input)': Number(row?.['Noisy (input)']),
+              'Noisy filtered': Number(row?.['Noisy filtered']),
+            }))}
+            channels={[
+              { key: 'Clean (reference)', label: 'Clean (reference)', unit: 'kPa', role: 'pressure', index: 0 },
+              { key: 'Noisy (input)', label: 'Noisy (input)', unit: 'kPa', role: 'pressure', index: 1 },
+              { key: 'Noisy filtered', label: 'Noisy filtered', unit: 'kPa', role: 'pressure', index: 2 },
+            ]}
+            colors={['#22c55e', '#f97316', '#38bdf8']}
+            height={470}
+            showLegend
+          />
         )}
       </div>
 
@@ -233,10 +186,10 @@ const AppCalculationsVerificationPage = () => {
             <code>{payload.matlabMetricsFile || 'backend/tests/results/pressure_metrics_octave.csv'}</code>.
           </div>
         )}
-        <div className="overflow-auto">
+        <div className="overflow-auto rounded-lg border border-primary/30 bg-primary/10 p-3">
           <table className="w-full border-collapse text-xs">
             <thead>
-              <tr className="text-[10px] tracking-widest text-muted-foreground border-b border-border">
+              <tr className="text-[10px] tracking-widest text-primary border-b border-primary/20">
                 <th className="text-left pb-2">Series</th>
                 <th className="text-right pb-2">Python Pmax (kPa)</th>
                 <th className="text-right pb-2">MATLAB/Octave Pmax (kPa)</th>
@@ -254,7 +207,7 @@ const AppCalculationsVerificationPage = () => {
                 const py = payload.pythonMetrics?.[row.key] || {};
                 const ml = payload.matlabMetrics?.[row.key] || {};
                 return (
-                  <tr key={row.key} className="border-b border-border/60">
+                  <tr key={row.key} className="border-b border-primary/15 hover:bg-primary/5 transition-colors">
                     <td className="py-2 font-semibold">{row.label}</td>
                     <td className="py-2 text-right">{formatFixed(py.pMax, PRESSURE_DIGITS)}</td>
                     <td className="py-2 text-right">{formatFixed(ml.pMax, PRESSURE_DIGITS)}</td>
@@ -286,34 +239,30 @@ const AppCalculationsVerificationPage = () => {
           EWT Verification (Noisy Fixture)
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 min-h-[360px]">
+          <div className="lg:col-span-2 min-h-[560px]">
             {ewtPlotData.length === 0 ? (
-              <div className="h-full min-h-[360px] flex items-center justify-center rounded border border-border/60 bg-black/20 text-sm text-muted-foreground">
+              <div className="h-full min-h-[560px] flex items-center justify-center rounded border border-border/60 bg-black/20 text-sm text-muted-foreground">
                 {ewtWarning || error || 'No EWT data available yet.'}
               </div>
             ) : (
-              <div className="space-y-3 max-h-[560px] overflow-auto pr-1">
+              <div className="space-y-3 max-h-[860px] overflow-auto pr-1">
                 {ewtSeries.map((series) => (
                   <div key={series.key} className="rounded border border-border/60 bg-black/20 p-3">
                     <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
                       {series.label}
                     </div>
-                    <div className="h-36">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={ewtPlotData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                          <XAxis dataKey="time" type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                            }}
-                            formatter={(value) => (value == null ? '-' : Number(value).toFixed(4))}
-                          />
-                          <Line type="monotone" dataKey={series.key} stroke={series.color} dot={false} strokeWidth={1.8} isAnimationActive={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div className="h-56">
+                      <HighResMultiChannelPlot
+                        plotData={ewtPlotData.map((row) => ({
+                          t: Number(row?.time),
+                          [series.key]: Number(row?.[series.key]),
+                        }))}
+                        channels={[{ key: series.key, label: series.label, unit: 'kPa', role: 'pressure', index: 0 }]}
+                        colors={[series.color]}
+                        height={220}
+                        showLegend
+                        showResetButton={false}
+                      />
                     </div>
                   </div>
                 ))}
@@ -365,11 +314,11 @@ const AppCalculationsVerificationPage = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="rounded border border-border/60 bg-black/20 p-3 overflow-auto">
-          <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Python EWT Mode Peaks</div>
+        <div className="rounded border border-primary/30 bg-primary/10 p-3 overflow-auto">
+          <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Python EWT Mode Peaks</div>
           <table className="w-full border-collapse text-xs">
             <thead>
-              <tr className="text-[10px] tracking-widest text-muted-foreground border-b border-border">
+              <tr className="text-[10px] tracking-widest text-primary border-b border-primary/20">
                 <th className="text-left pb-2">Mode</th>
                 <th className="text-right pb-2">Peak (Hz)</th>
                 <th className="text-right pb-2">Energy (%)</th>
@@ -377,7 +326,7 @@ const AppCalculationsVerificationPage = () => {
             </thead>
             <tbody className="text-foreground/90">
               {ewtEnergy.map((row) => (
-                <tr key={`ewt-mode-${row.mode}`} className="border-b border-border/60">
+                <tr key={`ewt-mode-${row.mode}`} className="border-b border-primary/15 hover:bg-primary/5 transition-colors">
                   <td className="py-2">{row.mode}</td>
                   <td className="py-2 text-right">{formatFixed(row.peakHz, 3)}</td>
                   <td className="py-2 text-right">{formatFixed(row.pct, 2)}</td>
@@ -392,8 +341,8 @@ const AppCalculationsVerificationPage = () => {
           </table>
         </div>
 
-        <div className="rounded border border-border/60 bg-black/20 p-3 overflow-auto">
-          <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+        <div className="rounded border border-primary/30 bg-primary/10 p-3 overflow-auto">
+          <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">
             Python vs Octave Peak Alignment
           </div>
           {!payload.ewtAlignmentAvailable ? (
@@ -403,7 +352,7 @@ const AppCalculationsVerificationPage = () => {
           ) : (
             <table className="w-full border-collapse text-xs">
               <thead>
-                <tr className="text-[10px] tracking-widest text-muted-foreground border-b border-border">
+                <tr className="text-[10px] tracking-widest text-primary border-b border-primary/20">
                   <th className="text-left pb-2">Mode</th>
                   <th className="text-right pb-2">Python (Hz)</th>
                   <th className="text-right pb-2">Octave (Hz)</th>
@@ -412,7 +361,7 @@ const AppCalculationsVerificationPage = () => {
               </thead>
               <tbody className="text-foreground/90">
                 {ewtPeakAlignment.map((row) => (
-                  <tr key={`align-${row.mode}`} className="border-b border-border/60">
+                  <tr key={`align-${row.mode}`} className="border-b border-primary/15 hover:bg-primary/5 transition-colors">
                     <td className="py-2">{row.mode}</td>
                     <td className="py-2 text-right">{formatFixed(row.pythonPeakHz, 3)}</td>
                     <td className="py-2 text-right">{formatFixed(row.octavePeakHz, 3)}</td>

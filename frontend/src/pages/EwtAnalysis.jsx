@@ -381,15 +381,15 @@ const EwtAnalysisPage = ({
                         </div>
                     )}
 
-                    <div className="rounded-xl border border-border/60 bg-black/20 p-4">
-                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                    <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+                        <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">
                             Mode Summary
                         </div>
                         {energy.length > 0 ? (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs border-collapse">
                                     <thead>
-                                        <tr className="text-[10px] text-muted-foreground uppercase border-b border-border">
+                                        <tr className="text-[10px] text-muted-foreground uppercase border-b border-primary/20">
                                             <th className="pb-2">Mode</th>
                                             <th className="pb-2">Energy %</th>
                                             <th className="pb-2">Peak Freq (Hz)</th>
@@ -398,7 +398,7 @@ const EwtAnalysisPage = ({
                                     </thead>
                                     <tbody>
                                         {energy.map((row) => (
-                                            <tr key={row.mode} className="border-b border-border/50">
+                                            <tr key={row.mode} className="border-b border-primary/15 hover:bg-primary/5 transition-colors">
                                                 <td className="py-2 font-mono">{row.mode}</td>
                                                 <td className="py-2">{Number(row.pct).toFixed(2)}%</td>
                                                 <td className="py-2">{row.peakHz ? row.peakHz.toFixed(1) : '--'}</td>

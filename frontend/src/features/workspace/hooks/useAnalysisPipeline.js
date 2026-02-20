@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { DEFAULT_INPUT_UNIT, normalizeUnitToken } from '../../../utils/units';
 
 const SERIES_COLORS = [
   'hsl(200, 80%, 60%)',
@@ -17,6 +18,7 @@ const SERIES_COLORS = [
 
 export const useAnalysisPipeline = ({
   apiBaseUrl,
+  projectPath,
   activeTab,
   selectedCases,
   experimentalData,
@@ -31,6 +33,37 @@ export const useAnalysisPipeline = ({
   const [analysisNonce, setAnalysisNonce] = useState(0);
   const lastProcessedNonceRef = useRef(0);
 
+  const readAnalysisContent = useCallback(
+    async (fileObj) => {
+      if (!fileObj?.path) return fileObj?.content || '';
+      const query = new URLSearchParams({
+        path: fileObj.path,
+        projectPath: projectPath || '',
+        fullResolution: settings.analysisFullResolution ? '1' : '0',
+      });
+      if (settings.analysisLimitTimeWindow) {
+        const start = Number(settings.analysisWindowStart);
+        const end = Number(settings.analysisWindowEnd);
+        if (Number.isFinite(start)) query.set('windowStart', String(start));
+        if (Number.isFinite(end)) query.set('windowEnd', String(end));
+      }
+      const res = await fetch(`${apiBaseUrl}/read_project_file?${query.toString()}`);
+      const data = await res.json();
+      if (res.ok && data?.success && typeof data.content === 'string') {
+        return data.content;
+      }
+      return fileObj?.content || '';
+    },
+    [
+      apiBaseUrl,
+      projectPath,
+      settings.analysisFullResolution,
+      settings.analysisLimitTimeWindow,
+      settings.analysisWindowEnd,
+      settings.analysisWindowStart,
+    ]
+  );
+
   const processFile = useCallback(
     async (fileObj, type = 'pressure', options = {}) => {
       try {
@@ -42,6 +75,7 @@ export const useAnalysisPipeline = ({
           : Math.max(0, Math.round(Number(type === 'ewt' ? settings.ewtChannelIndex : settings.pressureChannelIndex) || 0));
         const includeVent = typeof options.includeVent === 'boolean' ? options.includeVent : true;
         if (type === 'ewt') {
+          const normalizedEwtUnit = normalizeUnitToken(settings.ewtInputUnit);
           const res = await fetch(`${apiBaseUrl}/analyze_ewt`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -50,7 +84,7 @@ export const useAnalysisPipeline = ({
               numModes: settings.ewtNumModes,
               maxPoints: settings.ewtMaxPoints,
               channelIndex: channelValue,
-              pressureUnit: settings.ewtInputUnit || 'auto',
+              pressureUnit: normalizedEwtUnit === 'auto' || !normalizedEwtUnit ? DEFAULT_INPUT_UNIT : normalizedEwtUnit,
               convertToKpa: settings.ewtConvertToKpa !== false,
             }),
           });
@@ -69,6 +103,7 @@ export const useAnalysisPipeline = ({
             color: stringToColor(colorSeed),
           };
         }
+        const normalizedPressureUnit = normalizeUnitToken(settings.pressureInputUnit);
         const res = await fetch(`${apiBaseUrl}/analyze_pressure`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -80,7 +115,10 @@ export const useAnalysisPipeline = ({
             useRaw: useRawValue,
             impulseDrop: settings.impulseDrop,
             channelIndex: channelValue,
-            pressureUnit: settings.pressureInputUnit || 'auto',
+            pressureUnit:
+              normalizedPressureUnit === 'auto' || !normalizedPressureUnit
+                ? DEFAULT_INPUT_UNIT
+                : normalizedPressureUnit,
             convertToKpa: settings.pressureConvertToKpa !== false,
           }),
         });
@@ -134,7 +172,8 @@ export const useAnalysisPipeline = ({
       }
       const selected = candidates.find((c) => (c.path || c.name) === settings.ewtSelectedPath);
       if (selected) {
-        const r = await processFile(selected, 'ewt');
+        const resolvedContent = await readAnalysisContent(selected);
+        const r = await processFile({ ...selected, content: resolvedContent }, 'ewt');
         if (r) res.push(r);
       }
       setAnalysisResults(res);
@@ -168,7 +207,9 @@ export const useAnalysisPipeline = ({
         const orderForCase = isExperimentalPressure ? experimentalOrder : settings.order;
         const shouldIncludeRawReference = Boolean(settings.showRawReference) && !useRawForCase;
         const includeVentForCase = activeTab === 'cfd_validation';
-        const r = await processFile(c, 'pressure', {
+        const resolvedContent = await readAnalysisContent(c);
+        const sourceCase = { ...c, content: resolvedContent };
+        const r = await processFile(sourceCase, 'pressure', {
           useRaw: useRawForCase,
           cutoff: cutoffForCase,
           order: orderForCase,
@@ -177,7 +218,7 @@ export const useAnalysisPipeline = ({
         if (r) {
           let rawOverlayPlotData = null;
           if (shouldIncludeRawReference) {
-            const rawRef = await processFile(c, 'pressure', {
+            const rawRef = await processFile(sourceCase, 'pressure', {
               useRaw: true,
               cutoff: cutoffForCase,
               order: orderForCase,
@@ -248,7 +289,7 @@ export const useAnalysisPipeline = ({
       setPlotData([]);
     }
     setIsProcessing(false);
-  }, [activeTab, apiBaseUrl, experimentalData, experimentalFlameData, processFile, selectedCases, settings]);
+  }, [activeTab, apiBaseUrl, experimentalData, experimentalFlameData, processFile, readAnalysisContent, selectedCases, settings]);
 
   const requestAnalysis = useCallback(() => {
     setAnalysisNonce((n) => n + 1);

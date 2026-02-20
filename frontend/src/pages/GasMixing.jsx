@@ -46,7 +46,7 @@ const GasMixingPage = ({ projectPath }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 {/* Parameter Inputs */}
-                <div className="bg-card/60 border border-border rounded-xl p-6 space-y-6 shadow-2xl">
+                <div className="bg-card/60 border border-border rounded-xl p-6 space-y-6 shadow-sm">
                     <h2 className="text-base font-bold text-foreground mb-4 flex items-center gap-2"><Beaker size={18} className="text-primary" /> Input Parameters</h2>
                     <div className="space-y-4">
                         <div>
@@ -67,7 +67,7 @@ const GasMixingPage = ({ projectPath }) => {
                 </div>
 
                 {/* Verified Results */}
-                <div className="bg-card/60 border border-border rounded-xl p-6 flex flex-col justify-center text-center shadow-2xl">
+                <div className="bg-card/60 border border-border rounded-xl p-6 flex flex-col justify-center text-center shadow-sm">
                     {results ? (
                         <div className="space-y-8 animate-in zoom-in-95 duration-300">
                             <div>
@@ -87,7 +87,7 @@ const GasMixingPage = ({ projectPath }) => {
 
             {/* Mixing Protocol Card Only */}
             <div className="mt-8">
-                <div className="p-5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl flex items-center gap-4 shadow-2xl">
+                <div className="p-5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl flex items-center gap-4 shadow-sm">
                     <Wind size={24} className="text-emerald-400" />
                     <div>
                         <div className="text-base font-bold text-foreground">Mixing Protocol</div>

@@ -5,10 +5,71 @@ import json
 from datetime import datetime
 import os
 
-from modules import mf4_parser, project_manager, tpc5_parser
+from modules import data_parser, mf4_parser, project_manager, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
+
+
+def _to_float(value):
+    if value is None:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except Exception:
+        return None
+
+
+def _render_multichannel_content(t, y, channel_names):
+    header = ["time"] + [str(name or "").strip() or f"Signal {idx + 1}" for idx, name in enumerate(channel_names or [])]
+    lines = [",".join(header)]
+    n_rows = len(t)
+    if getattr(y, "ndim", 1) == 1:
+        for idx in range(n_rows):
+            lines.append(f"{float(t[idx]):.12g},{float(y[idx]):.12g}")
+    else:
+        for idx in range(n_rows):
+            row = y[idx]
+            row_values = ",".join(f"{float(value):.12g}" for value in row)
+            lines.append(f"{float(t[idx]):.12g},{row_values}")
+    return "\n".join(lines)
+
+
+def _apply_time_window_to_text_content(content, time_start=None, time_end=None, max_samples=200000):
+    if time_start is None and time_end is None:
+        return content, None
+
+    t, y, channel_names, err = data_parser.parse_multichannel_content(content)
+    if err:
+        return None, f"Failed to parse data for time windowing: {err}"
+
+    start = float(time_start) if time_start is not None else None
+    end = float(time_end) if time_end is not None else None
+    if start is not None and end is not None and start > end:
+        start, end = end, start
+
+    indices = []
+    for idx, ti in enumerate(t):
+        value = float(ti)
+        if start is not None and value < start:
+            continue
+        if end is not None and value > end:
+            continue
+        indices.append(idx)
+
+    if not indices:
+        return None, "Selected time window has no samples."
+
+    if max_samples and max_samples > 0 and len(indices) > max_samples:
+        picks = [int(round(i * (len(indices) - 1) / (max_samples - 1))) for i in range(max_samples)]
+        indices = [indices[p] for p in picks]
+
+    t_selected = t[indices]
+    y_selected = y[indices]
+    return _render_multichannel_content(t_selected, y_selected, channel_names), None
 
 
 @state_bp.route('/get_project_state', methods=['GET'])
@@ -50,9 +111,12 @@ def get_project_state():
                 if f in ['p', 'p_rgh'] or 'vol' in f:
                     sim_files.append(file_info)
 
+    project_status = project_manager.read_project_status(project_root) or project_manager.ensure_project_status(project_root)
+
     return jsonify({
         "success": True,
         "plan": plan_data,
+        "project_status": project_status,
         "data_files": data_files,
         "sim_files": sim_files
     })
@@ -63,6 +127,9 @@ def read_project_file():
     """Safely read a project-scoped file and return its text content."""
     project_path = request.args.get('projectPath')
     file_path = request.args.get('path')
+    full_resolution = str(request.args.get('fullResolution', '')).strip().lower() in ("1", "true", "yes", "on")
+    window_start = _to_float(request.args.get('windowStart'))
+    window_end = _to_float(request.args.get('windowEnd'))
     project_root, err = project_manager.resolve_project_path(project_path)
     if err:
         return jsonify({"success": False, "error": err}), 400
@@ -76,17 +143,39 @@ def read_project_file():
     try:
         lower_target = target.lower()
         if lower_target.endswith(".mf4"):
-            content, parse_err = mf4_parser.mf4_to_content(target)
+            max_samples = 0 if full_resolution else 200000
+            content, parse_err = mf4_parser.mf4_to_content(
+                target,
+                max_samples=max_samples,
+                time_start=window_start,
+                time_end=window_end,
+            )
             if parse_err:
                 return jsonify({"success": False, "error": parse_err}), 400
             return jsonify({"success": True, "content": content})
         if lower_target.endswith(".tpc5"):
-            content, parse_err = tpc5_parser.tpc5_to_content(target)
+            max_samples = 0 if full_resolution else 200000
+            content, parse_err = tpc5_parser.tpc5_to_content(
+                target,
+                max_samples=max_samples,
+                time_start=window_start,
+                time_end=window_end,
+            )
             if parse_err:
                 return jsonify({"success": False, "error": parse_err}), 400
             return jsonify({"success": True, "content": content})
         with open(target, 'r', encoding='utf-8') as f:
-            return jsonify({"success": True, "content": f.read()})
+            content = f.read()
+        max_samples = 0 if full_resolution else 200000
+        content_windowed, parse_err = _apply_time_window_to_text_content(
+            content,
+            time_start=window_start,
+            time_end=window_end,
+            max_samples=max_samples,
+        )
+        if parse_err:
+            return jsonify({"success": False, "error": parse_err}), 400
+        return jsonify({"success": True, "content": content_windowed})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -218,3 +307,56 @@ def save_plan():
         data.get('projectPath'), data.get('filename'), data.get('content')
     )
     return jsonify({"success": success, "path": result})
+
+
+@state_bp.route('/sync_run_data_folders', methods=['POST'])
+def sync_run_data_folders():
+    """Ensure Raw_Data/<run> and Clean_Data/<run> folders exist for each run name."""
+    data = request.json or {}
+    project_path = data.get('projectPath')
+    run_names = data.get('runNames') or []
+
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    if not isinstance(run_names, list):
+        return jsonify({"success": False, "error": "runNames must be a list"}), 400
+
+    raw_root = os.path.join(project_root, "Raw_Data")
+    clean_root = os.path.join(project_root, "Clean_Data")
+    cfd_root = os.path.join(project_root, "CFD_Data")
+    os.makedirs(raw_root, exist_ok=True)
+    os.makedirs(clean_root, exist_ok=True)
+    os.makedirs(cfd_root, exist_ok=True)
+
+    ensured = []
+    skipped = []
+
+    for run_name in run_names:
+        original = str(run_name or "").strip()
+        if not original:
+            skipped.append({"run": original, "reason": "empty"})
+            continue
+
+        # Keep names readable while preventing path traversal and separators.
+        safe_name = original.replace("/", "-").replace("\\", "-").strip().strip(".")
+        if not safe_name:
+            skipped.append({"run": original, "reason": "invalid"})
+            continue
+
+        raw_target = os.path.realpath(os.path.join(raw_root, safe_name))
+        clean_target = os.path.realpath(os.path.join(clean_root, safe_name))
+        if not project_manager.is_path_within(project_root, raw_target) or not project_manager.is_path_within(project_root, clean_target):
+            skipped.append({"run": original, "reason": "unsafe"})
+            continue
+
+        os.makedirs(raw_target, exist_ok=True)
+        os.makedirs(clean_target, exist_ok=True)
+        ensured.append(safe_name)
+
+    return jsonify({
+        "success": True,
+        "ensured": ensured,
+        "count": len(ensured),
+        "skipped": skipped
+    })
