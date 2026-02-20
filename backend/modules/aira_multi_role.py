@@ -169,6 +169,10 @@ class HydrogenResearchAgents:
             ),
             "project_coordinator": (
                 "Project management specialist for timelines, milestones, dependencies, and cross-team coordination."
+            ),
+            "computational_it_engineer": (
+                "Hybrid expert in software/IT engineering and computational data science for architecture, APIs, deployment, "
+                "numerical workflow reliability, signal/data pipeline quality, performance, reproducibility, and maintainability."
             )
         }
         self.conversation_history: Dict[str, List[str]] = {role: [] for role in self.agent_roles}

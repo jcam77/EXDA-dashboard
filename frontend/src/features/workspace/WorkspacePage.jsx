@@ -648,7 +648,7 @@ const WorkspacePage = () => {
                               <div className="ml-3 hidden md:block">
                                   <h1 className="text-lg font-bold text-foreground">Verification Workspace</h1>
                                   <p className="text-xs text-muted-foreground">
-                                      Dedicated environment to validate app calculations before project decisions
+                                      Dedicated environment to verify app calculations
                                   </p>
                               </div>
                           )}

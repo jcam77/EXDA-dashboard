@@ -489,6 +489,10 @@ EXPERT_ROLE_DESCRIPTIONS = {
     "project_coordinator": (
         "Project management specialist for timelines, milestones, dependencies, and cross-team coordination."
     ),
+    "computational_it_engineer": (
+        "Hybrid expert in software/IT engineering and computational data science for architecture, APIs, deployment, "
+        "numerical workflow reliability, signal/data pipeline quality, performance, reproducibility, and maintainability."
+    ),
 }
 
 

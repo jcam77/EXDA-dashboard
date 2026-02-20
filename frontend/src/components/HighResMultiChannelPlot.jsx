@@ -14,7 +14,13 @@ const FALLBACK_COLORS = [
 ];
 
 const formatXTick = (v) => Number(v).toExponential(2);
-const formatYTick = (v) => Number(v).toFixed(3);
+const formatYTick = (v) => Number(v).toFixed(1);
+const normalizeUnit = (value) => String(value || '').trim().toLowerCase();
+const isVoltageChannel = (channel) => {
+  const unit = normalizeUnit(channel?.unit);
+  const role = normalizeUnit(channel?.role);
+  return unit === 'v' || unit === 'volt' || unit === 'voltage' || role === 'trigger';
+};
 
 const HighResMultiChannelPlot = ({ plotData = [], channels = [], height = 440, colors = FALLBACK_COLORS }) => {
   const mountRef = useRef(null);
@@ -30,6 +36,19 @@ const HighResMultiChannelPlot = ({ plotData = [], channels = [], height = 440, c
     });
     return base;
   }, [channels, plotData, xValues]);
+  const hasVoltage = useMemo(() => channels.some((channel) => isVoltageChannel(channel)), [channels]);
+  const hasNonVoltage = useMemo(() => channels.some((channel) => !isVoltageChannel(channel)), [channels]);
+  const useDualAxis = hasVoltage && hasNonVoltage;
+  const primaryLabel = useMemo(() => {
+    const first = channels.find((channel) => !isVoltageChannel(channel)) || channels[0];
+    if (!first) return 'Signal';
+    return first.unit && first.unit !== 'raw' ? `Signal (${first.unit})` : 'Signal';
+  }, [channels]);
+  const secondaryLabel = useMemo(() => {
+    const first = channels.find((channel) => isVoltageChannel(channel));
+    if (!first) return 'Voltage (V)';
+    return first.unit && first.unit !== 'raw' ? `Voltage (${first.unit})` : 'Voltage (V)';
+  }, [channels]);
 
   useEffect(() => {
     if (!mountRef.current) return undefined;
@@ -61,6 +80,7 @@ const HighResMultiChannelPlot = ({ plotData = [], channels = [], height = 440, c
         label: `${channel.label || `Channel ${channel.index + 1}`}${channel.unit && channel.unit !== 'raw' ? ` (${channel.unit})` : ''}`,
         stroke: colors[idx % colors.length],
         width: 1.2,
+        scale: useDualAxis && isVoltageChannel(channel) ? 'y2' : 'y',
         value: (_u, v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(5) : ''),
       })),
     ];
@@ -72,6 +92,7 @@ const HighResMultiChannelPlot = ({ plotData = [], channels = [], height = 440, c
       scales: {
         x: { auto: true, time: false },
         y: { auto: true },
+        ...(useDualAxis ? { y2: { auto: true } } : {}),
       },
       axes: [
         {
@@ -81,10 +102,23 @@ const HighResMultiChannelPlot = ({ plotData = [], channels = [], height = 440, c
           values: (_u, vals) => vals.map(formatXTick),
         },
         {
+          label: primaryLabel,
           stroke: '#94a3b8',
           grid: { stroke: 'rgba(148,163,184,0.14)' },
           values: (_u, vals) => vals.map(formatYTick),
         },
+        ...(useDualAxis
+          ? [
+              {
+                scale: 'y2',
+                side: 1,
+                label: secondaryLabel,
+                stroke: '#94a3b8',
+                grid: { show: false },
+                values: (_u, vals) => vals.map(formatYTick),
+              },
+            ]
+          : []),
       ],
       cursor: {
         drag: {
@@ -101,6 +135,16 @@ const HighResMultiChannelPlot = ({ plotData = [], channels = [], height = 440, c
 
     const chart = new uPlot(options, dataSeries, mountRef.current);
     chartRef.current = chart;
+    chart.root.style.position = 'relative';
+    const legendEl = chart.root.querySelector('.u-legend');
+    if (legendEl) {
+      legendEl.style.position = 'absolute';
+      legendEl.style.left = 'auto';
+      legendEl.style.top = '4px';
+      legendEl.style.right = '4px';
+      legendEl.style.bottom = 'auto';
+      legendEl.style.zIndex = '5';
+    }
 
     const onDoubleClick = () => {
       chart.setScale('x', { min: xMin, max: xMax });
@@ -112,10 +156,10 @@ const HighResMultiChannelPlot = ({ plotData = [], channels = [], height = 440, c
       chart.destroy();
       chartRef.current = null;
     };
-  }, [channels, colors, dataSeries, height, width, xValues]);
+  }, [channels, colors, dataSeries, height, primaryLabel, secondaryLabel, useDualAxis, width, xValues]);
 
   return (
-    <div className="w-full" style={{ height: `${height}px` }}>
+    <div className="w-full relative" style={{ height: `${height}px` }}>
       <div ref={mountRef} className="w-full h-full" />
     </div>
   );

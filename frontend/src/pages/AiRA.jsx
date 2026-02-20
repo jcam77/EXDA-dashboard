@@ -10,6 +10,59 @@ marked.setOptions({
     mangle: false,
 });
 
+const ROLE_SUGGESTED_QUESTIONS = {
+    combustion_dynamics_expert: [
+        "Which signals indicate flame acceleration or DDT risk in this dataset?",
+        "How should I interpret pressure-wave and flame-front coupling here?",
+        "What additional plots would improve combustion regime diagnosis?"
+    ],
+    dispersion_cfd_expert: [
+        "Which CFD boundary conditions are most critical for this case?",
+        "How can I validate this simulation against my experimental pressure data?",
+        "What mesh/turbulence checks should I run before calibration?"
+    ],
+    experimental_instrumentation_analyst: [
+        "Do these channels look correctly assigned for pressure vs trigger?",
+        "What QA/QC checks should I run before pressure analysis?",
+        "How can I reduce instrumentation uncertainty in this setup?"
+    ],
+    risk_safety_engineer: [
+        "What are the top safety risks implied by this scenario?",
+        "Which mitigation measures should be prioritized first?",
+        "How should I structure a safety-case argument from this evidence?"
+    ],
+    structural_analyst: [
+        "What load/impulse metrics matter most for enclosure integrity?",
+        "How can I estimate structural demand from this pressure trace?",
+        "Which structural checks should I add to this workflow?"
+    ],
+    literature_reviewer: [
+        "Summarize key papers most relevant to this analysis task.",
+        "Where does current literature disagree on these findings?",
+        "What research gaps can this project target next?"
+    ],
+    regulatory_specialist: [
+        "Which standards are most relevant for this test configuration?",
+        "What compliance evidence should I document in the report?",
+        "Where might this workflow conflict with ISO/IEC/NFPA expectations?"
+    ],
+    thesis_advisor: [
+        "How can I strengthen the methodology section for this analysis?",
+        "What are likely reviewer criticisms and how do I address them?",
+        "How should results be structured for a strong thesis narrative?"
+    ],
+    project_coordinator: [
+        "What are the next 3 milestones to keep this project on schedule?",
+        "Which dependencies or risks could delay the current plan?",
+        "How should tasks be split across the team this week?"
+    ],
+    computational_it_engineer: [
+        "Where in the app is EWT calculated and how does data flow end-to-end?",
+        "What refactor would most improve maintainability without breaking behavior?",
+        "Which performance bottlenecks should we prioritize in this pipeline?"
+    ],
+};
+
 /**
  * AiRAPage Component - PhD Research Assistant Context Enhancement
  * Incorporates experimental objectives and investigator metadata into the streaming request.
@@ -39,7 +92,45 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
     const [hasRepoContextSnapshot, setHasRepoContextSnapshot] = useState(false);
     const eventSourceRef = useRef(null);
     const scrollRef = useRef(null);
+    const queryRef = useRef(null);
+    const streamBufferRef = useRef('');
+    const flushTimerRef = useRef(null);
+    const [renderedCache] = useState(() => new Map());
     const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+
+    const flushStreamBuffer = useCallback(() => {
+        flushTimerRef.current = null;
+        const nextContent = streamBufferRef.current;
+        setChatHistory(prev => {
+            if (!prev.length) return prev;
+            const next = [...prev];
+            const lastIdx = next.length - 1;
+            const last = next[lastIdx];
+            if (last?.role === 'ai') {
+                next[lastIdx] = { ...last, content: nextContent };
+            }
+            return next;
+        });
+    }, [setChatHistory]);
+
+    const scheduleStreamFlush = useCallback(() => {
+        if (flushTimerRef.current) return;
+        flushTimerRef.current = window.setTimeout(() => {
+            flushStreamBuffer();
+        }, 80);
+    }, [flushStreamBuffer]);
+
+    const stopStreaming = useCallback(() => {
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+        }
+        if (flushTimerRef.current) {
+            window.clearTimeout(flushTimerRef.current);
+            flushTimerRef.current = null;
+        }
+        setIsGenerating(false);
+    }, []);
 
     const checkAiConnection = useCallback(() => {
         if (demoMode) {
@@ -134,6 +225,8 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
         if (isAtBottom) scrollToBottom();
     }, [chatHistory, isAtBottom]);
 
+    useEffect(() => () => stopStreaming(), [stopStreaming]);
+
     const EXPERT_ROLES = [
         "combustion_dynamics_expert",
         "dispersion_cfd_expert",
@@ -143,12 +236,14 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
         "literature_reviewer",
         "regulatory_specialist",
         "thesis_advisor",
-        "project_coordinator"
+        "project_coordinator",
+        "computational_it_engineer"
     ];
     const [selectedExpert, setSelectedExpert] = useState(EXPERT_ROLES[0]);
     const [activatedExperts, setActivatedExperts] = useState([EXPERT_ROLES[0]]);
+    const suggestedQuestions = ROLE_SUGGESTED_QUESTIONS[selectedExpert] || [];
 
-    const formatAiContent = (content) => {
+    const formatAiContent = useCallback((content) => {
         if (!content) return '';
         const normalizeLists = (segment) => {
             let text = segment.replace(/\r\n/g, '\n');
@@ -254,7 +349,23 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
         };
         const parts = content.split('```');
         return parts.map((part, index) => (index % 2 === 1 ? part : normalizeLists(part))).join('```');
-    };
+    }, []);
+
+    const getMessageHtml = useCallback((msg, isLastMessage) => {
+        const rawContent = msg.content || (isGenerating && isLastMessage ? '...' : '');
+        const cacheKey = `${msg.role}::${rawContent}`;
+        const cache = renderedCache;
+        const cached = cache.get(cacheKey);
+        if (cached) return cached;
+        const normalized = msg.role === 'user' ? rawContent : formatAiContent(rawContent);
+        const html = marked.parse(normalized);
+        cache.set(cacheKey, html);
+        if (cache.size > 600) {
+            const firstKey = cache.keys().next().value;
+            if (firstKey) cache.delete(firstKey);
+        }
+        return html;
+    }, [formatAiContent, isGenerating, renderedCache]);
 
     const formatTime = (value) => {
         if (!value) return '';
@@ -310,7 +421,15 @@ const handleAsk = () => {
             { role: 'ai', content: '', model: selectedModel, timestamp: Date.now() }
         ]);
 
-        if (eventSourceRef.current) eventSourceRef.current.close();
+        // Close any stale stream/timer without changing the current generation flag.
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+        }
+        if (flushTimerRef.current) {
+            window.clearTimeout(flushTimerRef.current);
+            flushTimerRef.current = null;
+        }
 
         // Use URLSearchParams to safely encode context data
         const contextParams = new URLSearchParams();
@@ -329,21 +448,15 @@ const handleAsk = () => {
         const url = `${apiBaseUrl}/ai_research_stream?${contextParams.toString()}`;
         const es = new EventSource(url);
         eventSourceRef.current = es;
-
-        let accumulatedContent = "";
+        streamBufferRef.current = '';
         es.onmessage = (event) => {
             if (event.data.includes("[Thinking Time:")) return;
-            accumulatedContent += event.data;
-            setChatHistory(prev => {
-                const newHistory = [...prev];
-                const lastIdx = newHistory.length - 1;
-                if (newHistory[lastIdx]) {
-                    newHistory[lastIdx] = { ...newHistory[lastIdx], content: accumulatedContent };
-                }
-                return newHistory;
-            });
+            streamBufferRef.current += event.data;
+            scheduleStreamFlush();
         };
-        es.onerror = () => { es.close(); setIsGenerating(false); };
+        es.onerror = () => {
+            stopStreaming();
+        };
     };
 
     const saveChat = async () => {
@@ -374,8 +487,7 @@ const handleAsk = () => {
                             const isUser = msg.role === 'user';
                             const timeLabel = formatTime(msg.timestamp);
                             const isLastMessage = idx === chatHistory.length - 1;
-                            const rawContent = msg.content || (isGenerating && isLastMessage ? '...' : '');
-                            const displayContent = isUser ? rawContent : formatAiContent(rawContent);
+                            const displayHtml = getMessageHtml(msg, isLastMessage);
                             return (
                             <div key={idx} className={`flex gap-4 mb-6 ${isUser ? 'justify-end' : ''}`}>
                                 {/* AVATAR COLUMN */}
@@ -415,9 +527,7 @@ const handleAsk = () => {
                                                 ? 'bg-muted/40 border-border/40 text-foreground'
                                                 : 'bg-card/70 border-primary/20 text-foreground/90 ai-response-container'
                                         }`}
-                                        dangerouslySetInnerHTML={{ 
-                                            __html: marked.parse(displayContent) 
-                                        }} 
+                                        dangerouslySetInnerHTML={{ __html: displayHtml }} 
                                     />
                                     
                                     {msg.model && (
@@ -446,10 +556,27 @@ const handleAsk = () => {
             </div>
 
             <div className="bg-card/60 border border-border/40 rounded-xl p-2 shadow-inner">
-                <textarea className="w-full bg-transparent p-3 text-sm text-foreground outline-none resize-none min-h-[80px]" placeholder="Analyze simulation parameters or safety docs..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAsk())} />
+                <textarea ref={queryRef} className="w-full bg-transparent p-3 text-sm text-foreground outline-none resize-none min-h-[80px]" placeholder="Analyze simulation parameters or safety docs..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAsk())} />
+                {!!suggestedQuestions.length && (
+                    <div className="px-3 pb-2 flex flex-wrap gap-2">
+                        {suggestedQuestions.map((question, idx) => (
+                            <button
+                                key={`${selectedExpert}-q-${idx}`}
+                                type="button"
+                                onClick={() => {
+                                    setQuery(question);
+                                    queryRef.current?.focus();
+                                }}
+                                className="text-[10px] rounded-md border border-border bg-muted/40 px-2 py-1 text-muted-foreground hover:text-foreground hover:border-ring transition-colors"
+                            >
+                                {question}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <div className="flex flex-wrap items-center justify-between gap-2 p-2 border-t border-border/30">
                     <div className="flex items-center gap-1">
-                        <button onClick={() => setChatHistory([])} className="p-2 text-muted-foreground hover:text-red-400 transition-colors" title="Clear History"><Trash2 size={15}/></button>
+                        <button onClick={() => { renderedCache.clear(); setChatHistory([]); }} className="p-2 text-muted-foreground hover:text-red-400 transition-colors" title="Clear History"><Trash2 size={15}/></button>
                         <button onClick={saveChat} className="p-2 text-muted-foreground hover:text-primary transition-colors" title="Save Session"><Save size={15}/></button>
                         <div className={`ml-1 flex items-center gap-1 rounded-md border px-2 py-1 text-[9px] font-bold uppercase tracking-widest ${aiStatus === 'online' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : aiStatus === 'offline' ? 'bg-red-500/10 text-red-400 border-red-500/20' : aiStatus === 'disabled' ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 'bg-muted/50 text-muted-foreground border-border'}`}>
                             <ShieldAlert size={10} /> {aiStatus === 'online' ? 'AI Online' : aiStatus === 'offline' ? 'AI Offline' : aiStatus === 'disabled' ? 'AI Disabled' : 'AI Status'}
@@ -524,7 +651,7 @@ const handleAsk = () => {
                         </div>
                     </div>
                     {isGenerating ? (
-                        <button onClick={() => setIsGenerating(false)} className="p-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all">
+                        <button onClick={stopStreaming} className="p-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all">
                             <StopCircle size={18} />
                         </button>
                     ) : (

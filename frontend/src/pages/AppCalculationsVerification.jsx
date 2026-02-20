@@ -447,7 +447,7 @@ const AppCalculationsVerificationPage = () => {
               App Calculations Verification
             </h2>
             <p className="text-xs text-muted-foreground mt-1">
-              Dedicated verification workspace with separate pressure and EWT validation views.
+              Dedicated verification workspace with separate pressure and EWT verification views.
             </p>
           </div>
           <button
