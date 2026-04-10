@@ -1,4 +1,5 @@
 # EXDA Dashboard
+### Explosion Data Analysis & Research Management System
 
 EXDA Dashboard is a full-stack research application for hydrogen explosion experiments, CFD validation, and literature-assisted analysis. It combines a React frontend, a Flask backend, scientific data-processing modules, and optional AI-assisted workflows in a single workspace.
 
@@ -13,16 +14,16 @@ The goal of the app is to make it easier to move from project setup, to experime
 - AiRA, an optional AI research assistant for literature and project context
 - Smoke, frontend, and backend tests for day-to-day validation
 
-## Quick Start
+## 🚀 Quick Start
 
-### Prerequisites
+### ✅ Prerequisites
 
 - Node.js 18+
 - npm
 - Python 3.10+
 - Ollama, optional, for local AiRA model support
 
-### Installation
+### 📦 Installation
 
 From the repository root:
 
@@ -35,7 +36,7 @@ pip install -r backend/requirements.txt
 # pip install -r backend/requirements-optional.txt
 ```
 
-### Run The App
+### ▶️ Run The App
 
 The simplest way in this repo is:
 
@@ -62,7 +63,7 @@ npm run dev
 
 Open the app at `http://localhost:5173`.
 
-## Most Useful Commands
+## 🧰 Most Useful Commands
 
 ```bash
 # Simplest local startup
@@ -96,7 +97,7 @@ npm run test:all
 npm run test:report
 ```
 
-## Architecture
+## 🏗️ Architecture
 
 EXDA Dashboard uses a decoupled client-server setup.
 
@@ -137,7 +138,7 @@ Core analysis modules:
 - `backend/modules/ewt_analysis.py`
 - `backend/modules/plot_interpolation.py`
 
-### Project Folder Convention
+### 📁 Project Folder Convention
 
 Each research project follows a predictable structure so the app can recover state and route files consistently:
 
@@ -155,7 +156,7 @@ Inside `Literature/`, the app expects:
 
 The repository also keeps `appsTestEnviroment/` as a recoverable skeleton for expected folder structure.
 
-## Main Features
+## ✨ Main Features
 
 - Unified navigation across Home, Projects, Verification, AiRA, and workspace tabs
 - Experiment planning with saved JSON state and recovery
@@ -166,7 +167,7 @@ The repository also keeps `appsTestEnviroment/` as a recoverable skeleton for ex
 - AiRA context awareness from both project state and repository context
 - Recent projects and quick resume workflow
 
-## Testing And QA
+## 🧪 Testing And QA
 
 This repository has three main test layers:
 
@@ -196,7 +197,7 @@ npm run test:report
 
 For more test details, see `tests/README.md`.
 
-## AiRA Notes
+## 🤖 AiRA Notes
 
 AiRA is the app's research assistant workflow. It can use:
 
@@ -211,13 +212,13 @@ Relevant files:
 
 If Ollama is not installed, the rest of the app can still run, but AI features will be limited.
 
-## Versioning
+## 🏷️ Versioning
 
 This project uses git tags for releases instead of versioned folders.
 
 See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 - If backend startup fails, make sure the virtual environment is activated and `backend/requirements.txt` is installed.
 - If AiRA features are unavailable, check whether Ollama and any optional backend dependencies are installed.
