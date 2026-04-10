@@ -35,6 +35,19 @@ export default defineConfig(({ command }) => ({
   // Use relative asset paths for packaged Electron builds (file://).
   base: command === 'build' ? './' : '/',
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('/node_modules/recharts/')) return 'recharts'
+          if (id.includes('/node_modules/uplot/')) return 'uplot'
+          if (id.includes('/node_modules/marked/')) return 'markdown'
+          return undefined
+        },
+      },
+    },
+  },
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
     __LAST_UPDATED__: JSON.stringify(lastUpdated),

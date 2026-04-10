@@ -98,6 +98,7 @@ def get_project_state():
 
     if os.path.exists(data_dir):
         for root, dirs, files in os.walk(data_dir):
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
             for f in files:
                 if f.startswith('.'):
                     continue
@@ -211,6 +212,7 @@ def list_raw_data():
         return jsonify({"success": True, "files": []})
     files_found = []
     for root, dirs, files in os.walk(data_dir):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
         for f in files:
             if not f.startswith('.'):
                 rel_path = os.path.relpath(os.path.join(root, f), data_dir)

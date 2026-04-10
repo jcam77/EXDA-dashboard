@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
     FlaskConical, AudioLines, ClipboardList, FileSpreadsheet, 
@@ -8,21 +8,6 @@ import {
 
 // --- MODULAR IMPORTS ---
 import UnifiedModal from '../../components/UnifiedModal';
-import ChecklistPage from '../../pages/Checklist';
-import PlanPage from '../../pages/Plan';
-import GasMixingPage from '../../pages/GasMixing';
-import ImportDataPage from '../../pages/ImportData';
-import DataPreprocessingPage from '../../pages/DataPreprocessingPage';
-import EWTPage from '../../pages/EwtAnalysis';
-import FlameSpeed from '../../pages/FlameSpeedAnalysis';
-import AiRAPage from '../../pages/AiRA';
-import ReportPage from '../../pages/Report';
-import LiteraturePage from '../../pages/Literature';
-import HomePage from '../../pages/Home';
-import ProjectsPage from '../../pages/Projects';
-import PressureAnalysisPage from '../../pages/PressureAnalysis';
-import CFDValidationPage from '../../pages/CFDValidation';
-import AppCalculationsVerificationPage from '../../pages/AppCalculationsVerification';
 import ProjectPickerModal from '../../components/ProjectPickerModal';
 import PlanPickerModal from '../../components/PlanPickerModal';
 import { getBackendBaseUrl } from '../../utils/backendUrl';
@@ -40,6 +25,22 @@ const FLAGS = {
     ENABLE_SOURCES: true,
     ENABLE_ANALYSIS: true
 };
+
+const HomePage = lazy(() => import('../../pages/Home'));
+const ProjectsPage = lazy(() => import('../../pages/Projects'));
+const AppCalculationsVerificationPage = lazy(() => import('../../pages/AppCalculationsVerification'));
+const ChecklistPage = lazy(() => import('../../pages/Checklist'));
+const PlanPage = lazy(() => import('../../pages/Plan'));
+const GasMixingPage = lazy(() => import('../../pages/GasMixing'));
+const ImportDataPage = lazy(() => import('../../pages/ImportData'));
+const DataPreprocessingPage = lazy(() => import('../../pages/DataPreprocessingPage'));
+const EWTPage = lazy(() => import('../../pages/EwtAnalysis'));
+const PressureAnalysisPage = lazy(() => import('../../pages/PressureAnalysis'));
+const CFDValidationPage = lazy(() => import('../../pages/CFDValidation'));
+const FlameSpeed = lazy(() => import('../../pages/FlameSpeedAnalysis'));
+const AiRAPage = lazy(() => import('../../pages/AiRA'));
+const ReportPage = lazy(() => import('../../pages/Report'));
+const LiteraturePage = lazy(() => import('../../pages/Literature'));
 
 const TAB_PATHS = {
     home: '/',
@@ -103,6 +104,12 @@ class SafeComponent extends React.Component {
         return this.props.children;
     }
 }
+
+const TabFallback = () => (
+    <div className="flex h-full min-h-[320px] items-center justify-center text-sm font-mono text-muted-foreground">
+        Loading view...
+    </div>
+);
 
 const WorkspacePage = () => {
     const apiBaseUrl = getBackendBaseUrl();
@@ -1069,74 +1076,88 @@ const WorkspacePage = () => {
           <div className={`w-full p-6 flex-1 animate-in fade-in slide-in-from-bottom-2 duration-700 relative z-0 ${activeTab === 'home' ? 'overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
               {activeTab === 'home' && (
                   <SafeComponent>
-                      <HomePage onSelectTab={setActiveTab} onOpenProjectPath={openProjectByPath} showHeader={false} />
+                      <Suspense fallback={<TabFallback />}>
+                          <HomePage onSelectTab={setActiveTab} onOpenProjectPath={openProjectByPath} showHeader={false} />
+                      </Suspense>
                   </SafeComponent>
               )}
 
               {activeTab === 'projects' && (
                   <SafeComponent>
-                                            <ProjectsPage
-                                                activeProjectPath={projectPath}
-                                                onEditProject={(pathValue) => openProjectByPath(pathValue, 'plan')}
-                                            />
+                      <Suspense fallback={<TabFallback />}>
+                          <ProjectsPage
+                              activeProjectPath={projectPath}
+                              onEditProject={(pathValue) => openProjectByPath(pathValue, 'plan')}
+                          />
+                      </Suspense>
                   </SafeComponent>
               )}
               {activeTab === 'verification' && (
                   <SafeComponent>
-                      <AppCalculationsVerificationPage />
+                      <Suspense fallback={<TabFallback />}>
+                          <AppCalculationsVerificationPage />
+                      </Suspense>
                   </SafeComponent>
               )}
 
               {activeTab === 'checklist' && (
                   <SafeComponent>
-                      <ChecklistPage checklistState={checklistState} setChecklistState={setChecklistState} />
+                      <Suspense fallback={<TabFallback />}>
+                          <ChecklistPage checklistState={checklistState} setChecklistState={setChecklistState} />
+                      </Suspense>
                   </SafeComponent>
               )}
 
               {activeTab === 'plan' && FLAGS.ENABLE_PLAN && (
                   <SafeComponent>
-                      <PlanPage 
-                          experiments={experiments} setExperiments={setExperiments} 
-                          planName={planName} setPlanName={setPlanName} 
-                          planMeta={planMeta} setPlanMeta={setPlanMeta}
-                          saveFormat={saveFormat} setSaveFormat={setSaveFormat} 
-                          projectPath={projectPath}
-                          onSave={savePlan} onImport={importPlan}
-                      />
+                      <Suspense fallback={<TabFallback />}>
+                          <PlanPage 
+                              experiments={experiments} setExperiments={setExperiments} 
+                              planName={planName} setPlanName={setPlanName} 
+                              planMeta={planMeta} setPlanMeta={setPlanMeta}
+                              saveFormat={saveFormat} setSaveFormat={setSaveFormat} 
+                              projectPath={projectPath}
+                              onSave={savePlan} onImport={importPlan}
+                          />
+                      </Suspense>
                   </SafeComponent>
               )}
 
               {activeTab === 'gas' && (
                   <SafeComponent>
-                                            <GasMixingPage 
-                        projectPath={projectPath} 
-                        checklistState={checklistState} 
-                        setChecklistState={setChecklistState} 
-                      />
+                      <Suspense fallback={<TabFallback />}>
+                          <GasMixingPage 
+                              projectPath={projectPath} 
+                              checklistState={checklistState} 
+                              setChecklistState={setChecklistState} 
+                          />
+                      </Suspense>
                   </SafeComponent>
               )}
 
               {activeTab === 'data' && FLAGS.ENABLE_SOURCES && (
                                     <SafeComponent>
-                                        <ImportDataPage 
-                                                projectPath={projectPath}
-                                                onSimFolderSelect={onSimFolder} 
-                                                onExpFolderSelect={onExpFolder} 
-                                                onOpenSimPicker={() => openDataPicker('sim')}
-                                                onOpenExpPicker={() => openDataPicker('exp')}
-                                                onOpenFlamePicker={onOpenFlamePicker}
-                                                sessionFiles={sessionFiles} 
-                                                expFiles={expFiles} 
-                                                selectedExpFolder={selectedExpFolder}
-                                                selectedFlameFolder={selectedFlameFolder}
-                                                simulationData={simulationData} 
-                                                selectedCases={selectedCases} 
-                                                experimentalData={experimentalData} 
-                                                onSelectionChange={onFileSelect} 
-                                                onRemoveCase={onRemoveCase} 
-                                                onToggleCase={onToggleCase} 
-                                                formatName={formatName} 
-                                        />
+                                        <Suspense fallback={<TabFallback />}>
+                                            <ImportDataPage 
+                                                    projectPath={projectPath}
+                                                    onSimFolderSelect={onSimFolder} 
+                                                    onExpFolderSelect={onExpFolder} 
+                                                    onOpenSimPicker={() => openDataPicker('sim')}
+                                                    onOpenExpPicker={() => openDataPicker('exp')}
+                                                    onOpenFlamePicker={onOpenFlamePicker}
+                                                    sessionFiles={sessionFiles} 
+                                                    expFiles={expFiles} 
+                                                    selectedExpFolder={selectedExpFolder}
+                                                    selectedFlameFolder={selectedFlameFolder}
+                                                    simulationData={simulationData} 
+                                                    selectedCases={selectedCases} 
+                                                    experimentalData={experimentalData} 
+                                                    onSelectionChange={onFileSelect} 
+                                                    onRemoveCase={onRemoveCase} 
+                                                    onToggleCase={onToggleCase} 
+                                                    formatName={formatName} 
+                                            />
+                                        </Suspense>
                                         <ProjectPickerModal
                                                 isOpen={flamePicker.open}
                                                 mode="pick"
@@ -1150,100 +1171,116 @@ const WorkspacePage = () => {
               )}
               {activeTab === 'data_preprocessing' && FLAGS.ENABLE_SOURCES && (
                                     <SafeComponent>
-                                        <DataPreprocessingPage
-                                            apiBaseUrl={apiBaseUrl}
-                                            projectPath={projectPath}
-                                            selectedCases={selectedCases}
-                                        />
+                                        <Suspense fallback={<TabFallback />}>
+                                            <DataPreprocessingPage
+                                                apiBaseUrl={apiBaseUrl}
+                                                projectPath={projectPath}
+                                                selectedCases={selectedCases}
+                                            />
+                                        </Suspense>
                                     </SafeComponent>
               )}
 
                              {activeTab === 'ewt' && FLAGS.ENABLE_ANALYSIS && (
                                  <SafeComponent>
-                                     <EWTPage
-                                         plotData={plotData}
-                                         analysisResults={analysisResults}
-                                         experimentalData={experimentalData}
-                                         isProcessing={isProcessing}
-                                         settings={settings}
-                                         setSettings={setSettings}
-                                         selectedCases={selectedCases}
-                                         formatName={formatName}
-                                     />
+                                     <Suspense fallback={<TabFallback />}>
+                                         <EWTPage
+                                             plotData={plotData}
+                                             analysisResults={analysisResults}
+                                             experimentalData={experimentalData}
+                                             isProcessing={isProcessing}
+                                             settings={settings}
+                                             setSettings={setSettings}
+                                             selectedCases={selectedCases}
+                                             formatName={formatName}
+                                         />
+                                     </Suspense>
                                  </SafeComponent>
                              )}
                              {activeTab === 'pressure_analysis' && FLAGS.ENABLE_ANALYSIS && (
                                  <SafeComponent>
-                                 <PressureAnalysisPage
-                                         plotData={plotData}
-                                         analysisResults={analysisResults}
-                                         experimentalData={experimentalData}
-                                         selectedCases={selectedCases}
-                                         isProcessing={isProcessing}
-                                         settings={settings}
-                                         setSettings={setSettings}
-                                         simulationData={simulationData}
-                                         onRunAnalysis={requestAnalysis}
-                                         formatName={formatName}
-                                     />
+                                     <Suspense fallback={<TabFallback />}>
+                                         <PressureAnalysisPage
+                                             plotData={plotData}
+                                             analysisResults={analysisResults}
+                                             experimentalData={experimentalData}
+                                             selectedCases={selectedCases}
+                                             isProcessing={isProcessing}
+                                             settings={settings}
+                                             setSettings={setSettings}
+                                             simulationData={simulationData}
+                                             onRunAnalysis={requestAnalysis}
+                                             formatName={formatName}
+                                         />
+                                     </Suspense>
                                  </SafeComponent>
                              )}
                              {activeTab === 'cfd_validation' && FLAGS.ENABLE_ANALYSIS && (
                                  <SafeComponent>
-                                 <CFDValidationPage
-                                         plotData={plotData}
-                                         analysisResults={analysisResults}
-                                         experimentalData={experimentalData}
-                                         selectedCases={selectedCases}
-                                         isProcessing={isProcessing}
-                                         settings={settings}
-                                         setSettings={setSettings}
-                                         simulationData={simulationData}
-                                         onRunAnalysis={requestAnalysis}
-                                         formatName={formatName}
-                                     />
+                                     <Suspense fallback={<TabFallback />}>
+                                         <CFDValidationPage
+                                             plotData={plotData}
+                                             analysisResults={analysisResults}
+                                             experimentalData={experimentalData}
+                                             selectedCases={selectedCases}
+                                             isProcessing={isProcessing}
+                                             settings={settings}
+                                             setSettings={setSettings}
+                                             simulationData={simulationData}
+                                             onRunAnalysis={requestAnalysis}
+                                             formatName={formatName}
+                                         />
+                                     </Suspense>
                                  </SafeComponent>
                              )}
                              {activeTab === 'flame_speed' && FLAGS.ENABLE_ANALYSIS && (
                                  <SafeComponent>
-                                     <FlameSpeed
-                                         plotData={plotData}
-                                         analysisResults={analysisResults}
-                                         experimentalData={experimentalData}
-                                         isProcessing={isProcessing}
-                                         settings={settings}
-                                         setSettings={setSettings}
-                                     />
+                                     <Suspense fallback={<TabFallback />}>
+                                         <FlameSpeed
+                                             plotData={plotData}
+                                             analysisResults={analysisResults}
+                                             experimentalData={experimentalData}
+                                             isProcessing={isProcessing}
+                                             settings={settings}
+                                             setSettings={setSettings}
+                                         />
+                                     </Suspense>
                                  </SafeComponent>
                              )}
 
               {activeTab === 'ai' && (
                   <SafeComponent>
-                      <AiRAPage 
-                          projectPath={projectPath} 
-                          chatHistory={aiChatHistory} 
-                          setChatHistory={setAiChatHistory} 
-                          planMeta={planMeta}
-                          checklistState={checklistState}
-                          />
+                      <Suspense fallback={<TabFallback />}>
+                          <AiRAPage 
+                              projectPath={projectPath} 
+                              chatHistory={aiChatHistory} 
+                              setChatHistory={setAiChatHistory} 
+                              planMeta={planMeta}
+                              checklistState={checklistState}
+                              />
+                      </Suspense>
                   </SafeComponent>
               )}
 
               {activeTab === 'report' && (
                   <SafeComponent>
-                                            <ReportPage 
-                        experiments={experiments} 
-                        checklistState={checklistState} 
-                        analysisResults={analysisResults} 
-                        planMeta={planMeta} 
-                      />
+                      <Suspense fallback={<TabFallback />}>
+                          <ReportPage 
+                              experiments={experiments} 
+                              checklistState={checklistState} 
+                              analysisResults={analysisResults} 
+                              planMeta={planMeta} 
+                          />
+                      </Suspense>
                   </SafeComponent>
               )}
 
               {activeTab === 'resources' && 
               <SafeComponent>
-                <LiteraturePage 
-                    projectPath={projectPath} />
+                  <Suspense fallback={<TabFallback />}>
+                    <LiteraturePage 
+                        projectPath={projectPath} />
+                  </Suspense>
                 </SafeComponent>}
           </div>
           {showShortcuts && (

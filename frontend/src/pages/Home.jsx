@@ -140,9 +140,30 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
   React.useEffect(() => {
     let mounted = true;
     const loadRecent = async () => {
+      const storedRecents = getRecentProjects();
+      const storedMapped = storedRecents.map((item) => {
+        const parts = String(item.path || '').split('/').filter(Boolean);
+        const name = parts[parts.length - 1] || item.path || 'Unknown';
+        return {
+          name,
+          path: item.path,
+          status: 'recent',
+          lastOpened: item.lastOpened || '',
+        };
+      });
+      if (mounted && storedMapped.length > 0) {
+        setRecentProjects(storedMapped);
+      }
       try {
-        const storedRecents = getRecentProjects();
         let basePath = '';
+        const savedFoldersRaw = window.localStorage.getItem('projectsFoldersList');
+        const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
+        const savedRoot = Array.isArray(savedFolders)
+          ? savedFolders.find((item) => typeof item === 'string' || item?.mode !== 'project')
+          : null;
+        if (savedRoot) {
+          basePath = typeof savedRoot === 'string' ? savedRoot : savedRoot.path || '';
+        }
         if (!demoMode && defaultDevProjectsPath) {
           const devRes = await fetch(
             `${apiBaseUrl}/list_directories?path=${encodeURIComponent(defaultDevProjectsPath)}`
@@ -195,17 +216,6 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
           })
           .sort((a, b) => new Date(b.lastOpened || 0) - new Date(a.lastOpened || 0))
           .slice(0, 3);
-
-        const storedMapped = storedRecents.map((item) => {
-          const parts = String(item.path || '').split('/').filter(Boolean);
-          const name = parts[parts.length - 1] || item.path || 'Unknown';
-          return {
-            name,
-            path: item.path,
-            status: 'recent',
-            lastOpened: item.lastOpened || '',
-          };
-        });
         const mergedMap = new Map();
         [...recent, ...storedMapped].forEach((project) => {
           if (project?.path) mergedMap.set(project.path, project);
@@ -214,17 +224,6 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
         if (mounted) setRecentProjects(merged);
       } catch {
         if (mounted) {
-          const storedRecents = getRecentProjects();
-          const storedMapped = storedRecents.map((item) => {
-            const parts = String(item.path || '').split('/').filter(Boolean);
-            const name = parts[parts.length - 1] || item.path || 'Unknown';
-            return {
-              name,
-              path: item.path,
-              status: 'recent',
-              lastOpened: item.lastOpened || '',
-            };
-          });
           setRecentProjects(storedMapped);
         }
       }

@@ -104,7 +104,7 @@ export const useAnalysisPipeline = ({
           };
         }
         const normalizedPressureUnit = normalizeUnitToken(settings.pressureInputUnit);
-        const res = await fetch(`${apiBaseUrl}/analyze_pressure`, {
+        const pressureRequest = fetch(`${apiBaseUrl}/analyze_pressure`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -121,8 +121,16 @@ export const useAnalysisPipeline = ({
                 : normalizedPressureUnit,
             convertToKpa: settings.pressureConvertToKpa !== false,
           }),
-        });
-        const d = await res.json();
+        }).then((res) => res.json());
+        const ventRequest =
+          type === 'pressure' && includeVent && fileObj.ventContent
+            ? fetch(`${apiBaseUrl}/analyze_vent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: fileObj.ventContent }),
+              }).then((res) => res.json())
+            : Promise.resolve(null);
+        const [d, vData] = await Promise.all([pressureRequest, ventRequest]);
         if (d.error) throw new Error(d.error);
         const name = formatName(fileObj.path || fileObj.name);
         const colorSeed = fileObj.path || fileObj.name || name;
@@ -131,12 +139,6 @@ export const useAnalysisPipeline = ({
         }
         let ventTime = null;
         if (type === 'pressure' && includeVent && fileObj.ventContent) {
-          const vRes = await fetch(`${apiBaseUrl}/analyze_vent`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: fileObj.ventContent }),
-          });
-          const vData = await vRes.json();
           if (vData.metrics && vData.metrics.tVent !== 'N/A') ventTime = parseFloat(vData.metrics.tVent);
         }
         return {
@@ -181,58 +183,63 @@ export const useAnalysisPipeline = ({
       setIsProcessing(false);
       return;
     }
-    for (const c of selectedCases) {
-      if (activeTab === 'flame_speed' && c.toaContent) {
-        const r = await processFile({ name: c.name, path: c.path, content: c.toaContent }, 'flame_speed');
-        if (r) res.push(r);
-      } else if (['pressure_analysis', 'cfd_validation'].includes(activeTab)) {
-        const isExperimentsOnlyPressure = activeTab === 'pressure_analysis';
-        if (c.type === 'flame') {
-          continue;
-        }
-        if (isExperimentsOnlyPressure && c.type !== 'pressure') {
-          continue;
-        }
-        const isExperimentalPressure = c.type === 'pressure';
-        const experimentalUseRaw =
-          typeof settings.experimentalUseRaw === 'boolean' ? settings.experimentalUseRaw : settings.useRaw;
-        const useRawForCase = isExperimentalPressure ? experimentalUseRaw : settings.useRaw;
-        const experimentalCutoff = Number.isFinite(Number(settings.experimentalCutoff))
-          ? Number(settings.experimentalCutoff)
-          : settings.cutoff;
-        const experimentalOrder = Number.isFinite(Number(settings.experimentalOrder))
-          ? Number(settings.experimentalOrder)
-          : settings.order;
-        const cutoffForCase = isExperimentalPressure ? experimentalCutoff : settings.cutoff;
-        const orderForCase = isExperimentalPressure ? experimentalOrder : settings.order;
-        const shouldIncludeRawReference = Boolean(settings.showRawReference) && !useRawForCase;
-        const includeVentForCase = activeTab === 'cfd_validation';
-        const resolvedContent = await readAnalysisContent(c);
-        const sourceCase = { ...c, content: resolvedContent };
-        const r = await processFile(sourceCase, 'pressure', {
-          useRaw: useRawForCase,
-          cutoff: cutoffForCase,
-          order: orderForCase,
-          includeVent: includeVentForCase,
-        });
-        if (r) {
-          let rawOverlayPlotData = null;
-          if (shouldIncludeRawReference) {
-            const rawRef = await processFile(sourceCase, 'pressure', {
-              useRaw: true,
-              cutoff: cutoffForCase,
-              order: orderForCase,
-              includeVent: false,
-            });
-            rawOverlayPlotData = rawRef?.plotData || null;
-          }
-          res.push({
+    if (activeTab === 'flame_speed') {
+      const flameResults = await Promise.all(
+        selectedCases.map(async (c) => {
+          if (!c.toaContent) return null;
+          return processFile({ name: c.name, path: c.path, content: c.toaContent }, 'flame_speed');
+        })
+      );
+      res.push(...flameResults.filter(Boolean));
+    } else if (['pressure_analysis', 'cfd_validation'].includes(activeTab)) {
+      const isExperimentsOnlyPressure = activeTab === 'pressure_analysis';
+      const pressureCases = selectedCases.filter((c) => {
+        if (c.type === 'flame') return false;
+        if (isExperimentsOnlyPressure && c.type !== 'pressure') return false;
+        return true;
+      });
+      const pressureResults = await Promise.all(
+        pressureCases.map(async (c) => {
+          const isExperimentalPressure = c.type === 'pressure';
+          const experimentalUseRaw =
+            typeof settings.experimentalUseRaw === 'boolean' ? settings.experimentalUseRaw : settings.useRaw;
+          const useRawForCase = isExperimentalPressure ? experimentalUseRaw : settings.useRaw;
+          const experimentalCutoff = Number.isFinite(Number(settings.experimentalCutoff))
+            ? Number(settings.experimentalCutoff)
+            : settings.cutoff;
+          const experimentalOrder = Number.isFinite(Number(settings.experimentalOrder))
+            ? Number(settings.experimentalOrder)
+            : settings.order;
+          const cutoffForCase = isExperimentalPressure ? experimentalCutoff : settings.cutoff;
+          const orderForCase = isExperimentalPressure ? experimentalOrder : settings.order;
+          const shouldIncludeRawReference = Boolean(settings.showRawReference) && !useRawForCase;
+          const includeVentForCase = activeTab === 'cfd_validation';
+          const resolvedContent = await readAnalysisContent(c);
+          const sourceCase = { ...c, content: resolvedContent };
+          const primaryPromise = processFile(sourceCase, 'pressure', {
+            useRaw: useRawForCase,
+            cutoff: cutoffForCase,
+            order: orderForCase,
+            includeVent: includeVentForCase,
+          });
+          const rawRefPromise = shouldIncludeRawReference
+            ? processFile(sourceCase, 'pressure', {
+                useRaw: true,
+                cutoff: cutoffForCase,
+                order: orderForCase,
+                includeVent: false,
+              })
+            : Promise.resolve(null);
+          const [r, rawRef] = await Promise.all([primaryPromise, rawRefPromise]);
+          if (!r) return null;
+          return {
             ...r,
             sourceType: isExperimentalPressure ? 'experiment' : 'simulation',
-            rawOverlayPlotData,
-          });
-        }
-      }
+            rawOverlayPlotData: rawRef?.plotData || null,
+          };
+        })
+      );
+      res.push(...pressureResults.filter(Boolean));
     }
     const seenNames = new Map();
     const uniqueResults = res.map((item, idx) => {

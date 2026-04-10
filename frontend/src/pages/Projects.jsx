@@ -100,6 +100,9 @@ const ProjectsPage = ({
       }
       const summaries = await Promise.all(
         allEntries.map(async (project) => {
+          if (project.plan) {
+            return { path: project.path, plan: project.plan };
+          }
           try {
             const summaryRes = await fetch(
               `${apiBaseUrl}/project_plan_summary?path=${encodeURIComponent(
