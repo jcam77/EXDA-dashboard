@@ -37,6 +37,16 @@ pip install -r backend/requirements.txt
 
 ### Run The App
 
+The simplest way in this repo is:
+
+```bash
+run exda
+```
+
+That wrapper runs the app's dev startup for you.
+
+If you want to start the services manually instead, use the two-terminal flow below.
+
 Start the backend:
 
 ```bash
@@ -55,6 +65,9 @@ Open the app at `http://localhost:5173`.
 ## Most Useful Commands
 
 ```bash
+# Simplest local startup
+run exda
+
 # Frontend dev server + backend helper scripts
 npm run dev
 
@@ -210,4 +223,3 @@ See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 - If AiRA features are unavailable, check whether Ollama and any optional backend dependencies are installed.
 - If PDF-related AI features are limited, install the optional backend requirements.
 - If frontend tooling behaves strangely on shared or synced folders, check for macOS sidecar files such as `._*` and `.DS_Store`, which can interfere with JS tooling.
-

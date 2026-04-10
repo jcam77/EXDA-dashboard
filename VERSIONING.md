@@ -47,12 +47,12 @@ git status --short
 git add .
 git commit -m "Build app update"
 git push origin desktopBasedApp
-npm version 1.4.0 --no-git-tag-version
+npm version 1.5.0 --no-git-tag-version
 git add package.json package-lock.json
-git commit -m "Bump app version to 1.4.0"
+git commit -m "Bump app version to 1.5.0"
 git push origin desktopBasedApp
-git tag -a desktop-v1.4.0 -m "desktop-v1.4.0"
-git push origin desktop-v1.4.0
+git tag -a desktop-v1.5.0 -m "desktop-v1.5.0"
+git push origin desktop-v1.5.0
 git log -1 --stat
 ```
 
