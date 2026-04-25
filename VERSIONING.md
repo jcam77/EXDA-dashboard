@@ -66,12 +66,12 @@ Example:
 ```bash
 git switch main
 git pull origin main
-npm version 1.13.0 --no-git-tag-version
+npm version 1.14.0 --no-git-tag-version
 git add package.json package-lock.json
-git commit -m "Bump app version to 1.13.0"
+git commit -m "Bump app version to 1.14.0"
 git push origin main
-git tag -a browser-v1.13.0 -m "browser-v1.13.0"
-git push origin browser-v1.13.0
+git tag -a browser-v1.14.0 -m "browser-v1.14.0"
+git push origin browser-v1.14.0
 ```
 
 ## SemVer Notes
