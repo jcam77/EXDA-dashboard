@@ -10,7 +10,7 @@ jobs:
         include:
           - arch: x64
             runner: ubuntu-22.04
-            script: dist:linux
+            script: dist:linux:appimage
           - arch: arm64
             runner: ubuntu-22.04-arm
             script: dist:linux:appimage

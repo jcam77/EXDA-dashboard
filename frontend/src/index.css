@@ -92,43 +92,53 @@
         --background: 210 28% 96%;
         --foreground: 220 28% 14%;
 
-        --card: 210 25% 92%;
+        --card: 210 35% 98%;
         --card-foreground: 220 28% 14%;
 
-        --popover: 210 25% 92%;
+        --popover: 210 35% 98%;
         --popover-foreground: 220 28% 14%;
 
-        --primary: 192 70% 40%;
+        --primary: 192 78% 32%;
         --primary-foreground: 210 33% 98%;
 
-        --secondary: 212 45% 38%;
+        --secondary: 212 45% 32%;
         --secondary-foreground: 210 33% 98%;
 
-        --muted: 210 18% 88%;
-        --muted-foreground: 220 12% 36%;
+        --muted: 210 24% 94%;
+        --muted-foreground: 220 14% 30%;
 
         --accent: 190 85% 50%;
         --accent-foreground: 210 33% 98%;
 
-        --destructive: 0 70% 45%;
+        --destructive: 0 72% 40%;
         --destructive-foreground: 210 33% 98%;
 
-        --border: 210 14% 80%;
-        --input: 210 16% 90%;
-        --ring: 190 85% 50%;
+        --border: 194 34% 76%;
+        --input: 210 25% 98%;
+        --ring: 192 78% 32%;
 
-        --sidebar-background: 210 25% 92%;
+        --sidebar-background: 210 32% 96%;
         --sidebar-foreground: 220 28% 14%;
-        --sidebar-primary: 192 70% 40%;
+        --sidebar-primary: 192 78% 32%;
         --sidebar-primary-foreground: 210 33% 98%;
-        --sidebar-accent: 210 18% 88%;
+        --sidebar-accent: 210 24% 94%;
         --sidebar-accent-foreground: 220 28% 14%;
-        --sidebar-border: 210 14% 80%;
-        --sidebar-ring: 190 85% 50%;
+        --sidebar-border: 194 34% 76%;
+        --sidebar-ring: 192 78% 32%;
 
         --success: 152 34% 36%;
         --warning: 35 77% 38%;
         --info: 194 37% 38%;
+    }
+
+    .light :is(input, textarea, select)::placeholder {
+        color: hsl(220 12% 40%);
+        opacity: 1;
+    }
+
+    .light :is(input, textarea, select):focus-visible {
+        outline: 2px solid hsl(var(--ring) / 0.55);
+        outline-offset: 1px;
     }
 
     * {
@@ -168,6 +178,10 @@
     :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
         overflow-wrap: anywhere;
         word-break: break-word;
+    }
+
+    input[type="checkbox"] {
+        accent-color: hsl(var(--warning));
     }
 
     pre,
@@ -260,6 +274,9 @@
     .bg-black {
         background-color: hsl(var(--background)) !important;
     }
+    .bg-black\/20 {
+        background-color: hsl(var(--background) / 0.28) !important;
+    }
     .bg-black\/30 {
         background-color: hsl(var(--background) / 0.4) !important;
     }
@@ -278,10 +295,22 @@
     .text-zinc-300 {
         color: hsl(var(--foreground) / 0.85) !important;
     }
+    .text-zinc-200 {
+        color: hsl(var(--foreground) / 0.92) !important;
+    }
+    .text-zinc-100 {
+        color: hsl(var(--foreground)) !important;
+    }
     .border-zinc-900,
     .border-zinc-800,
     .border-zinc-700 {
         border-color: hsl(var(--border)) !important;
+    }
+    .border-zinc-800\/50 {
+        border-color: hsl(var(--border) / 0.58) !important;
+    }
+    .border-zinc-900\/30 {
+        border-color: hsl(var(--border) / 0.42) !important;
     }
 }
 

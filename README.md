@@ -1,176 +1,226 @@
-# EXDA-Dashboard
+# EXDA Dashboard
 ### Explosion Data Analysis & Research Management System
 
-**EXDA-Dashboard** is a specialized full-stack software suite developed for Industrial Engineering PhD research focusing on **Hydrogen Explosion Modelling & Experimental Validation**. It provides a unified interface for experimental planning, high-frequency signal processing, and AI-assisted literature review.
+EXDA Dashboard is a full-stack research application for hydrogen explosion experiments, CFD validation, and literature-assisted analysis. It combines a React frontend, a Flask backend, scientific data-processing modules, and optional AI-assisted workflows in a single workspace.
 
-## Versioning (Tags)
-This project uses **git tags** for versions instead of versioned folders.  
-See `VERSIONING.md` for the exact commands and workflow.
+The goal of the app is to make it easier to move from project setup, to experiment planning, to signal analysis, to reporting without bouncing between separate tools.
 
-## Quick Setup
-1. Install frontend dependencies (from repo root):
-   `npm install`
-2. Install backend dependencies (from repo root):
+## What The App Covers
+
+- Project creation and recovery for a standard research folder structure
+- Experiment planning and workspace persistence
+- Import of experimental and simulation data
+- Pressure analysis, CFD validation, flame speed analysis, and EWT workflows
+- AiRA, an optional AI research assistant for literature and project context
+- Smoke, frontend, and backend tests for day-to-day validation
+
+## 🚀 Quick Start
+
+### ✅ Prerequisites
+
+- Node.js 18+
+- npm
+- Python 3.10+
+- Ollama, optional, for local AiRA model support
+
+### 📦 Installation
+
+From the repository root:
+
 ```bash
+npm install
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 # Optional extras:
 # pip install -r backend/requirements-optional.txt
 ```
-3. Run the backend:
-   `python backend/app.py`
-4. Run the frontend (in a new terminal):
-   `npm run dev`
 
+### ▶️ Run The App
 
-
-## 🏗️ System Architecture
-
-The application utilizes a decoupled client-server architecture to bridge high-level data visualization with low-level system file management:
-
-### 1. Frontend: React & Vite
-* **Core**: React 18+ SPA powered by **Vite** for optimized development.
-* **Data Visualization**: Uses **Recharts** for explosion metrics like $P_{max}$, $t_{max}$, and impulse.
-* **UI/UX**: Tailwind CSS with light/dark theming and monochrome, research-first styling.
-* **Markdown Support**: Integrated `marked` library for AI research responses.
-
-### 2. Backend: Flask & Python
-* **API Service**: Flask server managing RESTful endpoints for data analysis and project state recovery.
-* **Scientific Computing**: Uses **NumPy** for signal processing, including filtering and metrics extraction.
-* **System Integration**: Project Manager opens native OS folder dialogs and reveals project folders.
-* **AI Integration**: Optional **Ollama** integration for **AiRA** (Artificial Intelligence Research Assistant).
-
-### 3. Project Structure & Persistence
-The system enforces a standardized PhD project hierarchy created during initialization:
-* `Plan/`: Stores experimental matrices and stoichiometric calculations in JSON format.
-* `Raw_Data/`: Repository for experimental CSV/TXT logs and OpenFOAM simulation data (`p`, `p_rgh`).
-* `Literature/`: Organized by `Books`, `Papers`, and `Standards` for automated AI indexing.
-* `aiChat/`: Persistent history of AI research sessions.
-
-## 🛠️ System Architecture
-
-EXDA-Dashboard uses a decoupled client-server architecture:
-
-### 1. Frontend: React + Vite
-- **React 18+ SPA** (Vite-powered)
-- **Tailwind CSS** for modern, research-focused UI (light/dark mode)
-- **Recharts** for data visualisation (explosion metrics, time series)
-- **React Router** for tabbed navigation
-- **Keyboard shortcuts** overlay (press `?`)
-- **Playwright** for E2E/smoke testing
-
-### 2. Backend: Flask + Python
-- **Flask REST API** for all data, analysis, and project management
-- **NumPy** for signal processing (filtering, metrics)
-- **Project state**: auto-save, rehydration, and folder management
-- **Optional AiRA**: AI assistant via Ollama (if enabled)
-
-### 3. Project Structure
-- `Plan/` – Experimental matrices, stoichiometry (JSON)
-- `Raw_Data/` – Experimental logs, OpenFOAM data
-- `Literature/` – `Books/`, `Papers/`, `Standards/` (AI-indexed)
-- `aiChat/` – Persistent AI research chat history
-
-## ✨ Key Features
-* Unified header/tabs with consistent navigation and status badges.
-* Experiment Plan with auto-save and project rehydration.
-* Data import workflow with explicit Simulation/Experiment selectors.
-* Analysis tabs: EWT, Pressure Analysis, Flame Speed Analysis.
-* AiRA chat with model status, cloud-powered badge, and safety warning.
-* Recent Projects strip and quick Import Data CTA on Home.
-* Keyboard shortcuts overlay (press `?`).
-* Clickable project title to reveal project folder.
-
-
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-- **Node.js** (v18+) & **npm**
-- **Python** (3.10+)
-- **Ollama** (optional, for AiRA)
-
-### Installation
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd EXDA-dashboard
-   ```
-
-2. **Install frontend dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Install backend dependencies**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r backend/requirements.txt
-   # Optional extras:
-   # pip install -r backend/requirements-optional.txt
-   ```
-
-4. **Run the backend server**
-   ```bash
-   source .venv/bin/activate
-   python backend/app.py
-   ```
-
-5. **Run the frontend dev server** (in a new terminal)
-   ```bash
-   npm run dev
-   ```
-
-6. **Open the app**: [http://localhost:5173](http://localhost:5173)
-
-## 🧪 Smoke Tests
-Run the smoke tests:
+The simplest way in this repo is:
 
 ```bash
+run exda
+```
+
+That wrapper runs the app's dev startup for you.
+
+If you want to start the services manually instead, use the two-terminal flow below.
+
+Start the backend:
+
+```bash
+source .venv/bin/activate
+python backend/app.py
+```
+
+In a second terminal, start the frontend:
+
+```bash
+npm run dev
+```
+
+Open the app at `http://localhost:5173`.
+
+## 🧰 Most Useful Commands
+
+```bash
+# Simplest local startup
+run exda
+
+# Frontend dev server + backend helper scripts
+npm run dev
+
+# Production frontend build
+npm run build
+
+# Lint frontend code
+npm run lint
+
+# Backend calculation tests
+npm run test:backend
+
+# Frontend unit tests
+npm run test:frontend
+
+# End-to-end tests
+npm run test:e2e
+
+# Main smoke test
 npm run smoke
+
+# Full test suite
+npm run test:all
+
+# Open Playwright HTML report
+npm run test:report
 ```
 
-Generate the HTML report in the single folder:
+## 🏗️ Architecture
+
+EXDA Dashboard uses a decoupled client-server setup.
+
+### Frontend
+
+- React SPA powered by Vite
+- React Router-based workspace and page navigation
+- Recharts and custom plotting components for research visualisation
+- Tailwind-based styling and app shell UI
+- Keyboard shortcuts overlay, opened with `?`
+- Playwright-based smoke and end-to-end coverage
+
+Key entry points:
+
+- `frontend/src/main.jsx`
+- `frontend/src/app/AppShell.jsx`
+- `frontend/src/features/workspace/WorkspacePage.jsx`
+
+### Backend
+
+- Flask REST API for project operations and analysis endpoints
+- NumPy-based scientific calculations for pressure and related metrics
+- Project-state loading, rehydration, and folder management
+- Optional AiRA routes for model-backed research workflows
+
+Key backend files:
+
+- `backend/app.py`
+- `backend/routes/calculation_api_routes.py`
+- `backend/routes/projects.py`
+- `backend/routes/state.py`
+- `backend/routes/ai.py`
+
+Core analysis modules:
+
+- `backend/modules/pressure_analysis.py`
+- `backend/modules/flame_analysis.py`
+- `backend/modules/ewt_analysis.py`
+- `backend/modules/plot_interpolation.py`
+
+### 📁 Project Folder Convention
+
+Each research project follows a predictable structure so the app can recover state and route files consistently:
+
+- `Plan/`
+- `Raw_Data/`
+- `Clean_Data/`
+- `Literature/`
+- `aiChat/`
+
+Inside `Literature/`, the app expects:
+
+- `Books/`
+- `Papers/`
+- `Standards/`
+
+The repository also keeps `appsTestEnviroment/` as a recoverable skeleton for expected folder structure.
+
+## ✨ Main Features
+
+- Unified navigation across Home, Projects, Verification, AiRA, and workspace tabs
+- Experiment planning with saved JSON state and recovery
+- Explicit import paths for experiment and simulation datasets
+- Pressure analysis and CFD comparison workflows
+- EWT and flame speed analysis views
+- Literature and report pages tied to project context
+- AiRA context awareness from both project state and repository context
+- Recent projects and quick resume workflow
+
+## 🧪 Testing And QA
+
+This repository has three main test layers:
+
+- Backend calculations: `backend/tests/test_calculations_reference.py`
+- Frontend unit tests: `frontend/tests/*.test.js`
+- Playwright end-to-end tests: `tests/e2e/*.spec.ts`
+
+### Common Test Commands
 
 ```bash
-npx playwright test tests/smoke.spec.ts --reporter=html
+npm run test:backend
+npm run test:frontend
+npm run test:e2e
+npm run smoke
+npm run test:all
 ```
 
-Open the report:
+### Playwright Notes
+
+- Playwright output is written to `test-report-results/`
+- `playwright.config.ts` starts both the frontend and backend smoke servers automatically
+- Open the HTML report with:
 
 ```bash
 npm run test:report
 ```
 
-Report folder: `test-report-results/`.
+For more test details, see `tests/README.md`.
 
-## 🧪 Testing & QA
+## 🤖 AiRA Notes
 
-### Smoke Tests (Playwright)
+AiRA is the app's research assistant workflow. It can use:
 
-Run all smoke tests (UI + API + integration):
-```bash
-npm run smoke
-```
+- Project overview and current app context from the frontend
+- Repository context from backend endpoints such as `/app_repo_context`
+- Optional local model access through Ollama
 
-If Playwright reports missing system libraries, run:
-```bash
-npx playwright install-deps
-```
+Relevant files:
 
-After running, open the HTML report:
-```bash
-npm run test:report
-```
+- `frontend/src/pages/AiRA.jsx`
+- `backend/routes/ai.py`
 
-#### What is covered?
-- Home, Projects, AiRA, Analysis, and navigation
-- Keyboard shortcuts, theme toggle, responsive layout
-- Backend endpoints: `/list_directories`, `/get_models`, `/projects_overview`, `/analyze`, `/aggregate_plot`, `/list_research_pdfs`, `/get_state`
-- Integration: no React errors, no console errors, works on desktop/tablet
+If Ollama is not installed, the rest of the app can still run, but AI features will be limited.
 
-See `tests/README.md` for full test breakdown.
+## 🏷️ Versioning
+
+This project uses git tags for releases instead of versioned folders.
+
+See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
+
+## 🛠️ Troubleshooting
+
+- If backend startup fails, make sure the virtual environment is activated and `backend/requirements.txt` is installed.
+- If AiRA features are unavailable, check whether Ollama and any optional backend dependencies are installed.
+- If PDF-related AI features are limited, install the optional backend requirements.
+- If frontend tooling behaves strangely on shared or synced folders, check for macOS sidecar files such as `._*` and `.DS_Store`, which can interfere with JS tooling.

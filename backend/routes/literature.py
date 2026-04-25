@@ -1,3 +1,5 @@
+"""Literature routes for listing, viewing, and uploading project PDFs."""
+
 from flask import Blueprint, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
 import os
@@ -9,6 +11,7 @@ literature_bp = Blueprint("literature", __name__)
 
 @literature_bp.route('/list_research_pdfs', methods=['GET'])
 def list_research_pdfs():
+    """List PDF files available under a project's Literature folder."""
     project_path = request.args.get('projectPath')
     project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
     if err:
@@ -27,6 +30,7 @@ def list_research_pdfs():
 
 @literature_bp.route('/view_resource/<path:filename>')
 def view_resource(filename):
+    """Serve one Literature file from the current project."""
     project_path = request.args.get('projectPath')
     project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
     if err:
@@ -37,6 +41,7 @@ def view_resource(filename):
 
 @literature_bp.route('/upload_research_pdf', methods=['POST'])
 def upload_research_pdf():
+    """Upload a PDF into the project's Literature folder."""
     file = request.files.get('file')
     project_path = request.form.get('projectPath')
     project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)

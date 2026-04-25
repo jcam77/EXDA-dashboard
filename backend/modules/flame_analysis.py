@@ -1,9 +1,12 @@
+"""Flame-speed extraction helpers from probe or tabular signal data."""
+
 import io
 import numpy as np
 import re
 
 
 def parse_data_content(content):
+    """Parse a two-column time/signal dataset from text content."""
     try:
         f = io.StringIO(content)
         lines = [line.strip() for line in f if not line.strip().startswith("#")]
@@ -21,6 +24,7 @@ def parse_data_content(content):
 
 
 def parse_header_coords(content):
+    """Extract probe x-coordinates from commented probe header lines."""
     coords = []
     try:
         for line in content.splitlines():
@@ -36,6 +40,7 @@ def parse_header_coords(content):
 
 
 def calculate_flame_speed(content):
+    """Estimate flame speed profile from threshold crossing times."""
     x_coords = parse_header_coords(content)
     if len(x_coords) == 0:
         x, v = parse_data_content(content)

@@ -26,7 +26,10 @@
         "ignition": "Center",
         "p0": "1",
         "t0": "293",
-        "vent": "Automatic removal"
+        "vent": "Automatic removal",
+        "dataFiles": [
+          "vh2d-10pctV-001/Experimental_Data_001.csv"
+        ]
       },
       "name": "vh2d-10pctV-001",
       "notes": "",
@@ -41,7 +44,10 @@
         "ignition": "Center",
         "p0": "1",
         "t0": "293",
-        "vent": "Automatic"
+        "vent": "Automatic",
+        "dataFiles": [
+          "expData/FMG/Pressure/Experimental_Data_001.csv"
+        ]
       },
       "name": "vh2d-10pctV-002",
       "notes": "",
@@ -69,7 +75,10 @@
         "ignition": "Center",
         "p0": "1",
         "t0": "293",
-        "vent": "Hotwire"
+        "vent": "Hotwire",
+        "dataFiles": [
+          "expData/FMG/Pressure/Experimental_Data_001.csv"
+        ]
       },
       "name": "vh2d-10pctV-003",
       "notes": "",
@@ -202,7 +211,7 @@
     }
   ],
   "meta": {
-    "deadline": "2026-01-31",
+    "deadline": "2026-03-31",
     "description": "LU & DBI pressure sensors characterisation.",
     "objective": "LU & DBI pressure sensors characterisation.",
     "startDate": "2026-01-21",

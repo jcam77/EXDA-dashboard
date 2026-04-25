@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 
 const ProjectPickerModal = ({
@@ -21,7 +21,7 @@ const ProjectPickerModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchDirectories = async (pathValue) => {
+  const fetchDirectories = useCallback(async (pathValue) => {
     setLoading(true);
     setError('');
     try {
@@ -43,13 +43,13 @@ const ProjectPickerModal = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     if (!isOpen) return;
     const lastPath = initialPath || localStorage.getItem('lastProjectPath') || '';
     fetchDirectories(lastPath);
-  }, [isOpen, initialPath]);
+  }, [isOpen, initialPath, fetchDirectories]);
 
   const handleOpen = () => {
     if (!currentPath) return;
@@ -70,7 +70,7 @@ const ProjectPickerModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-sidebar-border bg-card p-6 shadow-2xl">
+      <div className="w-full max-w-lg rounded-2xl border border-sidebar-border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">
             {title || (mode === 'create' ? 'Create Project' : mode === 'pick' ? 'Select Folder' : 'Open Project')}

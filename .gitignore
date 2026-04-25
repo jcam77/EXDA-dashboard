@@ -15,6 +15,7 @@ dist-electron
 
 # Editor directories and files
 .vscode/*
+.vscode
 !.vscode/extensions.json
 .idea
 .DS_Store
@@ -37,5 +38,21 @@ __pycache__/
 *.pyc
 
 
-# Environment variables
-appsTestEnviroment/
+# Environment variables / local app test environment
+# Keep only folder skeleton via .gitkeep so structure is recoverable.
+appsTestEnviroment/*
+!appsTestEnviroment/**/
+!appsTestEnviroment/**/.gitkeep
+octave-workspace
+
+# Data .zip is a zipped version of the data folder, which is too large to be tracked by git. It is used for backup and sharing purposes.
+*.zip
+*.asd
+
+# WaterTest dummy project: keep only TPC5 files (and expData README)
+Projects/WaterTest-Project/**
+!Projects/WaterTest-Project/Raw_Data/
+!Projects/WaterTest-Project/Raw_Data/expData/
+!Projects/WaterTest-Project/Raw_Data/expData/**/
+!Projects/WaterTest-Project/Raw_Data/expData/**/*.tpc5
+!Projects/WaterTest-Project/Raw_Data/expData/README.md

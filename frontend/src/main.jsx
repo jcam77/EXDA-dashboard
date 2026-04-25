@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
+import AppShell from './app/AppShell.jsx'
 import './index.css'
 
 /* global __APP_VERSION__ */
@@ -16,7 +16,7 @@ if (!rootElement) {
 
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <App />
+      <AppShell />
     </React.StrictMode>,
   )
 }

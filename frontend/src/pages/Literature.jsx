@@ -35,7 +35,7 @@ const LiteraturePage = ({ projectPath }) => {
             }
         };
         fetchPapers();
-    }, [projectPath]);
+    }, [apiBaseUrl, projectPath]);
 
     const filteredPapers = useMemo(() => {
         return papers.filter(paper => 

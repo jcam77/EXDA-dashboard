@@ -1,6 +1,8 @@
-import io
+"""Empirical Wavelet Transform analysis pipeline for pressure signals."""
+
 import numpy as np
 from scipy import signal
+from modules.data_parser import normalize_pressure_to_kpa, parse_time_signal_content
 
 try:
     import ewtpy
@@ -15,25 +17,13 @@ except Exception:
     HAS_PYWT = False
 
 
-def parse_data_content(content):
-    try:
-        lines = [line.strip() for line in io.StringIO(content) if not line.strip().startswith("#")]
-        if not lines:
-            return None, None, "No data rows found"
-        data = np.loadtxt(io.StringIO("\n".join(lines).replace(",", " ")))
-        if data.ndim == 1:
-            data = data.reshape(1, -1)
-        if data.shape[1] < 2:
-            return None, None, "Expected at least 2 columns (time + signal)"
-        t = data[:, 0]
-        y = data[:, 1]
-        idx = np.argsort(t)
-        return t[idx], y[idx], None
-    except Exception as e:
-        return None, None, str(e)
+def parse_data_content(content, channel_index=0):
+    """Parse time/signal columns from raw text content."""
+    return parse_time_signal_content(content, channel_index=channel_index)
 
 
 def resample_uniform(t, y):
+    """Resample irregular samples onto a uniform time basis."""
     t = np.asarray(t)
     y = np.asarray(y)
     if t.size < 2:
@@ -52,34 +42,47 @@ def resample_uniform(t, y):
 
 
 def perform_dwt_analysis(y, level=4):
+    """Compute SWT/DWT modes as a fallback spectral decomposition."""
     if not HAS_PYWT:
         return np.array([y])
-    max_level = pywt.swt_max_level(len(y))
-    use_level = min(level, max_level)
-    if use_level <= 0:
+    if level <= 0:
         return np.array([y])
+
+    original_len = len(y)
+    # SWT needs length to be a multiple of 2**level. Pad if needed.
+    use_level = int(level)
+    min_len = 2 ** use_level
+    if original_len < min_len:
+        use_level = int(np.floor(np.log2(max(original_len, 1))))
+        if use_level <= 0:
+            return np.array([y])
+
+    block = 2 ** use_level
+    target_len = int(np.ceil(original_len / block) * block)
+    if target_len != original_len:
+        y = np.pad(y, (0, target_len - original_len), mode='edge')
+
     coeffs = pywt.swt(y, "db4", level=use_level)
     modes = [coeffs[-1][0]] + [c[1] for c in reversed(coeffs)]
-    return np.array(modes)
+    modes_arr = np.array(modes)
+    if modes_arr.shape[1] > original_len:
+        modes_arr = modes_arr[:, :original_len]
+    return modes_arr
 
 
 def perform_ewt_analysis(y, fs, num_modes=5):
-    if HAS_EWT:
-        try:
-            ewt, _, _ = ewtpy.EWT1D(y, N=num_modes)
-            return ewt.T, None
-        except Exception as e:
-            if HAS_PYWT:
-                modes = perform_dwt_analysis(y, level=num_modes)
-                return modes, f"EWT failed ({e}); used DWT fallback"
-            return np.array([y]), f"EWT failed ({e}); returned raw signal only"
-    if HAS_PYWT:
-        modes = perform_dwt_analysis(y, level=num_modes)
-        return modes, "EWT library unavailable; used DWT fallback"
-    return np.array([y]), "EWT/PyWavelets unavailable; returned raw signal only"
+    """Run EWT decomposition and return modes or an error message."""
+    if not HAS_EWT:
+        return None, "EWT library unavailable"
+    try:
+        ewt, _, _ = ewtpy.EWT1D(y, N=num_modes)
+        return ewt.T, None
+    except Exception as e:
+        return None, f"EWT failed ({e})"
 
 
 def calculate_energy(modes):
+    """Compute absolute and relative mode energies."""
     energies = [float(np.sum(m ** 2)) for m in modes]
     total = sum(energies) if sum(energies) > 0 else 1.0
     pcts = [float((e / total) * 100.0) for e in energies]
@@ -87,9 +90,12 @@ def calculate_energy(modes):
 
 
 def downsample_plot_data(t, raw, modes, max_points=2000):
+    """Prepare downsampled raw/mode data for frontend plotting."""
     if len(t) == 0:
         return []
-    step = max(1, int(len(t) / max_points))
+    safe_max_points = int(max_points) if max_points and int(max_points) > 0 else 2000
+    # Use ceil so returned points are truly bounded by max_points.
+    step = max(1, int(np.ceil(len(t) / safe_max_points)))
     plot = []
     for i in range(0, len(t), step):
         row = {"time": float(t[i]), "raw": float(raw[i])}
@@ -99,15 +105,41 @@ def downsample_plot_data(t, raw, modes, max_points=2000):
     return plot
 
 
-def analyze_ewt_content(content, num_modes=5, max_points=2000, knee_modes=10):
-    t, y, err = parse_data_content(content)
+def _resolve_knee_modes(num_modes, knee_modes=None):
+    """Resolve internal mode count used for knee estimation."""
+    if knee_modes is None:
+        return max(2, min(10, max(int(num_modes), 8)))
+    try:
+        candidate = int(knee_modes)
+    except (TypeError, ValueError):
+        return max(2, min(10, max(int(num_modes), 8)))
+    return max(2, min(10, max(int(num_modes), candidate)))
+
+
+def analyze_ewt_content(
+    content,
+    num_modes=5,
+    max_points=2000,
+    knee_modes=None,
+    channel_index=0,
+    input_unit="auto",
+    convert_to_kpa=True,
+):
+    """Run full EWT workflow and return summary, modes, and recommendations."""
+    t, y, err = parse_data_content(content, channel_index=channel_index)
     if err:
         return {"error": err}
-    if np.max(np.abs(y)) > 1000:
-        y = (y - 101325.0) / 1000.0
+    y, unit_note, pressure_unit = normalize_pressure_to_kpa(
+        y,
+        content=content,
+        input_unit=input_unit,
+        convert_to_kpa=bool(convert_to_kpa),
+    )
 
     t_uni, y_uni, fs = resample_uniform(t, y)
     modes, warning = perform_ewt_analysis(y_uni, fs, num_modes=num_modes)
+    if modes is None:
+        return {"error": warning or "EWT failed"}
     energies, pcts = calculate_energy(modes)
     plot_data = downsample_plot_data(t_uni, y_uni, modes, max_points=max_points)
     energy_table = []
@@ -150,10 +182,7 @@ def analyze_ewt_content(content, num_modes=5, max_points=2000, knee_modes=10):
     cumulative = []
     ewt_cumulative = []
     mode_spectrum = []
-    knee_modes = int(knee_modes) if knee_modes else num_modes
-    if knee_modes < 2:
-        knee_modes = 2
-    knee_modes = max(knee_modes, num_modes)
+    knee_modes = _resolve_knee_modes(num_modes=num_modes, knee_modes=knee_modes)
 
     knee_modes_data, knee_warning = perform_ewt_analysis(y_uni, fs, num_modes=knee_modes)
     knee_energies, knee_pcts = calculate_energy(knee_modes_data)
@@ -227,6 +256,8 @@ def analyze_ewt_content(content, num_modes=5, max_points=2000, knee_modes=10):
             "usesEWT": bool(HAS_EWT),
             "usesPyWT": bool(HAS_PYWT),
             "kneeModesUsed": int(knee_modes),
+            "pressureUnit": pressure_unit,
+            "unitNote": unit_note,
             "suggestedFilter": suggestion
         },
         "energy": energy_table,

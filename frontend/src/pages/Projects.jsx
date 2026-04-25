@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FolderPlus, Folder, FileText, Trash2, Settings, Search, RefreshCw, Home } from 'lucide-react';
 import ProjectPickerModal from '../components/ProjectPickerModal';
 import { getBackendBaseUrl } from '../utils/backendUrl';
@@ -12,7 +12,6 @@ const ProjectsPage = ({
 }) => {
   const apiBaseUrl = getBackendBaseUrl();
   const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-  const [basePath, setBasePath] = useState('');
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -44,7 +43,7 @@ const ProjectsPage = ({
     };
   };
 
-  const fetchPlanFallback = async (projectPath) => {
+  const fetchPlanFallback = useCallback(async (projectPath) => {
     const candidates = [
       `${projectPath}/Plan/Experiment_Plan_v000.json`,
       `${projectPath}/Plan/Experiment_Plan.json`,
@@ -66,9 +65,9 @@ const ProjectsPage = ({
       }
     }
     return null;
-  };
+  }, [apiBaseUrl]);
 
-  const loadProjects = async (paths) => {
+  const loadProjects = useCallback(async (paths) => {
     const pathList = Array.isArray(paths) ? paths : [paths].filter(Boolean);
     if (pathList.length === 0) return;
     setLoading(true);
@@ -101,6 +100,9 @@ const ProjectsPage = ({
       }
       const summaries = await Promise.all(
         allEntries.map(async (project) => {
+          if (project.plan) {
+            return { path: project.path, plan: project.plan };
+          }
           try {
             const summaryRes = await fetch(
               `${apiBaseUrl}/project_plan_summary?path=${encodeURIComponent(
@@ -148,11 +150,22 @@ const ProjectsPage = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiBaseUrl, fetchPlanFallback]);
 
   useEffect(() => {
     if (projectFolders.length > 0) return;
     const initFolders = async () => {
+      const savedFoldersRaw = localStorage.getItem('projectsFoldersList');
+      const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
+      if (Array.isArray(savedFolders) && savedFolders.length > 0) {
+        const normalized = savedFolders.map((item) => {
+          if (typeof item === 'string') return { path: item, mode: 'root' };
+          return item;
+        });
+        setProjectFolders(normalized);
+        setSelectedFolder('all');
+        return;
+      }
       if (demoMode) {
         try {
           const res = await fetch(`${apiBaseUrl}/list_directories`);
@@ -180,17 +193,6 @@ const ProjectsPage = ({
           return;
         }
       }
-      const savedFoldersRaw = localStorage.getItem('projectsFoldersList');
-      const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
-      if (Array.isArray(savedFolders) && savedFolders.length > 0) {
-        const normalized = savedFolders.map((item) => {
-          if (typeof item === 'string') return { path: item, mode: 'root' };
-          return item;
-        });
-        setProjectFolders(normalized);
-        setSelectedFolder('all');
-        return;
-      }
       try {
         const res = await fetch(`${apiBaseUrl}/list_directories`);
         const data = await res.json();
@@ -204,7 +206,7 @@ const ProjectsPage = ({
       }
     };
     initFolders();
-  }, [projectFolders.length, demoMode]);
+  }, [apiBaseUrl, projectFolders.length, demoMode]);
 
   useEffect(() => {
     if (projectFolders.length === 0) return;
@@ -214,7 +216,15 @@ const ProjectsPage = ({
     }
     const selected = projectFolders.find((item) => item.path === selectedFolder);
     loadProjects(selected || selectedFolder);
-  }, [refreshKey, projectFolders, selectedFolder]);
+  }, [refreshKey, projectFolders, selectedFolder, loadProjects]);
+
+  const reloadProjects = useCallback(() => {
+    if (selectedFolder === 'all') {
+      return loadProjects(projectFolders);
+    }
+    const selected = projectFolders.find((item) => item.path === selectedFolder);
+    return loadProjects(selected || selectedFolder);
+  }, [loadProjects, projectFolders, selectedFolder]);
 
   const handlePickBasePath = (pathValue) => {
     setBasePickerOpen(false);
@@ -286,7 +296,7 @@ const ProjectsPage = ({
       case 'active':
         return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
       case 'planning':
-        return 'bg-secondary/20 text-secondary border-secondary/30';
+        return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
       case 'archived':
         return 'bg-muted/20 text-muted-foreground border-border';
       default:
@@ -334,7 +344,7 @@ const ProjectsPage = ({
         alert(data.error || 'Failed to archive project');
         return;
       }
-      loadProjects(basePath);
+      reloadProjects();
     } catch {
       alert('Failed to archive project');
     }
@@ -363,7 +373,7 @@ const ProjectsPage = ({
             : item
         )
       );
-      loadProjects(basePath);
+      reloadProjects();
     } catch (e) {
       alert(`Failed to update status: ${e?.message || 'Unknown error'}`);
     }
@@ -383,7 +393,7 @@ const ProjectsPage = ({
           </div>
           <div className="rounded-lg border border-border bg-card p-6">
             <p className="mb-2 text-sm text-muted-foreground">Total Experiments</p>
-            <p className="text-3xl font-bold text-secondary">{totalExperiments}</p>
+            <p className="text-3xl font-bold text-primary">{totalExperiments}</p>
           </div>
           <div className="rounded-lg border border-border bg-card p-6">
             <p className="mb-2 text-sm text-muted-foreground">Avg. Completion</p>
@@ -499,10 +509,11 @@ const ProjectsPage = ({
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-testid="project-status-filters">
             {['all', 'active', 'planning', 'archived'].map((status) => (
               <button
                 key={status}
+                data-testid={`project-status-filter-${status}`}
                 onClick={() => setSelectedStatus(status)}
                 className={`rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
                   selectedStatus === status
@@ -653,7 +664,11 @@ const ProjectsPage = ({
         mode="pick"
         title={basePickerMode === 'project' ? 'Select Project Folder' : 'Select Projects Root'}
         confirmLabel={basePickerMode === 'project' ? 'Add Project' : 'Add Root'}
-        initialPath={basePath || localStorage.getItem('projectsBasePath') || ''}
+        initialPath={
+          (selectedFolder !== 'all' ? selectedFolder : projectFolders[0]?.path) ||
+          localStorage.getItem('projectsBasePath') ||
+          ''
+        }
         onClose={() => setBasePickerOpen(false)}
         onPick={handlePickBasePath}
       />

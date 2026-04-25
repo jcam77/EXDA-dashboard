@@ -41,7 +41,7 @@ From `EXDA-dashboard`:
 npm run dist:mac
 ```
 
-Output: `EXDA-dashboard/dist-electron/`
+Output: `EXDA-dashboard/appsTestEnviroment/builds/macos/`
 
 Notes:
 - Demo projects are copied on first run to `~/Documents/EXDA Projects/Demo Projects`.

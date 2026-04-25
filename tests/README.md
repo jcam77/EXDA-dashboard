@@ -1,71 +1,73 @@
-# Smoke Tests (v0.2)
+# Testing Guide
 
-## Coverage Overview
+## Test Types
 
-This suite uses Playwright to check both UI and backend health:
+- Backend calculations: `backend/tests/test_calculations_reference.py`
+- Frontend unit tests: `frontend/tests/*.test.js`
+- End-to-end (Playwright): `tests/e2e/*.spec.ts`
 
-### UI checks (Playwright browser)
-- Home page: hero heading, project action buttons, footer headings
-- Main navigation: Home, Projects, AiRA tabs
-- Projects page: cards, status filter, filter options
-- AiRA page: workspace heading, cloud badge, warning
-- Analysis tabs: navigation and controls (if project loaded)
-- Keyboard shortcuts overlay (press `?`)
-- Theme toggle button
-- Responsive layout: desktop and tablet
-- No React error boundary or console errors on load
+## Backend Test Data Layout
 
-### API checks (Playwright request)
-- `/list_directories` responds and returns directories
-- `/get_models` responds and returns models
-- `/projects_overview` responds and returns overview
-- `/analyze` (POST) accepts pressure data
-- `/aggregate_plot` (POST) endpoint exists
-- `/list_research_pdfs` (GET) accepts projectPath param
-- `/get_state` returns session state (if implemented)
+- Reference inputs: `backend/tests/reference_data/`
+- Result exports: `backend/tests/results/`
+- Octave comparison scripts: `backend/tests/scripts/comparison/octave/`
+- Python comparison scripts: `backend/tests/scripts/comparison/python/`
+- Python auxiliary scripts: `backend/tests/scripts/auxiliary/python/`
 
-### Integration
-- App loads without React or console errors
-- Works on desktop and tablet viewports
+## E2E Files
 
-## How to run
+- `tests/e2e/app-workflow-and-api.spec.ts` (15 tests)
+- `tests/e2e/import-data-selection.spec.ts` (4 tests)
 
+## Commands
+
+- Backend only:
 ```bash
-npm run smoke
-```
-npx playwright test tests/experiment-selection.spec.ts
-
-If Playwright reports missing system libraries, run:
-
-```bash
-npx playwright install-deps
+npm run test:backend
 ```
 
-## Reports
+- Octave reference export (writes `backend/tests/results/pressure_metrics_octave.csv`):
+```bash
+npm run test:octave
+```
 
-After running tests, open the HTML report:
+- Python pressure metrics export (writes `backend/tests/results/pressure_metrics_python.csv`):
+```bash
+python3 backend/tests/scripts/comparison/python/verify_pressure_metrics_python.py
+```
 
+- EWT Octave reference export for Verification-page peak alignment:
+```bash
+npm run test:ewt:octave
+```
+
+- Frontend unit only:
+```bash
+npm run test:frontend
+```
+
+- E2E only:
+```bash
+npm run test:e2e
+```
+
+- Full suite:
+```bash
+npm run test:all
+```
+
+- Default `npm test`:
+```bash
+npm test
+```
+
+- E2E HTML report:
 ```bash
 npm run test:report
 ```
 
-The report (and any minimal artifacts) are stored in the single folder:
-
-- test-report-results/
-
-If you see "No report found", run the smoke tests first:
-
-```bash
-npx playwright test tests/smoke.spec.ts --reporter=html
-```
-
 ## Notes
 
-- Frontend dev server is started automatically by Playwright.
-- Backend must be running before executing the smoke tests (suite fails fast if it is not reachable).
-- Smoke tests now create a temporary project under `/tmp` for deterministic API checks.
-- You can override the backend URL with `BACKEND_URL`, for example:
-
-```bash
-BACKEND_URL="http://127.0.0.1:5000" npm run smoke
-```
+- Playwright output is stored in `test-report-results/`.
+- Playwright starts frontend/backend servers from `playwright.config.ts`.
+- Backend verification output is terminal-based (not in Playwright HTML).
