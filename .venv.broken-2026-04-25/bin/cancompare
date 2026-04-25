@@ -1,0 +1,6 @@
+#!/media/psf/Sim_Back_Up/EXDA-dashboard/.venv/bin/python
+import sys
+from canmatrix.cli.compare import cli_compare
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(cli_compare())

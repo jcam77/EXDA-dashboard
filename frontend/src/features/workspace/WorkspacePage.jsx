@@ -228,8 +228,6 @@ const WorkspacePage = () => {
           const savedPath = localStorage.getItem('currentProjectPath');
           if (!savedPath) return;
 
-          setProjectPath(savedPath);
-
           try {
               // Pulse check: Fetch current directory state (Plan and Raw Data) from backend
               const state = await fetchJsonWithRetry(
@@ -237,6 +235,7 @@ const WorkspacePage = () => {
               );
 
               if (state.success) {
+                  setProjectPath(savedPath);
                   // 1. Recover the most recent Experiment Plan
                   if (state.plan) {
                       setExperiments(state.plan.experiments || []);
@@ -261,11 +260,31 @@ const WorkspacePage = () => {
               }
           } catch (e) {
               console.error("Critical State Sync Error:", e);
+              const message = (e?.message || '').toString();
+              const missingSavedPath = /Project path (not found|is not a directory|required)/i.test(message);
+
+              if (missingSavedPath) {
+                  setProjectPath(null);
+                  setExperiments([]);
+                  setExpFiles([]);
+                  setProjectStatusFromFile('');
+                  localStorage.removeItem('currentProjectPath');
+                  localStorage.removeItem('lastProjectPath');
+                  localStorage.removeItem('pendingTab');
+                  setModal({
+                      show: true,
+                      type: 'error',
+                      title: 'Saved Project Not Available',
+                      content: 'The last saved project path does not exist on this machine. This can happen when switching between macOS and Linux/VM environments. Please reopen the project from its local path.',
+                  });
+                  return;
+              }
+
               setModal({
                   show: true,
                   type: 'error',
                   title: 'Sync Failed',
-                  content: 'Could not restore project state from disk.',
+                  content: `Could not restore project state from disk.${message ? ` ${message}` : ''}`,
               });
           }
       };

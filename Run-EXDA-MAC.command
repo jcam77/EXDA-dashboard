@@ -7,6 +7,12 @@ cd "$REPO_ROOT" || exit 1
 MISSING_ITEMS=()
 PYTHON_CMD=""
 
+sanitize_local_venv() {
+  if [ -d "$REPO_ROOT/.venv" ]; then
+    find "$REPO_ROOT/.venv" -name '._*' -type f -delete >/dev/null 2>&1 || true
+  fi
+}
+
 print_header() {
   echo "========================================"
   echo "EXDA Launcher (macOS)"
@@ -33,9 +39,15 @@ check_command() {
 }
 
 resolve_python() {
+  sanitize_local_venv
   if [ -x "$REPO_ROOT/.venv/bin/python" ]; then
-    PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
-    return
+    local detected_prefix=""
+    detected_prefix="$("$REPO_ROOT/.venv/bin/python" -c "import sys; print(sys.prefix)" 2>/dev/null || true)"
+    if [ "$detected_prefix" = "$REPO_ROOT/.venv" ]; then
+      PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+      return
+    fi
+    add_missing "Broken local virtualenv: recreate .venv with python3 -m venv .venv"
   fi
   if command -v python3 >/dev/null 2>&1; then
     PYTHON_CMD="python3"
@@ -115,7 +127,7 @@ start_app() {
   fi
 
   echo "Starting EXDA frontend and opening the browser ..."
-  npm run vite
+  npm run vite -- --host 127.0.0.1
 }
 
 print_header

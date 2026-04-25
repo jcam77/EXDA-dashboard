@@ -88,6 +88,6 @@ start "EXDA Backend" cmd /k "cd /d \"%REPO_ROOT%\" && set EXDA_BACKEND_DEBUG=1 &
 timeout /t 2 >nul
 
 echo Starting EXDA frontend and opening the browser ...
-call npm run vite
+call npm run vite -- --host 127.0.0.1
 
 endlocal
