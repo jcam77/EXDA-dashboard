@@ -82,8 +82,12 @@ def calculate_metrics(t, y, user_setting=0.05):
         idx_cutoff = len(y) - 1
         status = f"End threshold {cutoff_fraction * 100:.1f}% Pmax not reached; integrated to end"
 
-    # Use `trapezoid` to avoid NumPy deprecation warnings; fall back for older NumPy.
-    integrate = getattr(np, "trapezoid", np.trapz)
+    # Prefer `trapezoid`, but keep compatibility with environments that still expose `trapz`.
+    integrate = getattr(np, "trapezoid", None)
+    if integrate is None:
+        integrate = getattr(np, "trapz", None)
+    if integrate is None:
+        raise AttributeError("NumPy integration helper not available")
     impulse = integrate(y[: idx_cutoff + 1], t[: idx_cutoff + 1])
     return p_max, t_max, impulse, status
 
