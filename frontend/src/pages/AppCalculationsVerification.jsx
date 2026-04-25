@@ -41,10 +41,13 @@ const formatFixed = (value, digits = 3) => {
 const AppCalculationsVerificationPage = () => {
   const apiBaseUrl = getBackendBaseUrl();
   const [activeSection, setActiveSection] = useState('ewt');
+  const [dataSource, setDataSource] = useState('fixture');
+  const [customFiles, setCustomFiles] = useState({ clean: null, noisy: null });
   const [settings, setSettings] = useState({
     decayPercent: 95,
     cutoffHz: 20,
     order: 4,
+    ewtMaxNumPeaks: 5,
     ewtNumModes: 5,
     ewtMaxPoints: 1200,
   });
@@ -61,22 +64,48 @@ const AppCalculationsVerificationPage = () => {
     ewtError: null,
     ewtPeakAlignment: [],
     ewtAlignmentAvailable: false,
+    dataSource: 'fixture',
   });
 
   const fetchVerificationData = useCallback(async () => {
     setIsLoading(true);
     setError('');
     try {
-      const params = new URLSearchParams({
-        decayPercent: String(settings.decayPercent),
-        cutoffHz: String(settings.cutoffHz),
-        order: String(settings.order),
-        ewtNumModes: String(settings.ewtNumModes),
-        ewtMaxPoints: String(settings.ewtMaxPoints),
-      });
-      const response = await fetch(`${apiBaseUrl}/calculation_verification?${params.toString()}`);
+      let response;
+      if (dataSource === 'custom') {
+        if (!customFiles.noisy) {
+          throw new Error('Select at least a noisy input file for custom verification.');
+        }
+        const [cleanContent, noisyContent] = await Promise.all([
+          customFiles.clean ? customFiles.clean.text() : Promise.resolve(''),
+          customFiles.noisy.text(),
+        ]);
+        response = await fetch(`${apiBaseUrl}/calculation_verification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            decayPercent: settings.decayPercent,
+            cutoffHz: settings.cutoffHz,
+            order: settings.order,
+            ewtMaxNumPeaks: settings.ewtMaxNumPeaks ?? settings.ewtNumModes ?? 5,
+            ewtMaxPoints: settings.ewtMaxPoints,
+            cleanContent,
+            noisyContent,
+          }),
+        });
+      } else {
+        const params = new URLSearchParams({
+          decayPercent: String(settings.decayPercent),
+          cutoffHz: String(settings.cutoffHz),
+          order: String(settings.order),
+          ewtMaxNumPeaks: String(settings.ewtMaxNumPeaks ?? settings.ewtNumModes ?? 5),
+          ewtMaxPoints: String(settings.ewtMaxPoints),
+        });
+        response = await fetch(`${apiBaseUrl}/calculation_verification?${params.toString()}`);
+      }
       const data = await response.json();
       if (!response.ok) {
+        setPayload((prev) => ({ ...prev, plotData: [], ewtData: null, pythonMetrics: {} }));
         throw new Error(data?.error || 'Failed to load verification data');
       }
       setPayload(data);
@@ -87,16 +116,23 @@ const AppCalculationsVerificationPage = () => {
     }
   }, [
     apiBaseUrl,
+    dataSource,
+    customFiles.clean,
+    customFiles.noisy,
     settings.cutoffHz,
     settings.decayPercent,
     settings.ewtMaxPoints,
+    settings.ewtMaxNumPeaks,
     settings.ewtNumModes,
     settings.order,
   ]);
 
   useEffect(() => {
+    if (dataSource === 'custom' && !customFiles.noisy) {
+      return;
+    }
     fetchVerificationData();
-  }, [fetchVerificationData]);
+  }, [dataSource, customFiles.clean, customFiles.noisy, fetchVerificationData]);
 
   const pressureChartData = useMemo(() => {
     if (!Array.isArray(payload.plotData)) return [];
@@ -124,7 +160,7 @@ const AppCalculationsVerificationPage = () => {
       { key: 'raw', label: 'Raw Signal', color: '#ef4444' },
       ...ewtModeKeys.map((key) => ({
         key,
-        label: `Mode ${key.replace('mode_', '')}`,
+        label: `EWT MRA Component ${key.replace('mode_', '')}`,
         color: '#38bdf8',
       })),
     ],
@@ -180,7 +216,12 @@ const AppCalculationsVerificationPage = () => {
 
       <div className="bg-card/60 border border-border rounded-xl p-4">
         <h3 className="text-sm font-bold text-foreground mb-3">Python vs MATLAB/Octave Pressure Metrics</h3>
-        {!payload.matlabMetricsAvailable && (
+        {payload.dataSource === 'custom' && (
+          <div className="mb-3 text-xs text-blue-400 bg-blue-900/10 border border-blue-900/30 rounded px-3 py-2">
+            Custom input is active. Fixture-based MATLAB/Octave reference metrics are disabled for this run.
+          </div>
+        )}
+        {payload.dataSource !== 'custom' && !payload.matlabMetricsAvailable && (
           <div className="mb-3 text-xs text-yellow-500 bg-yellow-900/10 border border-yellow-900/30 rounded px-3 py-2">
             MATLAB/Octave metrics file is missing or empty. Export results to{' '}
             <code>{payload.matlabMetricsFile || 'backend/tests/results/pressure_metrics_octave.csv'}</code>.
@@ -236,7 +277,7 @@ const AppCalculationsVerificationPage = () => {
       <div className="bg-card/60 border border-border rounded-xl p-4">
         <div className="flex items-center gap-2 text-sm font-bold text-foreground mb-3">
           <AudioLines size={16} className="text-primary" />
-          EWT Verification (Noisy Fixture)
+          EWT Verification ({payload.dataSource === 'custom' ? 'Custom Noisy Input' : 'Noisy Fixture'})
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 min-h-[560px]">
@@ -275,7 +316,7 @@ const AppCalculationsVerificationPage = () => {
               <div>Samples: <span className="text-foreground">{ewtSummary.samples ?? '-'}</span></div>
               <div>Plotted points: <span className="text-foreground">{ewtPlottedPointCount || 0}</span></div>
               <div>Sampling rate: <span className="text-foreground">{formatFixed(ewtSummary.fs, 2)} Hz</span></div>
-              <div>Modes returned: <span className="text-foreground">{ewtSummary.numModes ?? '-'}</span></div>
+              <div>EWT MRA Components returned: <span className="text-foreground">{ewtSummary.maxNumPeaks ?? ewtSummary.numModes ?? '-'}</span></div>
             </div>
 
             {ewtWarning && (
@@ -286,7 +327,7 @@ const AppCalculationsVerificationPage = () => {
             )}
 
             <div className="rounded border border-border/60 bg-black/20 p-3">
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Mode Energy (%)</div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">EWT MRA Component Energy (%)</div>
               {ewtEnergy.length === 0 ? (
                 <div className="text-xs text-muted-foreground">No EWT energy data.</div>
               ) : (
@@ -315,11 +356,11 @@ const AppCalculationsVerificationPage = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="rounded border border-primary/30 bg-primary/10 p-3 overflow-auto">
-          <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Python EWT Mode Peaks</div>
+          <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Python EWT MRA Component Peaks</div>
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="text-[10px] tracking-widest text-primary border-b border-primary/20">
-                <th className="text-left pb-2">Mode</th>
+                <th className="text-left pb-2">Component</th>
                 <th className="text-right pb-2">Peak (Hz)</th>
                 <th className="text-right pb-2">Energy (%)</th>
               </tr>
@@ -345,7 +386,11 @@ const AppCalculationsVerificationPage = () => {
           <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">
             Python vs Octave Peak Alignment
           </div>
-          {!payload.ewtAlignmentAvailable ? (
+          {payload.dataSource === 'custom' ? (
+            <div className="text-xs text-muted-foreground">
+              Octave peak alignment is fixture-based and is disabled for custom uploaded inputs.
+            </div>
+          ) : !payload.ewtAlignmentAvailable ? (
             <div className="text-xs text-muted-foreground">
               Run <code>npm run test:ewt:octave</code> to generate <code>backend/tests/results/ewt_peak_metrics_octave.csv</code>.
             </div>
@@ -353,7 +398,7 @@ const AppCalculationsVerificationPage = () => {
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr className="text-[10px] tracking-widest text-primary border-b border-primary/20">
-                  <th className="text-left pb-2">Mode</th>
+                  <th className="text-left pb-2">Component</th>
                   <th className="text-right pb-2">Python (Hz)</th>
                   <th className="text-right pb-2">Octave (Hz)</th>
                   <th className="text-right pb-2">|Δ| (Hz)</th>
@@ -408,6 +453,72 @@ const AppCalculationsVerificationPage = () => {
             Refresh
           </button>
         </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setDataSource('fixture')}
+            className={`px-3 py-2 rounded-md text-xs font-semibold border transition ${
+              dataSource === 'fixture'
+                ? 'border-primary bg-primary/15 text-primary'
+                : 'border-border text-muted-foreground hover:border-primary/60 hover:text-foreground'
+            }`}
+          >
+            Built-in Fixture Data
+          </button>
+          <button
+            onClick={() => setDataSource('custom')}
+            className={`px-3 py-2 rounded-md text-xs font-semibold border transition ${
+              dataSource === 'custom'
+                ? 'border-primary bg-primary/15 text-primary'
+                : 'border-border text-muted-foreground hover:border-primary/60 hover:text-foreground'
+            }`}
+          >
+            Custom Uploaded Data
+          </button>
+        </div>
+
+        {dataSource === 'custom' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="flex flex-col items-start">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                Clean Reference File (Optional)
+              </label>
+              <input
+                type="file"
+                accept=".csv,.txt,.dat,.asc,.ascii"
+                onChange={(event) =>
+                  setCustomFiles((prev) => ({
+                    ...prev,
+                    clean: event.target.files?.[0] || null,
+                  }))
+                }
+                className="mt-1 w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+              />
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                {customFiles.clean ? customFiles.clean.name : 'No file selected'}
+              </div>
+            </div>
+            <div className="flex flex-col items-start">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                Noisy Input File (Required)
+              </label>
+              <input
+                type="file"
+                accept=".csv,.txt,.dat,.asc,.ascii"
+                onChange={(event) =>
+                  setCustomFiles((prev) => ({
+                    ...prev,
+                    noisy: event.target.files?.[0] || null,
+                  }))
+                }
+                className="mt-1 w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+              />
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                {customFiles.noisy ? customFiles.noisy.name : 'No file selected'}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <button
@@ -494,16 +605,17 @@ const AppCalculationsVerificationPage = () => {
         ) : (
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col items-start">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Num Modes</label>
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">MaxNumPeaks</label>
               <input
                 type="number"
                 min="1"
                 max="10"
                 step="1"
-                value={settings.ewtNumModes}
+                value={settings.ewtMaxNumPeaks ?? settings.ewtNumModes ?? 5}
                 onChange={(event) =>
                   setSettings((prev) => ({
                     ...prev,
+                    ewtMaxNumPeaks: Math.max(1, Math.min(10, Number(event.target.value) || 1)),
                     ewtNumModes: Math.max(1, Math.min(10, Number(event.target.value) || 1)),
                   }))
                 }

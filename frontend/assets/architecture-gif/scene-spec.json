@@ -1,0 +1,43 @@
+{
+  "name": "EXDAArchitectureFlow",
+  "resolution": "640x360",
+  "fps": 10,
+  "durationSeconds": 20,
+  "phases": [
+    {
+      "id": 1,
+      "time": "0-4",
+      "title": "Plan",
+      "nodes": ["User", "Plan tab", "Run metadata"],
+      "edges": [["User", "Plan tab"], ["Plan tab", "Run metadata"]]
+    },
+    {
+      "id": 2,
+      "time": "4-8",
+      "title": "Data",
+      "nodes": ["Raw_Data/<test>", "Clean_Data/<test>", "CFD_Data"],
+      "edges": [["Run metadata", "Raw_Data/<test>"], ["Raw_Data/<test>", "Clean_Data/<test>"], ["Clean_Data/<test>", "CFD_Data"]]
+    },
+    {
+      "id": 3,
+      "time": "8-12",
+      "title": "Compute",
+      "nodes": ["Frontend UI", "API routes", "Analysis modules"],
+      "edges": [["Frontend UI", "API routes"], ["API routes", "Analysis modules"]]
+    },
+    {
+      "id": 4,
+      "time": "12-16",
+      "title": "Output",
+      "nodes": ["Pressure", "EWT", "Verification metrics"],
+      "edges": [["Analysis modules", "Pressure"], ["Analysis modules", "EWT"], ["Analysis modules", "Verification metrics"]]
+    },
+    {
+      "id": 5,
+      "time": "16-20",
+      "title": "Decision",
+      "nodes": ["Engineering assessment", "Repeat test?", "Report"],
+      "edges": [["Verification metrics", "Engineering assessment"], ["Engineering assessment", "Repeat test?"], ["Engineering assessment", "Report"]]
+    }
+  ]
+}

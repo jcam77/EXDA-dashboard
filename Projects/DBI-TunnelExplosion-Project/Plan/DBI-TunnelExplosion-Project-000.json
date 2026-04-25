@@ -11,7 +11,10 @@
         "t0": "293",
         "ignition": "back ignition",
         "vent": "fix plastic film",
-        "cfdHash": ""
+        "cfdHash": "",
+        "dataFiles": [
+          "expData/Overpressure sensors/Problem grounding.txt"
+        ]
       },
       "notes": "Binary file, no time stamp or sample rate metadata"
     },
