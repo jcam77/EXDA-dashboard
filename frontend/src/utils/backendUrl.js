@@ -1,8 +1,8 @@
 /* global __EXDA_DEFAULT_BACKEND_HOST__, __EXDA_DEFAULT_BACKEND_PORT__ */
-const DEFAULT_BACKEND_HOST =
-  typeof __EXDA_DEFAULT_BACKEND_HOST__ !== 'undefined' ? __EXDA_DEFAULT_BACKEND_HOST__ : '127.0.0.1';
-const DEFAULT_BACKEND_PORT =
-  typeof __EXDA_DEFAULT_BACKEND_PORT__ !== 'undefined' ? __EXDA_DEFAULT_BACKEND_PORT__ : '5000';
+export const DEFAULT_BACKEND_HOST =
+  typeof __EXDA_DEFAULT_BACKEND_HOST__ !== 'undefined' ? __EXDA_DEFAULT_BACKEND_HOST__ : '';
+export const DEFAULT_BACKEND_PORT =
+  typeof __EXDA_DEFAULT_BACKEND_PORT__ !== 'undefined' ? __EXDA_DEFAULT_BACKEND_PORT__ : '';
 
 export const getBackendPort = () => {
   if (typeof window === 'undefined') return DEFAULT_BACKEND_PORT;

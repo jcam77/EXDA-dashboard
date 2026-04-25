@@ -15,10 +15,10 @@ OPTIONAL_ITEMS=()
 PYTHON_CMD=""
 NPM_CMD=""
 NPM_CLI_PATH=""
-FRONTEND_HOST="${EXDA_FRONTEND_HOST:-${EXDA_DEFAULT_FRONTEND_HOST:-127.0.0.1}}"
-FRONTEND_PORT="${EXDA_FRONTEND_PORT:-${EXDA_DEFAULT_FRONTEND_PORT:-5173}}"
-BACKEND_HOST="${EXDA_BACKEND_HOST:-${EXDA_DEFAULT_BACKEND_HOST:-127.0.0.1}}"
-BACKEND_PORT="${EXDA_BACKEND_PORT:-${EXDA_DEFAULT_BACKEND_PORT:-5000}}"
+FRONTEND_HOST="${EXDA_FRONTEND_HOST:-${EXDA_DEFAULT_FRONTEND_HOST:-}}"
+FRONTEND_PORT="${EXDA_FRONTEND_PORT:-${EXDA_DEFAULT_FRONTEND_PORT:-}}"
+BACKEND_HOST="${EXDA_BACKEND_HOST:-${EXDA_DEFAULT_BACKEND_HOST:-}}"
+BACKEND_PORT="${EXDA_BACKEND_PORT:-${EXDA_DEFAULT_BACKEND_PORT:-}}"
 
 sanitize_local_venv() {
   if [ -d "$REPO_ROOT/.venv" ]; then
@@ -271,6 +271,13 @@ check_ollama_status() {
   fi
 }
 
+check_runtime_defaults() {
+  [ -n "$FRONTEND_HOST" ] || add_missing "Missing runtime setting: EXDA_DEFAULT_FRONTEND_HOST in config/exda-defaults.env"
+  [ -n "$FRONTEND_PORT" ] || add_missing "Missing runtime setting: EXDA_DEFAULT_FRONTEND_PORT in config/exda-defaults.env"
+  [ -n "$BACKEND_HOST" ] || add_missing "Missing runtime setting: EXDA_DEFAULT_BACKEND_HOST in config/exda-defaults.env"
+  [ -n "$BACKEND_PORT" ] || add_missing "Missing runtime setting: EXDA_DEFAULT_BACKEND_PORT in config/exda-defaults.env"
+}
+
 print_missing_summary() {
   echo ""
   echo "EXDA cannot start yet. Please install the missing requirements:"
@@ -359,6 +366,7 @@ print_header
 check_command node
 resolve_npm
 resolve_python
+check_runtime_defaults
 check_node_packages
 check_python_packages
 check_optional_python_packages

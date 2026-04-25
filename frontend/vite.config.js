@@ -45,8 +45,12 @@ const defaults = readDefaults()
 
 const appVersion = process.env.EXDA_APP_VERSION || gitVersion || pkg.version || '0.0.0'
 const lastUpdated = process.env.EXDA_LAST_UPDATED || gitUpdated || pkg.lastUpdated || new Date().toISOString()
-const defaultBackendHost = process.env.EXDA_BACKEND_HOST || defaults.EXDA_DEFAULT_BACKEND_HOST || '127.0.0.1'
-const defaultBackendPort = process.env.EXDA_BACKEND_PORT || defaults.EXDA_DEFAULT_BACKEND_PORT || '5000'
+const defaultBackendHost = process.env.EXDA_BACKEND_HOST || defaults.EXDA_DEFAULT_BACKEND_HOST
+const defaultBackendPort = process.env.EXDA_BACKEND_PORT || defaults.EXDA_DEFAULT_BACKEND_PORT
+
+if (!defaultBackendHost || !defaultBackendPort) {
+  throw new Error('Missing EXDA backend defaults. Define them in config/exda-defaults.env or env vars.')
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({

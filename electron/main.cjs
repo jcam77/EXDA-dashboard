@@ -6,7 +6,7 @@ const { spawn } = require('child_process');
 
 const isDev = !app.isPackaged;
 let backendProcess = null;
-let backendPort = 5000;
+let backendPort = null;
 
 const DEMO_PROJECT_NAME = 'VH2D-Project';
 const DEMO_PARENT_DIR = 'Demo Projects';
@@ -31,10 +31,14 @@ const readDefaults = () => {
 };
 
 const defaults = readDefaults();
-const defaultFrontendHost = process.env.EXDA_FRONTEND_HOST || defaults.EXDA_DEFAULT_FRONTEND_HOST || '127.0.0.1';
-const defaultFrontendPort = Number(process.env.EXDA_FRONTEND_PORT || defaults.EXDA_DEFAULT_FRONTEND_PORT || 5173);
-const defaultBackendHost = process.env.EXDA_BACKEND_HOST || defaults.EXDA_DEFAULT_BACKEND_HOST || '127.0.0.1';
-const defaultBackendPort = Number(process.env.EXDA_BACKEND_PORT || defaults.EXDA_DEFAULT_BACKEND_PORT || 5000);
+const defaultFrontendHost = process.env.EXDA_FRONTEND_HOST || defaults.EXDA_DEFAULT_FRONTEND_HOST;
+const defaultFrontendPort = Number(process.env.EXDA_FRONTEND_PORT || defaults.EXDA_DEFAULT_FRONTEND_PORT);
+const defaultBackendHost = process.env.EXDA_BACKEND_HOST || defaults.EXDA_DEFAULT_BACKEND_HOST;
+const defaultBackendPort = Number(process.env.EXDA_BACKEND_PORT || defaults.EXDA_DEFAULT_BACKEND_PORT);
+
+if (!defaultFrontendHost || !defaultFrontendPort || !defaultBackendHost || !defaultBackendPort) {
+  throw new Error('Missing EXDA runtime defaults. Define them in config/exda-defaults.env or env vars.');
+}
 
 const resolveDemoSource = () => {
   if (isDev) {

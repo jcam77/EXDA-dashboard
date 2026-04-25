@@ -17,16 +17,12 @@ set "PYTHON_ARGS="
 set "CHECK_FILE=%TEMP%\exda_missing_python_%RANDOM%.txt"
 set "FRONTEND_HOST=%EXDA_FRONTEND_HOST%"
 if not defined FRONTEND_HOST set "FRONTEND_HOST=%EXDA_DEFAULT_FRONTEND_HOST%"
-if not defined FRONTEND_HOST set "FRONTEND_HOST=127.0.0.1"
 set "FRONTEND_PORT=%EXDA_FRONTEND_PORT%"
 if not defined FRONTEND_PORT set "FRONTEND_PORT=%EXDA_DEFAULT_FRONTEND_PORT%"
-if not defined FRONTEND_PORT set "FRONTEND_PORT=5173"
 set "BACKEND_HOST=%EXDA_BACKEND_HOST%"
 if not defined BACKEND_HOST set "BACKEND_HOST=%EXDA_DEFAULT_BACKEND_HOST%"
-if not defined BACKEND_HOST set "BACKEND_HOST=127.0.0.1"
 set "BACKEND_PORT=%EXDA_BACKEND_PORT%"
 if not defined BACKEND_PORT set "BACKEND_PORT=%EXDA_DEFAULT_BACKEND_PORT%"
-if not defined BACKEND_PORT set "BACKEND_PORT=5000"
 
 echo ========================================
 echo EXDA Launcher (Windows)
@@ -61,6 +57,26 @@ if errorlevel 1 (
 
 if not defined PYTHON_EXE (
   echo  - Missing tool: Python 3
+  set "HAS_ERRORS=1"
+)
+
+if not defined FRONTEND_HOST (
+  echo  - Missing runtime setting: EXDA_DEFAULT_FRONTEND_HOST in config\exda-defaults.env
+  set "HAS_ERRORS=1"
+)
+
+if not defined FRONTEND_PORT (
+  echo  - Missing runtime setting: EXDA_DEFAULT_FRONTEND_PORT in config\exda-defaults.env
+  set "HAS_ERRORS=1"
+)
+
+if not defined BACKEND_HOST (
+  echo  - Missing runtime setting: EXDA_DEFAULT_BACKEND_HOST in config\exda-defaults.env
+  set "HAS_ERRORS=1"
+)
+
+if not defined BACKEND_PORT (
+  echo  - Missing runtime setting: EXDA_DEFAULT_BACKEND_PORT in config\exda-defaults.env
   set "HAS_ERRORS=1"
 )
 
