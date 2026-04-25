@@ -105,6 +105,32 @@ const ProjectsPage = ({
     }
   }, [apiBaseUrl]);
 
+  const countProjectsForEntry = useCallback(async (item) => {
+    const entry = typeof item === 'string' ? { path: item, mode: 'root' } : item;
+    const path = (entry?.path || '').trim();
+    const mode = entry?.mode || 'root';
+    if (!path) return 0;
+
+    try {
+      if (mode === 'project') {
+        const res = await fetch(
+          `${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(path)}`
+        );
+        const data = await res.json();
+        return data.success ? 1 : 0;
+      }
+
+      const res = await fetch(
+        `${apiBaseUrl}/list_directories?path=${encodeURIComponent(path)}`
+      );
+      const data = await res.json();
+      if (!data.success) return 0;
+      return Array.isArray(data.directories) ? data.directories.length : 0;
+    } catch {
+      return 0;
+    }
+  }, [apiBaseUrl]);
+
   const loadProjects = useCallback(async (paths) => {
     const pathList = Array.isArray(paths) ? paths : [paths].filter(Boolean);
     if (pathList.length === 0) return;
@@ -201,7 +227,9 @@ const ProjectsPage = ({
           return item;
         }).filter((item) => item?.path);
         const validated = (await Promise.all(normalized.map(validateFolderEntry))).filter(Boolean);
-        if (validated.length > 0) {
+        const savedProjectCounts = await Promise.all(validated.map(countProjectsForEntry));
+        const hasSavedProjects = savedProjectCounts.some((count) => count > 0);
+        if (validated.length > 0 && hasSavedProjects) {
           setProjectFolders(validated);
           setSelectedFolder('all');
           localStorage.setItem('projectsFoldersList', JSON.stringify(validated));
@@ -246,7 +274,7 @@ const ProjectsPage = ({
       setError('Select a project folder to get started.');
     };
     initFolders();
-  }, [apiBaseUrl, projectFolders.length, demoMode, locateDefaultProjectsRoot, validateFolderEntry]);
+  }, [apiBaseUrl, projectFolders.length, demoMode, locateDefaultProjectsRoot, validateFolderEntry, countProjectsForEntry]);
 
   useEffect(() => {
     if (projectFolders.length === 0) return;
