@@ -36,8 +36,9 @@ git status --short
 2. Commit and push your changes:
 
 ```bash
+git switch CODEX-Updates
 git add .
-git commit -m "Your message"
+git commit -m "MAC launcher update"
 git push origin CODEX-Updates
 ```
 

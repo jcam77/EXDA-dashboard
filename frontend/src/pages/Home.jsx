@@ -153,12 +153,17 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
       }
       try {
         let basePath = '';
+        const defaultRes = await fetch(`${apiBaseUrl}/list_directories`);
+        const defaultData = await defaultRes.json();
+        if (defaultData.success && Array.isArray(defaultData.directories) && defaultData.directories.length > 0) {
+          basePath = defaultData.path || '';
+        }
         const savedFoldersRaw = window.localStorage.getItem('projectsFoldersList');
         const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
         const savedRoot = Array.isArray(savedFolders)
           ? savedFolders.find((item) => typeof item === 'string' || item?.mode !== 'project')
           : null;
-        if (savedRoot) {
+        if (!basePath && savedRoot) {
           const candidatePath = typeof savedRoot === 'string' ? savedRoot : savedRoot.path || '';
           if (candidatePath) {
             const savedRes = await fetch(
@@ -170,14 +175,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             }
           }
         }
-        if (!basePath) {
-          const res = await fetch(`${apiBaseUrl}/list_directories`);
-          const data = await res.json();
-          if (!data.success) return;
-          const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
-          if (!projectsDir?.path) return;
-          basePath = projectsDir.path;
-        }
+        if (!basePath) return;
         if (demoMode) {
           const demoRes = await fetch(
             `${apiBaseUrl}/list_directories?path=${encodeURIComponent(basePath)}`
