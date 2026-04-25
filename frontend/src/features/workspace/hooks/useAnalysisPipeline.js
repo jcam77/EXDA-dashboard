@@ -81,7 +81,7 @@ export const useAnalysisPipeline = ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               content: fileObj.content,
-              numModes: settings.ewtNumModes,
+              maxNumPeaks: settings.ewtMaxNumPeaks ?? settings.ewtNumModes ?? 5,
               maxPoints: settings.ewtMaxPoints,
               channelIndex: channelValue,
               pressureUnit: normalizedEwtUnit === 'auto' || !normalizedEwtUnit ? DEFAULT_INPUT_UNIT : normalizedEwtUnit,
@@ -311,7 +311,7 @@ export const useAnalysisPipeline = ({
     }
     const t = setTimeout(runAnalysis, 300);
     return () => clearTimeout(t);
-  }, [activeTab, runAnalysis, settings.ewtMaxPoints, settings.ewtNumModes, settings.ewtSelectedPath]);
+  }, [activeTab, runAnalysis, settings.ewtMaxPoints, settings.ewtMaxNumPeaks, settings.ewtNumModes, settings.ewtSelectedPath]);
   
 
   useEffect(() => {

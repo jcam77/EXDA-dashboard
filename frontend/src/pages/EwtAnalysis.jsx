@@ -35,6 +35,10 @@ const EwtAnalysisPage = ({
     const [localYTickCount, setLocalYTickCount] = useState(10);
 
     useEffect(() => {
+        setLocalTickCount(settings.ewtTickCount || 10);
+    }, [settings.ewtTickCount]);
+
+    useEffect(() => {
         if (!selectedPath) return;
         const exists = candidates.some(c => (c.path || c.name) === selectedPath);
         if (!exists) {
@@ -96,7 +100,7 @@ const EwtAnalysisPage = ({
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-card/60 border border-border rounded-xl p-4 flex flex-col max-w-[900px] w-full mx-auto lg:mx-0">
                     <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-bold text-foreground">Signal + EWT Modes</h3>
+                        <h3 className="text-sm font-bold text-foreground">Signal + EWT MRA Components</h3>
                         {isProcessing && (
                             <span className="text-[10px] uppercase tracking-widest text-primary animate-pulse">Processing...</span>
                         )}
@@ -124,7 +128,7 @@ const EwtAnalysisPage = ({
                                     { key: 'raw', label: 'Raw Signal', color: 'hsl(var(--destructive))' },
                                     ...modeKeys.map((key, idx) => ({
                                         key,
-                                        label: `Mode ${key.replace('mode_', '')}`,
+                                        label: `EWT MRA Component ${key.replace('mode_', '')}`,
                                         color: modeColors[idx % modeColors.length],
                                     })),
                                 ].map((series, idx) => (
@@ -143,7 +147,7 @@ const EwtAnalysisPage = ({
                                                         fontSize={10}
                                                         tickFormatter={formatTimeTick}
                                                         tickCount={localTickCount || 10}
-                                                        domain={[0, 'dataMax']}
+                                                        domain={['dataMin', 'dataMax']}
                                                         allowDataOverflow
                                                         label={{
                                                             value: 'Time (s)',
@@ -219,6 +223,54 @@ const EwtAnalysisPage = ({
                                 </p>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
+                                <label className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                    <input
+                                        type="checkbox"
+                                        checked={Boolean(settings.analysisLimitTimeWindow)}
+                                        onChange={(e) =>
+                                            setSettings((prev) => ({
+                                                ...prev,
+                                                analysisLimitTimeWindow: e.target.checked,
+                                            }))
+                                        }
+                                        className="rounded bg-muted border-border"
+                                    />
+                                    Limit input time window (s)
+                                </label>
+                                <div>
+                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Start Time (s)</label>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={settings.analysisWindowStart ?? ''}
+                                        disabled={!settings.analysisLimitTimeWindow}
+                                        onChange={(e) =>
+                                            setSettings((prev) => ({
+                                                ...prev,
+                                                analysisWindowStart: e.target.value,
+                                            }))
+                                        }
+                                        className="mt-1 w-full bg-background border border-border rounded-md px-2 py-2 text-xs text-foreground outline-none disabled:opacity-50"
+                                        placeholder="e.g., -0.05"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">End Time (s)</label>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={settings.analysisWindowEnd ?? ''}
+                                        disabled={!settings.analysisLimitTimeWindow}
+                                        onChange={(e) =>
+                                            setSettings((prev) => ({
+                                                ...prev,
+                                                analysisWindowEnd: e.target.value,
+                                            }))
+                                        }
+                                        className="mt-1 w-full bg-background border border-border rounded-md px-2 py-2 text-xs text-foreground outline-none disabled:opacity-50"
+                                        placeholder="e.g., 0.12"
+                                    />
+                                </div>
                                 <div>
                                     <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Channel</label>
                                     <select
@@ -262,16 +314,16 @@ const EwtAnalysisPage = ({
                                     Convert to kPa
                                 </label>
                                 <div>
-                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Num Modes</label>
+                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">MaxNumPeaks</label>
                                     <input
                                         type="number"
                                         min="1"
                                         max="10"
-                                        value={settings.ewtNumModes}
+                                        value={settings.ewtMaxNumPeaks ?? settings.ewtNumModes ?? 5}
                                         onChange={(e) => {
                                             const raw = Number(e.target.value || 1);
                                             const next = Math.max(1, Math.min(10, raw));
-                                            setSettings(prev => ({ ...prev, ewtNumModes: next }));
+                                            setSettings(prev => ({ ...prev, ewtMaxNumPeaks: next, ewtNumModes: next }));
                                         }}
                                         className="mt-1 w-full bg-background border border-border rounded-md px-2 py-2 text-xs text-foreground outline-none"
                                     />
@@ -322,7 +374,7 @@ const EwtAnalysisPage = ({
                     )}
 
                     <div className="bg-card/60 border border-border rounded-xl p-4">
-                        <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Mode Energy (%)</h4>
+                        <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">EWT MRA Component Energy (%)</h4>
                         {energy.length > 0 ? (
                             <div className="h-[180px] max-w-[360px] mx-auto">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -333,7 +385,7 @@ const EwtAnalysisPage = ({
                                             stroke="hsl(var(--muted-foreground))"
                                             fontSize={10}
                                             label={{
-                                                value: 'Mode',
+                                                value: 'Component',
                                                 position: 'insideBottom',
                                                 offset: -4,
                                                 fill: 'hsl(var(--muted-foreground))',
@@ -383,14 +435,14 @@ const EwtAnalysisPage = ({
 
                     <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
                         <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">
-                            Mode Summary
+                            EWT MRA Component Summary
                         </div>
                         {energy.length > 0 ? (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs border-collapse">
                                     <thead>
                                         <tr className="text-[10px] text-muted-foreground uppercase border-b border-primary/20">
-                                            <th className="pb-2">Mode</th>
+                                            <th className="pb-2">Component</th>
                                             <th className="pb-2">Energy %</th>
                                             <th className="pb-2">Peak Freq (Hz)</th>
                                             <th className="pb-2">Interpretation</th>
@@ -409,7 +461,7 @@ const EwtAnalysisPage = ({
                                 </table>
                             </div>
                         ) : (
-                            <div className="text-xs text-muted-foreground">No mode summary yet.</div>
+                            <div className="text-xs text-muted-foreground">No EWT MRA component summary yet.</div>
                         )}
                     </div>
                 </div>

@@ -70,12 +70,12 @@ def perform_dwt_analysis(y, level=4):
     return modes_arr
 
 
-def perform_ewt_analysis(y, fs, num_modes=5):
+def perform_ewt_analysis(y, fs, max_num_peaks=5):
     """Run EWT decomposition and return modes or an error message."""
     if not HAS_EWT:
         return None, "EWT library unavailable"
     try:
-        ewt, _, _ = ewtpy.EWT1D(y, N=num_modes)
+        ewt, _, _ = ewtpy.EWT1D(y, N=max_num_peaks)
         return ewt.T, None
     except Exception as e:
         return None, f"EWT failed ({e})"
@@ -105,20 +105,21 @@ def downsample_plot_data(t, raw, modes, max_points=2000):
     return plot
 
 
-def _resolve_knee_modes(num_modes, knee_modes=None):
+def _resolve_knee_modes(max_num_peaks, knee_modes=None):
     """Resolve internal mode count used for knee estimation."""
     if knee_modes is None:
-        return max(2, min(10, max(int(num_modes), 8)))
+        return max(2, min(10, max(int(max_num_peaks), 8)))
     try:
         candidate = int(knee_modes)
     except (TypeError, ValueError):
-        return max(2, min(10, max(int(num_modes), 8)))
-    return max(2, min(10, max(int(num_modes), candidate)))
+        return max(2, min(10, max(int(max_num_peaks), 8)))
+    return max(2, min(10, max(int(max_num_peaks), candidate)))
 
 
 def analyze_ewt_content(
     content,
-    num_modes=5,
+    max_num_peaks=5,
+    num_modes=None,
     max_points=2000,
     knee_modes=None,
     channel_index=0,
@@ -126,6 +127,11 @@ def analyze_ewt_content(
     convert_to_kpa=True,
 ):
     """Run full EWT workflow and return summary, modes, and recommendations."""
+    # Backward compatibility: accept legacy num_modes if provided by older callers.
+    if num_modes is not None:
+        max_num_peaks = num_modes
+    max_num_peaks = max(1, min(10, int(max_num_peaks)))
+
     t, y, err = parse_data_content(content, channel_index=channel_index)
     if err:
         return {"error": err}
@@ -137,7 +143,7 @@ def analyze_ewt_content(
     )
 
     t_uni, y_uni, fs = resample_uniform(t, y)
-    modes, warning = perform_ewt_analysis(y_uni, fs, num_modes=num_modes)
+    modes, warning = perform_ewt_analysis(y_uni, fs, max_num_peaks=max_num_peaks)
     if modes is None:
         return {"error": warning or "EWT failed"}
     energies, pcts = calculate_energy(modes)
@@ -182,9 +188,9 @@ def analyze_ewt_content(
     cumulative = []
     ewt_cumulative = []
     mode_spectrum = []
-    knee_modes = _resolve_knee_modes(num_modes=num_modes, knee_modes=knee_modes)
+    knee_modes = _resolve_knee_modes(max_num_peaks=max_num_peaks, knee_modes=knee_modes)
 
-    knee_modes_data, knee_warning = perform_ewt_analysis(y_uni, fs, num_modes=knee_modes)
+    knee_modes_data, knee_warning = perform_ewt_analysis(y_uni, fs, max_num_peaks=knee_modes)
     knee_energies, knee_pcts = calculate_energy(knee_modes_data)
     knee_energy_table = []
     for i in range(len(knee_energies)):
@@ -243,7 +249,7 @@ def analyze_ewt_content(
         suggestion = {
             "cutoffHz": float(np.round(cutoff_target, 1)),
             "basis": "Energy-retention target",
-            "note": f"Cutoff chosen as the lowest mode-peak frequency where cumulative energy reaches {target_pct:.0f}% (estimated using {knee_modes} modes)."
+            "note": f"Cutoff chosen as the lowest mode-peak frequency where cumulative energy reaches {target_pct:.0f}% (estimated using {knee_modes} EWT MRA components)."
         }
     if suggestion is None:
         warning = warning or "Insufficient EWT mode peaks to estimate cutoff; try increasing modes or checking input data."
@@ -252,6 +258,7 @@ def analyze_ewt_content(
         "summary": {
             "samples": int(len(t_uni)),
             "fs": float(fs),
+            "maxNumPeaks": int(modes.shape[0]),
             "numModes": int(modes.shape[0]),
             "usesEWT": bool(HAS_EWT),
             "usesPyWT": bool(HAS_PYWT),

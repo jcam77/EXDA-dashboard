@@ -159,7 +159,7 @@ const WorkspacePage = () => {
   const [settings, setSettings] = useState({ 
     useRaw: false, cutoff: 100, order: 4, impulseDrop: 0.05, 
     showVentLines: true, useShortNames: true,
-    ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
+    ewtMaxNumPeaks: 5, ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
     pressureChannelIndex: 0, ewtChannelIndex: 0,
     pressureInputUnit: DEFAULT_INPUT_UNIT, ewtInputUnit: DEFAULT_INPUT_UNIT,
     pressureConvertToKpa: true, ewtConvertToKpa: true,

@@ -65,6 +65,20 @@ def _series_to_content(t, p):
     return "\n".join(f"{float(ti):.12g} {float(pi):.12g}" for ti, pi in zip(t, p))
 
 
+def _read_content_signal(content: str):
+    """Parse a two-column/multichannel content payload and return normalized kPa pressure."""
+    t, y, err = data_parser.parse_time_signal_content(content, channel_index=0)
+    if err:
+        raise ValueError(err)
+    y_norm, _, _ = data_parser.normalize_pressure_to_kpa(
+        y,
+        content=content,
+        input_unit="auto",
+        convert_to_kpa=True,
+    )
+    return t, y_norm
+
+
 def _safe_float(value, default):
     """Parse float with fallback."""
     try:
@@ -241,15 +255,15 @@ def analyze_ewt():
         content = req.get('content', '')
         if not content:
             return jsonify({"error": "Missing content"}), 400
-        num_modes = int(req.get('numModes', 5))
+        max_num_peaks = int(req.get('maxNumPeaks', req.get('numModes', 5)))
         max_points = int(req.get('maxPoints', 2000))
-        num_modes = max(1, min(10, num_modes))
+        max_num_peaks = max(1, min(10, max_num_peaks))
         channel_index = max(0, _safe_int(req.get('channelIndex', 0), 0))
         pressure_unit = str(req.get('pressureUnit', 'auto') or 'auto')
         convert_to_kpa = _safe_bool(req.get('convertToKpa', True), True)
         result = ewt_analysis.analyze_ewt_content(
             content,
-            num_modes=num_modes,
+            max_num_peaks=max_num_peaks,
             max_points=max_points,
             channel_index=channel_index,
             input_unit=pressure_unit,
@@ -380,41 +394,53 @@ def preview_multichannel():
         return jsonify({"error": str(e)}), 500
 
 
-@calculation_api_bp.route('/calculation_verification', methods=['GET'])
+@calculation_api_bp.route('/calculation_verification', methods=['GET', 'POST'])
 def calculation_verification():
     """Return clean/noisy verification series and Python-vs-MATLAB/Octave metrics."""
     try:
-        decay_percent = _safe_float(request.args.get("decayPercent", 95.0), 95.0)
+        source = request.args if request.method == "GET" else (request.json or {})
+        decay_percent = _safe_float(source.get("decayPercent", 95.0), 95.0)
         decay_percent = float(np.clip(decay_percent, 0.0, 99.9))
         impulse_drop = float(np.clip((100.0 - decay_percent) / 100.0, 0.001, 1.0))
 
-        cutoff_hz = _safe_float(request.args.get("cutoffHz", 20.0), 20.0)
+        cutoff_hz = _safe_float(source.get("cutoffHz", 20.0), 20.0)
         cutoff_hz = max(1e-6, cutoff_hz)
 
-        order = int(round(_safe_float(request.args.get("order", 4), 4.0)))
+        order = int(round(_safe_float(source.get("order", 4), 4.0)))
         order = max(1, min(10, order))
-        ewt_num_modes = int(round(_safe_float(request.args.get("ewtNumModes", 5), 5.0)))
-        ewt_num_modes = max(1, min(10, ewt_num_modes))
-        ewt_max_points = int(round(_safe_float(request.args.get("ewtMaxPoints", 1200), 1200.0)))
+        ewt_max_num_peaks = int(round(_safe_float(source.get("ewtMaxNumPeaks", source.get("ewtNumModes", 5)), 5.0)))
+        ewt_max_num_peaks = max(1, min(10, ewt_max_num_peaks))
+        ewt_max_points = int(round(_safe_float(source.get("ewtMaxPoints", 1200), 1200.0)))
         ewt_max_points = max(200, min(5000, ewt_max_points))
 
-        clean_path = _first_existing_path(VERIFICATION_CLEAN_CANDIDATES)
-        noisy_path = _first_existing_path(VERIFICATION_NOISY_CANDIDATES)
-        missing = [path.name for path in (clean_path, noisy_path) if not path.exists()]
-        if missing:
-            return jsonify({"error": f"Missing verification reference data: {', '.join(missing)}"}), 404
+        clean_content = str(source.get("cleanContent", "") or "")
+        noisy_content = str(source.get("noisyContent", "") or "")
+        using_custom_input = bool(clean_content.strip() or noisy_content.strip())
+        if using_custom_input and not noisy_content.strip():
+            return jsonify({"error": "For custom verification, provide noisyContent."}), 400
+        if using_custom_input and not clean_content.strip():
+            # Allow noisy-only runs; pressure comparison remains available but clean/raw will mirror noisy input.
+            clean_content = noisy_content
 
-        t_clean, p_clean = _read_fixture_signal(clean_path)
-        t_noisy, p_noisy = _read_fixture_signal(noisy_path)
+        if using_custom_input:
+            t_clean, p_clean_norm = _read_content_signal(clean_content)
+            t_noisy, p_noisy_norm = _read_content_signal(noisy_content)
+        else:
+            clean_path = _first_existing_path(VERIFICATION_CLEAN_CANDIDATES)
+            noisy_path = _first_existing_path(VERIFICATION_NOISY_CANDIDATES)
+            missing = [path.name for path in (clean_path, noisy_path) if not path.exists()]
+            if missing:
+                return jsonify({"error": f"Missing verification reference data: {', '.join(missing)}"}), 404
+            t_clean, p_clean = _read_fixture_signal(clean_path)
+            t_noisy, p_noisy = _read_fixture_signal(noisy_path)
+            p_clean_norm = _normalize_pressure_units(p_clean)
+            p_noisy_norm = _normalize_pressure_units(p_noisy)
+            clean_content = _series_to_content(t_clean, p_clean)
+            noisy_content = _series_to_content(t_noisy, p_noisy)
 
-        p_clean_norm = _normalize_pressure_units(p_clean)
-        p_noisy_norm = _normalize_pressure_units(p_noisy)
         t_filtered, p_filtered_norm = pressure_analysis.apply_butterworth(
             t_noisy, p_noisy_norm, cutoff_hz=cutoff_hz, order=order
         )
-
-        clean_content = _series_to_content(t_clean, p_clean)
-        noisy_content = _series_to_content(t_noisy, p_noisy)
 
         python_metrics = {
             "clean_raw": pressure_analysis.analyze_pressure_content(
@@ -430,7 +456,7 @@ def calculation_verification():
 
         ewt_raw = ewt_analysis.analyze_ewt_content(
             noisy_content,
-            num_modes=ewt_num_modes,
+            max_num_peaks=ewt_max_num_peaks,
             max_points=ewt_max_points,
         )
         if ewt_raw.get("error"):
@@ -460,8 +486,8 @@ def calculation_verification():
             }
         )
 
-        matlab_metrics = _load_matlab_metrics()
-        octave_ewt_reference = _load_octave_ewt_reference()
+        matlab_metrics = _load_matlab_metrics() if not using_custom_input else {}
+        octave_ewt_reference = _load_octave_ewt_reference() if not using_custom_input else []
         python_ewt_peaks = {}
         if ewt_data and isinstance(ewt_data.get("energy"), list):
             for row in ewt_data["energy"]:
@@ -489,14 +515,18 @@ def calculation_verification():
                     "absDeltaHz": abs_delta,
                 }
             )
-        pressure_metrics_path = _first_existing_path(PRESSURE_METRICS_CANDIDATES)
-        try:
-            matlab_metrics_file = str(pressure_metrics_path.relative_to(Path.cwd()))
-        except ValueError:
-            matlab_metrics_file = str(pressure_metrics_path)
+        if using_custom_input:
+            matlab_metrics_file = ""
+        else:
+            pressure_metrics_path = _first_existing_path(PRESSURE_METRICS_CANDIDATES)
+            try:
+                matlab_metrics_file = str(pressure_metrics_path.relative_to(Path.cwd()))
+            except ValueError:
+                matlab_metrics_file = str(pressure_metrics_path)
         return jsonify(
             {
                 "success": True,
+                "dataSource": "custom" if using_custom_input else "fixture",
                 "settings": {
                     "decayPercent": decay_percent,
                     "endThresholdPercent": impulse_drop * 100.0,
@@ -504,7 +534,8 @@ def calculation_verification():
                     "order": order,
                 },
                 "ewtSettings": {
-                    "numModes": ewt_num_modes,
+                    "maxNumPeaks": ewt_max_num_peaks,
+                    "numModes": ewt_max_num_peaks,
                     "maxPoints": ewt_max_points,
                 },
                 "plotData": plot_data,
