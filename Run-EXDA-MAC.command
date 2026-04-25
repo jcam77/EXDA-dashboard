@@ -3,9 +3,19 @@ set -u
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT" || exit 1
+DEFAULTS_FILE="$REPO_ROOT/config/exda-defaults.env"
+
+if [ -f "$DEFAULTS_FILE" ]; then
+  # shellcheck disable=SC1090
+  . "$DEFAULTS_FILE"
+fi
 
 MISSING_ITEMS=()
 PYTHON_CMD=""
+FRONTEND_HOST="${EXDA_FRONTEND_HOST:-${EXDA_DEFAULT_FRONTEND_HOST:-127.0.0.1}}"
+FRONTEND_PORT="${EXDA_FRONTEND_PORT:-${EXDA_DEFAULT_FRONTEND_PORT:-5173}}"
+BACKEND_HOST="${EXDA_BACKEND_HOST:-${EXDA_DEFAULT_BACKEND_HOST:-127.0.0.1}}"
+BACKEND_PORT="${EXDA_BACKEND_PORT:-${EXDA_DEFAULT_BACKEND_PORT:-5000}}"
 
 sanitize_local_venv() {
   if [ -d "$REPO_ROOT/.venv" ]; then
@@ -113,8 +123,14 @@ cleanup() {
 
 start_app() {
   echo ""
-  echo "Starting EXDA backend on http://127.0.0.1:5000 ..."
-  EXDA_BACKEND_DEBUG=1 EXDA_BACKEND_PORT=5000 "$PYTHON_CMD" backend/app.py &
+  echo "Starting EXDA backend on http://${BACKEND_HOST}:${BACKEND_PORT} ..."
+  EXDA_BACKEND_DEBUG=1 \
+  EXDA_BACKEND_HOST="$BACKEND_HOST" \
+  EXDA_BACKEND_PORT="$BACKEND_PORT" \
+  EXDA_FRONTEND_HOST="$FRONTEND_HOST" \
+  EXDA_FRONTEND_PORT="$FRONTEND_PORT" \
+  EXDA_CORS_ORIGINS="http://${FRONTEND_HOST}:${FRONTEND_PORT},http://localhost:${FRONTEND_PORT},http://127.0.0.1:${FRONTEND_PORT}" \
+  "$PYTHON_CMD" backend/app.py &
   BACKEND_PID=$!
   trap cleanup EXIT INT TERM
 
@@ -126,8 +142,10 @@ start_app() {
     exit 1
   fi
 
-  echo "Starting EXDA frontend and opening the browser ..."
-  npm run vite -- --host 127.0.0.1
+  echo "Starting EXDA frontend on http://${FRONTEND_HOST}:${FRONTEND_PORT} ..."
+  echo "App URL:"
+  echo "  http://${FRONTEND_HOST}:${FRONTEND_PORT}/?backendPort=${BACKEND_PORT}"
+  npm run vite -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT"
 }
 
 print_header

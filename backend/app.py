@@ -15,6 +15,45 @@ from routes.literature import literature_bp
 
 app = Flask(__name__)
 
+_DEFAULTS_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "config",
+    "exda-defaults.env",
+)
+
+
+def _load_defaults():
+    """Read shared EXDA defaults from config/exda-defaults.env."""
+    defaults = {}
+    try:
+        with open(_DEFAULTS_FILE, "r", encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                defaults[key.strip()] = value.strip()
+    except FileNotFoundError:
+        return {}
+    except Exception:
+        return {}
+    return defaults
+
+
+_DEFAULTS = _load_defaults()
+
+
+def _setting(name, default):
+    """Resolve env var first, then shared default file, then hardcoded default."""
+    value = os.environ.get(name)
+    if value is not None and str(value).strip():
+        return str(value).strip()
+    fallback_name = f"EXDA_DEFAULT_{name.removeprefix('EXDA_')}"
+    fallback = _DEFAULTS.get(fallback_name)
+    if fallback:
+        return fallback
+    return default
+
 def _env_flag(name, default=False):
     """Parse a boolean-like environment variable."""
     value = os.environ.get(name)
@@ -27,7 +66,13 @@ def _cors_origins():
     raw = os.environ.get("EXDA_CORS_ORIGINS", "")
     if raw.strip():
         return [o.strip() for o in raw.split(",") if o.strip()]
-    return ["http://localhost:5173", "http://127.0.0.1:5173"]
+    frontend_host = _setting("EXDA_FRONTEND_HOST", "127.0.0.1")
+    frontend_port = _setting("EXDA_FRONTEND_PORT", "5173")
+    return [
+        f"http://{frontend_host}:{frontend_port}",
+        f"http://localhost:{frontend_port}",
+        f"http://127.0.0.1:{frontend_port}",
+    ]
 
 CORS(app, resources={r"/*": {"origins": _cors_origins()}})
 
@@ -39,6 +84,7 @@ app.register_blueprint(literature_bp)
 
 if __name__ == '__main__':
     print("🚀 EXDA DASHBOARD ENGINE READY")
-    port = int(os.environ.get("EXDA_BACKEND_PORT", "5000"))
+    host = _setting("EXDA_BACKEND_HOST", "127.0.0.1")
+    port = int(_setting("EXDA_BACKEND_PORT", "5000"))
     debug_enabled = _env_flag("EXDA_BACKEND_DEBUG", default=False)
-    app.run(debug=debug_enabled, use_reloader=debug_enabled, port=port)
+    app.run(host=host, debug=debug_enabled, use_reloader=debug_enabled, port=port)
