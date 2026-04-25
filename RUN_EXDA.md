@@ -1,0 +1,64 @@
+# Run EXDA
+
+EXDA is now documented as a browser-first app.
+
+For day-to-day use, the recommended workflow is:
+
+- clone or download the repository
+- run the launcher for your operating system
+- let the launcher check requirements, start the backend, and open the browser
+
+## Launchers
+
+- Linux: [Run-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-LINUX.sh)
+- macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
+- Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
+
+## What the launchers do
+
+- check for required tools: `node`, `npm`, and `python`
+- check that core npm packages are installed
+- check that packages from [backend/requirements.txt](/Volumes/Sim_Back_Up/EXDA-dashboard/backend/requirements.txt) are available
+- print a clear list of missing tools or packages
+- start the Flask backend on `http://127.0.0.1:5000`
+- start the Vite frontend and open the browser
+
+## First-time setup
+
+If the launcher reports missing dependencies, run the appropriate setup steps once.
+
+### Linux and macOS
+
+```bash
+npm install
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+```
+
+Optional extras:
+
+```bash
+pip install -r backend/requirements-optional.txt
+```
+
+### Windows
+
+```powershell
+npm install
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r backend\requirements.txt
+```
+
+Optional extras:
+
+```powershell
+pip install -r backend\requirements-optional.txt
+```
+
+## Notes
+
+- AiRA can remain limited if optional local AI tooling such as Ollama is not installed.
+- The launchers are intended for colleagues testing the app from a repository checkout.
+- Packaged desktop builds are still possible, but they are now treated as a secondary release workflow. See [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).

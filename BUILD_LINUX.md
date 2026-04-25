@@ -1,27 +1,22 @@
-# Linux build (Electron demo)
+# Linux launcher workflow
 
-## Overview
-The Electron app bundles a Python backend binary. For Linux ARM64 you must build
-the backend on an ARM64 Linux host (or a VM) and then run the Electron packaging
-step targeting ARM64 so the final AppImage launches correctly.
+Linux users should run EXDA through the browser-first launcher:
 
-## Backend build (ARM64)
-1) Install Python 3 and a working compiler toolchain on your ARM64 Linux VM.
-2) From the repo root, run:
-   ```bash
-   ./backend/build_backend.sh
-   ```
-3) Confirm the backend binary is present at `backend/dist/exda-backend`.
+```bash
+chmod +x ./Run-EXDA-LINUX.sh
+./Run-EXDA-LINUX.sh
+```
 
-## Electron packaging (ARM64)
-1) From the repo root, run:
-   ```bash
-   npm install
-   npm run dist:linux:arm64
-   ```
-2) The output artifacts are written to `appsTestEnviroment/builds/linux/`.
+The launcher checks for:
 
-## Notes
-- The packaged app searches for `backend/dist/exda-backend` at runtime. If the
-  binary is missing or built for the wrong architecture, the app may appear to
-  open and immediately exit.
+- `node`
+- `npm`
+- `python3` or `python`
+- installed npm dependencies
+- installed Python packages from `backend/requirements.txt`
+
+If anything is missing, the launcher prints the missing items and stops gracefully.
+
+For the full launcher-first workflow, see [RUN_EXDA.md](/Volumes/Sim_Back_Up/EXDA-dashboard/RUN_EXDA.md).
+
+If you intentionally need a packaged desktop artifact instead, see [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).

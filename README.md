@@ -23,7 +23,25 @@ The goal of the app is to make it easier to move from project setup, to experime
 - Python 3.10+
 - Ollama, optional, for local AiRA model support
 
-### 📦 Installation
+### ▶️ Recommended Launchers
+
+For colleagues testing EXDA from a repository checkout, the preferred workflow is to run the launcher for their operating system:
+
+- Linux: [Run-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-LINUX.sh)
+- macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
+- Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
+
+The launcher will:
+
+- check for required tools and packages
+- report anything missing
+- start the backend
+- start the frontend
+- open EXDA in the browser
+
+Full launcher notes are in [RUN_EXDA.md](/Volumes/Sim_Back_Up/EXDA-dashboard/RUN_EXDA.md).
+
+### 📦 Manual Installation
 
 From the repository root:
 
@@ -36,7 +54,7 @@ pip install -r backend/requirements.txt
 # pip install -r backend/requirements-optional.txt
 ```
 
-### ▶️ Run The App
+### ▶️ Manual Run
 
 The simplest way in this repo is:
 
@@ -68,6 +86,9 @@ Open the app at `http://localhost:5173`.
 ```bash
 # Simplest local startup
 run exda
+
+# Browser-first launcher docs
+# See RUN_EXDA.md
 
 # Frontend dev server + backend helper scripts
 npm run dev
@@ -224,3 +245,4 @@ See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 - If AiRA features are unavailable, check whether Ollama and any optional backend dependencies are installed.
 - If PDF-related AI features are limited, install the optional backend requirements.
 - If frontend tooling behaves strangely on shared or synced folders, check for macOS sidecar files such as `._*` and `.DS_Store`, which can interfere with JS tooling.
+- If you need a packaged desktop build rather than the normal browser-first workflow, see [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).

@@ -1,82 +1,126 @@
 # Versioning Guide
 
-This repo uses a single app folder and release tags (no versioned folders).
+EXDA now uses a simplified branch model:
+
+- `main`: stable branch and release source
+- `CODEX-Updates`: ongoing work before merge to `main`
+
+The app is currently aligned to:
+
+- `package.json` version: `1.8.0`
+- latest release tag: `desktop-v1.8.0`
+
+## Release Rules
+
+- Keep `package.json` and `package-lock.json` in sync.
+- Create release tags from `main`.
+- Use browser-first release tags in the format `browser-vMAJOR.MINOR.PATCH`.
+- Keep existing `desktop-v...` tags as historical release records.
+
+## Tag Transition Notes
+
+- `browser-v0.0` is a historical tag from the old branch layout.
+- Existing `desktop-v...` tags remain valid historical releases and should not be renamed.
+- The next browser-first release should use `browser-v1.9.0`.
+- From this point forward, use `browser-v...` tags for new EXDA releases.
 
 ## Recommended Flow
-1. Commit your work:
+
+1. Work on `CODEX-Updates`:
+
+```bash
+git switch CODEX-Updates
+git status --short
+```
+
+2. Commit and push your changes:
+
 ```bash
 git add .
 git commit -m "Your message"
+git push origin CODEX-Updates
 ```
-2. Push your branch:
+
+3. When the app is ready for release, merge into `main`.
+
+4. Bump the version on `main`:
+
 ```bash
-git push origin <branch>
-```
-3. Sync `package.json` version (so `npm run ...` shows the same release family):
-```bash
+git switch main
+git pull origin main
 npm version <semver> --no-git-tag-version
 git add package.json package-lock.json
 git commit -m "Bump app version to <semver>"
-git push origin <branch>
-```
-4. Create and push a release tag:
-```bash
-git tag -a <tag-name> -m "<tag-name>"
-git push origin <tag-name>
+git push origin main
 ```
 
-Examples:
-- `desktop-v0.6`
-- `browser-v0.1`
-- `v1.0.0`
+5. Create and push the release tag from `main`:
 
-## SemVer Note (NPM)
-- `package.json` uses SemVer: `MAJOR.MINOR.PATCH`.
-- `0.7` is not a valid npm version.
-- Use `0.7.0` as the equivalent of your `0.7` release.
-- Tiny fix (no feature change): `0.7.1`.
-- New feature: `0.0.0`.
-- Breaking change: `1.0.0`.
-
-## Branch-specific Example
-### `desktopBasedApp`
 ```bash
-git branch --show-current
-git switch desktopBasedApp
-git status --short
-git add .
-git commit -m "Build app update"
-git push origin desktopBasedApp
-npm version 1.7.0 --no-git-tag-version
+git tag -a browser-v<semver> -m "browser-v<semver>"
+git push origin browser-v<semver>
+```
+
+Example:
+
+```bash
+git switch main
+git pull origin main
+npm version 1.9.0 --no-git-tag-version
 git add package.json package-lock.json
-git commit -m "Bump app version to 1.7.0"
-git push origin desktopBasedApp
-git tag -a desktop-v1.7.0 -m "desktop-v1.7.0"
-git push origin desktop-v1.7.0
-git log -1 --stat
+git commit -m "Bump app version to 1.9.0"
+git push origin main
+git tag -a browser-v1.9.0 -m "browser-v1.9.0"
+git push origin browser-v1.9.0
 ```
+
+## SemVer Notes
+
+- npm versions must use `MAJOR.MINOR.PATCH`.
+- Bug fix: increase `PATCH` (`1.8.0` -> `1.8.1`)
+- Backward-compatible feature: increase `MINOR` (`1.8.0` -> `1.9.0`)
+- Breaking change: increase `MAJOR` (`1.8.0` -> `2.0.0`)
 
 ## Useful Commands
-Current version string:
+
+Show current version string:
+
 ```bash
 git describe --tags --always --dirty
 ```
 
-List tags:
+List browser-first release tags:
+
 ```bash
-git tag --list
+git tag --list 'browser-v*'
 ```
 
-Checkout old tag:
+List historical desktop release tags:
+
 ```bash
-git checkout <tag>
+git tag --list 'desktop-v*'
 ```
-Return to branch:
+
+Inspect the current app version:
+
+```bash
+npm pkg get version
+```
+
+Checkout a specific release:
+
+```bash
+git checkout desktop-v1.8.0
+```
+
+Return to the stable branch:
+
 ```bash
 git checkout main
 ```
 
-## Tag Notes
+## Notes
+
 - Commit first, then tag.
-- Do not reuse tag names unless you intentionally delete/recreate them.
-- Restart the dev server after tagging if you want version labels in UI to update.
+- Do not reuse tag names unless you intentionally delete and recreate them.
+- Restart the dev server after a version bump if you want version labels in the UI to refresh.
