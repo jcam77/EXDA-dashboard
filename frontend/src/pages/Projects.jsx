@@ -246,7 +246,7 @@ const ProjectsPage = ({
       setError('Select a project folder to get started.');
     };
     initFolders();
-  }, [projectFolders.length, demoMode, locateDefaultProjectsRoot, validateFolderEntry]);
+  }, [apiBaseUrl, projectFolders.length, demoMode, locateDefaultProjectsRoot, validateFolderEntry]);
 
   useEffect(() => {
     if (projectFolders.length === 0) return;

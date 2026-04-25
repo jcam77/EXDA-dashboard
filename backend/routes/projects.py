@@ -7,9 +7,16 @@ from modules import project_manager
 
 projects_bp = Blueprint("projects", __name__)
 
+def _app_root():
+    """Return the repository root for the running backend."""
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 def _projects_root_default():
-    """Return the configured projects root path, if provided."""
-    return os.environ.get("EXDA_PROJECTS_ROOT")
+    """Return the configured projects root path or the repo-local Projects folder."""
+    configured = os.environ.get("EXDA_PROJECTS_ROOT")
+    if configured:
+        return configured
+    return os.path.join(_app_root(), "Projects")
 
 
 @projects_bp.route('/select_project_folder', methods=['POST'])
@@ -118,9 +125,7 @@ def update_project_status():
 @projects_bp.route('/list_directories', methods=['GET'])
 def list_directories():
     """List child directories for navigation and project selection."""
-    app_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    apps_root = os.path.dirname(app_root)
-    path = request.args.get('path') or _projects_root_default() or apps_root
+    path = request.args.get('path') or _projects_root_default()
     include_status = (request.args.get('includeStatus') or '').lower() in ['1', 'true', 'yes']
     if not os.path.exists(path):
         return jsonify({"success": False, "error": "Path not found"}), 404
@@ -161,9 +166,7 @@ def list_directories():
 @projects_bp.route('/projects_overview', methods=['GET'])
 def projects_overview():
     """Return a text summary for all projects under the projects root."""
-    app_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    apps_root = os.path.dirname(app_root)
-    projects_root = _projects_root_default() or os.path.join(apps_root, 'Projects')
+    projects_root = _projects_root_default()
     if not os.path.exists(projects_root):
         return jsonify({"success": True, "overview": "No Projects folder found."})
     if not os.path.isdir(projects_root):
