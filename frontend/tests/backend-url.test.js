@@ -1,17 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { getBackendBaseUrl, getBackendPort } from '../src/utils/backendUrl.js';
+import {
+  DEFAULT_BACKEND_HOST,
+  DEFAULT_BACKEND_PORT,
+  getBackendBaseUrl,
+  getBackendPort,
+} from '../src/utils/backendUrl.js';
 
 describe('backendUrl utils', () => {
   it('uses default backend port when query param is missing', () => {
     window.history.replaceState({}, '', '/');
-    expect(getBackendPort()).toBe('5000');
-    expect(getBackendBaseUrl()).toBe('http://127.0.0.1:5000');
+    expect(getBackendPort()).toBe(DEFAULT_BACKEND_PORT);
+    expect(getBackendBaseUrl()).toBe(`http://${DEFAULT_BACKEND_HOST}:${DEFAULT_BACKEND_PORT}`);
   });
 
   it('uses backendPort query param when provided', () => {
     window.history.replaceState({}, '', '/?backendPort=7001');
     expect(getBackendPort()).toBe('7001');
-    expect(getBackendBaseUrl()).toBe('http://127.0.0.1:7001');
+    expect(getBackendBaseUrl()).toBe(`http://${DEFAULT_BACKEND_HOST}:7001`);
   });
 });

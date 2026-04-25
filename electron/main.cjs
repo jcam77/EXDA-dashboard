@@ -6,11 +6,39 @@ const { spawn } = require('child_process');
 
 const isDev = !app.isPackaged;
 let backendProcess = null;
-let backendPort = 5000;
+let backendPort = null;
 
 const DEMO_PROJECT_NAME = 'VH2D-Project';
 const DEMO_PARENT_DIR = 'Demo Projects';
 const PROJECTS_ROOT_DIR = 'EXDA Projects';
+const DEFAULTS_FILE = path.join(__dirname, '..', 'config', 'exda-defaults.env');
+
+const readDefaults = () => {
+  try {
+    const raw = fs.readFileSync(DEFAULTS_FILE, 'utf-8');
+    return raw.split(/\r?\n/).reduce((acc, line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) return acc;
+      const idx = trimmed.indexOf('=');
+      const key = trimmed.slice(0, idx).trim();
+      const value = trimmed.slice(idx + 1).trim();
+      acc[key] = value;
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+};
+
+const defaults = readDefaults();
+const defaultFrontendHost = process.env.EXDA_FRONTEND_HOST || defaults.EXDA_DEFAULT_FRONTEND_HOST;
+const defaultFrontendPort = Number(process.env.EXDA_FRONTEND_PORT || defaults.EXDA_DEFAULT_FRONTEND_PORT);
+const defaultBackendHost = process.env.EXDA_BACKEND_HOST || defaults.EXDA_DEFAULT_BACKEND_HOST;
+const defaultBackendPort = Number(process.env.EXDA_BACKEND_PORT || defaults.EXDA_DEFAULT_BACKEND_PORT);
+
+if (!defaultFrontendHost || !defaultFrontendPort || !defaultBackendHost || !defaultBackendPort) {
+  throw new Error('Missing EXDA runtime defaults. Define them in config/exda-defaults.env or env vars.');
+}
 
 const resolveDemoSource = () => {
   if (isDev) {
@@ -60,7 +88,7 @@ const resolveBackendCommand = () => {
   };
 };
 
-const findFreePort = (preferredPort = 5000) => new Promise((resolve) => {
+const findFreePort = (preferredPort = defaultBackendPort) => new Promise((resolve) => {
   const tryServer = net.createServer();
   tryServer.unref();
   tryServer.on('error', () => {
@@ -84,7 +112,11 @@ const startBackend = (port) => {
   const env = {
     ...process.env,
     EXDA_PROJECTS_ROOT: demoRoot || process.env.EXDA_PROJECTS_ROOT || '',
+    EXDA_BACKEND_HOST: defaultBackendHost,
     EXDA_BACKEND_PORT: String(port),
+    EXDA_FRONTEND_HOST: defaultFrontendHost,
+    EXDA_FRONTEND_PORT: String(defaultFrontendPort),
+    EXDA_CORS_ORIGINS: `http://${defaultFrontendHost}:${defaultFrontendPort},http://localhost:${defaultFrontendPort},http://127.0.0.1:${defaultFrontendPort}`,
   };
   const backendCwd = isDev ? app.getAppPath() : process.resourcesPath;
   backendProcess = spawn(cmd, args, {
@@ -137,7 +169,7 @@ const createWindow = (port) => {
 
   const query = `?backendPort=${encodeURIComponent(port)}`;
   if (isDev) {
-    mainWindow.loadURL(`http://localhost:5173${query}`);
+    mainWindow.loadURL(`http://${defaultFrontendHost}:${defaultFrontendPort}${query}`);
   } else {
     mainWindow.loadFile(path.join(app.getAppPath(), 'frontend', 'dist', 'index.html'), { query: { backendPort: String(port) } });
   }
@@ -157,7 +189,7 @@ const createWindow = (port) => {
 };
 
 app.whenReady().then(async () => {
-  backendPort = await findFreePort(5000);
+  backendPort = await findFreePort(defaultBackendPort);
   startBackend(backendPort);
   createWindow(backendPort);
 

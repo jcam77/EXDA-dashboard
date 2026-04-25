@@ -3,11 +3,26 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 set "REPO_ROOT=%~dp0"
 cd /d "%REPO_ROOT%"
+set "DEFAULTS_FILE=%REPO_ROOT%config\exda-defaults.env"
+
+if exist "%DEFAULTS_FILE%" (
+  for /f "usebackq tokens=1,* delims==" %%A in ("%DEFAULTS_FILE%") do (
+    if not "%%~A"=="" if not "%%~A:~0,1%%"=="#" set "%%~A=%%~B"
+  )
+)
 
 set "HAS_ERRORS=0"
 set "PYTHON_EXE="
 set "PYTHON_ARGS="
 set "CHECK_FILE=%TEMP%\exda_missing_python_%RANDOM%.txt"
+set "FRONTEND_HOST=%EXDA_FRONTEND_HOST%"
+if not defined FRONTEND_HOST set "FRONTEND_HOST=%EXDA_DEFAULT_FRONTEND_HOST%"
+set "FRONTEND_PORT=%EXDA_FRONTEND_PORT%"
+if not defined FRONTEND_PORT set "FRONTEND_PORT=%EXDA_DEFAULT_FRONTEND_PORT%"
+set "BACKEND_HOST=%EXDA_BACKEND_HOST%"
+if not defined BACKEND_HOST set "BACKEND_HOST=%EXDA_DEFAULT_BACKEND_HOST%"
+set "BACKEND_PORT=%EXDA_BACKEND_PORT%"
+if not defined BACKEND_PORT set "BACKEND_PORT=%EXDA_DEFAULT_BACKEND_PORT%"
 
 echo ========================================
 echo EXDA Launcher (Windows)
@@ -42,6 +57,26 @@ if errorlevel 1 (
 
 if not defined PYTHON_EXE (
   echo  - Missing tool: Python 3
+  set "HAS_ERRORS=1"
+)
+
+if not defined FRONTEND_HOST (
+  echo  - Missing runtime setting: EXDA_DEFAULT_FRONTEND_HOST in config\exda-defaults.env
+  set "HAS_ERRORS=1"
+)
+
+if not defined FRONTEND_PORT (
+  echo  - Missing runtime setting: EXDA_DEFAULT_FRONTEND_PORT in config\exda-defaults.env
+  set "HAS_ERRORS=1"
+)
+
+if not defined BACKEND_HOST (
+  echo  - Missing runtime setting: EXDA_DEFAULT_BACKEND_HOST in config\exda-defaults.env
+  set "HAS_ERRORS=1"
+)
+
+if not defined BACKEND_PORT (
+  echo  - Missing runtime setting: EXDA_DEFAULT_BACKEND_PORT in config\exda-defaults.env
   set "HAS_ERRORS=1"
 )
 
@@ -82,12 +117,14 @@ if "%HAS_ERRORS%"=="1" (
 )
 
 echo.
-echo Starting EXDA backend on http://127.0.0.1:5000 ...
-start "EXDA Backend" cmd /k "cd /d \"%REPO_ROOT%\" && set EXDA_BACKEND_DEBUG=1 && set EXDA_BACKEND_PORT=5000 && \"%PYTHON_EXE%\" %PYTHON_ARGS% backend\app.py"
+echo Starting EXDA backend on http://%BACKEND_HOST%:%BACKEND_PORT% ...
+start "EXDA Backend" cmd /k "cd /d \"%REPO_ROOT%\" && set EXDA_BACKEND_DEBUG=1 && set EXDA_BACKEND_HOST=%BACKEND_HOST% && set EXDA_BACKEND_PORT=%BACKEND_PORT% && set EXDA_FRONTEND_HOST=%FRONTEND_HOST% && set EXDA_FRONTEND_PORT=%FRONTEND_PORT% && set EXDA_CORS_ORIGINS=http://%FRONTEND_HOST%:%FRONTEND_PORT%,http://localhost:%FRONTEND_PORT%,http://127.0.0.1:%FRONTEND_PORT% && \"%PYTHON_EXE%\" %PYTHON_ARGS% backend\app.py"
 
 timeout /t 2 >nul
 
-echo Starting EXDA frontend and opening the browser ...
-call npm run vite -- --host 127.0.0.1
+echo Starting EXDA frontend on http://%FRONTEND_HOST%:%FRONTEND_PORT% ...
+echo App URL:
+echo   http://%FRONTEND_HOST%:%FRONTEND_PORT%/?backendPort=%BACKEND_PORT%
+call npm run vite -- --host %FRONTEND_HOST% --port %FRONTEND_PORT%
 
 endlocal
