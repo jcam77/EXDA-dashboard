@@ -38,7 +38,13 @@ const resolveBackendCommand = () => {
     return { cmd: process.env.EXDA_BACKEND_PATH, args: [] };
   }
   if (isDev) {
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const venvCandidates = [
+      path.join(app.getAppPath(), '.venv', 'Scripts', 'python.exe'),
+      path.join(app.getAppPath(), '.venv', 'bin', 'python'),
+    ];
+    const pythonCmd =
+      venvCandidates.find((candidate) => fs.existsSync(candidate)) ||
+      (process.platform === 'win32' ? 'python' : 'python3');
     return { cmd: pythonCmd, args: ['backend/app.py'] };
   }
   const exeName = process.platform === 'win32' ? 'exda-backend.exe' : 'exda-backend';

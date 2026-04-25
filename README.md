@@ -25,11 +25,11 @@ The goal of the app is to make it easier to move from project setup, to experime
 
 ### ▶️ Recommended Launchers
 
-For colleagues testing EXDA from a repository checkout, the preferred workflow is to run the launcher for their operating system:
+You can run EXDA directly from the launcher file for your operating system. This is the recommended way to start the app from a repository checkout:
 
-- Linux: [Run-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-LINUX.sh)
-- macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
-- Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
+- 🐧 Linux: run [Run-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-LINUX.sh) (`Run-EXDA-LINUX.sh`)
+- 🍎 macOS: run [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command) (`Run-EXDA-MAC.command`)
+- 🪟 Windows: run [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat) (`Run-EXDA-WIN.bat`)
 
 The launcher will:
 
