@@ -4,6 +4,7 @@ set -euo pipefail
 APP="${1:-}"
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="$ROOT_DIR/.venv"
+OS_NAME="$(uname -s 2>/dev/null || echo unknown)"
 
 if [[ -d "$VENV_DIR/bin" ]]; then
   export PATH="$VENV_DIR/bin:$PATH"
@@ -27,7 +28,17 @@ fi
 case "$APP" in
   EXDA|exda|dashboard|EXDA-dashboard|v0.3|0.3)
     cd "$ROOT_DIR"
-    npm run dev
+    case "$OS_NAME" in
+      Linux)
+        exec bash "$ROOT_DIR/Run-EXDA-LINUX.sh"
+        ;;
+      Darwin)
+        exec bash "$ROOT_DIR/Run-EXDA-MAC.command"
+        ;;
+      *)
+        npm run dev
+        ;;
+    esac
     ;;
   *)
     echo "Unknown app: $APP"
