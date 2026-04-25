@@ -172,13 +172,13 @@ git pull --ff-only origin main
 git branch --show-current
 git merge CODEX-Updates
 git push origin main
-npm version 1.18.0 --no-git-tag-version
+npm version 1.19.0 --no-git-tag-version
 git add package.json package-lock.json
-git commit -m "Bump app version to 1.18.0"
+git commit -m "Bump app version to 1.19.0"
 git push origin main
 git branch --show-current
-git tag -a browser-v1.18.0 -m "browser-v1.18.0"
-git push origin browser-v1.18.0
+git tag -a browser-v1.19.0 -m "browser-v1.19.0"
+git push origin browser-v1.19.0
 ```
 
 ## What To Remember
