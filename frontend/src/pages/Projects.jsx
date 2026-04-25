@@ -105,6 +105,58 @@ const ProjectsPage = ({
     }
   }, [apiBaseUrl]);
 
+  const countProjectsForEntry = useCallback(async (item) => {
+    const entry = typeof item === 'string' ? { path: item, mode: 'root' } : item;
+    const path = (entry?.path || '').trim();
+    const mode = entry?.mode || 'root';
+    if (!path) return 0;
+
+    try {
+      if (mode === 'project') {
+        const res = await fetch(
+          `${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(path)}`
+        );
+        const data = await res.json();
+        return data.success ? 1 : 0;
+      }
+
+      const res = await fetch(
+        `${apiBaseUrl}/list_directories?path=${encodeURIComponent(path)}`
+      );
+      const data = await res.json();
+      if (!data.success) return 0;
+      return Array.isArray(data.directories) ? data.directories.length : 0;
+    } catch {
+      return 0;
+    }
+  }, [apiBaseUrl]);
+
+  const resolvePreferredProjectFolders = useCallback(async (savedFolders) => {
+    const defaultProjectsRoot = await locateDefaultProjectsRoot();
+    const defaultProjectCount = defaultProjectsRoot
+      ? await countProjectsForEntry(defaultProjectsRoot)
+      : 0;
+
+    const normalized = (Array.isArray(savedFolders) ? savedFolders : [])
+      .map((item) => {
+        if (typeof item === 'string') return { path: item, mode: 'root' };
+        return item;
+      })
+      .filter((item) => item?.path);
+    const validated = (await Promise.all(normalized.map(validateFolderEntry))).filter(Boolean);
+    const savedProjectCounts = await Promise.all(validated.map(countProjectsForEntry));
+    const savedWithProjects = validated.filter((_, index) => savedProjectCounts[index] > 0);
+
+    if (defaultProjectsRoot && defaultProjectCount > 0) {
+      return [
+        defaultProjectsRoot,
+        ...savedWithProjects.filter((item) => item.path !== defaultProjectsRoot.path),
+      ];
+    }
+
+    return savedWithProjects;
+  }, [countProjectsForEntry, locateDefaultProjectsRoot, validateFolderEntry]);
+
   const loadProjects = useCallback(async (paths) => {
     const pathList = Array.isArray(paths) ? paths : [paths].filter(Boolean);
     if (pathList.length === 0) return;
@@ -195,20 +247,6 @@ const ProjectsPage = ({
     const initFolders = async () => {
       const savedFoldersRaw = localStorage.getItem('projectsFoldersList');
       const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
-      if (Array.isArray(savedFolders) && savedFolders.length > 0) {
-        const normalized = savedFolders.map((item) => {
-          if (typeof item === 'string') return { path: item, mode: 'root' };
-          return item;
-        }).filter((item) => item?.path);
-        const validated = (await Promise.all(normalized.map(validateFolderEntry))).filter(Boolean);
-        if (validated.length > 0) {
-          setProjectFolders(validated);
-          setSelectedFolder('all');
-          localStorage.setItem('projectsFoldersList', JSON.stringify(validated));
-          return;
-        }
-        localStorage.removeItem('projectsFoldersList');
-      }
       if (demoMode) {
         try {
           const res = await fetch(`${apiBaseUrl}/list_directories`);
@@ -236,17 +274,18 @@ const ProjectsPage = ({
           return;
         }
       }
-      const defaultProjectsRoot = await locateDefaultProjectsRoot();
-      if (defaultProjectsRoot) {
-        setProjectFolders([defaultProjectsRoot]);
-        setSelectedFolder(defaultProjectsRoot.path);
-        localStorage.setItem('projectsFoldersList', JSON.stringify([defaultProjectsRoot]));
+      const preferredFolders = await resolvePreferredProjectFolders(savedFolders);
+      if (preferredFolders.length > 0) {
+        setProjectFolders(preferredFolders);
+        setSelectedFolder(preferredFolders[0].path);
+        localStorage.setItem('projectsFoldersList', JSON.stringify(preferredFolders));
         return;
       }
+      localStorage.removeItem('projectsFoldersList');
       setError('Select a project folder to get started.');
     };
     initFolders();
-  }, [apiBaseUrl, projectFolders.length, demoMode, locateDefaultProjectsRoot, validateFolderEntry]);
+  }, [apiBaseUrl, projectFolders.length, demoMode, resolvePreferredProjectFolders]);
 
   useEffect(() => {
     if (projectFolders.length === 0) return;

@@ -11,6 +11,7 @@ if [ -f "$DEFAULTS_FILE" ]; then
 fi
 
 MISSING_ITEMS=()
+OPTIONAL_ITEMS=()
 PYTHON_CMD=""
 FRONTEND_HOST="${EXDA_FRONTEND_HOST:-${EXDA_DEFAULT_FRONTEND_HOST:-}}"
 FRONTEND_PORT="${EXDA_FRONTEND_PORT:-${EXDA_DEFAULT_FRONTEND_PORT:-}}"
@@ -20,6 +21,9 @@ BACKEND_PORT="${EXDA_BACKEND_PORT:-${EXDA_DEFAULT_BACKEND_PORT:-}}"
 sanitize_local_venv() {
   if [ -d "$REPO_ROOT/.venv" ]; then
     find "$REPO_ROOT/.venv" -name '._*' -type f -delete >/dev/null 2>&1 || true
+    if command -v dot_clean >/dev/null 2>&1; then
+      dot_clean -m "$REPO_ROOT/.venv" >/dev/null 2>&1 || true
+    fi
   fi
 }
 
@@ -39,6 +43,50 @@ add_missing() {
   MISSING_ITEMS+=("$1")
 }
 
+add_optional() {
+  OPTIONAL_ITEMS+=("$1")
+}
+
+using_local_venv() {
+  [ -n "$PYTHON_CMD" ] && [ "$PYTHON_CMD" = "$REPO_ROOT/.venv/bin/python" ]
+}
+
+install_missing_python_packages() {
+  if [ -z "$PYTHON_CMD" ] || ! using_local_venv; then
+    return 1
+  fi
+  local package_names=("$@")
+  if [ "${#package_names[@]}" -eq 0 ]; then
+    return 1
+  fi
+  "$PYTHON_CMD" -m pip install "${package_names[@]}" >/dev/null 2>&1
+}
+
+archive_broken_venv() {
+  if [ ! -d "$REPO_ROOT/.venv" ]; then
+    return 0
+  fi
+  local archived_path="$REPO_ROOT/.venv.broken-$(date +%Y%m%d-%H%M%S)"
+  mv "$REPO_ROOT/.venv" "$archived_path"
+  echo "Archived incompatible local virtualenv to $archived_path"
+}
+
+repair_local_venv() {
+  if ! command -v python3 >/dev/null 2>&1; then
+    return 1
+  fi
+  if [ -d "$REPO_ROOT/.venv" ]; then
+    archive_broken_venv || return 1
+  fi
+  echo "Recreating local .venv for macOS ..."
+  if ! python3 -m venv "$REPO_ROOT/.venv" >/dev/null 2>&1; then
+    return 1
+  fi
+  sanitize_local_venv
+  PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+  return 0
+}
+
 check_command() {
   local command_name="$1"
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -55,6 +103,10 @@ resolve_python() {
     detected_prefix="$("$REPO_ROOT/.venv/bin/python" -c "import sys; print(sys.prefix)" 2>/dev/null || true)"
     if [ "$detected_prefix" = "$REPO_ROOT/.venv" ]; then
       PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+      return
+    fi
+    echo "Local .venv looks incompatible on this Mac. Trying to repair it ..."
+    if repair_local_venv; then
       return
     fi
     add_missing "Broken local virtualenv: recreate .venv with python3 -m venv .venv"
@@ -89,6 +141,19 @@ check_python_packages() {
     return
   fi
 
+  if [ "$status" -eq 1 ] && using_local_venv; then
+    echo "Python runtime packages are missing. Trying to install backend requirements ..."
+    if "$PYTHON_CMD" -m pip install -r backend/requirements.txt >/dev/null 2>&1; then
+      sanitize_local_venv
+      missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements.txt 2>/dev/null)"
+      status=$?
+      if [ "$status" -eq 0 ]; then
+        echo "Python runtime packages repaired in .venv."
+        return
+      fi
+    fi
+  fi
+
   if [ "$status" -eq 1 ]; then
     while IFS= read -r package_name; do
       [ -n "$package_name" ] && add_missing "Missing Python package: $package_name"
@@ -97,6 +162,57 @@ check_python_packages() {
   fi
 
   add_missing "Could not verify Python packages in backend/requirements.txt"
+}
+
+check_optional_python_packages() {
+  if [ -z "$PYTHON_CMD" ]; then
+    return
+  fi
+
+  local missing_output=""
+  missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements-optional.txt 2>/dev/null)"
+  local status=$?
+
+  if [ "$status" -eq 0 ]; then
+    return
+  fi
+
+  if [ "$status" -eq 1 ] && using_local_venv; then
+    echo "Feature packages are missing. Trying to install AiRA/PDF extras ..."
+    if "$PYTHON_CMD" -m pip install -r backend/requirements-optional.txt >/dev/null 2>&1; then
+      sanitize_local_venv
+      missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements-optional.txt 2>/dev/null)"
+      status=$?
+      if [ "$status" -eq 0 ]; then
+        echo "Feature packages repaired in .venv."
+        return
+      fi
+    fi
+    if [ "$status" -eq 1 ]; then
+      mapfile -t missing_packages < <(printf '%s\n' "$missing_output" | sed '/^$/d')
+      if [ "${#missing_packages[@]}" -gt 0 ]; then
+        echo "Trying targeted install for missing feature packages ..."
+        if install_missing_python_packages "${missing_packages[@]}"; then
+          sanitize_local_venv
+          missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements-optional.txt 2>/dev/null)"
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "Feature packages repaired in .venv."
+            return
+          fi
+        fi
+      fi
+    fi
+  fi
+
+  if [ "$status" -eq 1 ]; then
+    while IFS= read -r package_name; do
+      [ -n "$package_name" ] && add_optional "Feature package missing: $package_name"
+    done <<< "$missing_output"
+    return
+  fi
+
+  add_optional "Could not verify feature packages in backend/requirements-optional.txt"
 }
 
 check_runtime_defaults() {
@@ -112,12 +228,20 @@ print_missing_summary() {
   for item in "${MISSING_ITEMS[@]}"; do
     echo " - $item"
   done
+  if [ "${#OPTIONAL_ITEMS[@]}" -gt 0 ]; then
+    echo ""
+    echo "Optional features may stay limited until these are installed:"
+    for item in "${OPTIONAL_ITEMS[@]}"; do
+      echo " - $item"
+    done
+  fi
   echo ""
   echo "Recommended setup commands:"
   echo "  npm install"
   echo "  python3 -m venv .venv"
   echo "  source .venv/bin/activate"
   echo "  pip install -r backend/requirements.txt"
+  echo "  pip install -r backend/requirements-optional.txt"
   echo ""
 }
 
@@ -130,6 +254,7 @@ cleanup() {
 
 start_app() {
   echo ""
+  sanitize_local_venv
   echo "Starting EXDA backend on http://${BACKEND_HOST}:${BACKEND_PORT} ..."
   EXDA_BACKEND_DEBUG=1 \
   EXDA_BACKEND_HOST="$BACKEND_HOST" \
@@ -162,6 +287,7 @@ resolve_python
 check_runtime_defaults
 check_node_packages
 check_python_packages
+check_optional_python_packages
 
 if [ "${#MISSING_ITEMS[@]}" -gt 0 ]; then
   print_missing_summary

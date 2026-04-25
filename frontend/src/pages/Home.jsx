@@ -30,9 +30,6 @@ const HomePage = ({
 }) => {
   const apiBaseUrl = getBackendBaseUrl();
   const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-  const defaultDevProjectsPath = import.meta.env.DEV
-    ? '/media/psf/Sim_Back_Up/EXDA-dashboard/Projects'
-    : '';
   const [isLight, setIsLight] = React.useState(() => {
     if (typeof window === 'undefined') return false;
     const root = document.documentElement;
@@ -53,7 +50,7 @@ const HomePage = ({
     });
     observer.observe(root, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
-  }, [apiBaseUrl, defaultDevProjectsPath, demoMode]);
+  }, []);
 
   React.useEffect(() => {
     const root = document.documentElement;
@@ -156,31 +153,29 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
       }
       try {
         let basePath = '';
+        const defaultRes = await fetch(`${apiBaseUrl}/list_directories`);
+        const defaultData = await defaultRes.json();
+        if (defaultData.success && Array.isArray(defaultData.directories) && defaultData.directories.length > 0) {
+          basePath = defaultData.path || '';
+        }
         const savedFoldersRaw = window.localStorage.getItem('projectsFoldersList');
         const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
         const savedRoot = Array.isArray(savedFolders)
           ? savedFolders.find((item) => typeof item === 'string' || item?.mode !== 'project')
           : null;
-        if (savedRoot) {
-          basePath = typeof savedRoot === 'string' ? savedRoot : savedRoot.path || '';
-        }
-        if (!demoMode && defaultDevProjectsPath) {
-          const devRes = await fetch(
-            `${apiBaseUrl}/list_directories?path=${encodeURIComponent(defaultDevProjectsPath)}`
-          );
-          const devData = await devRes.json();
-          if (devData.success) {
-            basePath = devData.path;
+        if (!basePath && savedRoot) {
+          const candidatePath = typeof savedRoot === 'string' ? savedRoot : savedRoot.path || '';
+          if (candidatePath) {
+            const savedRes = await fetch(
+              `${apiBaseUrl}/list_directories?path=${encodeURIComponent(candidatePath)}`
+            );
+            const savedData = await savedRes.json();
+            if (savedData.success && Array.isArray(savedData.directories) && savedData.directories.length > 0) {
+              basePath = savedData.path;
+            }
           }
         }
-        if (!basePath) {
-          const res = await fetch(`${apiBaseUrl}/list_directories`);
-          const data = await res.json();
-          if (!data.success) return;
-          const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
-          if (!projectsDir?.path) return;
-          basePath = projectsDir.path;
-        }
+        if (!basePath) return;
         if (demoMode) {
           const demoRes = await fetch(
             `${apiBaseUrl}/list_directories?path=${encodeURIComponent(basePath)}`
@@ -233,7 +228,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
     return () => {
       mounted = false;
     };
-  }, [apiBaseUrl, defaultDevProjectsPath, demoMode]);
+  }, [apiBaseUrl, demoMode]);
 
   const formatDate = (value) => {
     if (!value) return 'Unknown';
