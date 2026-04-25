@@ -10,9 +10,9 @@ For day-to-day use, the recommended workflow is:
 
 ## Launchers
 
-- Linux: [Run-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-LINUX.sh)
-- macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
-- Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
+- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Run-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-LINUX.sh)
+- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
 
 ## What the launchers do
 
@@ -60,5 +60,5 @@ pip install -r backend\requirements-optional.txt
 ## Notes
 
 - AiRA can remain limited if optional local AI tooling such as Ollama is not installed.
-- The launchers are intended for colleagues testing the app from a repository checkout.
+- The launchers are intended for users running the app from a repository checkout.
 - Packaged desktop builds are still possible, but they are now treated as a secondary release workflow. See [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).
