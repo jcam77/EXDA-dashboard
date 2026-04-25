@@ -67,6 +67,44 @@ const ProjectsPage = ({
     return null;
   }, [apiBaseUrl]);
 
+  const validateFolderEntry = useCallback(async (item) => {
+    const entry = typeof item === 'string' ? { path: item, mode: 'root' } : item;
+    const path = (entry?.path || '').trim();
+    const mode = entry?.mode || 'root';
+    if (!path) return null;
+
+    try {
+      if (mode === 'project') {
+        const res = await fetch(
+          `${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(path)}`
+        );
+        const data = await res.json();
+        return data.success ? { path, mode } : null;
+      }
+
+      const res = await fetch(
+        `${apiBaseUrl}/list_directories?path=${encodeURIComponent(path)}`
+      );
+      const data = await res.json();
+      return data.success ? { path, mode } : null;
+    } catch {
+      return null;
+    }
+  }, [apiBaseUrl]);
+
+  const locateDefaultProjectsRoot = useCallback(async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/list_directories`);
+      const data = await res.json();
+      if (!data.success) return null;
+      const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
+      if (!projectsDir?.path) return null;
+      return { path: projectsDir.path, mode: 'root' };
+    } catch {
+      return null;
+    }
+  }, [apiBaseUrl]);
+
   const loadProjects = useCallback(async (paths) => {
     const pathList = Array.isArray(paths) ? paths : [paths].filter(Boolean);
     if (pathList.length === 0) return;
@@ -161,10 +199,15 @@ const ProjectsPage = ({
         const normalized = savedFolders.map((item) => {
           if (typeof item === 'string') return { path: item, mode: 'root' };
           return item;
-        });
-        setProjectFolders(normalized);
-        setSelectedFolder('all');
-        return;
+        }).filter((item) => item?.path);
+        const validated = (await Promise.all(normalized.map(validateFolderEntry))).filter(Boolean);
+        if (validated.length > 0) {
+          setProjectFolders(validated);
+          setSelectedFolder('all');
+          localStorage.setItem('projectsFoldersList', JSON.stringify(validated));
+          return;
+        }
+        localStorage.removeItem('projectsFoldersList');
       }
       if (demoMode) {
         try {
@@ -193,20 +236,17 @@ const ProjectsPage = ({
           return;
         }
       }
-      try {
-        const res = await fetch(`${apiBaseUrl}/list_directories`);
-        const data = await res.json();
-        if (!data.success) return;
-        const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
-        if (projectsDir?.path) {
-          setError('Select a project folder to get started.');
-        }
-      } catch {
-        setError('Select a project folder to get started.');
+      const defaultProjectsRoot = await locateDefaultProjectsRoot();
+      if (defaultProjectsRoot) {
+        setProjectFolders([defaultProjectsRoot]);
+        setSelectedFolder(defaultProjectsRoot.path);
+        localStorage.setItem('projectsFoldersList', JSON.stringify([defaultProjectsRoot]));
+        return;
       }
+      setError('Select a project folder to get started.');
     };
     initFolders();
-  }, [apiBaseUrl, projectFolders.length, demoMode]);
+  }, [projectFolders.length, demoMode, locateDefaultProjectsRoot, validateFolderEntry]);
 
   useEffect(() => {
     if (projectFolders.length === 0) return;
