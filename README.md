@@ -29,9 +29,9 @@ Users can prepare EXDA from a repository checkout with a one-time setup file for
 
 Setup once:
 
-- Linux: [Setup-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-LINUX.sh)
-- macOS: [Setup-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-MAC.command)
-- Windows: [Setup-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-WIN.bat)
+- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Setup-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-LINUX.sh)
+- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Setup-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-MAC.command)
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Setup-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-WIN.bat)
 
 Then run EXDA with the launcher:
 
