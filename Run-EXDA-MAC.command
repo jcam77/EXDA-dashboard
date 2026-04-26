@@ -18,6 +18,25 @@ FRONTEND_PORT="${EXDA_FRONTEND_PORT:-${EXDA_DEFAULT_FRONTEND_PORT:-}}"
 BACKEND_HOST="${EXDA_BACKEND_HOST:-${EXDA_DEFAULT_BACKEND_HOST:-}}"
 BACKEND_PORT="${EXDA_BACKEND_PORT:-${EXDA_DEFAULT_BACKEND_PORT:-}}"
 
+prepend_path_if_dir() {
+  local candidate="$1"
+  [ -d "$candidate" ] || return 0
+  case ":$PATH:" in
+    *":$candidate:"*) return 0 ;;
+  esac
+  PATH="$candidate:$PATH"
+}
+
+seed_gui_path() {
+  prepend_path_if_dir "/opt/homebrew/bin"
+  prepend_path_if_dir "/usr/local/bin"
+  prepend_path_if_dir "/usr/bin"
+  prepend_path_if_dir "/bin"
+  prepend_path_if_dir "$HOME/.local/bin"
+  prepend_path_if_dir "$HOME/bin"
+  prepend_path_if_dir "$HOME/.nvm/current/bin"
+}
+
 sanitize_local_venv() {
   if [ -d "$REPO_ROOT/.venv" ]; then
     find "$REPO_ROOT/.venv" -name '._*' -type f -delete >/dev/null 2>&1 || true
@@ -281,6 +300,7 @@ start_app() {
 }
 
 print_header
+seed_gui_path
 check_command node
 check_command npm
 resolve_python

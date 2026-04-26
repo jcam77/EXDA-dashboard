@@ -5,8 +5,23 @@ EXDA is now documented as a browser-first app.
 For day-to-day use, the recommended workflow is:
 
 - clone or download the repository
+- run the setup file for your operating system once
 - run the launcher for your operating system
 - let the launcher check requirements, start the backend, and open the browser
+
+## Setup Once
+
+- Linux: [Setup-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-LINUX.sh)
+- macOS: [Setup-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-MAC.command)
+- Windows: [Setup-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-WIN.bat)
+
+The setup scripts:
+
+- create or repair `.venv`
+- run `npm install`
+- install `backend/requirements.txt`
+- install `backend/requirements-optional.txt`
+- verify the resulting environment
 
 ## Launchers
 
