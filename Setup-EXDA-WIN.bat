@@ -64,6 +64,10 @@ if not exist "%REPO_ROOT%\.venv\Scripts\python.exe" (
   set "PYTHON_ARGS="
 )
 
+if exist "%REPO_ROOT%\.venv\Scripts\activate.bat" (
+  call "%REPO_ROOT%\.venv\Scripts\activate.bat" >nul 2>nul
+)
+
 echo.
 echo Installing frontend dependencies with npm ...
 call npm install
@@ -113,6 +117,10 @@ if exist "%CHECK_FILE%" del /q "%CHECK_FILE%" >nul 2>nul
 
 echo.
 echo EXDA setup is complete.
+echo.
+echo The EXDA launcher uses .venv automatically.
+echo If you want this Command Prompt itself to stay activated afterward, run:
+echo   call .venv\Scripts\activate.bat
 echo.
 echo Next step:
 echo   Run-EXDA-WIN.bat

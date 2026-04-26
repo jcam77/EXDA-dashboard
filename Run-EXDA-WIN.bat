@@ -124,9 +124,15 @@ if "%HAS_ERRORS%"=="1" (
   exit /b 1
 )
 
+if exist "%REPO_ROOT%\.venv\Scripts\activate.bat" (
+  call "%REPO_ROOT%\.venv\Scripts\activate.bat" >nul 2>nul
+  set "PYTHON_EXE=%REPO_ROOT%\.venv\Scripts\python.exe"
+  set "PYTHON_ARGS="
+)
+
 echo.
 echo Starting EXDA backend on http://%BACKEND_HOST%:%BACKEND_PORT% ...
-start "EXDA Backend" cmd /k "cd /d \"%REPO_ROOT%\" && set EXDA_BACKEND_DEBUG=1 && set EXDA_BACKEND_HOST=%BACKEND_HOST% && set EXDA_BACKEND_PORT=%BACKEND_PORT% && set EXDA_FRONTEND_HOST=%FRONTEND_HOST% && set EXDA_FRONTEND_PORT=%FRONTEND_PORT% && set EXDA_CORS_ORIGINS=http://%FRONTEND_HOST%:%FRONTEND_PORT%,http://localhost:%FRONTEND_PORT%,http://127.0.0.1:%FRONTEND_PORT% && \"%PYTHON_EXE%\" %PYTHON_ARGS% backend\app.py"
+start "EXDA Backend" cmd /k "cd /d \"%REPO_ROOT%\" && call \"%REPO_ROOT%\.venv\Scripts\activate.bat\" && set EXDA_BACKEND_DEBUG=1 && set EXDA_BACKEND_HOST=%BACKEND_HOST% && set EXDA_BACKEND_PORT=%BACKEND_PORT% && set EXDA_FRONTEND_HOST=%FRONTEND_HOST% && set EXDA_FRONTEND_PORT=%FRONTEND_PORT% && set EXDA_CORS_ORIGINS=http://%FRONTEND_HOST%:%FRONTEND_PORT%,http://localhost:%FRONTEND_PORT%,http://127.0.0.1:%FRONTEND_PORT% && \"%PYTHON_EXE%\" %PYTHON_ARGS% backend\app.py"
 
 timeout /t 2 >nul
 

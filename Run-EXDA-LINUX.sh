@@ -20,6 +20,15 @@ FRONTEND_PORT="${EXDA_FRONTEND_PORT:-${EXDA_DEFAULT_FRONTEND_PORT:-}}"
 BACKEND_HOST="${EXDA_BACKEND_HOST:-${EXDA_DEFAULT_BACKEND_HOST:-}}"
 BACKEND_PORT="${EXDA_BACKEND_PORT:-${EXDA_DEFAULT_BACKEND_PORT:-}}"
 
+activate_local_venv() {
+  if [ "$PYTHON_CMD" = "$REPO_ROOT/.venv/bin/python" ] && [ -f "$REPO_ROOT/.venv/bin/activate" ]; then
+    # shellcheck disable=SC1091
+    . "$REPO_ROOT/.venv/bin/activate" || return 1
+    PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+  fi
+  return 0
+}
+
 prepend_path_if_dir() {
   local candidate="$1"
   [ -d "$candidate" ] || return 0
@@ -394,6 +403,7 @@ seed_gui_path
 check_command node
 resolve_npm
 resolve_python
+activate_local_venv || add_missing "Could not activate the local .venv"
 check_runtime_defaults
 check_node_packages
 check_python_packages

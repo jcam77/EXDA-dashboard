@@ -6,6 +6,16 @@ cd "$REPO_ROOT" || exit 1
 
 PYTHON_CMD=""
 
+activate_local_venv() {
+  if [ ! -f "$REPO_ROOT/.venv/bin/activate" ]; then
+    return 1
+  fi
+  # shellcheck disable=SC1091
+  . "$REPO_ROOT/.venv/bin/activate" || return 1
+  PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+  return 0
+}
+
 prepend_path_if_dir() {
   local candidate="$1"
   [ -d "$candidate" ] || return 0
@@ -97,6 +107,7 @@ seed_gui_path
 command -v node >/dev/null 2>&1 || fail "Missing tool: node"
 command -v npm >/dev/null 2>&1 || fail "Missing tool: npm"
 resolve_python || fail "Missing tool: python3"
+activate_local_venv || fail "Could not activate the local .venv"
 
 echo ""
 echo "Installing frontend dependencies with npm ..."
@@ -119,6 +130,10 @@ verify_python_requirements backend/requirements-optional.txt || fail "Optional P
 
 echo ""
 echo "EXDA setup is complete."
+echo ""
+echo "The EXDA launcher uses .venv automatically."
+echo "If you want this terminal itself to stay activated afterward, run:"
+echo "  source .venv/bin/activate"
 echo ""
 echo "Next step:"
 echo "  Run-EXDA-MAC.command"
