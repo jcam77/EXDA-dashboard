@@ -179,6 +179,9 @@ git push origin main
 git branch --show-current
 git tag -a browser-MVP-v2.3.0 -m "browser-MVP-v2.3.0"
 git push origin browser-MVP-v2.3.0
+git switch CODEX-Updates
+git merge main
+git push origin CODEX-Updates
 ```
 
 ## What To Remember
