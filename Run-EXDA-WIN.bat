@@ -15,6 +15,7 @@ set "HAS_ERRORS=0"
 set "PYTHON_EXE="
 set "PYTHON_ARGS="
 set "CHECK_FILE=%TEMP%\exda_missing_python_%RANDOM%.txt"
+set "PY_PREFIX_FILE=%TEMP%\exda_python_prefix_%RANDOM%.txt"
 set "FRONTEND_HOST=%EXDA_FRONTEND_HOST%"
 if not defined FRONTEND_HOST set "FRONTEND_HOST=%EXDA_DEFAULT_FRONTEND_HOST%"
 set "FRONTEND_PORT=%EXDA_FRONTEND_PORT%"
@@ -24,13 +25,13 @@ if not defined BACKEND_HOST set "BACKEND_HOST=%EXDA_DEFAULT_BACKEND_HOST%"
 set "BACKEND_PORT=%EXDA_BACKEND_PORT%"
 if not defined BACKEND_PORT set "BACKEND_PORT=%EXDA_DEFAULT_BACKEND_PORT%"
 
-call :prepend_path_if_dir "%REPO_ROOT%\.venv\Scripts"
-call :prepend_path_if_dir "%ProgramFiles%\nodejs"
-call :prepend_path_if_dir "%ProgramFiles(x86)%\nodejs"
-call :prepend_path_if_dir "%LocalAppData%\Programs\nodejs"
-call :prepend_path_if_dir "%AppData%\npm"
-call :prepend_path_if_dir "%USERPROFILE%\scoop\shims"
-if defined ChocolateyInstall call :prepend_path_if_dir "%ChocolateyInstall%\bin"
+if exist "%REPO_ROOT%\.venv\Scripts" set "PATH=%REPO_ROOT%\.venv\Scripts;%PATH%"
+if exist "%ProgramFiles%\nodejs" set "PATH=%ProgramFiles%\nodejs;%PATH%"
+if exist "%ProgramFiles(x86)%\nodejs" set "PATH=%ProgramFiles(x86)%\nodejs;%PATH%"
+if exist "%LocalAppData%\Programs\nodejs" set "PATH=%LocalAppData%\Programs\nodejs;%PATH%"
+if exist "%AppData%\npm" set "PATH=%AppData%\npm;%PATH%"
+if exist "%USERPROFILE%\scoop\shims" set "PATH=%USERPROFILE%\scoop\shims;%PATH%"
+if defined ChocolateyInstall if exist "%ChocolateyInstall%\bin" set "PATH=%ChocolateyInstall%\bin;%PATH%"
 
 echo ========================================
 echo EXDA Launcher (Windows)
@@ -47,6 +48,45 @@ if exist "%REPO_ROOT%\.venv\Scripts\python.exe" (
     where python >nul 2>nul
     if not errorlevel 1 (
       set "PYTHON_EXE=python"
+    )
+  )
+)
+
+if defined PYTHON_EXE (
+  set "PY_PREFIX="
+  "%PYTHON_EXE%" %PYTHON_ARGS% -c "import sys; print(sys.prefix)" > "%PY_PREFIX_FILE%" 2>nul
+  if errorlevel 1 (
+    if /I "%PYTHON_EXE%"=="%REPO_ROOT%\.venv\Scripts\python.exe" (
+      set "PYTHON_EXE="
+      set "PYTHON_ARGS="
+      where py >nul 2>nul
+      if not errorlevel 1 (
+        set "PYTHON_EXE=py"
+        set "PYTHON_ARGS=-3"
+      ) else (
+        where python >nul 2>nul
+        if not errorlevel 1 (
+          set "PYTHON_EXE=python"
+        )
+      )
+    )
+  ) else (
+    set /p PY_PREFIX=<"%PY_PREFIX_FILE%"
+    if /I "%PYTHON_EXE%"=="%REPO_ROOT%\.venv\Scripts\python.exe" (
+      if /I not "%PY_PREFIX%"=="%REPO_ROOT%\.venv" (
+        set "PYTHON_EXE="
+        set "PYTHON_ARGS="
+        where py >nul 2>nul
+        if not errorlevel 1 (
+          set "PYTHON_EXE=py"
+          set "PYTHON_ARGS=-3"
+        ) else (
+          where python >nul 2>nul
+          if not errorlevel 1 (
+            set "PYTHON_EXE=python"
+          )
+        )
+      )
     )
   )
 )
@@ -109,6 +149,7 @@ if defined PYTHON_EXE (
 )
 
 if exist "%CHECK_FILE%" del /q "%CHECK_FILE%" >nul 2>nul
+if exist "%PY_PREFIX_FILE%" del /q "%PY_PREFIX_FILE%" >nul 2>nul
 
 if "%HAS_ERRORS%"=="1" (
   echo.
@@ -136,11 +177,4 @@ echo   http://%FRONTEND_HOST%:%FRONTEND_PORT%/?backendPort=%BACKEND_PORT%
 call npm run vite -- --host %FRONTEND_HOST% --port %FRONTEND_PORT%
 
 endlocal
-exit /b 0
-
-:prepend_path_if_dir
-if "%~1"=="" exit /b 0
-if not exist "%~1" exit /b 0
-echo ;%PATH%; | find /I ";%~1;" >nul
-if errorlevel 1 set "PATH=%~1;%PATH%"
 exit /b 0
