@@ -77,10 +77,22 @@ pip install -r backend/requirements.txt
 The simplest way in this repo is:
 
 ```bash
+./run exda
+```
+
+On Windows Command Prompt, use:
+
+```bat
 run exda
 ```
 
-That wrapper runs the app's dev startup for you.
+On Windows PowerShell, use:
+
+```powershell
+.\run.cmd exda
+```
+
+That wrapper runs the app's browser-first launcher for you.
 
 If you want to start the services manually instead, use the two-terminal flow below.
 
@@ -102,7 +114,10 @@ Open the app at `http://localhost:5173`.
 ## 🧰 Most Useful Commands
 
 ```bash
-# Simplest local startup
+# Simplest local startup (Linux/macOS)
+./run exda
+
+# Simplest local startup (Windows cmd.exe)
 run exda
 
 # Browser-first launcher docs

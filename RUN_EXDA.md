@@ -29,6 +29,12 @@ The setup scripts:
 - <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
 - <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
 
+Terminal shortcuts from the repo root:
+
+- Linux/macOS: `./run exda`
+- Windows Command Prompt: `run exda`
+- Windows PowerShell: `.\run.cmd exda`
+
 ## What the launchers do
 
 - check for required tools: `node`, `npm`, and `python`
