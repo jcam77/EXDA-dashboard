@@ -24,6 +24,14 @@ if not defined BACKEND_HOST set "BACKEND_HOST=%EXDA_DEFAULT_BACKEND_HOST%"
 set "BACKEND_PORT=%EXDA_BACKEND_PORT%"
 if not defined BACKEND_PORT set "BACKEND_PORT=%EXDA_DEFAULT_BACKEND_PORT%"
 
+call :prepend_path_if_dir "%REPO_ROOT%\.venv\Scripts"
+call :prepend_path_if_dir "%ProgramFiles%\nodejs"
+call :prepend_path_if_dir "%ProgramFiles(x86)%\nodejs"
+call :prepend_path_if_dir "%LocalAppData%\Programs\nodejs"
+call :prepend_path_if_dir "%AppData%\npm"
+call :prepend_path_if_dir "%USERPROFILE%\scoop\shims"
+if defined ChocolateyInstall call :prepend_path_if_dir "%ChocolateyInstall%\bin"
+
 echo ========================================
 echo EXDA Launcher (Windows)
 echo ========================================
@@ -128,3 +136,11 @@ echo   http://%FRONTEND_HOST%:%FRONTEND_PORT%/?backendPort=%BACKEND_PORT%
 call npm run vite -- --host %FRONTEND_HOST% --port %FRONTEND_PORT%
 
 endlocal
+exit /b 0
+
+:prepend_path_if_dir
+if "%~1"=="" exit /b 0
+if not exist "%~1" exit /b 0
+echo ;%PATH%; | find /I ";%~1;" >nul
+if errorlevel 1 set "PATH=%~1;%PATH%"
+exit /b 0

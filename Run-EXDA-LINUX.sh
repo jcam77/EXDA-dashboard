@@ -20,6 +20,33 @@ FRONTEND_PORT="${EXDA_FRONTEND_PORT:-${EXDA_DEFAULT_FRONTEND_PORT:-}}"
 BACKEND_HOST="${EXDA_BACKEND_HOST:-${EXDA_DEFAULT_BACKEND_HOST:-}}"
 BACKEND_PORT="${EXDA_BACKEND_PORT:-${EXDA_DEFAULT_BACKEND_PORT:-}}"
 
+prepend_path_if_dir() {
+  local candidate="$1"
+  [ -d "$candidate" ] || return 0
+  case ":$PATH:" in
+    *":$candidate:"*) return 0 ;;
+  esac
+  PATH="$candidate:$PATH"
+}
+
+seed_gui_path() {
+  prepend_path_if_dir "$HOME/.local/bin"
+  prepend_path_if_dir "$HOME/bin"
+  prepend_path_if_dir "/usr/local/bin"
+  prepend_path_if_dir "/usr/bin"
+  prepend_path_if_dir "/bin"
+  prepend_path_if_dir "/snap/bin"
+  prepend_path_if_dir "/home/linuxbrew/.linuxbrew/bin"
+  prepend_path_if_dir "/home/linuxbrew/.linuxbrew/sbin"
+  prepend_path_if_dir "$HOME/.nvm/current/bin"
+  if [ -d "$HOME/.nvm/versions/node" ]; then
+    local nvm_bin=""
+    while IFS= read -r nvm_bin; do
+      prepend_path_if_dir "$nvm_bin"
+    done < <(find "$HOME/.nvm/versions/node" -maxdepth 3 -type d -path '*/bin' 2>/dev/null | sort -r)
+  fi
+}
+
 sanitize_local_venv() {
   if [ -d "$REPO_ROOT/.venv" ]; then
     find "$REPO_ROOT/.venv" -name '._*' -type f -delete >/dev/null 2>&1 || true
@@ -363,6 +390,7 @@ start_app() {
 }
 
 print_header
+seed_gui_path
 check_command node
 resolve_npm
 resolve_python
