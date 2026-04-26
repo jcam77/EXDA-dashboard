@@ -177,8 +177,8 @@ git add package.json package-lock.json
 git commit -m "Bump app version to 2.1.0"
 git push origin main
 git branch --show-current
-git tag -a browser-MVP-v2.0.0 -m "browser-MVP-v2.1.0"
-git push origin browser-MVP-v2.0.0
+git tag -a browser-MVP-v2.1.0 -m "browser-MVP-v2.1.0"
+git push origin browser-MVP-v2.1.0
 ```
 
 ## What To Remember
