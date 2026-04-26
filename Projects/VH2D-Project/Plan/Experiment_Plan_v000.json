@@ -212,8 +212,8 @@
   ],
   "meta": {
     "deadline": "2026-03-31",
-    "description": "LU & DBI pressure sensors characterisation.",
-    "objective": "LU & DBI pressure sensors characterisation.",
+    "description": "LU & DBI pressure DAQ systems characterisation.",
+    "objective": "LU & DBI pressure DAQ systems characterisation.",
     "startDate": "2026-01-21",
     "status": "planning"
   }

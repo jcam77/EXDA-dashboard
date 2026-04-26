@@ -26,6 +26,15 @@ const FLAGS = {
     ENABLE_ANALYSIS: true
 };
 
+const MVP_MODE_STORAGE_KEY = 'exda-mvp-mode';
+
+const isMvpModeEnabledByDefault = () => {
+    if (typeof __EXDA_MVP_MODE__ === 'undefined') return false;
+    return ['1', 'true', 'yes', 'on'].includes(String(__EXDA_MVP_MODE__).trim().toLowerCase());
+};
+
+const DISABLED_MVP_TABS = new Set(['verification', 'ewt', 'cfd_validation', 'flame_speed']);
+
 const HomePage = lazy(() => import('../../pages/Home'));
 const ProjectsPage = lazy(() => import('../../pages/Projects'));
 const AppCalculationsVerificationPage = lazy(() => import('../../pages/AppCalculationsVerification'));
@@ -58,6 +67,29 @@ const TAB_PATHS = {
     ai: '/ai',
     report: '/report',
     resources: '/literature',
+};
+
+const HEADER_SHORTCUT_TABS = ['home', 'projects', 'verification', 'ai'];
+const PROJECT_WORKSPACE_TABS = [
+    {id:'checklist', l:'Checklist', i:ClipboardList, to: TAB_PATHS.checklist},
+    {id:'plan', l:'Plan', i:FileSpreadsheet, to: TAB_PATHS.plan},
+    {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas},
+    {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data},
+    {id:'data_preprocessing', l:'Data Preprocessing', i:FolderOpen, to: TAB_PATHS.data_preprocessing},
+    {id:'ewt', l:'EWT', i:AudioLines, to: TAB_PATHS.ewt},
+    {id:'pressure_analysis', l:'Pressure Analysis', i:Activity, to: TAB_PATHS.pressure_analysis},
+    {id:'cfd_validation', l:'CFD Validation', i:Beaker, to: TAB_PATHS.cfd_validation},
+    {id:'flame_speed', l:'Flame Speed Analysis', i:Flame, to: TAB_PATHS.flame_speed},
+    {id:'ai', l:'AiRA', i:BrainCircuit, to: TAB_PATHS.ai},
+    {id:'report', l:'Report', i:FileText, to: TAB_PATHS.report},
+    {id:'resources', l:'Literature', i:BookOpen, to: TAB_PATHS.resources},
+];
+
+const HEADER_ACTIONS = {
+    home: { icon: Home, title: 'Home' },
+    projects: { icon: Layers, title: 'Projects' },
+    verification: { icon: ShieldCheck, title: 'Verification' },
+    ai: { icon: BrainCircuit, title: 'AiRA' },
 };
 
 const resolveTabFromPath = (pathname) => {
@@ -113,6 +145,19 @@ const TabFallback = () => (
 
 const WorkspacePage = () => {
     const apiBaseUrl = getBackendBaseUrl();
+    const [isMvpMode, setIsMvpMode] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const stored = window.localStorage.getItem(MVP_MODE_STORAGE_KEY);
+            if (stored !== null) {
+                return ['1', 'true', 'yes', 'on'].includes(String(stored).trim().toLowerCase());
+            }
+        }
+        return isMvpModeEnabledByDefault();
+    });
+    const isTabAllowed = useCallback((tab) => !(isMvpMode && DISABLED_MVP_TABS.has(tab)), [isMvpMode]);
+    const headerTabs = HEADER_SHORTCUT_TABS.filter(isTabAllowed);
+    const workspaceTabs = PROJECT_WORKSPACE_TABS.filter((tab) => isTabAllowed(tab.id));
+    const fallbackProjectTab = isTabAllowed('pressure_analysis') ? 'pressure_analysis' : 'data';
     // Add flame folder picker state
     const [selectedFlameFolder, setSelectedFlameFolder] = useState("");
     const [flamePicker, setFlamePicker] = useState({ open: false });
@@ -142,6 +187,11 @@ const WorkspacePage = () => {
             if (stored === 'dark') return false;
             return window.matchMedia?.('(prefers-color-scheme: light)')?.matches ?? false;
     });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.setItem(MVP_MODE_STORAGE_KEY, isMvpMode ? 'true' : 'false');
+    }, [isMvpMode]);
 
   // --- PLAN STATE ---
   const [experiments, setExperiments] = useState([]);
@@ -179,21 +229,54 @@ const WorkspacePage = () => {
 
   const activeTab = resolveTabFromPath(location.pathname) || 'home';
   const setActiveTab = useCallback((tab) => {
-      const nextPath = TAB_PATHS[tab] || '/';
+      const safeTab = isTabAllowed(tab) ? tab : (projectPath ? fallbackProjectTab : 'home');
+      const nextPath = TAB_PATHS[safeTab] || '/';
       if (location.pathname !== nextPath) {
           navigate(nextPath);
       }
-  }, [location.pathname, navigate]);
+  }, [fallbackProjectTab, isTabAllowed, location.pathname, navigate, projectPath]);
+
+  const renderHeaderTabButton = useCallback((tabId) => {
+      const tabConfig = HEADER_ACTIONS[tabId];
+      if (!tabConfig) return null;
+      const Icon = tabConfig.icon;
+      return (
+          <button
+              key={tabId}
+              onClick={() => setActiveTab(tabId)}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === tabId ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
+              title={tabConfig.title}
+              aria-label={tabConfig.title}
+          >
+              <Icon size={16} />
+          </button>
+      );
+  }, [activeTab, setActiveTab]);
+
+  const renderMvpModeButton = useCallback(() => (
+      <button
+          onClick={() => setIsMvpMode((value) => !value)}
+          className={`inline-flex h-10 items-center justify-center rounded-md border px-3 text-[10px] font-semibold uppercase tracking-widest transition ${isMvpMode ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
+          aria-pressed={isMvpMode}
+          title={isMvpMode ? 'Disable MVP mode' : 'Enable MVP mode'}
+      >
+          MVP
+      </button>
+  ), [isMvpMode]);
 
   useEffect(() => {
       if (location.pathname === '/analysis') {
-          navigate(TAB_PATHS.pressure_analysis, { replace: true });
+          navigate(TAB_PATHS[fallbackProjectTab], { replace: true });
           return;
       }
       if (!resolveTabFromPath(location.pathname)) {
           navigate('/', { replace: true });
+          return;
       }
-  }, [location.pathname, navigate]);
+      if (!isTabAllowed(activeTab)) {
+          navigate(projectPath ? TAB_PATHS[fallbackProjectTab] : TAB_PATHS.home, { replace: true });
+      }
+  }, [activeTab, fallbackProjectTab, isTabAllowed, location.pathname, navigate, projectPath]);
 
 
   /**
@@ -699,38 +782,8 @@ const WorkspacePage = () => {
                       </div>
                       <div className="flex items-center gap-2">
                           <div className="hidden md:flex items-center gap-2">
-                              <button
-                                  onClick={() => setActiveTab('home')}
-                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'home' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
-                                  title="Home"
-                                  aria-label="Home"
-                              >
-                                  <Home size={16} />
-                              </button>
-                              <button
-                                  onClick={() => setActiveTab('projects')}
-                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'projects' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
-                                  title="Projects"
-                                  aria-label="Projects"
-                              >
-                                  <Layers size={16} />
-                              </button>
-                              <button
-                                  onClick={() => setActiveTab('verification')}
-                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'verification' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
-                                  title="Verification"
-                                  aria-label="Verification"
-                              >
-                                  <ShieldCheck size={16} />
-                              </button>
-                              <button
-                                  onClick={() => setActiveTab('ai')}
-                                className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'ai' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
-                                  title="AiRA"
-                                  aria-label="AiRA"
-                              >
-                                  <BrainCircuit size={16} />
-                              </button>
+                              {headerTabs.map(renderHeaderTabButton)}
+                              {renderMvpModeButton()}
                           </div>
                           <div className="hidden md:flex items-center gap-3">
                               {activeTab === 'projects' && (
@@ -788,7 +841,7 @@ const WorkspacePage = () => {
                           onBackHome={() => setActiveTab('home')}
                           refreshKey={projectsRefreshKey}
                       />
-                  ) : activeTab === 'verification' ? (
+                  ) : activeTab === 'verification' && isTabAllowed('verification') ? (
                       <AppCalculationsVerificationPage />
                   ) : activeTab === 'ai' ? (
                       <AiRAPage
@@ -968,38 +1021,8 @@ const WorkspacePage = () => {
                                         </div>
                                     <div className="flex items-center gap-3">
                                             <div className="hidden md:flex items-center gap-2">
-                                                <button
-                                                    onClick={() => setActiveTab('home')}
-                                                    className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'home' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
-                                                    title="Home"
-                                                    aria-label="Home"
-                                                >
-                                                    <Home size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => setActiveTab('projects')}
-                                                    className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'projects' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
-                                                    title="Projects"
-                                                    aria-label="Projects"
-                                                >
-                                                    <Layers size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => setActiveTab('verification')}
-                                                    className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'verification' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
-                                                    title="Verification"
-                                                    aria-label="Verification"
-                                                >
-                                                    <ShieldCheck size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => setActiveTab('ai')}
-                                                    className={`inline-flex h-10 w-10 items-center justify-center rounded-md border text-xs font-semibold transition ${activeTab === 'ai' ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
-                                                    title="AiRA"
-                                                    aria-label="AiRA"
-                                                >
-                                                    <BrainCircuit size={16} />
-                                                </button>
+                                                {headerTabs.map(renderHeaderTabButton)}
+                                                {renderMvpModeButton()}
                                             </div>
                                             <div className="hidden md:flex items-center gap-2">
                                                 <button
@@ -1060,20 +1083,7 @@ const WorkspacePage = () => {
 
                             {/* MAIN NAVIGATION */}
                             <nav className="mt-4 flex flex-wrap gap-2 pb-3">
-                                        {[
-                                            {id:'checklist', l:'Checklist', i:ClipboardList, to: TAB_PATHS.checklist},
-                                            {id:'plan', l:'Plan', i:FileSpreadsheet, to: TAB_PATHS.plan}, 
-                                            {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas}, 
-                                            {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data}, 
-                                            {id:'data_preprocessing', l:'Data Preprocessing', i:FolderOpen, to: TAB_PATHS.data_preprocessing},
-                                            {id:'ewt', l:'EWT', i:AudioLines, to: TAB_PATHS.ewt},
-                                            {id:'pressure_analysis', l:'Pressure Analysis', i:Activity, to: TAB_PATHS.pressure_analysis}, 
-                                            {id:'cfd_validation', l:'CFD Validation', i:Beaker, to: TAB_PATHS.cfd_validation},
-                                            {id:'flame_speed', l:'Flame Speed Analysis', i:Flame, to: TAB_PATHS.flame_speed},
-                                            {id:'ai', l:'AiRA', i:BrainCircuit, to: TAB_PATHS.ai},
-                                            {id:'report', l:'Report', i:FileText, to: TAB_PATHS.report},
-                                            {id:'resources', l:'Literature', i:BookOpen, to: TAB_PATHS.resources}
-                                    ].map(t=>{
+                                        {workspaceTabs.map(t=>{
                                             const isActive = activeTab === t.id;
                                             return (
                                                     <NavLink 
@@ -1111,7 +1121,7 @@ const WorkspacePage = () => {
                       </Suspense>
                   </SafeComponent>
               )}
-              {activeTab === 'verification' && (
+              {activeTab === 'verification' && isTabAllowed('verification') && (
                   <SafeComponent>
                       <Suspense fallback={<TabFallback />}>
                           <AppCalculationsVerificationPage />
@@ -1200,7 +1210,7 @@ const WorkspacePage = () => {
                                     </SafeComponent>
               )}
 
-                             {activeTab === 'ewt' && FLAGS.ENABLE_ANALYSIS && (
+                             {activeTab === 'ewt' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('ewt') && (
                                  <SafeComponent>
                                      <Suspense fallback={<TabFallback />}>
                                          <EWTPage
@@ -1234,7 +1244,7 @@ const WorkspacePage = () => {
                                      </Suspense>
                                  </SafeComponent>
                              )}
-                             {activeTab === 'cfd_validation' && FLAGS.ENABLE_ANALYSIS && (
+                             {activeTab === 'cfd_validation' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('cfd_validation') && (
                                  <SafeComponent>
                                      <Suspense fallback={<TabFallback />}>
                                          <CFDValidationPage
@@ -1252,7 +1262,7 @@ const WorkspacePage = () => {
                                      </Suspense>
                                  </SafeComponent>
                              )}
-                             {activeTab === 'flame_speed' && FLAGS.ENABLE_ANALYSIS && (
+                             {activeTab === 'flame_speed' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('flame_speed') && (
                                  <SafeComponent>
                                      <Suspense fallback={<TabFallback />}>
                                          <FlameSpeed

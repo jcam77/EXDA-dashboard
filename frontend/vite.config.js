@@ -47,6 +47,7 @@ const appVersion = process.env.EXDA_APP_VERSION || gitVersion || pkg.version || 
 const lastUpdated = process.env.EXDA_LAST_UPDATED || gitUpdated || pkg.lastUpdated || new Date().toISOString()
 const defaultBackendHost = process.env.EXDA_BACKEND_HOST || defaults.EXDA_DEFAULT_BACKEND_HOST
 const defaultBackendPort = process.env.EXDA_BACKEND_PORT || defaults.EXDA_DEFAULT_BACKEND_PORT
+const mvpMode = process.env.MVP_MODE || process.env.VITE_MVP_MODE || 'false'
 
 if (!defaultBackendHost || !defaultBackendPort) {
   throw new Error('Missing EXDA backend defaults. Define them in config/exda-defaults.env or env vars.')
@@ -76,5 +77,6 @@ export default defineConfig(({ command }) => ({
     __LAST_UPDATED__: JSON.stringify(lastUpdated),
     __EXDA_DEFAULT_BACKEND_HOST__: JSON.stringify(defaultBackendHost),
     __EXDA_DEFAULT_BACKEND_PORT__: JSON.stringify(defaultBackendPort),
+    __EXDA_MVP_MODE__: JSON.stringify(mvpMode),
   },
 }))
