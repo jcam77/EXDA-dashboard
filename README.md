@@ -25,13 +25,29 @@ The goal of the app is to make it easier to move from project setup, to experime
 
 ### ▶️ Recommended Launchers
 
-Users can run EXDA directly from the launcher file for their operating system. This is the recommended way to start the app from a repository checkout:
+Users can prepare EXDA from a repository checkout with a one-time setup file for their operating system, then use the launcher normally afterwards.
+
+Setup once:
+
+- Linux: [Setup-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-LINUX.sh)
+- macOS: [Setup-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-MAC.command)
+- Windows: [Setup-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-WIN.bat)
+
+Then run EXDA with the launcher:
 
 - <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Run-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-LINUX.sh)
 - <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
 - <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
 
-The launcher will:
+The setup script will:
+
+- create or repair `.venv`
+- install npm dependencies
+- install backend Python requirements
+- install optional feature requirements
+- verify the installation
+
+The launcher will then:
 
 - check for required tools and packages
 - report anything missing
@@ -42,6 +58,8 @@ The launcher will:
 Full launcher notes are in [RUN_EXDA.md](/Volumes/Sim_Back_Up/EXDA-dashboard/RUN_EXDA.md).
 
 ### 📦 Manual Installation
+
+If you do not want to use the setup scripts, you can still install everything manually.
 
 From the repository root:
 
