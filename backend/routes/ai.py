@@ -8,7 +8,9 @@ import re
 import socket
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from urllib import error as urllib_error
 from urllib.parse import urlparse
+from urllib.request import urlopen
 
 from modules import project_manager
 
@@ -111,7 +113,8 @@ AiRA Ollama host resolution strategy (portable defaults):
 2) OLLAMA_IP (+ OLLAMA_PORT) if set.
 3) OLLAMA_HOSTNAME / MAC_HOSTNAME (+ OLLAMA_PORT) if set and resolvable.
 4) Optional local override file `.ollama_hostname` if present and resolvable.
-5) `host.docker.internal` / `host.internal` when available.
+5) Auto-probe common local/VM hosts (localhost, Docker host aliases,
+   default Linux gateway, and common VM host-only addresses).
 6) localhost fallback: http://localhost:11434
 
 For normal user installs (EXDA + Ollama on the same machine), no extra
@@ -129,6 +132,30 @@ def _hostname_resolves(hostname):
         return False
 
 
+def _read_linux_default_gateway():
+    """Return Linux default-gateway IP from /proc/net/route when available."""
+    route_path = "/proc/net/route"
+    if not os.path.exists(route_path):
+        return None
+
+    try:
+        with open(route_path, "r", encoding="utf-8") as route_file:
+            for line in route_file.readlines()[1:]:
+                fields = line.strip().split()
+                if len(fields) < 3:
+                    continue
+                destination_hex = fields[1]
+                gateway_hex = fields[2]
+                if destination_hex != "00000000":
+                    continue
+                gateway_raw = bytes.fromhex(gateway_hex)
+                return socket.inet_ntoa(gateway_raw[::-1])
+    except Exception:
+        return None
+
+    return None
+
+
 def _read_hostname_file():
     """Read optional advanced hostname override from local .ollama_hostname."""
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -144,8 +171,32 @@ def _read_hostname_file():
         return None
 
 
+def _probe_ollama_host(host_url, timeout_seconds=0.45):
+    """Return True if an Ollama API endpoint appears reachable at host_url."""
+    try:
+        probe_url = f"{host_url.rstrip('/')}/api/tags"
+        with urlopen(probe_url, timeout=timeout_seconds) as response:
+            return 200 <= int(getattr(response, "status", 200)) < 300
+    except (urllib_error.URLError, ValueError, OSError):
+        return False
+
+
+def _unique_preserve_order(values):
+    """Return values without duplicates while preserving input order."""
+    unique_values = []
+    seen = set()
+    for value in values:
+        if not value:
+            continue
+        if value in seen:
+            continue
+        unique_values.append(value)
+        seen.add(value)
+    return unique_values
+
+
 def _resolve_ollama_host():
-    """Resolve Ollama host URL from env vars, hostname file, or localhost fallback."""
+    """Resolve Ollama host URL from env vars, hostname file, or reachable defaults."""
     port = os.environ.get("OLLAMA_PORT", "11434")
     env_host = os.environ.get("OLLAMA_HOST")
     if env_host:
@@ -163,9 +214,22 @@ def _resolve_ollama_host():
     if file_hostname and _hostname_resolves(file_hostname):
         return f"http://{file_hostname}:{port}"
 
-    for candidate in ("host.docker.internal", "host.internal"):
-        if _hostname_resolves(candidate):
-            return f"http://{candidate}:{port}"
+    autodiscovery_hosts = [
+        "localhost",
+        "127.0.0.1",
+        "host.docker.internal",
+        "host.internal",
+        _read_linux_default_gateway(),
+        "10.211.55.2",  # Parallels host-only default
+        "10.0.2.2",     # VirtualBox NAT host default
+    ]
+    for candidate in _unique_preserve_order(autodiscovery_hosts):
+        if "." in candidate and not candidate.replace(".", "").isdigit():
+            if not _hostname_resolves(candidate):
+                continue
+        host_url = f"http://{candidate}:{port}"
+        if _probe_ollama_host(host_url):
+            return host_url
 
     return f"http://localhost:{port}"
 
