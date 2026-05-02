@@ -1,0 +1,7 @@
+# Optional advanced override for AiRA/Ollama host resolution.
+# For normal installs (EXDA + Ollama on the same machine), do not use this file.
+# Default behavior already uses localhost:11434.
+#
+# Only set this when Ollama runs on another machine or unusual VM/network routing.
+# Keep a single hostname per file, for example:
+# your-hostname.local
