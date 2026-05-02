@@ -266,6 +266,17 @@ Relevant files:
 
 If Ollama is not installed, the rest of the app can still run, but AI features will be limited.
 
+For typical user installs (EXDA and Ollama on the same machine), AiRA uses:
+
+- `http://localhost:11434`
+
+No hostname file edits are needed for that default case.
+
+Advanced override options (remote Ollama, VM routing, custom host) are:
+
+- `OLLAMA_HOST` (preferred explicit override)
+- optional local `.ollama_hostname` file (not committed; see `.ollama_hostname.example`)
+
 ## 🏷️ Versioning
 
 This project uses git tags for releases instead of versioned folders.
@@ -276,6 +287,8 @@ See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 
 - If backend startup fails, make sure the virtual environment is activated and `backend/requirements.txt` is installed.
 - If AiRA features are unavailable, check whether Ollama and any optional backend dependencies are installed.
+- If AiRA cannot connect to Ollama on your machine, verify Ollama is running locally at `http://localhost:11434`.
+- If you intentionally run Ollama on another host, set `OLLAMA_HOST` to the full URL (for example `http://my-host:11434`).
 - If PDF-related AI features are limited, install the optional backend requirements.
 - If frontend tooling behaves strangely on shared or synced folders, check for macOS sidecar files such as `._*` and `.DS_Store`, which can interfere with JS tooling.
 - If you need a packaged desktop build rather than the normal browser-first workflow, see [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).

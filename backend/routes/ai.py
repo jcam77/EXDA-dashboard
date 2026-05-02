@@ -105,22 +105,17 @@ APP_STRUCTURE_FILES = [
 
 
 """
-To connect to your Ollama server running on your Mac:
+AiRA Ollama host resolution strategy (portable defaults):
 
-Option A (recommended, dynamic IP): set your Mac hostname once
-    export OLLAMA_HOSTNAME="your-mac.local"
-    export OLLAMA_PORT="11434"
+1) OLLAMA_HOST (full URL) if explicitly set.
+2) OLLAMA_IP (+ OLLAMA_PORT) if set.
+3) OLLAMA_HOSTNAME / MAC_HOSTNAME (+ OLLAMA_PORT) if set and resolvable.
+4) Optional local override file `.ollama_hostname` if present and resolvable.
+5) `host.docker.internal` / `host.internal` when available.
+6) localhost fallback: http://localhost:11434
 
-Option B (direct): set the full host
-    export OLLAMA_HOST="http://10.7.55.183:11434"
-
-Then start the app:
-    npm run dev
-    # or
-    run v0.2
-
-Note: In Parallels/VM setups, the hostname may resolve to a host-only IP
-like 10.211.55.x instead of the Mac's Wi-Fi IP (en0). That's expected and OK.
+For normal user installs (EXDA + Ollama on the same machine), no extra
+configuration is needed; localhost is the intended default.
 """
 
 def _hostname_resolves(hostname):
@@ -135,7 +130,7 @@ def _hostname_resolves(hostname):
 
 
 def _read_hostname_file():
-    """Read optional Ollama hostname override from .ollama_hostname."""
+    """Read optional advanced hostname override from local .ollama_hostname."""
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     hostname_path = os.path.join(project_root, ".ollama_hostname")
     try:
