@@ -272,6 +272,20 @@ For typical user installs (EXDA and Ollama on the same machine), AiRA uses:
 
 No hostname file edits are needed for that default case.
 
+AiRA now auto-detects a reachable Ollama host when no explicit override is set.
+Resolution order is:
+
+- `OLLAMA_HOST` (explicit full URL)
+- `OLLAMA_IP` (+ optional `OLLAMA_PORT`)
+- `OLLAMA_HOSTNAME` / `MAC_HOSTNAME` (+ optional `OLLAMA_PORT`)
+- local `.ollama_hostname` file (advanced override)
+- auto-probe common local/VM hosts:
+  - `localhost`, `127.0.0.1`
+  - `host.docker.internal`, `host.internal`
+  - Linux default gateway IP
+  - common VM host IPs (`10.211.55.2`, `10.0.2.2`)
+- localhost fallback
+
 Advanced override options (remote Ollama, VM routing, custom host) are:
 
 - `OLLAMA_HOST` (preferred explicit override)
@@ -288,7 +302,7 @@ See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 - If backend startup fails, make sure the virtual environment is activated and `backend/requirements.txt` is installed.
 - If AiRA features are unavailable, check whether Ollama and any optional backend dependencies are installed.
 - If AiRA cannot connect to Ollama on your machine, verify Ollama is running locally at `http://localhost:11434`.
-- If you intentionally run Ollama on another host, set `OLLAMA_HOST` to the full URL (for example `http://my-host:11434`).
+- If AiRA still cannot detect the correct host automatically, set `OLLAMA_HOST` to the full URL (for example `http://my-host:11434`).
 - If PDF-related AI features are limited, install the optional backend requirements.
 - If frontend tooling behaves strangely on shared or synced folders, check for macOS sidecar files such as `._*` and `.DS_Store`, which can interfere with JS tooling.
 - If you need a packaged desktop build rather than the normal browser-first workflow, see [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).

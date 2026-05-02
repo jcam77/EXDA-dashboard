@@ -82,7 +82,8 @@ pip install -r backend\requirements-optional.txt
 
 - AiRA can remain limited if optional local AI tooling such as Ollama is not installed.
 - For normal user installs, AiRA defaults to local Ollama at `http://localhost:11434`.
-- If Ollama runs on another host, set `OLLAMA_HOST` to a full URL such as `http://my-host:11434`.
+- AiRA auto-detects Ollama host when no override is set, probing common local and VM routes before localhost fallback.
+- If Ollama runs on another host and auto-detection is not correct in your environment, set `OLLAMA_HOST` to a full URL such as `http://my-host:11434`.
 - Optional hostname override file `.ollama_hostname` is advanced-only; see `.ollama_hostname.example`.
 - The launchers are intended for users running the app from a repository checkout.
 - Packaged desktop builds are still possible, but they are now treated as a secondary release workflow. See [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).
