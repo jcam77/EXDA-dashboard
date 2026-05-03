@@ -16,6 +16,7 @@ import { recordRecentProject } from '../../utils/recentProjects';
 import { DEFAULT_INPUT_UNIT } from '../../utils/units';
 import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
 import { useDataImportPipeline } from './hooks/useDataImportPipeline';
+/* global __EXDA_MVP_MODE__, __EXDA_MVP_UNLOCK_PASSWORD__ */
 
 /**
  * Feature Flags for modular control
@@ -27,6 +28,10 @@ const FLAGS = {
 };
 
 const MVP_MODE_STORAGE_KEY = 'exda-mvp-mode';
+const getMvpUnlockPassword = () => {
+    if (typeof __EXDA_MVP_UNLOCK_PASSWORD__ === 'undefined') return 'exda';
+    return String(__EXDA_MVP_UNLOCK_PASSWORD__ || 'exda').trim();
+};
 
 const isMvpModeEnabledByDefault = () => {
     if (typeof __EXDA_MVP_MODE__ === 'undefined') return false;
@@ -104,6 +109,7 @@ const HEADER_ACTIONS = {
     verification: { icon: ShieldCheck, title: 'Verification' },
     ai: { icon: BrainCircuit, title: 'AiRA' },
 };
+const PROJECT_STATUS_OPTIONS = ['planning', 'active', 'archived'];
 
 const resolveTabFromPath = (pathname) => {
     if (pathname === '/' || pathname === '/home') return 'home';
@@ -191,6 +197,9 @@ const WorkspacePage = () => {
     };
   const [projectPath, setProjectPath] = useState(null); 
     const [modal, setModal] = useState({ show: false, type: 'success', title: '', content: null });
+    const [mvpUnlockPrompt, setMvpUnlockPrompt] = useState({ open: false, error: '' });
+    const [mvpUnlockInput, setMvpUnlockInput] = useState('');
+    const mvpUnlockInputRef = useRef(null);
     const [picker, setPicker] = useState({ open: false, mode: 'open' });
     const [dataPicker, setDataPicker] = useState({ open: false, type: 'sim' });
     const [planPickerOpen, setPlanPickerOpen] = useState(false);
@@ -223,6 +232,7 @@ const WorkspacePage = () => {
   const experimentalFlameData = null;
   const [selectedCases, setSelectedCases] = useState([]);
   const [projectStatusFromFile, setProjectStatusFromFile] = useState('');
+  const [isUpdatingProjectStatus, setIsUpdatingProjectStatus] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [settings, setSettings] = useState({ 
@@ -272,16 +282,45 @@ const WorkspacePage = () => {
       );
   }, [activeTab, setActiveTab]);
 
+  const handleMvpModeToggle = useCallback(() => {
+      if (!isMvpMode) {
+          setIsMvpMode(true);
+          return;
+      }
+      const configuredPassword = getMvpUnlockPassword();
+      if (!configuredPassword) {
+          setIsMvpMode(false);
+          return;
+      }
+      setMvpUnlockInput('');
+      setMvpUnlockPrompt({ open: true, error: '' });
+  }, [isMvpMode]);
+
+  const closeMvpUnlockPrompt = useCallback(() => {
+      setMvpUnlockPrompt({ open: false, error: '' });
+      setMvpUnlockInput('');
+  }, []);
+
+  const confirmMvpUnlockPrompt = useCallback(() => {
+      const configuredPassword = getMvpUnlockPassword();
+      if (mvpUnlockInput === configuredPassword) {
+          setIsMvpMode(false);
+          closeMvpUnlockPrompt();
+          return;
+      }
+      setMvpUnlockPrompt({ open: true, error: 'Incorrect password. MVP mode remains enabled.' });
+  }, [closeMvpUnlockPrompt, mvpUnlockInput]);
+
   const renderMvpModeButton = useCallback(() => (
       <button
-          onClick={() => setIsMvpMode((value) => !value)}
+          onClick={handleMvpModeToggle}
           className={`inline-flex h-10 items-center justify-center rounded-md border px-3 text-[10px] font-semibold uppercase tracking-widest transition ${isMvpMode ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
           aria-pressed={isMvpMode}
-          title={isMvpMode ? 'Disable MVP mode' : 'Enable MVP mode'}
+          title={isMvpMode ? 'Disable MVP mode (password protected when configured)' : 'Enable MVP mode'}
       >
           MVP
       </button>
-  ), [isMvpMode]);
+  ), [handleMvpModeToggle, isMvpMode]);
 
   useEffect(() => {
       if (location.pathname === '/analysis') {
@@ -296,6 +335,82 @@ const WorkspacePage = () => {
           navigate(projectPath ? TAB_PATHS[fallbackProjectTab] : TAB_PATHS.home, { replace: true });
       }
   }, [activeTab, fallbackProjectTab, isTabAllowed, location.pathname, navigate, projectPath]);
+
+  useEffect(() => {
+      if (!mvpUnlockPrompt.open) return;
+      const timer = setTimeout(() => {
+          mvpUnlockInputRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
+  }, [mvpUnlockPrompt.open]);
+
+  const mvpUnlockModal = mvpUnlockPrompt.open ? (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-xl border border-sidebar-border bg-card shadow-sm p-5">
+              <div className="flex items-start justify-between gap-4">
+                  <div>
+                      <h3 className="text-base font-bold text-foreground">Developer Password Required</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                          Enter password to disable MVP mode.
+                      </p>
+                  </div>
+                  <button
+                      type="button"
+                      onClick={closeMvpUnlockPrompt}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Close password prompt"
+                  >
+                      <X size={16} />
+                  </button>
+              </div>
+              <div className="mt-4">
+                  <input
+                      ref={mvpUnlockInputRef}
+                      type="password"
+                      value={mvpUnlockInput}
+                      onChange={(event) => {
+                          setMvpUnlockInput(event.target.value);
+                          if (mvpUnlockPrompt.error) {
+                              setMvpUnlockPrompt({ open: true, error: '' });
+                          }
+                      }}
+                      onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                              event.preventDefault();
+                              confirmMvpUnlockPrompt();
+                          }
+                          if (event.key === 'Escape') {
+                              event.preventDefault();
+                              closeMvpUnlockPrompt();
+                          }
+                      }}
+                      className="w-full rounded-md border border-sidebar-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                      placeholder="Password"
+                      aria-label="MVP unlock password"
+                  />
+                  {mvpUnlockPrompt.error && (
+                      <p className="mt-2 text-xs text-destructive">{mvpUnlockPrompt.error}</p>
+                  )}
+              </div>
+              <div className="mt-5 flex justify-end gap-2">
+                  <button
+                      type="button"
+                      onClick={closeMvpUnlockPrompt}
+                      className="px-3 py-2 rounded-md border border-border bg-muted text-sm font-semibold text-foreground hover:bg-muted/80"
+                  >
+                      Cancel
+                  </button>
+                  <button
+                      type="button"
+                      onClick={confirmMvpUnlockPrompt}
+                      className="px-3 py-2 rounded-md border border-primary/40 bg-primary/15 text-sm font-semibold text-primary hover:bg-primary/25"
+                  >
+                      Disable MVP
+                  </button>
+              </div>
+          </div>
+      </div>
+  ) : null;
 
 
   /**
@@ -543,6 +658,38 @@ const WorkspacePage = () => {
       return 'active';
   })();
 
+  const projectStatusClassName = (() => {
+      if (projectStatus === 'active') return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+      if (projectStatus === 'planning') return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+      return 'bg-muted/20 text-muted-foreground border-border';
+  })();
+
+  const updateWorkspaceProjectStatus = useCallback(async (nextStatus) => {
+      const normalized = String(nextStatus || '').toLowerCase().trim();
+      if (!projectPath) return;
+      if (!PROJECT_STATUS_OPTIONS.includes(normalized)) return;
+      if (normalized === projectStatus) return;
+
+      setIsUpdatingProjectStatus(true);
+      try {
+          const res = await fetch(`${apiBaseUrl}/update_project_status`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ projectPath, status: normalized })
+          });
+          const data = await res.json();
+          if (!res.ok || !data?.success) {
+              throw new Error(data?.error || `Request failed (${res.status})`);
+          }
+          setProjectStatusFromFile(normalized);
+          setPlanMeta((prev) => ({ ...(prev || {}), status: normalized }));
+      } catch (error) {
+          notify('error', 'Status Update Failed', error?.message || 'Could not update project status.');
+      } finally {
+          setIsUpdatingProjectStatus(false);
+      }
+  }, [apiBaseUrl, notify, projectPath, projectStatus]);
+
   const formatLastSaved = (value) => {
       if (!value) return 'Not saved yet';
       try {
@@ -756,6 +903,7 @@ const WorkspacePage = () => {
   if (!projectPath) {
       return (
           <div className="w-full h-screen bg-background text-foreground flex flex-col overflow-hidden">
+              {mvpUnlockModal}
               <header className="w-full sticky top-0 z-50 border-b border-sidebar-border/60 bg-background/80 backdrop-blur">
                   <div className="flex min-h-[96px] items-center justify-between gap-4 px-4 pt-3 pb-4 sm:px-6 lg:px-8">
                       <div className="flex items-center gap-4">
@@ -951,6 +1099,7 @@ const WorkspacePage = () => {
   return (
       <div className="w-full h-screen bg-background text-foreground overflow-hidden font-sans flex flex-col relative transition-colors duration-500">
           <UnifiedModal modal={modal} setModal={setModal} />
+          {mvpUnlockModal}
                     <ProjectPickerModal
                         isOpen={picker.open}
                         mode={picker.mode}
@@ -1030,17 +1179,20 @@ const WorkspacePage = () => {
                                                         <FlaskConical className="text-foreground"/><Activity className="text-red-500"/> 
                                                         {projectPath.split(/[/\\]/).pop()}
                                                     </h1>
-                                                    <span
-                                                        className={`text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-full border ${
-                                                            projectStatus === 'active'
-                                                                ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10'
-                                                                : projectStatus === 'archived'
-                                                                ? 'border-muted text-muted-foreground bg-muted/20'
-                                                                : 'border-amber-500/30 text-amber-400 bg-amber-500/10'
-                                                        }`}
+                                                    <select
+                                                        value={projectStatus}
+                                                        onChange={(event) => updateWorkspaceProjectStatus(event.target.value)}
+                                                        disabled={isUpdatingProjectStatus}
+                                                        className={`rounded-md border px-2 py-1 text-[10px] font-semibold uppercase disabled:cursor-not-allowed ${projectStatusClassName}`}
+                                                        aria-label="Project status"
+                                                        title="Project status"
                                                     >
-                                                        {projectStatus}
-                                                    </span>
+                                                        {PROJECT_STATUS_OPTIONS.map((statusOption) => (
+                                                            <option key={statusOption} value={statusOption} className="bg-background text-foreground">
+                                                                {statusOption}
+                                                            </option>
+                                                        ))}
+                                                    </select>
                                                 </div>
                                                 
                                             </div>

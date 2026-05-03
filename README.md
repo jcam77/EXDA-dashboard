@@ -48,6 +48,10 @@ EXDA includes an MVP mode (Minimum Viable Product) for fast onsite work.
 - You can also set startup default with env vars before launch:
   - `MVP_MODE=true`
   - or `VITE_MVP_MODE=true`
+- Optional: protect turning MVP mode off with a developer password:
+  - Default unlock password is `exda`
+  - `EXDA_MVP_UNLOCK_PASSWORD=your-password`
+  - or `VITE_MVP_UNLOCK_PASSWORD=your-password`
 
 Current MVP simplifications include:
 

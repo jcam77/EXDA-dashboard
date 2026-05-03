@@ -48,6 +48,7 @@ const lastUpdated = process.env.EXDA_LAST_UPDATED || gitUpdated || pkg.lastUpdat
 const defaultBackendHost = process.env.EXDA_BACKEND_HOST || defaults.EXDA_DEFAULT_BACKEND_HOST
 const defaultBackendPort = process.env.EXDA_BACKEND_PORT || defaults.EXDA_DEFAULT_BACKEND_PORT
 const mvpMode = process.env.MVP_MODE || process.env.VITE_MVP_MODE || 'false'
+const mvpUnlockPassword = process.env.EXDA_MVP_UNLOCK_PASSWORD || process.env.VITE_MVP_UNLOCK_PASSWORD || 'exda'
 
 if (!defaultBackendHost || !defaultBackendPort) {
   throw new Error('Missing EXDA backend defaults. Define them in config/exda-defaults.env or env vars.')
@@ -78,5 +79,6 @@ export default defineConfig(({ command }) => ({
     __EXDA_DEFAULT_BACKEND_HOST__: JSON.stringify(defaultBackendHost),
     __EXDA_DEFAULT_BACKEND_PORT__: JSON.stringify(defaultBackendPort),
     __EXDA_MVP_MODE__: JSON.stringify(mvpMode),
+    __EXDA_MVP_UNLOCK_PASSWORD__: JSON.stringify(mvpUnlockPassword),
   },
 }))

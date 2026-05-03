@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { 
     Save, Upload, Plus, CheckSquare, Square, PenTool, Trash2, Calendar, 
     Clock, Target, GripVertical, Layers, FlaskConical, X, 
-    AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge, ChevronRight, ChevronDown, Wrench
+    AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge, ChevronRight, ChevronDown, Wrench, Undo2
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Cell, LabelList } from 'recharts';
 import { getBackendBaseUrl } from '../utils/backendUrl';
@@ -31,7 +31,9 @@ const PlanPage = ({
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const [rawDataFiles, setRawDataFiles] = useState([]);
     const [collapsedGroups, setCollapsedGroups] = useState({});
+    const [lastDeletedRun, setLastDeletedRun] = useState(null);
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 });
+    const deleteUndoTimeoutRef = useRef(null);
 
     // --- ANALYTICS & GATING ---
     const isPreparationRun = useCallback((exp) => !!exp?.meta?.isPreparation, []);
@@ -98,19 +100,21 @@ const PlanPage = ({
     }, [rawDataFiles]);
 
     const buildRunName = useCallback((groupValue, runValue) => {
-        const cleanGroup = String(groupValue || '').trim().replace(/[\/\\]/g, '-');
+        const cleanGroup = String(groupValue || '').trim().replace(/[/\\]/g, '-');
         const cleanRun = String(runValue || '').trim();
         if (!cleanGroup || !cleanRun) return "";
-        const runDigits = cleanRun.match(/\d+/)?.[0];
-        if (!runDigits) return "";
+        const runMatch = cleanRun.match(/^(\d+)(?:\s*-\s*([A-Za-z][A-Za-z0-9_-]*))?$/);
+        if (!runMatch) return "";
+        const runDigits = runMatch[1];
+        const runSuffix = runMatch[2] ? `-${runMatch[2].toUpperCase()}` : "";
         const padded = String(parseInt(runDigits, 10)).padStart(2, '0');
-        return `${cleanGroup}-${padded}`;
+        return `${cleanGroup}-${padded}${runSuffix}`;
     }, []);
 
     const getRunGroupKey = useCallback((runName) => {
         const cleanName = String(runName || '').trim();
         if (!cleanName) return "GENERAL";
-        const familyMatch = cleanName.match(/^(.*)-(\d+)$/);
+        const familyMatch = cleanName.match(/^(.*)-(\d+)(?:-[Rr]\d+)?$/);
         if (familyMatch && familyMatch[1]) {
             return familyMatch[1];
         }
@@ -182,7 +186,7 @@ const PlanPage = ({
     }, [experiments, normalizeRunName]);
 
     const renameGroupRuns = useCallback(async (groupName) => {
-        const requestedName = String(groupRenameDrafts[groupName] ?? groupName).trim().replace(/[\/\\]/g, '-');
+        const requestedName = String(groupRenameDrafts[groupName] ?? groupName).trim().replace(/[/\\]/g, '-');
         if (!requestedName) {
             setGroupRenameErrors((prev) => ({ ...prev, [groupName]: "Group name cannot be empty." }));
             return;
@@ -197,10 +201,10 @@ const PlanPage = ({
 
         const generatedNames = affected.map((exp, index) => {
             const raw = String(exp.name || '').trim();
-            const match = raw.match(/-(\d+)$/);
+            const match = raw.match(/-(\d+(?:-[Rr]\d+)?)$/);
             const fallback = String(index + 1).padStart(2, '0');
-            const suffix = match ? String(match[1]).padStart(2, '0') : fallback;
-            return `${requestedName}-${suffix}`;
+            const tail = match ? String(match[1]).replace(/-r/i, '-R') : fallback;
+            return `${requestedName}-${tail}`;
         });
 
         const generatedLower = generatedNames.map((name) => normalizeRunName(name));
@@ -317,6 +321,47 @@ const PlanPage = ({
             }
         }
     };
+
+    const clearDeleteUndoTimeout = useCallback(() => {
+        if (deleteUndoTimeoutRef.current) {
+            clearTimeout(deleteUndoTimeoutRef.current);
+            deleteUndoTimeoutRef.current = null;
+        }
+    }, []);
+
+    const queueDeleteUndoExpiry = useCallback(() => {
+        clearDeleteUndoTimeout();
+        deleteUndoTimeoutRef.current = setTimeout(() => {
+            setLastDeletedRun(null);
+            deleteUndoTimeoutRef.current = null;
+        }, 12000);
+    }, [clearDeleteUndoTimeout]);
+
+    const removeRunWithUndo = useCallback((runId) => {
+        const index = experiments.findIndex((item) => item.id === runId);
+        if (index < 0) return;
+        const removed = experiments[index];
+        setExperiments(experiments.filter((item) => item.id !== runId));
+        setLastDeletedRun({
+            experiment: removed,
+            index,
+        });
+        queueDeleteUndoExpiry();
+    }, [experiments, queueDeleteUndoExpiry, setExperiments]);
+
+    const undoDeletedRun = useCallback(() => {
+        if (!lastDeletedRun?.experiment) return;
+        const { experiment, index } = lastDeletedRun;
+        setExperiments((previous) => {
+            if (previous.some((item) => item.id === experiment.id)) return previous;
+            const next = [...previous];
+            const safeIndex = Math.max(0, Math.min(Number(index) || 0, next.length));
+            next.splice(safeIndex, 0, experiment);
+            return next;
+        });
+        clearDeleteUndoTimeout();
+        setLastDeletedRun(null);
+    }, [clearDeleteUndoTimeout, lastDeletedRun, setExperiments]);
 
     const updateRunShortDescription = useCallback((runId, value) => {
         setExperiments((previous) => previous.map((exp) => {
@@ -529,6 +574,8 @@ const PlanPage = ({
         };
     }, [isModalDragging]);
 
+    useEffect(() => () => clearDeleteUndoTimeout(), [clearDeleteUndoTimeout]);
+
     const beginModalDrag = (event) => {
         if (event.button !== 0) return;
         dragStartRef.current = {
@@ -566,7 +613,7 @@ const PlanPage = ({
                         <input
                             value={input.run}
                             onChange={e=>{ setInput({...input, run:e.target.value}); setCreateError(""); }}
-                            placeholder="Run # (e.g., 1)"
+                            placeholder="Run # (e.g., 1 or 1-R1)"
                             className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
                         />
                         <input
@@ -622,6 +669,33 @@ const PlanPage = ({
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+                    {lastDeletedRun?.experiment && (
+                        <div className="mb-3 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                            <div className="truncate">
+                                Run <span className="font-semibold">{lastDeletedRun.experiment.name}</span> deleted.
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={undoDeletedRun}
+                                    className="inline-flex items-center gap-1 rounded border border-amber-300/40 px-2 py-1 font-semibold text-amber-100 hover:bg-amber-400/20"
+                                >
+                                    <Undo2 size={12}/> Undo
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        clearDeleteUndoTimeout();
+                                        setLastDeletedRun(null);
+                                    }}
+                                    className="text-amber-200/80 hover:text-amber-100"
+                                    aria-label="Dismiss delete notice"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     {Object.entries(groupedTasks).map(([group, tasks]) => (
                         <div key={group} className="mb-4">
                             <div className="mb-2 flex flex-col gap-2">
@@ -681,7 +755,7 @@ const PlanPage = ({
                                         <span className={`text-sm flex-1 truncate font-mono ${e.done ? 'line-through text-zinc-600' : 'text-zinc-300'}`}>{e.name}</span>
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                                             <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} className="text-zinc-600 hover:text-white p-1 hover:bg-zinc-800 rounded transition-colors"><PenTool size={12}/></button>
-                                            <button onClick={()=>setExperiments(experiments.filter(x=>x.id!==e.id))} className="text-zinc-600 hover:text-red-500 p-1 hover:bg-zinc-800 rounded transition-colors"><Trash2 size={12}/></button>
+                                            <button onClick={() => removeRunWithUndo(e.id)} className="text-zinc-600 hover:text-red-500 p-1 hover:bg-zinc-800 rounded transition-colors"><Trash2 size={12}/></button>
                                         </div>
                                     </div>
                                     

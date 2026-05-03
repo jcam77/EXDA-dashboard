@@ -38,6 +38,10 @@ For a simplified onsite workflow, you can enable MVP mode (Minimum Viable Produc
 - Set a default before launch with:
   - `MVP_MODE=true`
   - or `VITE_MVP_MODE=true`
+- Optional: require a developer password to disable MVP mode:
+  - Default unlock password is `exda`
+  - `EXDA_MVP_UNLOCK_PASSWORD=your-password`
+  - or `VITE_MVP_UNLOCK_PASSWORD=your-password`
 
 In MVP mode, advanced tabs are hidden and the workspace uses a simpler `Raw Data Pressure Analysis` tab for quicker operation.
 
