@@ -183,13 +183,13 @@ git pull --ff-only origin main
 git branch --show-current
 git merge CODEX-Updates -m "Merge CODEX-Updates into main"
 git push origin main
-npm version <semver> --no-git-tag-version
+npm version 2.10.0 --no-git-tag-version
 git add package.json package-lock.json VERSIONING.md
-git commit -m "Prepare release <semver> (<tag>)"
+git commit -m "Prepare release 2.10.0 (browser-MVP-v2.10.0)"
 git push origin main
 git branch --show-current
-git tag -a <tag> -m "<tag>"
-git push origin <tag>
+git tag -a browser-MVP-v2.10.0 -m "browser-MVP-v2.10.0"
+git push origin browser-MVP-v2.10.0
 git switch CODEX-Updates
 git merge main
 git push origin CODEX-Updates
