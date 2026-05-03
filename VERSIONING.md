@@ -2,6 +2,12 @@
 
 This is the EXDA versioning workflow.
 
+## Current Release
+
+- Latest release version: `2.8.0`
+- Latest release tag: `browser-MVP-v2.8.0`
+- Updated on: `2026-05-03`
+
 The safe rule is:
 
 - develop on `CODEX-Updates`
@@ -176,17 +182,38 @@ git pull --ff-only origin main
 git branch --show-current
 git merge CODEX-Updates -m "Merge CODEX-Updates into main"
 git push origin main
-npm version 2.8.0 --no-git-tag-version
+npm version 2.9.0 --no-git-tag-version
 git add package.json package-lock.json
-git commit -m "Bump app version to 2.7.0"
+git commit -m "Bump app version to 2.9.0"
 git push origin main
 git branch --show-current
-git tag -a browser-MVP-v2.8.0 -m "browser-MVP-v2.8.0"
-git push origin browser-MVP-v2.8.0
+git tag -a browser-MVP-v2.9.0 -m "browser-MVP-v2.9.0"
+git push origin browser-MVP-v2.9.0
 git switch CODEX-Updates
 git merge main
 git push origin CODEX-Updates
 ```
+
+## One-Command Release Script
+
+If you do not want to copy/paste all release commands every time, use:
+
+```bash
+./release.sh
+```
+
+The script will:
+
+- show current branch, current version, and latest tag
+- ask for the new version (accepts semver or full tag input)
+- suggest a default tag name based on your latest tag prefix
+- run the full release flow:
+  - commit/push `CODEX-Updates` changes
+  - merge `CODEX-Updates` into `main`
+  - bump version on `main` if needed
+  - update `VERSIONING.md` with latest release version, tag, and date
+  - create and push the tag from `main`
+  - merge `main` back into `CODEX-Updates`
 
 ## What To Remember
 

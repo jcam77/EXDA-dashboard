@@ -41,7 +41,7 @@ Then run EXDA with the launcher:
 
 ### 🧪 MVP Mode (Simplified Workflow)
 
-EXDA includes an MVP mode for fast onsite work.
+EXDA includes an MVP mode (Minimum Viable Product) for fast onsite work.
 
 - Use the `MVP` button in the upper-right area of the app to toggle it on/off.
 - The current state is saved in your browser (`localStorage`) and reused on next launch.
@@ -309,6 +309,14 @@ Advanced override options (remote Ollama, VM routing, custom host) are:
 ## 🏷️ Versioning
 
 This project uses git tags for releases instead of versioned folders.
+
+Quick release helper:
+
+```bash
+./release.sh
+```
+
+`release.sh` asks for the new version and tag, and accepts either a semver value (`2.9.0`) or a full custom tag (`my-release-v2.9.0`) as input.
 
 See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 

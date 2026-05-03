@@ -31,7 +31,7 @@ The setup scripts:
 
 ## MVP Mode (Optional)
 
-For a simplified onsite workflow, you can enable MVP mode.
+For a simplified onsite workflow, you can enable MVP mode (Minimum Viable Product).
 
 - Toggle with the `MVP` button in the app header (upper-right area).
 - The selection is stored locally in your browser and reused on next app start.
