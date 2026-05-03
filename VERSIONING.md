@@ -4,8 +4,8 @@ This is the EXDA versioning workflow.
 
 ## Current Release
 
-- Latest release version: `2.13.0`
-- Latest release tag: `browser-MVP-v2.13.0`
+- Latest release version: `2.14.0`
+- Latest release tag: `browser-MVP-v2.14.0`
 - Updated on: `2026-05-03`
 The safe rule is:
 
