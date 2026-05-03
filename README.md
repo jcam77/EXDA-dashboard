@@ -316,7 +316,7 @@ Quick release helper:
 ./release.sh
 ```
 
-`release.sh` asks for the new version and tag, and accepts either a semver value (`2.9.0`) or a full custom tag (`my-release-v2.9.0`) as input.
+`release.sh` asks only for the new release tag (for example `my-release-v2.9.0`), then auto-detects the app version from the tag suffix.
 
 See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 

@@ -56,17 +56,6 @@ fs.writeFileSync(path, text);
 NODE
 }
 
-detect_default_tag() {
-  local latest_tag="$1"
-  local new_version="$2"
-
-  if [[ "$latest_tag" =~ ^(.+v)[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "${BASH_REMATCH[1]}${new_version}"
-  else
-    echo "browser-v${new_version}"
-  fi
-}
-
 require_cmd git
 require_cmd npm
 require_cmd node
@@ -89,6 +78,7 @@ fi
 current_branch="$(git branch --show-current)"
 current_pkg_version="$(node -p "require('./package.json').version" 2>/dev/null || echo 'unknown')"
 latest_tag="$(git describe --tags --abbrev=0 2>/dev/null || echo 'none')"
+codex_commit_msg="Release-ready changes"
 
 echo "========================================"
 echo "EXDA Release Assistant"
@@ -98,32 +88,24 @@ echo "Current package version: ${current_pkg_version}"
 echo "Latest tag: ${latest_tag}"
 echo
 
-read -r -p "New app version (semver or tag, e.g. 2.9.0 or browser-MVP-v2.9.0): " version_input
-version_input_trimmed="$(echo "$version_input" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
-tag_from_first_prompt=""
-if [[ "$version_input_trimmed" =~ ^([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-  new_version="${BASH_REMATCH[1]}"
-elif [[ "$version_input_trimmed" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-  new_version="${BASH_REMATCH[1]}"
-elif [[ "$version_input_trimmed" =~ v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-  new_version="${BASH_REMATCH[1]}"
-  tag_from_first_prompt="$version_input_trimmed"
-  echo "Detected version ${new_version} from tag-like input."
-else
-  echo "Invalid version format. Use MAJOR.MINOR.PATCH (example: 2.9.0) or a tag ending with vMAJOR.MINOR.PATCH."
+input_tag="${1:-}"
+if [[ -z "$input_tag" ]]; then
+  read -r -p "New release tag (e.g. browser-MVP-v2.9.0): " input_tag
+fi
+
+tag_name="$(echo "$input_tag" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+if [[ -z "$tag_name" ]]; then
+  echo "Tag is required."
   exit 1
 fi
 
-if [[ -n "$tag_from_first_prompt" ]]; then
-  default_tag="$tag_from_first_prompt"
+if [[ "$tag_name" =~ v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+  new_version="${BASH_REMATCH[1]}"
 else
-  default_tag="$(detect_default_tag "$latest_tag" "$new_version")"
+  echo "Invalid tag format. Tag must end with vMAJOR.MINOR.PATCH (example: browser-MVP-v2.9.0)."
+  exit 1
 fi
-read -r -p "New release tag [${default_tag}]: " tag_name
-tag_name="${tag_name:-$default_tag}"
-
-read -r -p "CODEX commit message [Release-ready changes]: " codex_commit_msg
-codex_commit_msg="${codex_commit_msg:-Release-ready changes}"
+echo "Detected version ${new_version} from tag."
 
 if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null 2>&1; then
   echo "Tag '${tag_name}' already exists locally. Choose a new tag."
@@ -139,12 +121,6 @@ echo
 echo "Planned release:"
 echo "- Version bump target: ${new_version}"
 echo "- Tag: ${tag_name}"
-echo
-read -r -p "Continue with release workflow? [y/N]: " confirm
-if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-  echo "Cancelled."
-  exit 0
-fi
 
 run_cmd git switch CODEX-Updates
 run_cmd git status --short --branch

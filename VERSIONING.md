@@ -209,8 +209,8 @@ If you do not want to copy/paste all release commands every time, use:
 The script will:
 
 - show current branch, current version, and latest tag
-- ask for the new version (accepts semver or full tag input)
-- suggest a default tag name based on your latest tag prefix
+- ask only for the new release tag (must end with `vMAJOR.MINOR.PATCH`)
+- auto-detect the new app version from the tag
 - run the full release flow:
   - commit/push `CODEX-Updates` changes
   - merge `CODEX-Updates` into `main`
