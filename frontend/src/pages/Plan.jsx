@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { 
     Save, Upload, Plus, CheckSquare, Square, PenTool, Trash2, Calendar, 
-    Clock, Target, GripVertical, Layers, FlaskConical, BarChart2, X, 
-    AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge 
+    Clock, Target, GripVertical, Layers, FlaskConical, X, 
+    AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge, ChevronRight, ChevronDown, Wrench
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Cell, LabelList } from 'recharts';
 import { getBackendBaseUrl } from '../utils/backendUrl';
@@ -19,16 +19,24 @@ const PlanPage = ({
     projectPath = ""
 }) => {
     const apiBaseUrl = getBackendBaseUrl();
-    const [input, setInput] = useState({ name: "" });
+    const [input, setInput] = useState({ group: "", run: "", h2: "", plannedDay: "", plannedDate: "", name: "", isPreparation: false });
     const [editingExp, setEditingExp] = useState(null);
+    const [createError, setCreateError] = useState("");
+    const [editError, setEditError] = useState("");
+    const [groupRenameDrafts, setGroupRenameDrafts] = useState({});
+    const [groupRenameErrors, setGroupRenameErrors] = useState({});
     const [draggedId, setDraggedId] = useState(null);
     const [modalOffset, setModalOffset] = useState({ x: 0, y: 40 });
     const [isModalDragging, setIsModalDragging] = useState(false);
+    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const [rawDataFiles, setRawDataFiles] = useState([]);
+    const [collapsedGroups, setCollapsedGroups] = useState({});
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 });
 
     // --- ANALYTICS & GATING ---
+    const isPreparationRun = useCallback((exp) => !!exp?.meta?.isPreparation, []);
     const isReady = (exp) => {
+        if (isPreparationRun(exp)) return true;
         // Gates: Mandatory fields for scientific integrity
         return exp.meta?.h2 && exp.meta?.ignition && exp.meta?.vent && Array.isArray(exp.meta?.dataFiles) && exp.meta.dataFiles.length > 0;
     };
@@ -59,6 +67,7 @@ const PlanPage = ({
     const stats = getStats();
 
     const getMissingMeta = (exp) => {
+        if (isPreparationRun(exp)) return [];
         const missing = [];
         if (!exp.meta?.h2) missing.push('H2%');
         if (!exp.meta?.ignition) missing.push('Ignition');
@@ -88,22 +97,208 @@ const PlanPage = ({
         return rawDataFiles.filter((filePath) => String(filePath || '').startsWith(prefix));
     }, [rawDataFiles]);
 
+    const buildRunName = useCallback((groupValue, runValue) => {
+        const cleanGroup = String(groupValue || '').trim().replace(/[\/\\]/g, '-');
+        const cleanRun = String(runValue || '').trim();
+        if (!cleanGroup || !cleanRun) return "";
+        const runDigits = cleanRun.match(/\d+/)?.[0];
+        if (!runDigits) return "";
+        const padded = String(parseInt(runDigits, 10)).padStart(2, '0');
+        return `${cleanGroup}-${padded}`;
+    }, []);
+
+    const getRunGroupKey = useCallback((runName) => {
+        const cleanName = String(runName || '').trim();
+        if (!cleanName) return "GENERAL";
+        const familyMatch = cleanName.match(/^(.*)-(\d+)$/);
+        if (familyMatch && familyMatch[1]) {
+            return familyMatch[1];
+        }
+        const mixtureMatch = cleanName.match(/(\d+(?:\.\d+)?)\s*pctv/i);
+        if (mixtureMatch) {
+            return `${mixtureMatch[1]}%VOL`;
+        }
+        return "GENERAL";
+    }, []);
+
+    const ymdToOrdinal = useCallback((rawDate) => {
+        const value = String(rawDate || '').trim();
+        const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return null;
+        const year = Number.parseInt(match[1], 10);
+        const month = Number.parseInt(match[2], 10);
+        const day = Number.parseInt(match[3], 10);
+        if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+        return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+    }, []);
+
+    const ordinalToYmd = useCallback((ordinal) => {
+        if (!Number.isFinite(ordinal)) return null;
+        const dateObj = new Date(ordinal * 86400000);
+        const year = dateObj.getUTCFullYear();
+        const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getUTCDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }, []);
+
+    const getScheduleBaseDateRaw = useCallback(() => {
+        const candidates = [
+            String(planMeta?.startDate || '').trim(),
+            ...experiments.map((exp) => String(exp?.meta?.plannedDate || '').trim()),
+        ].filter(Boolean);
+        if (!candidates.length) return "";
+
+        const ordinals = candidates
+            .map((raw) => ymdToOrdinal(raw))
+            .filter((ord) => Number.isFinite(ord));
+        if (!ordinals.length) return "";
+        const minOrdinal = Math.min(...ordinals);
+        return ordinalToYmd(minOrdinal) || "";
+    }, [experiments, planMeta?.startDate, ymdToOrdinal, ordinalToYmd]);
+
+    const getPlannedDay = useCallback((exp, fallbackIndex) => {
+        const plannedDateRaw = String(exp?.meta?.plannedDate || '').trim();
+        const baseDateRaw = getScheduleBaseDateRaw();
+        const plannedOrdinal = ymdToOrdinal(plannedDateRaw);
+        const baseOrdinal = ymdToOrdinal(baseDateRaw);
+        if (Number.isFinite(plannedOrdinal) && Number.isFinite(baseOrdinal)) {
+            const diffDays = plannedOrdinal - baseOrdinal;
+            if (diffDays >= 0) return diffDays + 1;
+        }
+        const raw = String(exp?.meta?.plannedDay ?? '').trim();
+        const parsed = Number.parseInt(raw, 10);
+        if (Number.isFinite(parsed) && parsed > 0) return parsed;
+        return fallbackIndex + 1;
+    }, [getScheduleBaseDateRaw, ymdToOrdinal]);
+
+    const normalizeRunName = useCallback((value) => String(value || '').trim().toLowerCase(), []);
+    const isDuplicateRunName = useCallback((candidateName, ignoreId = null) => {
+        const normalized = normalizeRunName(candidateName);
+        if (!normalized) return false;
+        return experiments.some((exp) => {
+            if (ignoreId !== null && exp.id === ignoreId) return false;
+            return normalizeRunName(exp.name) === normalized;
+        });
+    }, [experiments, normalizeRunName]);
+
+    const renameGroupRuns = useCallback(async (groupName) => {
+        const requestedName = String(groupRenameDrafts[groupName] ?? groupName).trim().replace(/[\/\\]/g, '-');
+        if (!requestedName) {
+            setGroupRenameErrors((prev) => ({ ...prev, [groupName]: "Group name cannot be empty." }));
+            return;
+        }
+        if (requestedName === groupName) {
+            setGroupRenameErrors((prev) => ({ ...prev, [groupName]: "" }));
+            return;
+        }
+
+        const affected = experiments.filter((exp) => getRunGroupKey(exp.name) === groupName);
+        if (!affected.length) return;
+
+        const generatedNames = affected.map((exp, index) => {
+            const raw = String(exp.name || '').trim();
+            const match = raw.match(/-(\d+)$/);
+            const fallback = String(index + 1).padStart(2, '0');
+            const suffix = match ? String(match[1]).padStart(2, '0') : fallback;
+            return `${requestedName}-${suffix}`;
+        });
+
+        const generatedLower = generatedNames.map((name) => normalizeRunName(name));
+        const hasInternalCollision = new Set(generatedLower).size !== generatedLower.length;
+        if (hasInternalCollision) {
+            setGroupRenameErrors((prev) => ({ ...prev, [groupName]: "Rename would create duplicate run names inside this group." }));
+            return;
+        }
+
+        const otherRuns = experiments.filter((exp) => getRunGroupKey(exp.name) !== groupName);
+        const hasExternalCollision = generatedNames.some((name) => otherRuns.some((exp) => normalizeRunName(exp.name) === normalizeRunName(name)));
+        if (hasExternalCollision) {
+            setGroupRenameErrors((prev) => ({ ...prev, [groupName]: "Rename would conflict with run names from another group." }));
+            return;
+        }
+
+        const renameMap = new Map();
+        affected.forEach((exp, index) => {
+            renameMap.set(exp.id, generatedNames[index]);
+        });
+
+        setExperiments((prev) => prev.map((exp) => (
+            renameMap.has(exp.id)
+                ? { ...exp, name: renameMap.get(exp.id) }
+                : exp
+        )));
+
+        setPlanMeta((prev) => {
+            const previous = prev && typeof prev === 'object' ? prev : {};
+            const objectives = previous.groupObjectives && typeof previous.groupObjectives === 'object'
+                ? { ...previous.groupObjectives }
+                : {};
+            if (Object.prototype.hasOwnProperty.call(objectives, groupName)) {
+                objectives[requestedName] = objectives[groupName];
+                delete objectives[groupName];
+            }
+            return { ...previous, groupObjectives: objectives };
+        });
+
+        setGroupRenameErrors((prev) => ({ ...prev, [groupName]: "" }));
+        setGroupRenameDrafts((prev) => {
+            const next = { ...prev };
+            delete next[groupName];
+            next[requestedName] = requestedName;
+            return next;
+        });
+
+        await syncRunFolders(generatedNames);
+    }, [experiments, getRunGroupKey, groupRenameDrafts, normalizeRunName, setExperiments, setPlanMeta, syncRunFolders]);
+
     const addExp = async () => {
-        const runName = input.name.trim();
-        if (!runName) return;
+        const manualRunName = String(input.name || '').trim();
+        const generatedRunName = buildRunName(input.group, input.run);
+        const runName = manualRunName || generatedRunName;
+        if (!runName) {
+            setCreateError("Run name is required.");
+            return;
+        }
+        if (isDuplicateRunName(runName)) {
+            setCreateError(`Run name "${runName}" already exists. Use a unique name.`);
+            return;
+        }
+        setCreateError("");
         const inferredFiles = filesForRunName(runName);
         setExperiments([...experiments, {
             id: Date.now(),
             name: runName,
             done: false,
-            meta: { h2: "", p0: "101325", t0: "293", ignition: "", vent: "", cfdHash: "", dataFiles: inferredFiles }
+            meta: {
+                h2: String(input.h2 || "").trim(),
+                plannedDay: String(input.plannedDay || "").trim(),
+                plannedDate: String(input.plannedDate || "").trim(),
+                isPreparation: !!input.isPreparation,
+                shortDescription: "",
+                p0: "101325",
+                t0: "293",
+                ignition: "",
+                vent: "",
+                cfdHash: "",
+                dataFiles: inferredFiles
+            }
         }]);
-        setInput({ name: "" });
+        setInput((prev) => ({ ...prev, run: "", name: "", isPreparation: false }));
         await syncRunFolders([runName]);
     };
 
     const saveEdit = async () => {
         if (editingExp) {
+            const editedRunName = String(editingExp.name || '').trim();
+            if (!editedRunName) {
+                setEditError("Run name is required.");
+                return;
+            }
+            if (isDuplicateRunName(editedRunName, editingExp.id)) {
+                setEditError(`Run name "${editedRunName}" already exists. Use a unique name.`);
+                return;
+            }
+            setEditError("");
             const current = Array.isArray(editingExp.meta?.dataFiles) ? editingExp.meta.dataFiles : [];
             const inferred = filesForRunName(editingExp.name);
             const merged = Array.from(new Set([...current, ...inferred]));
@@ -122,6 +317,19 @@ const PlanPage = ({
             }
         }
     };
+
+    const updateRunShortDescription = useCallback((runId, value) => {
+        setExperiments((previous) => previous.map((exp) => {
+            if (exp.id !== runId) return exp;
+            return {
+                ...exp,
+                meta: {
+                    ...(exp.meta || {}),
+                    shortDescription: value,
+                },
+            };
+        }));
+    }, [setExperiments]);
 
     // --- DRAG AND DROP ---
     const onDrop = (targetId) => {
@@ -177,18 +385,15 @@ const PlanPage = ({
     const getGroupedExperiments = () => {
         const groups = {};
         experiments.forEach(exp => {
-            const match = exp.name.match(/(\d+pctV)/i);
-            const g = match ? match[1].replace(/pct/i, '%').toUpperCase() : "GENERAL";
+            const g = getRunGroupKey(exp.name);
             if (!groups[g]) groups[g] = [];
             groups[g].push(exp);
         });
 
         const sortedGroupNames = Object.keys(groups).sort((a, b) => {
-            const numA = parseInt(a.replace(/\D/g, '')) || 0;
-            const numB = parseInt(b.replace(/\D/g, '')) || 0;
             if (a === "GENERAL") return 1;
             if (b === "GENERAL") return -1;
-            return numA - numB;
+            return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
         });
 
         const ordered = {};
@@ -197,6 +402,90 @@ const PlanPage = ({
     };
 
     const groupedTasks = getGroupedExperiments();
+    const scheduleBarSpan = 0.68;
+    const scheduleBarOffset = (1 - scheduleBarSpan) / 2;
+    const scheduleData = experiments
+        .map((exp, index) => {
+            const day = getPlannedDay(exp, index);
+            return {
+                name: exp.name,
+                day,
+                offset: Math.max(0, day - 1) + scheduleBarOffset,
+                duration: scheduleBarSpan,
+                status: !!exp.done,
+                order: index,
+            };
+        })
+        .sort((a, b) => (a.day - b.day) || (a.order - b.order));
+    const scheduleMaxDay = scheduleData.reduce((maxValue, item) => Math.max(maxValue, item.day), 1);
+    const scheduleTickStep = scheduleMaxDay > 14 ? Math.ceil(scheduleMaxDay / 7) : 1;
+    const scheduleTicks = [];
+    for (let dayNumber = 1; dayNumber <= scheduleMaxDay; dayNumber += scheduleTickStep) {
+        scheduleTicks.push(dayNumber - 0.5);
+    }
+    if (!scheduleTicks.includes(scheduleMaxDay - 0.5)) {
+        scheduleTicks.push(scheduleMaxDay - 0.5);
+    }
+    const getCalendarDateForDay = useCallback((dayNumber) => {
+        const startRaw = getScheduleBaseDateRaw();
+        const parsedDay = Number.parseInt(String(dayNumber || ''), 10);
+        if (!startRaw || !Number.isFinite(parsedDay) || parsedDay < 1) return null;
+        const startOrdinal = ymdToOrdinal(startRaw);
+        if (!Number.isFinite(startOrdinal)) return null;
+        return ordinalToYmd(startOrdinal + parsedDay - 1);
+    }, [getScheduleBaseDateRaw, ymdToOrdinal, ordinalToYmd]);
+    const formatScheduleTick = useCallback((axisValue) => {
+        const parsed = Number(axisValue);
+        if (!Number.isFinite(parsed)) return '';
+        const dayNumber = Math.round(parsed + 0.5);
+        const dateLabel = getCalendarDateForDay(dayNumber);
+        return dateLabel || `D${dayNumber}`;
+    }, [getCalendarDateForDay]);
+    const renderScheduleLabel = useCallback((props) => {
+        const { x, y, width, height, value, payload, index } = props || {};
+        if (typeof x !== 'number' || typeof y !== 'number' || typeof width !== 'number' || typeof height !== 'number') {
+            return null;
+        }
+        if (!value) return null;
+        const row = Number.isInteger(index) ? scheduleData[index] : null;
+        const isDone = !!(row?.status ?? payload?.status);
+        const fill = isDone ? '#000000' : '#f4f4f5';
+        return (
+            <text
+                x={x + width / 2}
+                y={y + height / 2}
+                fill={fill}
+                fontSize={11}
+                fontWeight={700}
+                dominantBaseline="middle"
+                textAnchor="middle"
+                paintOrder="stroke"
+                stroke={isDone ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)'}
+                strokeWidth={0.35}
+            >
+                {String(value)}
+            </text>
+        );
+    }, [scheduleData]);
+    const isGroupCollapsed = useCallback((groupName) => collapsedGroups[groupName] === true, [collapsedGroups]);
+    const toggleGroupCollapse = useCallback((groupName) => {
+        setCollapsedGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }));
+    }, []);
+    const getGroupObjective = useCallback((groupName) => {
+        const objectives = planMeta?.groupObjectives;
+        if (!objectives || typeof objectives !== 'object') return "";
+        return String(objectives[groupName] || "");
+    }, [planMeta]);
+    const setGroupObjective = useCallback((groupName, nextValue) => {
+        setPlanMeta((prev) => {
+            const previous = prev && typeof prev === 'object' ? prev : {};
+            const objectives = previous.groupObjectives && typeof previous.groupObjectives === 'object'
+                ? { ...previous.groupObjectives }
+                : {};
+            objectives[groupName] = nextValue;
+            return { ...previous, groupObjectives: objectives };
+        });
+    }, [setPlanMeta]);
 
     useEffect(() => {
         if (!rawDataFiles.length || !experiments.length) return;
@@ -267,7 +556,62 @@ const PlanPage = ({
                 </div>
                 
                 <div className="flex flex-col gap-2 mb-4 bg-black/20 p-3 rounded border border-zinc-800/50">
-                    <input value={input.name} onChange={e=>setInput({...input, name:e.target.value})} placeholder="vh2d-10pctV-001" className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"/>
+                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                        <input
+                            value={input.group}
+                            onChange={e=>{ setInput({...input, group:e.target.value}); setCreateError(""); }}
+                            placeholder="Group ID (e.g., TEST-01)"
+                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                        />
+                        <input
+                            value={input.run}
+                            onChange={e=>{ setInput({...input, run:e.target.value}); setCreateError(""); }}
+                            placeholder="Run # (e.g., 1)"
+                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                        />
+                        <input
+                            value={input.h2}
+                            onChange={e=>{ setInput({...input, h2:e.target.value}); setCreateError(""); }}
+                            placeholder="H2 %vol (e.g., 18)"
+                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                        />
+                        <input
+                            value={input.plannedDay}
+                            onChange={e=>{ setInput({...input, plannedDay:e.target.value}); setCreateError(""); }}
+                            placeholder="Planned Day (e.g., 3)"
+                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                        />
+                        <input
+                            type="date"
+                            value={input.plannedDate}
+                            onChange={e=>{ setInput({...input, plannedDate:e.target.value}); setCreateError(""); }}
+                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                        />
+                    </div>
+                    <input
+                        value={input.name}
+                        onChange={e=>{ setInput({...input, name:e.target.value}); setCreateError(""); }}
+                        placeholder="Manual run name override (optional)"
+                        className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                    />
+                    <div className="text-[10px] text-zinc-500">
+                        Auto run name: <span className="text-zinc-300 font-semibold">{buildRunName(input.group, input.run) || "--"}</span>
+                    </div>
+                    <div className="text-[10px] text-zinc-600">
+                        Naming is fully editable. You can use any project prefix and override the generated name.
+                    </div>
+                    <label className="inline-flex items-center gap-2 text-[10px] text-zinc-400">
+                        <input
+                            type="checkbox"
+                            checked={!!input.isPreparation}
+                            onChange={(e) => { setInput({ ...input, isPreparation: e.target.checked }); setCreateError(""); }}
+                            className="h-3.5 w-3.5 accent-primary"
+                        />
+                        Preparation run (can be marked done without full metadata)
+                    </label>
+                    {createError && (
+                        <div className="text-[10px] text-red-400">{createError}</div>
+                    )}
                     <button onClick={addExp} className="bg-primary/10 border border-primary/30 px-3 py-1.5 rounded text-primary hover:border-primary/60 hover:bg-primary/20 flex items-center justify-center gap-2 font-bold text-xs"><Plus size={14}/> Add Planned Run</button>
                     <button
                         onClick={() => syncRunFolders(experiments.map((e) => String(e.name || '').trim()).filter(Boolean))}
@@ -280,8 +624,50 @@ const PlanPage = ({
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
                     {Object.entries(groupedTasks).map(([group, tasks]) => (
                         <div key={group} className="mb-4">
-                            <h4 className="text-[10px] font-bold text-zinc-500 mb-2 flex items-center gap-2 tracking-wide"><Layers size={10}/> {group}</h4>
-                            {tasks.map(e => (
+                            <div className="mb-2 flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleGroupCollapse(group)}
+                                    className="shrink-0 text-[10px] font-bold text-zinc-500 flex items-center gap-2 tracking-wide hover:text-zinc-300 transition-colors"
+                                    title={isGroupCollapsed(group) ? 'Expand group' : 'Collapse group'}
+                                >
+                                    {isGroupCollapsed(group) ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                                    <Layers size={10}/>
+                                    {group}
+                                    <span className="text-[9px] text-zinc-600">({tasks.length})</span>
+                                </button>
+                                <input
+                                    value={getGroupObjective(group)}
+                                    onChange={(event) => setGroupObjective(group, event.target.value)}
+                                    placeholder="Group objective (short description)"
+                                    className="min-w-0 flex-1 bg-black border border-zinc-800 rounded px-2 py-1 text-[10px] text-zinc-300 outline-none focus:border-primary"
+                                />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        value={groupRenameDrafts[group] ?? group}
+                                        onChange={(event) => {
+                                            const nextValue = event.target.value;
+                                            setGroupRenameDrafts((prev) => ({ ...prev, [group]: nextValue }));
+                                            setGroupRenameErrors((prev) => ({ ...prev, [group]: "" }));
+                                        }}
+                                        placeholder="Rename group (updates all runs in this group)"
+                                        className="min-w-0 flex-1 bg-black border border-zinc-800 rounded px-2 py-1 text-[10px] text-zinc-300 outline-none focus:border-primary"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => renameGroupRuns(group)}
+                                        className="shrink-0 border border-primary/40 bg-primary/10 text-primary px-2 py-1 rounded text-[10px] font-semibold hover:bg-primary/20"
+                                    >
+                                        Apply Group Rename
+                                    </button>
+                                </div>
+                                {!!groupRenameErrors[group] && (
+                                    <div className="text-[10px] text-red-400">{groupRenameErrors[group]}</div>
+                                )}
+                            </div>
+                            {!isGroupCollapsed(group) && tasks.map(e => (
                                 <div key={e.id} draggable onDragStart={()=>setDraggedId(e.id)} onDragOver={ev=>ev.preventDefault()} onDrop={()=>onDrop(e.id)} className={`flex flex-col p-3 bg-black/40 border rounded mb-2 group transition-all ${isReady(e) ? 'border-zinc-900 hover:border-zinc-700' : 'border-yellow-900/30 hover:border-yellow-700/50'}`}>
                                     <div className="flex items-center gap-2">
                                         <GripVertical size={14} className="text-zinc-700 cursor-grab active:cursor-grabbing"/>
@@ -294,17 +680,34 @@ const PlanPage = ({
                                         </button>
                                         <span className={`text-sm flex-1 truncate font-mono ${e.done ? 'line-through text-zinc-600' : 'text-zinc-300'}`}>{e.name}</span>
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                                            <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditingExp({...e}); }} className="text-zinc-600 hover:text-white p-1 hover:bg-zinc-800 rounded transition-colors"><PenTool size={12}/></button>
+                                            <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} className="text-zinc-600 hover:text-white p-1 hover:bg-zinc-800 rounded transition-colors"><PenTool size={12}/></button>
                                             <button onClick={()=>setExperiments(experiments.filter(x=>x.id!==e.id))} className="text-zinc-600 hover:text-red-500 p-1 hover:bg-zinc-800 rounded transition-colors"><Trash2 size={12}/></button>
                                         </div>
                                     </div>
                                     
                                     <div className="ml-8 mt-2 flex flex-wrap gap-2">
+                                        {String(e.meta?.h2 || '').trim() && (
+                                            <div className="flex items-center gap-1 bg-primary/10 border border-primary/30 px-1.5 py-0.5 rounded text-[9px] text-primary font-bold">
+                                                <Beaker size={8}/> {e.meta.h2}% vol H2
+                                            </div>
+                                        )}
+                                        {String(e.meta?.plannedDay || '').trim() && (
+                                            <div className="flex items-center gap-1 border border-zinc-800 px-1.5 py-0.5 rounded text-[9px] text-zinc-500">
+                                                <Calendar size={8}/> D{e.meta.plannedDay}
+                                            </div>
+                                        )}
+                                        {String(e.meta?.plannedDate || '').trim() && (
+                                            <div className="flex items-center gap-1 border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded text-[9px] text-primary font-semibold">
+                                                <Calendar size={8}/> {e.meta.plannedDate}
+                                            </div>
+                                        )}
+                                        {isPreparationRun(e) && (
+                                            <div className="flex items-center gap-1 border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 rounded text-[9px] text-amber-300 font-semibold">
+                                                <Wrench size={8}/> Preparation
+                                            </div>
+                                        )}
                                         {isReady(e) ? (
                                             <>
-                                                <div className="flex items-center gap-1 bg-primary/10 border border-primary/30 px-1.5 py-0.5 rounded text-[9px] text-primary font-bold">
-                                                    <Beaker size={8}/> {e.meta.h2}% H2
-                                                </div>
                                                 <div className="flex items-center gap-1 border border-zinc-800 px-1.5 py-0.5 rounded text-[9px] text-zinc-500">
                                                     <Gauge size={8}/> {e.meta.p0} Pa
                                                 </div>
@@ -322,6 +725,15 @@ const PlanPage = ({
                                                 <AlertCircle size={8}/> Missing: {getMissingMeta(e).join(', ')}
                                             </div>
                                         )}
+                                    </div>
+                                    <div className="ml-8 mt-2">
+                                        <input
+                                            value={String(e.meta?.shortDescription || '')}
+                                            onChange={(event) => updateRunShortDescription(e.id, event.target.value)}
+                                            onClick={(event) => event.stopPropagation()}
+                                            placeholder="Short run description (e.g., baseline vented run)"
+                                            className="w-full bg-black/20 border border-zinc-800 rounded px-2 py-1 text-[10px] text-zinc-300 outline-none focus:border-primary"
+                                        />
                                     </div>
                                 </div>
                             ))}
@@ -361,13 +773,22 @@ const PlanPage = ({
                             />
                         </div>
                         <div className="mt-3 space-y-2">
-                            <label className="text-[10px] tracking-wide text-zinc-500 font-bold">
-                                Description (details)
-                            </label>
+                            <div className="flex items-center justify-between gap-2">
+                                <label className="text-[10px] tracking-wide text-zinc-500 font-bold">
+                                    Description (details)
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDescriptionExpanded((value) => !value)}
+                                    className="text-[10px] font-semibold text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded px-2 py-1 transition-colors"
+                                >
+                                    {isDescriptionExpanded ? 'Collapse' : 'Expand'}
+                                </button>
+                            </div>
                             <textarea
                                 value={planMeta.description}
                                 onChange={e=>setPlanMeta({...planMeta, description:e.target.value})}
-                                className="w-full bg-black/30 text-xs p-3 rounded-lg outline-none h-20 border border-zinc-800 text-zinc-300 resize-none focus:border-primary"
+                                className={`w-full bg-black/30 text-xs p-3 rounded-lg outline-none border border-zinc-800 text-zinc-300 resize-y focus:border-primary transition-all ${isDescriptionExpanded ? 'h-56' : 'h-20'}`}
                                 placeholder="Add a longer description, scope, and notes..."
                             />
                         </div>
@@ -406,40 +827,41 @@ const PlanPage = ({
                     <h3 className="text-[10px] font-bold text-zinc-500 mb-4 flex items-center gap-2 tracking-wide"><Clock size={12}/> Campaign Schedule</h3>
                     <div className="flex-1 bg-black/40 rounded-lg border border-zinc-800/50 overflow-hidden">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart layout="vertical" data={experiments.map((e,i)=>({name:e.name, offset:i, duration:1, status:e.done}))} barSize={14} margin={{left: 20, right: 30, bottom: 20}}>
+                            <BarChart layout="vertical" data={scheduleData} barSize={18} margin={{left: 16, right: 16, top: 10, bottom: 20}}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#222" />
-                                <XAxis type="number" stroke="#52525b" fontSize={9} tickFormatter={(val) => `D${val}`} domain={[0, 'auto']} />
-                                <YAxis type="category" dataKey="name" width={120} fontSize={9} stroke="#51515b" tick={{fill: '#888'}} />
-                                <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#18181b', border: '1px solid #3f3f46', fontSize: '10px'}} />
+                                <XAxis
+                                    type="number"
+                                    stroke="#52525b"
+                                    fontSize={9}
+                                    tickFormatter={formatScheduleTick}
+                                    domain={[0, scheduleMaxDay]}
+                                    ticks={scheduleTicks}
+                                    allowDecimals={false}
+                                />
+                                <YAxis type="category" dataKey="name" width={0} tick={false} axisLine={false} tickLine={false} />
+                                <Tooltip
+                                    cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                                    contentStyle={{backgroundColor: '#18181b', border: '1px solid #3f3f46', fontSize: '10px'}}
+                                    formatter={(value, key, payload) => {
+                                        if (key === 'duration') {
+                                            const dayValue = payload?.payload?.day;
+                                            const dateLabel = getCalendarDateForDay(dayValue);
+                                            return [dateLabel ? `${dateLabel} (D${dayValue})` : `D${dayValue ?? '-'}`, 'Scheduled'];
+                                        }
+                                        return [value, key];
+                                    }}
+                                    labelFormatter={(label, payload) => payload?.[0]?.payload?.name || label}
+                                />
                                 <Bar dataKey="offset" stackId="a" fill="transparent" />
                                 <Bar dataKey="duration" stackId="a" radius={4}>
-                                    {experiments.map((e, index) => <Cell key={`cell-${index}`} fill={e.done ? 'hsl(var(--primary))' : '#3f3f46'} />)}
+                                    {scheduleData.map((e, index) => <Cell key={`cell-${index}`} fill={e.status ? 'hsl(var(--primary))' : '#3f3f46'} />)}
+                                    <LabelList dataKey="name" content={renderScheduleLabel} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* GROUP DISTRIBUTION */}
-                <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl h-[160px] shrink-0 flex flex-col">
-                    <h3 className="text-[10px] font-bold text-zinc-500 mb-4 flex items-center gap-2 tracking-wide"><BarChart2 size={12}/> Mixture Distribution</h3>
-                    <div className="flex-1">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={Object.entries(groupedTasks).map(([name, tasks]) => ({ name, count: tasks.length }))}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#222" />
-                                <XAxis dataKey="name" fontSize={9} stroke="#555" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                                <YAxis fontSize={9} stroke="#555" allowDecimals={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                                <Tooltip contentStyle={{backgroundColor: '#18181b', border: '1px solid #3f3f46', fontSize: '10px'}} />
-                                <Bar dataKey="count" fill="#3f3f46" radius={[4, 4, 0, 0]} barSize={40}>
-                                     {Object.entries(groupedTasks).map((entry, index) => (
-                                        <Cell key={`cell-dist-${index}`} fill={index % 2 === 0 ? 'hsl(var(--primary))' : '#3f3f46'} />
-                                    ))}
-                                    <LabelList dataKey="count" position="top" fill="hsl(var(--primary))" fontSize={10} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
             </div>
 
             {/* RUN CARD MODAL */}
@@ -458,10 +880,13 @@ const PlanPage = ({
                                     <label className="text-[9px] text-zinc-500 font-bold mb-1 block">Run name</label>
                                     <input
                                         value={editingExp.name || ''}
-                                        onChange={(e) => setEditingExp({ ...editingExp, name: e.target.value })}
+                                        onChange={(e) => { setEditingExp({ ...editingExp, name: e.target.value }); setEditError(""); }}
                                         className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
-                                        placeholder="e.g., vh2d-10pctV-001"
+                                        placeholder="e.g., TEST-01-01"
                                     />
+                                    {editError && (
+                                        <div className="mt-2 text-[10px] text-red-400">{editError}</div>
+                                    )}
                                 </div>
                             </div>
                             <div className="ml-4 flex items-center gap-2">
@@ -473,7 +898,7 @@ const PlanPage = ({
                                 >
                                     <GripVertical size={16} />
                                 </button>
-                                <button onClick={()=>setEditingExp(null)} className="text-zinc-500 hover:text-white bg-zinc-900 p-2 rounded-full transition-all hover:scale-110"><X size={20}/></button>
+                                <button onClick={()=>{ setEditError(""); setEditingExp(null); }} className="text-zinc-500 hover:text-white bg-zinc-900 p-2 rounded-full transition-all hover:scale-110"><X size={20}/></button>
                             </div>
                         </div>
 
@@ -488,6 +913,8 @@ const PlanPage = ({
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Target H2%V</label><input value={editingExp.meta?.h2} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 10.5"/></div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Measured Average H2%V">Avg. H2%V</label><input value={editingExp.meta?.h2MeasuredAvg || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2MeasuredAvg:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 10.2"/></div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Standard Deviation H2%V">Std. Dev. H2%V</label><input value={editingExp.meta?.h2StdDev || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2StdDev:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 0.3"/></div>
+                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Planned Day</label><input value={editingExp.meta?.plannedDay || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDay:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 3"/></div>
+                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Planned Date</label><input type="date" value={editingExp.meta?.plannedDate || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDate:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"/></div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Init. P (Pa)</label><input value={editingExp.meta?.p0} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, p0:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 101325"/></div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Init. T (K)</label><input value={editingExp.meta?.t0} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, t0:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 293"/></div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block whitespace-nowrap">Init. turb. vel. u' (m/s)</label><input value={editingExp.meta?.uPrime || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, uPrime:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 0.5"/></div>
@@ -498,6 +925,15 @@ const PlanPage = ({
                                         <Zap size={12}/> Experimental Setup
                                     </div>
                                     <div className="space-y-4 pl-1 md:pl-2">
+                                        <label className="inline-flex items-center gap-2 text-[10px] text-zinc-400">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!editingExp.meta?.isPreparation}
+                                                onChange={(e)=>setEditingExp({...editingExp, meta:{...editingExp.meta, isPreparation:e.target.checked}})}
+                                                className="h-3.5 w-3.5 accent-primary"
+                                            />
+                                            Preparation run (skip required metadata gate)
+                                        </label>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Ignition Configuration</label><input value={editingExp.meta?.ignition} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, ignition:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., Center spark, 100 mJ"/></div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Venting Configuration</label><input value={editingExp.meta?.vent} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, vent:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., Mylar 20 um"/></div>
                                     </div>
@@ -552,6 +988,15 @@ const PlanPage = ({
                                     <div className="flex items-center gap-2 text-zinc-300 font-semibold text-xs tracking-wide mb-3 border-b border-zinc-900 pb-1">
                                         <PenTool size={12}/> Operator Notes
                                     </div>
+                                    <div className="mb-3">
+                                        <label className="text-[9px] text-zinc-500 font-bold mb-1 block">Short Description</label>
+                                        <input
+                                            value={editingExp.meta?.shortDescription || ''}
+                                            onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, shortDescription:e.target.value}})}
+                                            className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                            placeholder="One-line summary for this run"
+                                        />
+                                    </div>
                                     <textarea value={editingExp.notes} onChange={e=>setEditingExp({...editingExp, notes:e.target.value})} className="w-full bg-black border border-zinc-800 rounded p-3 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic h-24 outline-none focus:ring-1 focus:ring-primary resize-none font-sans" placeholder="e.g., Record sensor health, offsets, or observations..."/>
                                 </div>
                             </div>
@@ -559,7 +1004,7 @@ const PlanPage = ({
                         </div>
 
                         <div className="mt-6 flex justify-end gap-2 border-t border-zinc-800 pt-4">
-                            <button onClick={()=>setEditingExp(null)} className="bg-zinc-900 text-zinc-400 px-3 py-2 rounded-md font-semibold text-xs border border-zinc-800 hover:bg-zinc-800 transition-all">Discard</button>
+                            <button onClick={()=>{ setEditError(""); setEditingExp(null); }} className="bg-zinc-900 text-zinc-400 px-3 py-2 rounded-md font-semibold text-xs border border-zinc-800 hover:bg-zinc-800 transition-all">Discard</button>
                             <button onClick={saveEdit} className="border border-primary/30 bg-primary/10 text-primary px-3 py-2 rounded-md font-semibold text-xs hover:bg-primary/20 transition-all">Save Run Card</button>
                         </div>
                     </div>

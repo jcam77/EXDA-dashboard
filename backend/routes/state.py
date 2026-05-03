@@ -83,7 +83,10 @@ def get_project_state():
     plan_data = None
     plan_dir = os.path.join(project_root, "Plan")
     if os.path.exists(plan_dir):
-        plans = [f for f in os.listdir(plan_dir) if f.endswith('.json')]
+        plans = [
+            f for f in os.listdir(plan_dir)
+            if f.endswith('.json') and f != project_manager.STATUS_FILENAME
+        ]
         if plans:
             latest_plan_path = max([os.path.join(plan_dir, f) for f in plans], key=os.path.getmtime)
             try:
@@ -238,6 +241,8 @@ def list_plan_files():
             continue
         if not name.lower().endswith('.json'):
             continue
+        if name == project_manager.STATUS_FILENAME:
+            continue
         full = os.path.join(plan_dir, name)
         if not os.path.isfile(full):
             continue
@@ -271,7 +276,7 @@ def load_plan_dialog():
             candidates = [
                 os.path.join(plan_dir, f)
                 for f in os.listdir(plan_dir)
-                if f.lower().endswith(".json") and not f.startswith(".")
+                if f.lower().endswith(".json") and not f.startswith(".") and f != project_manager.STATUS_FILENAME
             ]
             if candidates:
                 file_path = max(candidates, key=lambda p: os.path.getmtime(p))

@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
     FlaskConical, AudioLines, ClipboardList, FileSpreadsheet, 
     Folder, Activity, Flame, FolderOpen, BrainCircuit,
-    FileText, Beaker, BookOpen, Home, Layers, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck
+    FileText, Beaker, BookOpen, Home, Layers, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck, Save
 } from 'lucide-react';
 
 // --- MODULAR IMPORTS ---
@@ -33,7 +33,17 @@ const isMvpModeEnabledByDefault = () => {
     return ['1', 'true', 'yes', 'on'].includes(String(__EXDA_MVP_MODE__).trim().toLowerCase());
 };
 
-const DISABLED_MVP_TABS = new Set(['verification', 'ewt', 'cfd_validation', 'flame_speed']);
+const DISABLED_MVP_TABS = new Set([
+    'verification',
+    'ewt',
+    'cfd_validation',
+    'flame_speed',
+    'ai',
+    'report',
+    'resources',
+    'data_preprocessing',
+    'pressure_analysis',
+]);
 
 const HomePage = lazy(() => import('../../pages/Home'));
 const ProjectsPage = lazy(() => import('../../pages/Projects'));
@@ -43,6 +53,7 @@ const PlanPage = lazy(() => import('../../pages/Plan'));
 const GasMixingPage = lazy(() => import('../../pages/GasMixing'));
 const ImportDataPage = lazy(() => import('../../pages/ImportData'));
 const DataPreprocessingPage = lazy(() => import('../../pages/DataPreprocessingPage'));
+const RawDataPressureAnalysisPage = lazy(() => import('../../pages/RawDataPressureAnalysis'));
 const EWTPage = lazy(() => import('../../pages/EwtAnalysis'));
 const PressureAnalysisPage = lazy(() => import('../../pages/PressureAnalysis'));
 const CFDValidationPage = lazy(() => import('../../pages/CFDValidation'));
@@ -60,6 +71,7 @@ const TAB_PATHS = {
     gas: '/gas',
     data: '/data',
     data_preprocessing: '/data/preprocessing',
+    raw_pressure_analysis: '/analysis/raw-pressure',
     ewt: '/analysis/ewt',
     pressure_analysis: '/analysis/pressure',
     cfd_validation: '/analysis/cfd-validation',
@@ -76,6 +88,7 @@ const PROJECT_WORKSPACE_TABS = [
     {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas},
     {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data},
     {id:'data_preprocessing', l:'Data Preprocessing', i:FolderOpen, to: TAB_PATHS.data_preprocessing},
+    {id:'raw_pressure_analysis', l:'Raw Data Pressure Analysis', i:Activity, to: TAB_PATHS.raw_pressure_analysis},
     {id:'ewt', l:'EWT', i:AudioLines, to: TAB_PATHS.ewt},
     {id:'pressure_analysis', l:'Pressure Analysis', i:Activity, to: TAB_PATHS.pressure_analysis},
     {id:'cfd_validation', l:'CFD Validation', i:Beaker, to: TAB_PATHS.cfd_validation},
@@ -99,6 +112,7 @@ const resolveTabFromPath = (pathname) => {
     if (pathname.startsWith('/checklist')) return 'checklist';
     if (pathname.startsWith('/plan')) return 'plan';
     if (pathname.startsWith('/gas')) return 'gas';
+    if (pathname.startsWith('/analysis/raw-pressure')) return 'raw_pressure_analysis';
     if (pathname.startsWith('/data/preprocessing')) return 'data_preprocessing';
     if (pathname.startsWith('/data/clean')) return 'data_preprocessing';
     if (pathname.startsWith('/data')) return 'data';
@@ -154,10 +168,15 @@ const WorkspacePage = () => {
         }
         return isMvpModeEnabledByDefault();
     });
-    const isTabAllowed = useCallback((tab) => !(isMvpMode && DISABLED_MVP_TABS.has(tab)), [isMvpMode]);
+    const isTabAllowed = useCallback((tab) => {
+        if (tab === 'raw_pressure_analysis') return isMvpMode;
+        return !(isMvpMode && DISABLED_MVP_TABS.has(tab));
+    }, [isMvpMode]);
     const headerTabs = HEADER_SHORTCUT_TABS.filter(isTabAllowed);
     const workspaceTabs = PROJECT_WORKSPACE_TABS.filter((tab) => isTabAllowed(tab.id));
-    const fallbackProjectTab = isTabAllowed('pressure_analysis') ? 'pressure_analysis' : 'data';
+    const fallbackProjectTab = (isMvpMode && isTabAllowed('raw_pressure_analysis'))
+        ? 'raw_pressure_analysis'
+        : (isTabAllowed('pressure_analysis') ? 'pressure_analysis' : 'data');
     // Add flame folder picker state
     const [selectedFlameFolder, setSelectedFlameFolder] = useState("");
     const [flamePicker, setFlamePicker] = useState({ open: false });
@@ -391,12 +410,14 @@ const WorkspacePage = () => {
   useEffect(() => {
       if (!projectPath) return;
       const pendingTab = localStorage.getItem('pendingTab');
-      const resolvedPendingTab = pendingTab === 'filter' ? 'pressure_analysis' : pendingTab;
+      const resolvedPendingTab = pendingTab === 'filter'
+          ? (isMvpMode ? 'raw_pressure_analysis' : 'pressure_analysis')
+          : pendingTab;
       if (resolvedPendingTab && TAB_PATHS[resolvedPendingTab]) {
           localStorage.removeItem('pendingTab');
           setActiveTab(resolvedPendingTab);
       }
-  }, [projectPath, setActiveTab]);
+  }, [isMvpMode, projectPath, setActiveTab]);
 
   useEffect(() => {
       const root = document.documentElement;
@@ -718,8 +739,13 @@ const WorkspacePage = () => {
               return;
           }
           const content = JSON.parse(d.content);
+          const inferredPlanName = String(fileName || '')
+              .replace(/\.json$/i, '')
+              .trim();
+          const importedPlanName = String(content.planName || '').trim();
+          const shouldUseImportedName = importedPlanName && !/^loaded(?:_plan)?$/i.test(importedPlanName);
           setExperiments(content.experiments || []);
-          setPlanName(content.planName || "Loaded");
+          setPlanName(shouldUseImportedName ? importedPlanName : (inferredPlanName || "Experiment_Plan"));
           if (content.meta) setPlanMeta(content.meta);
           notify('success', 'Imported', fileName || 'Plan');
       } catch {
@@ -857,7 +883,7 @@ const WorkspacePage = () => {
                           onOpenProject={() => openPicker('open')}
                           onCreateProject={() => openPicker('create')}
                           onOpenProjectPath={openProjectByPath}
-                          allowAira={true}
+                          allowAira={isTabAllowed('ai')}
                           showHeader={false}
                       />
                   )}
@@ -1072,6 +1098,14 @@ const WorkspacePage = () => {
                                             <div className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-widest">
                                                 {formatLastSaved(lastSavedAt)}
                                             </div>
+                                            <button
+                                                onClick={() => savePlan({ silent: false })}
+                                                className="text-[10px] font-bold uppercase tracking-widest bg-primary/15 px-4 py-2 rounded border border-primary/40 hover:bg-primary/25 transition-all shadow-sm text-primary flex items-center gap-2"
+                                                title="Save Plan"
+                                                aria-label="Save Plan"
+                                            >
+                                                <Save size={12} /> Save Now
+                                            </button>
                                             <button 
                                                 onClick={handleCloseProject} 
                                                 className="text-[10px] font-bold uppercase tracking-widest bg-red-500/15 px-4 py-2 rounded border border-red-500/40 hover:bg-red-500/25 transition-all shadow-sm text-red-500 flex items-center gap-2"
@@ -1106,7 +1140,12 @@ const WorkspacePage = () => {
               {activeTab === 'home' && (
                   <SafeComponent>
                       <Suspense fallback={<TabFallback />}>
-                          <HomePage onSelectTab={setActiveTab} onOpenProjectPath={openProjectByPath} showHeader={false} />
+                          <HomePage
+                              onSelectTab={setActiveTab}
+                              onOpenProjectPath={openProjectByPath}
+                              showHeader={false}
+                              allowAira={isTabAllowed('ai')}
+                          />
                       </Suspense>
                   </SafeComponent>
               )}
@@ -1184,6 +1223,7 @@ const WorkspacePage = () => {
                                                     onSelectionChange={onFileSelect} 
                                                     onRemoveCase={onRemoveCase} 
                                                     onToggleCase={onToggleCase} 
+                                                    showSimulationSection={!isMvpMode}
                                                     formatName={formatName} 
                                             />
                                         </Suspense>
@@ -1198,10 +1238,21 @@ const WorkspacePage = () => {
                                         />
                                     </SafeComponent>
               )}
-              {activeTab === 'data_preprocessing' && FLAGS.ENABLE_SOURCES && (
+              {activeTab === 'data_preprocessing' && FLAGS.ENABLE_SOURCES && isTabAllowed('data_preprocessing') && (
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
                                             <DataPreprocessingPage
+                                                apiBaseUrl={apiBaseUrl}
+                                                projectPath={projectPath}
+                                                selectedCases={selectedCases}
+                                            />
+                                        </Suspense>
+                                    </SafeComponent>
+              )}
+              {activeTab === 'raw_pressure_analysis' && FLAGS.ENABLE_SOURCES && isTabAllowed('raw_pressure_analysis') && (
+                                    <SafeComponent>
+                                        <Suspense fallback={<TabFallback />}>
+                                            <RawDataPressureAnalysisPage
                                                 apiBaseUrl={apiBaseUrl}
                                                 projectPath={projectPath}
                                                 selectedCases={selectedCases}
@@ -1226,7 +1277,7 @@ const WorkspacePage = () => {
                                      </Suspense>
                                  </SafeComponent>
                              )}
-                             {activeTab === 'pressure_analysis' && FLAGS.ENABLE_ANALYSIS && (
+                             {activeTab === 'pressure_analysis' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('pressure_analysis') && (
                                  <SafeComponent>
                                      <Suspense fallback={<TabFallback />}>
                                          <PressureAnalysisPage

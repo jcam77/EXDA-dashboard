@@ -2,219 +2,162 @@
   "planName": "Experiment_Plan_v000",
   "experiments": [
     {
-      "done": false,
-      "end": "2026-01-24",
-      "id": 1,
-      "name": "vh2d-13pctV-001",
-      "notes": "",
-      "start": "2026-01-21"
+      "done": true,
+      "id": 1777789635393,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [
+          "expData/FMG/Pressure/Experimental_Data_001.csv",
+          "expData/FMG/Pressure/Experimental_Data_001.png"
+        ],
+        "h2": "10",
+        "ignition": "Back",
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "t0": "293",
+        "vent": "Thin Plastic"
+      },
+      "name": "VH2D-01-01"
     },
     {
       "done": false,
-      "end": "2026-01-23",
-      "id": 1769017036244,
-      "name": "vh2d-13pctV-003",
-      "notes": "",
-      "start": "2026-01-21"
+      "id": 1777789752771,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "12",
+        "ignition": "",
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-02"
+    },
+    {
+      "done": false,
+      "id": 1777789799545,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "14",
+        "ignition": "",
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-03"
+    },
+    {
+      "done": false,
+      "id": 1777789930495,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "16",
+        "ignition": "",
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-04"
+    },
+    {
+      "done": false,
+      "id": 1777791812494,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "18",
+        "ignition": "",
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-05"
     },
     {
       "done": true,
-      "end": "2026-01-21",
-      "id": 1769022722763,
+      "id": 1777793006718,
       "meta": {
-        "h2": "10",
-        "ignition": "Center",
-        "p0": "1",
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "",
+        "ignition": "",
+        "isPreparation": true,
+        "p0": "101325",
+        "plannedDate": "2026-05-25",
+        "plannedDay": "",
         "t0": "293",
-        "vent": "Automatic removal",
-        "dataFiles": [
-          "vh2d-10pctV-001/Experimental_Data_001.csv"
-        ]
+        "vent": ""
       },
-      "name": "vh2d-10pctV-001",
-      "notes": "",
-      "start": "2026-01-21"
+      "name": "Preparation-01"
     },
     {
-      "done": true,
-      "end": "2026-01-24",
-      "id": 2,
+      "done": false,
+      "id": 1777793602736,
       "meta": {
-        "h2": "10",
-        "ignition": "Center",
-        "p0": "1",
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "18",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-27",
+        "plannedDay": "",
         "t0": "293",
-        "vent": "Automatic",
-        "dataFiles": [
-          "expData/FMG/Pressure/Experimental_Data_001.csv"
-        ]
+        "vent": ""
       },
-      "name": "vh2d-10pctV-002",
-      "notes": "",
-      "start": "2026-01-29"
+      "name": "VH2D-02-01"
     },
     {
+      "id": 1777796366001,
+      "name": "VH2D-03-01",
       "done": false,
-      "end": "2026-01-24",
-      "id": 1769017007028,
       "meta": {
-        "h2": "13",
-        "p0": "1",
-        "t0": "190"
-      },
-      "name": "vh2d-13pctV-002",
-      "notes": "",
-      "start": "2026-01-21"
-    },
-    {
-      "done": true,
-      "end": "2026-01-23",
-      "id": 3,
-      "meta": {
-        "h2": "10",
-        "ignition": "Center",
-        "p0": "1",
+        "h2": "18",
+        "plannedDay": "",
+        "plannedDate": "2026-05-28",
+        "isPreparation": false,
+        "shortDescription": "",
+        "p0": "101325",
         "t0": "293",
-        "vent": "Hotwire",
-        "dataFiles": [
-          "expData/FMG/Pressure/Experimental_Data_001.csv"
-        ]
-      },
-      "name": "vh2d-10pctV-003",
-      "notes": "",
-      "start": "2026-01-23"
+        "ignition": "",
+        "vent": "",
+        "cfdHash": "",
+        "dataFiles": []
+      }
     },
     {
+      "id": 1777796394831,
+      "name": "VH2D-04-01",
       "done": false,
-      "end": "2026-01-24",
-      "id": 4,
-      "name": "vh2d-11pctV-001",
-      "notes": "",
-      "start": "2026-01-21"
-    },
-    {
-      "done": false,
-      "end": "2026-01-24",
-      "id": 5,
-      "name": "vh2d-11pctV-002",
-      "notes": "",
-      "start": "2026-01-29"
-    },
-    {
-      "done": false,
-      "end": "2026-01-23",
-      "id": 6,
       "meta": {
-        "h2": "11",
-        "p0": "1",
-        "t0": "290"
-      },
-      "name": "vh2d-11pctV-003",
-      "notes": "",
-      "start": "2026-01-23"
-    },
-    {
-      "done": false,
-      "end": "2026-01-21",
-      "id": 7,
-      "name": "vh2d-12pctV-001",
-      "notes": "",
-      "start": "2026-01-22"
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 8,
-      "name": "vh2d-12pctV-002",
-      "notes": "",
-      "start": "2026-01-25"
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 9,
-      "name": "vh2d-12pctV-003",
-      "notes": "",
-      "start": ""
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 10,
-      "name": "vh2d-14pctV-001",
-      "notes": "",
-      "start": ""
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 11,
-      "name": "vh2d-14pctV-002",
-      "notes": "",
-      "start": ""
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 12,
-      "name": "vh2d-14pctV-003",
-      "notes": "",
-      "start": ""
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 13,
-      "name": "vh2d-16pctV-001",
-      "notes": "",
-      "start": ""
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 14,
-      "name": "vh2d-16pctV-002",
-      "notes": "",
-      "start": ""
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 15,
-      "name": "vh2d-16pctV-003",
-      "notes": "",
-      "start": ""
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 16,
-      "name": "vh2d-18pctV-001",
-      "notes": "",
-      "start": ""
-    },
-    {
-      "done": false,
-      "end": "2026-01-21",
-      "id": 17,
-      "name": "vh2d-18pctV-002",
-      "notes": "",
-      "start": "2026-01-21"
-    },
-    {
-      "done": false,
-      "end": "2026-01-25",
-      "id": 18,
-      "name": "vh2d-18pctV-003",
-      "notes": "",
-      "start": ""
+        "h2": "18",
+        "plannedDay": "",
+        "plannedDate": "2026-05-29",
+        "isPreparation": false,
+        "shortDescription": "",
+        "p0": "101325",
+        "t0": "293",
+        "ignition": "",
+        "vent": "",
+        "cfdHash": "",
+        "dataFiles": []
+      }
     }
   ],
   "meta": {
-    "deadline": "2026-03-31",
-    "description": "LU & DBI pressure DAQ systems characterisation.",
-    "objective": "LU & DBI pressure DAQ systems characterisation.",
-    "startDate": "2026-01-21",
+    "deadline": "2026-05-29",
+    "description": "The primary objectives of the experiments are:\n1. Internal Overpressure Development\nMeasurement of internal overpressure development during vented hydrogen deflagrations in a partially confined enclosure for homogeneous flammable hydrogen–air mixtures with hydrogen concentrations up to 19 vol.%.\n\n2.Flame Propagation (Under Consideration)\nMeasurement of flame propagation characteristics, including potential estimation of flame time-of-arrival (TOA) at selected locations.\n\n3.Instrumentation Evaluation\nEvaluation and cross-comparison of different pressure measurement systems and data acquisition configurations, including sensor characteristics and the influence of measurement chain dynamics (e.g., time constant  effects, sampling rate).\n\n4. Measurement Uncertainty Factors\nInvestigation of experimental factors that may affect the accuracy and reliability of pressure measurements, including structural vibration effects and thermal protection methods.\n\n5. Venting Behaviour\nInvestigation of vent opening behaviour and the influence of vent rupture mechanisms on pressure development, including comparison between pressure-driven thin-film rupture and controlled vent opening using a hot-wire cutting system.",
+    "groupObjectives": {
+      "VH2D-01": "Vented deflagration concentration series"
+    },
+    "objective": "LU / DBI / Kistler pressure DAQ systems characterisation.",
+    "startDate": "2026-05-25",
     "status": "planning"
   }
 }
