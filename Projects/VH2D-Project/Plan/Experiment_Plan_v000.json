@@ -114,40 +114,40 @@
       "name": "VH2D-02-01"
     },
     {
-      "id": 1777796366001,
-      "name": "VH2D-03-01",
       "done": false,
+      "id": 1777796366001,
       "meta": {
-        "h2": "18",
-        "plannedDay": "",
-        "plannedDate": "2026-05-28",
-        "isPreparation": false,
-        "shortDescription": "",
-        "p0": "101325",
-        "t0": "293",
-        "ignition": "",
-        "vent": "",
         "cfdHash": "",
-        "dataFiles": []
-      }
+        "dataFiles": [],
+        "h2": "18",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-28",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-03-01"
     },
     {
-      "id": 1777796394831,
-      "name": "VH2D-04-01",
       "done": false,
+      "id": 1777796394831,
       "meta": {
-        "h2": "18",
-        "plannedDay": "",
-        "plannedDate": "2026-05-29",
-        "isPreparation": false,
-        "shortDescription": "",
-        "p0": "101325",
-        "t0": "293",
-        "ignition": "",
-        "vent": "",
         "cfdHash": "",
-        "dataFiles": []
-      }
+        "dataFiles": [],
+        "h2": "18",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-29",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-04-01"
     }
   ],
   "meta": {
