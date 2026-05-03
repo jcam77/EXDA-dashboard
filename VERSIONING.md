@@ -3,6 +3,7 @@
 This is the EXDA versioning workflow.
 
 The safe rule is:
+
 - develop on `CODEX-Updates`
 - release from `main`
 - create the release tag from `main`
@@ -51,6 +52,7 @@ git push origin CODEX-Updates
 ```
 
 Important:
+
 - do not create the release tag from `CODEX-Updates`
 - do not make the public release from `CODEX-Updates`
 
@@ -75,6 +77,7 @@ git restore .
 ```
 
 Why this matters:
+
 - if `git switch main` fails, you stay on the current branch
 - if you stay on `CODEX-Updates`, the version bump and tag can be created from the wrong branch
 
@@ -107,6 +110,7 @@ git push origin main
 This is the step that moves the tested development work into the release branch.
 
 If there are merge conflicts:
+
 - resolve them first
 - complete the merge
 - push `main`
@@ -172,13 +176,13 @@ git pull --ff-only origin main
 git branch --show-current
 git merge CODEX-Updates -m "Merge CODEX-Updates into main"
 git push origin main
-npm version 2.7.0 --no-git-tag-version
+npm version 2.8.0 --no-git-tag-version
 git add package.json package-lock.json
 git commit -m "Bump app version to 2.7.0"
 git push origin main
 git branch --show-current
-git tag -a browser-MVP-v2.7.0 -m "browser-MVP-v2.7.0"
-git push origin browser-MVP-v2.7.0
+git tag -a browser-MVP-v2.8.0 -m "browser-MVP-v2.8.0"
+git push origin browser-MVP-v2.8.0
 git switch CODEX-Updates
 git merge main
 git push origin CODEX-Updates

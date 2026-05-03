@@ -29,6 +29,18 @@ The setup scripts:
 - <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
 - <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
 
+## MVP Mode (Optional)
+
+For a simplified onsite workflow, you can enable MVP mode.
+
+- Toggle with the `MVP` button in the app header (upper-right area).
+- The selection is stored locally in your browser and reused on next app start.
+- Set a default before launch with:
+  - `MVP_MODE=true`
+  - or `VITE_MVP_MODE=true`
+
+In MVP mode, advanced tabs are hidden and the workspace uses a simpler `Raw Data Pressure Analysis` tab for quicker operation.
+
 Terminal shortcuts from the repo root:
 
 - Linux/macOS: `./run exda`

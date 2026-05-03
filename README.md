@@ -39,6 +39,21 @@ Then run EXDA with the launcher:
 - <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
 - <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
 
+### 🧪 MVP Mode (Simplified Workflow)
+
+EXDA includes an MVP mode for fast onsite work.
+
+- Use the `MVP` button in the upper-right area of the app to toggle it on/off.
+- The current state is saved in your browser (`localStorage`) and reused on next launch.
+- You can also set startup default with env vars before launch:
+  - `MVP_MODE=true`
+  - or `VITE_MVP_MODE=true`
+
+Current MVP simplifications include:
+
+- hidden advanced tabs such as `Pressure Analysis` and `Data Preprocessing`
+- a simplified `Raw Data Pressure Analysis` tab that reuses the same behavior as Data Preprocessing
+
 The setup script will:
 
 - create or repair `.venv`
