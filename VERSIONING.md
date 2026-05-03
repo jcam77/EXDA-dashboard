@@ -8,14 +8,6 @@ This is the EXDA versioning workflow.
 - Latest release tag: `browser-MVP-v2.10.0`
 - Updated on: `2026-05-03`
 
-- Latest release version: `2.9.0`
-- Latest release tag: `browser-MVP-v2.9.0`
-- Updated on: `2026-05-03`
-
-- Latest release version: `2.8.0`
-- Latest release tag: `browser-MVP-v2.8.0`
-- Updated on: `2026-05-03`
-
 The safe rule is:
 
 - develop on `CODEX-Updates`
@@ -177,6 +169,8 @@ git push origin browser-v1.18.0
 
 ## Full Release Example
 
+If you run the commands manually (without `./release.sh`), update `## Current Release` in this file before committing on `main`.
+
 ```bash
 git switch CODEX-Updates
 git status --short --branch
@@ -190,13 +184,13 @@ git pull --ff-only origin main
 git branch --show-current
 git merge CODEX-Updates -m "Merge CODEX-Updates into main"
 git push origin main
-npm version 2.9.0 --no-git-tag-version
-git add package.json package-lock.json
-git commit -m "Bump app version to 2.9.0"
+npm version <semver> --no-git-tag-version
+git add package.json package-lock.json VERSIONING.md
+git commit -m "Prepare release <semver> (<tag>)"
 git push origin main
 git branch --show-current
-git tag -a browser-MVP-v2.9.0 -m "browser-MVP-v2.9.0"
-git push origin browser-MVP-v2.9.0
+git tag -a <tag> -m "<tag>"
+git push origin <tag>
 git switch CODEX-Updates
 git merge main
 git push origin CODEX-Updates

@@ -29,9 +29,6 @@ const path = 'VERSIONING.md';
 const [newVersion, tagName, releaseDate] = process.argv.slice(2);
 
 let text = fs.readFileSync(path, 'utf8');
-const sectionRegex = /## Current Release[\s\S]*?(?=\n## |\n?$)/m;
-const nextSectionMatch = text.match(sectionRegex);
-
 const section = [
   '## Current Release',
   '',
@@ -40,9 +37,13 @@ const section = [
   `- Updated on: \`${releaseDate}\``,
   '',
 ].join('\n');
+const startMarker = '## Current Release';
+const endMarker = '\nThe safe rule is:';
+const startIndex = text.indexOf(startMarker);
+const endIndex = text.indexOf(endMarker);
 
-if (nextSectionMatch) {
-  text = text.replace(sectionRegex, section.trimEnd());
+if (startIndex >= 0 && endIndex > startIndex) {
+  text = `${text.slice(0, startIndex)}${section}${text.slice(endIndex + 1)}`;
 } else {
   const marker = 'This is the EXDA versioning workflow.';
   if (text.includes(marker)) {
