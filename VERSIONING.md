@@ -4,9 +4,9 @@ This is the EXDA versioning workflow.
 
 ## Current Release
 
-- Latest release version: `2.14.0`
-- Latest release tag: `browser-MVP-v2.14.0`
-- Updated on: `2026-05-03`
+- Latest release version: `2.15.0`
+- Latest release tag: `browser-MVP-v2.15.0`
+- Updated on: `2026-05-04`
 The safe rule is:
 
 - develop on `CODEX-Updates`
