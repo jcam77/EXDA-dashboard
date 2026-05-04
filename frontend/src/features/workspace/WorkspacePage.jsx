@@ -55,6 +55,7 @@ const ProjectsPage = lazy(() => import('../../pages/Projects'));
 const AppCalculationsVerificationPage = lazy(() => import('../../pages/AppCalculationsVerification'));
 const ChecklistPage = lazy(() => import('../../pages/Checklist'));
 const PlanPage = lazy(() => import('../../pages/Plan'));
+const SensorsMappingPage = lazy(() => import('../../pages/SensorsMapping'));
 const GasMixingPage = lazy(() => import('../../pages/GasMixing'));
 const ImportDataPage = lazy(() => import('../../pages/ImportData'));
 const DataPreprocessingPage = lazy(() => import('../../pages/DataPreprocessingPage'));
@@ -73,6 +74,7 @@ const TAB_PATHS = {
     verification: '/verification',
     checklist: '/checklist',
     plan: '/plan',
+    sensors_mapping: '/sensors-mapping',
     gas: '/gas',
     data: '/data',
     data_preprocessing: '/data/preprocessing',
@@ -90,6 +92,7 @@ const HEADER_SHORTCUT_TABS = ['home', 'projects', 'verification', 'ai'];
 const PROJECT_WORKSPACE_TABS = [
     {id:'checklist', l:'Checklist', i:ClipboardList, to: TAB_PATHS.checklist},
     {id:'plan', l:'Plan', i:FileSpreadsheet, to: TAB_PATHS.plan},
+    {id:'sensors_mapping', l:'Sensors Mapping', i:Layers, to: TAB_PATHS.sensors_mapping},
     {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas},
     {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data},
     {id:'data_preprocessing', l:'Data Preprocessing', i:FolderOpen, to: TAB_PATHS.data_preprocessing},
@@ -117,6 +120,7 @@ const resolveTabFromPath = (pathname) => {
     if (pathname.startsWith('/verification')) return 'verification';
     if (pathname.startsWith('/checklist')) return 'checklist';
     if (pathname.startsWith('/plan')) return 'plan';
+    if (pathname.startsWith('/sensors-mapping')) return 'sensors_mapping';
     if (pathname.startsWith('/gas')) return 'gas';
     if (pathname.startsWith('/analysis/raw-pressure')) return 'raw_pressure_analysis';
     if (pathname.startsWith('/data/preprocessing')) return 'data_preprocessing';
@@ -1339,6 +1343,14 @@ const WorkspacePage = () => {
                               projectPath={projectPath}
                               onSave={savePlan} onImport={importPlan}
                           />
+                      </Suspense>
+                  </SafeComponent>
+              )}
+
+              {activeTab === 'sensors_mapping' && FLAGS.ENABLE_PLAN && (
+                  <SafeComponent>
+                      <Suspense fallback={<TabFallback />}>
+                          <SensorsMappingPage key={projectPath || 'global'} projectPath={projectPath} />
                       </Suspense>
                   </SafeComponent>
               )}
