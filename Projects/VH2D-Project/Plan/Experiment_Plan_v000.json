@@ -2,7 +2,7 @@
   "planName": "Experiment_Plan_v000",
   "experiments": [
     {
-      "done": true,
+      "done": false,
       "id": 1777789635393,
       "meta": {
         "cfdHash": "",
@@ -18,24 +18,6 @@
         "vent": "Thin Plastic"
       },
       "name": "VH2D-01-01"
-    },
-    {
-      "done": false,
-      "id": 1777818923706,
-      "meta": {
-        "cfdHash": "",
-        "dataFiles": [],
-        "h2": "10",
-        "ignition": "",
-        "isPreparation": false,
-        "p0": "101325",
-        "plannedDate": "2026-05-26",
-        "plannedDay": "",
-        "shortDescription": "",
-        "t0": "293",
-        "vent": ""
-      },
-      "name": "VH2D-01-01-R1"
     },
     {
       "done": false,
@@ -156,7 +138,7 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "-",
+        "h2": "10",
         "ignition": "",
         "isPreparation": true,
         "p0": "101325",
@@ -174,7 +156,7 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "-",
+        "h2": "12",
         "ignition": "",
         "isPreparation": true,
         "p0": "101325",
