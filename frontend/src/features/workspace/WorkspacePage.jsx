@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
     FlaskConical, AudioLines, ClipboardList, FileSpreadsheet, 
     Folder, Activity, Flame, FolderOpen, BrainCircuit,
-    FileText, Beaker, BookOpen, Home, Layers, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck, Save
+    FileText, Beaker, BookOpen, Home, Layers, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck, Save, HardDrive
 } from 'lucide-react';
 
 // --- MODULAR IMPORTS ---
@@ -55,6 +55,7 @@ const ProjectsPage = lazy(() => import('../../pages/Projects'));
 const AppCalculationsVerificationPage = lazy(() => import('../../pages/AppCalculationsVerification'));
 const ChecklistPage = lazy(() => import('../../pages/Checklist'));
 const PlanPage = lazy(() => import('../../pages/Plan'));
+const DaqSystemsPage = lazy(() => import('../../pages/DaqSystems'));
 const SensorsMappingPage = lazy(() => import('../../pages/SensorsMapping'));
 const GasMixingPage = lazy(() => import('../../pages/GasMixing'));
 const ImportDataPage = lazy(() => import('../../pages/ImportData'));
@@ -74,6 +75,7 @@ const TAB_PATHS = {
     verification: '/verification',
     checklist: '/checklist',
     plan: '/plan',
+    daq_systems: '/daq-systems',
     sensors_mapping: '/sensors-mapping',
     gas: '/gas',
     data: '/data',
@@ -92,6 +94,7 @@ const HEADER_SHORTCUT_TABS = ['home', 'projects', 'verification', 'ai'];
 const PROJECT_WORKSPACE_TABS = [
     {id:'checklist', l:'Checklist', i:ClipboardList, to: TAB_PATHS.checklist},
     {id:'plan', l:'Plan', i:FileSpreadsheet, to: TAB_PATHS.plan},
+    {id:'daq_systems', l:'DAQ Systems', i:HardDrive, to: TAB_PATHS.daq_systems},
     {id:'sensors_mapping', l:'Sensors Mapping', i:Layers, to: TAB_PATHS.sensors_mapping},
     {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas},
     {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data},
@@ -113,6 +116,7 @@ const HEADER_ACTIONS = {
     ai: { icon: BrainCircuit, title: 'AiRA' },
 };
 const PROJECT_STATUS_OPTIONS = ['planning', 'active', 'archived'];
+const DEFAULT_PROJECT_TAB = 'checklist';
 
 const resolveTabFromPath = (pathname) => {
     if (pathname === '/' || pathname === '/home') return 'home';
@@ -120,6 +124,7 @@ const resolveTabFromPath = (pathname) => {
     if (pathname.startsWith('/verification')) return 'verification';
     if (pathname.startsWith('/checklist')) return 'checklist';
     if (pathname.startsWith('/plan')) return 'plan';
+    if (pathname.startsWith('/daq-systems')) return 'daq_systems';
     if (pathname.startsWith('/sensors-mapping')) return 'sensors_mapping';
     if (pathname.startsWith('/gas')) return 'gas';
     if (pathname.startsWith('/analysis/raw-pressure')) return 'raw_pressure_analysis';
@@ -184,9 +189,7 @@ const WorkspacePage = () => {
     }, [isMvpMode]);
     const headerTabs = HEADER_SHORTCUT_TABS.filter(isTabAllowed);
     const workspaceTabs = PROJECT_WORKSPACE_TABS.filter((tab) => isTabAllowed(tab.id));
-    const fallbackProjectTab = (isMvpMode && isTabAllowed('raw_pressure_analysis'))
-        ? 'raw_pressure_analysis'
-        : (isTabAllowed('pressure_analysis') ? 'pressure_analysis' : 'data');
+    const fallbackProjectTab = workspaceTabs[0]?.id || DEFAULT_PROJECT_TAB;
     // Add flame folder picker state
     const [selectedFlameFolder, setSelectedFlameFolder] = useState("");
     const [flamePicker, setFlamePicker] = useState({ open: false });
@@ -457,6 +460,11 @@ const WorkspacePage = () => {
 
               if (state.success) {
                   setProjectPath(savedPath);
+                  // Always start a loaded project on the first workspace tab
+                  // unless a more specific pending tab was already requested.
+                  if (!localStorage.getItem('pendingTab')) {
+                      localStorage.setItem('pendingTab', fallbackProjectTab);
+                  }
                   // 1. Recover the most recent Experiment Plan
                   if (state.plan) {
                       setExperiments(state.plan.experiments || []);
@@ -511,7 +519,7 @@ const WorkspacePage = () => {
       };
 
       syncProject();
-  }, [apiBaseUrl, fetchJsonWithRetry]); // Run once on mount/refresh
+  }, [apiBaseUrl, fallbackProjectTab, fetchJsonWithRetry]); // Run once on mount/refresh
 
   /**
    * Effect: Local Backup (Redundancy)
@@ -709,7 +717,14 @@ const WorkspacePage = () => {
     const openDataPicker = (type) => setDataPicker({ open: true, type });
     const closeDataPicker = () => setDataPicker((prev) => ({ ...prev, open: false }));
 
-    const openProjectByPath = async (projectPathValue, nextTab) => {
+    const openProjectByPath = async (projectPathValue, nextTab = fallbackProjectTab) => {
+      const normalizedRequestedTab = (() => {
+          const raw = String(nextTab || '').trim();
+          if (!raw) return fallbackProjectTab;
+          if (TAB_PATHS[raw]) return raw;
+          const fromPath = resolveTabFromPath(raw.startsWith('/') ? raw : `/${raw}`);
+          return fromPath || fallbackProjectTab;
+      })();
       try {
           const res = await fetch(`${apiBaseUrl}/open_project_path`, {
               method: 'POST',
@@ -723,7 +738,8 @@ const WorkspacePage = () => {
                   localStorage.setItem('lastProjectPath', d.path);
                   localStorage.setItem('resumeOnStartupOnce', 'true');
                   recordRecentProject(d.path);
-                  if (nextTab) localStorage.setItem('pendingTab', nextTab);
+                  const targetTab = isTabAllowed(normalizedRequestedTab) ? normalizedRequestedTab : fallbackProjectTab;
+                  localStorage.setItem('pendingTab', targetTab);
                   window.location.reload();
               } else {
               notify('error', 'Open Failed', d.error || 'Could not open project');
@@ -747,6 +763,7 @@ const WorkspacePage = () => {
                   localStorage.setItem('lastProjectPath', d.path);
                   localStorage.setItem('resumeOnStartupOnce', 'true');
                   recordRecentProject(d.path);
+                  localStorage.setItem('pendingTab', fallbackProjectTab);
                   window.location.reload();
               } else {
               notify('error', 'Create Failed', d.error || 'Could not create project');
@@ -1014,7 +1031,6 @@ const WorkspacePage = () => {
                   {activeTab === 'projects' ? (
                       <ProjectsPage
                           onOpenProject={openProjectByPath}
-                          onEditProject={(pathValue) => openProjectByPath(pathValue, 'plan')}
                           onCreateProject={() => openPicker('create')}
                           onBackHome={() => setActiveTab('home')}
                           refreshKey={projectsRefreshKey}
@@ -1311,7 +1327,7 @@ const WorkspacePage = () => {
                       <Suspense fallback={<TabFallback />}>
                           <ProjectsPage
                               activeProjectPath={projectPath}
-                              onEditProject={(pathValue) => openProjectByPath(pathValue, 'plan')}
+                              onOpenProject={openProjectByPath}
                           />
                       </Suspense>
                   </SafeComponent>
@@ -1343,6 +1359,14 @@ const WorkspacePage = () => {
                               projectPath={projectPath}
                               onSave={savePlan} onImport={importPlan}
                           />
+                      </Suspense>
+                  </SafeComponent>
+              )}
+
+              {activeTab === 'daq_systems' && FLAGS.ENABLE_PLAN && (
+                  <SafeComponent>
+                      <Suspense fallback={<TabFallback />}>
+                          <DaqSystemsPage key={projectPath || 'global'} projectPath={projectPath} />
                       </Suspense>
                   </SafeComponent>
               )}

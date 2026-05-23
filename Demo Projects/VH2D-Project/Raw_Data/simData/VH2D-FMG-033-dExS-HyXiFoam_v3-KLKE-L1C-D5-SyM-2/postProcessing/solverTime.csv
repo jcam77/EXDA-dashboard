@@ -1,2 +1,0 @@
-case,logFile,executionTime_s,clockTime_s,executionTime_hr,clockTime_hr,utc
-VH2D-FMG-033-dExS-HyXiFoam_v3-KLKE-L1C-D5-SyM-2-TpN-24-scotch-Backw-maxCo-0.10-maxDeltaT-2.5e-4-ECoeff-5.15-R0-0.9-Xilp-const-Xilp_max-2.10-psic-0.9-Eps-0.1-Tprop-Tmax3500K-lInf-1-NoC-NC-3-Xirt_max-2.3-URF-Prog-fvSch-Bounded-2-minIter-2,log.HyXiFoam_v3,18924.98,19457,5.256939,5.404722,2026-01-27T01:58:50Z

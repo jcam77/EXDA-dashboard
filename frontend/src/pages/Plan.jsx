@@ -2,10 +2,49 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { 
     Save, Upload, Plus, CheckSquare, Square, PenTool, Trash2, Calendar, 
     Clock, Target, GripVertical, Layers, FlaskConical, X, 
-    AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge, ChevronRight, ChevronDown, Wrench, Undo2
+    AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge, ChevronRight, ChevronDown, Wrench, Undo2, Download
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Cell, LabelList } from 'recharts';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+
+const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
+
+const parseRunNameOrder = (runName) => {
+    const cleanName = String(runName || '').trim();
+    const match = cleanName.match(RUN_NAME_ORDER_RE);
+    if (!match) {
+        return {
+            group: cleanName,
+            runNumber: Number.POSITIVE_INFINITY,
+            repetitionNumber: -1,
+            raw: cleanName,
+        };
+    }
+    return {
+        group: String(match[1] || '').trim(),
+        runNumber: Number.parseInt(match[2], 10),
+        repetitionNumber: match[4] ? Number.parseInt(match[4], 10) : -1,
+        raw: cleanName,
+    };
+};
+
+const compareRunNames = (leftName, rightName) => {
+    const left = parseRunNameOrder(leftName);
+    const right = parseRunNameOrder(rightName);
+
+    const groupCompare = left.group.localeCompare(right.group, undefined, { numeric: true, sensitivity: 'base' });
+    if (groupCompare !== 0) return groupCompare;
+
+    if (left.runNumber !== right.runNumber) {
+        return left.runNumber - right.runNumber;
+    }
+
+    if (left.repetitionNumber !== right.repetitionNumber) {
+        return left.repetitionNumber - right.repetitionNumber;
+    }
+
+    return left.raw.localeCompare(right.raw, undefined, { numeric: true, sensitivity: 'base' });
+};
 
 const PlanPage = ({ 
     experiments = [], 
@@ -19,7 +58,7 @@ const PlanPage = ({
     projectPath = ""
 }) => {
     const apiBaseUrl = getBackendBaseUrl();
-    const [input, setInput] = useState({ group: "", run: "", h2: "", plannedDay: "", plannedDate: "", name: "", isPreparation: false });
+    const [input, setInput] = useState({ group: "", run: "", h2: "", plannedDate: "", name: "", isPreparation: false });
     const [editingExp, setEditingExp] = useState(null);
     const [createError, setCreateError] = useState("");
     const [editError, setEditError] = useState("");
@@ -32,6 +71,7 @@ const PlanPage = ({
     const [rawDataFiles, setRawDataFiles] = useState([]);
     const [collapsedGroups, setCollapsedGroups] = useState({});
     const [lastDeletedRun, setLastDeletedRun] = useState(null);
+    const [folderCheck, setFolderCheck] = useState({ status: 'idle', message: '' });
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 });
     const deleteUndoTimeoutRef = useRef(null);
 
@@ -79,18 +119,60 @@ const PlanPage = ({
     };
 
     // --- CRUD ---
-    const syncRunFolders = async (runNames = []) => {
+    const syncRunFolders = useCallback(async (runNames = []) => {
         if (!projectPath || !Array.isArray(runNames) || runNames.length === 0) return;
         try {
-            await fetch(`${apiBaseUrl}/sync_run_data_folders`, {
+            const response = await fetch(`${apiBaseUrl}/sync_run_data_folders`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ projectPath, runNames })
             });
+            const payload = await response.json();
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.error || 'Could not sync run data folders');
+            }
+            return payload;
         } catch {
             // Keep UI flow non-blocking even if sync fails.
+            return null;
         }
-    };
+    }, [apiBaseUrl, projectPath]);
+
+    const verifyRunFolders = useCallback(async (manual = false) => {
+        const runNames = Array.from(new Set(
+            experiments
+                .map((exp) => String(exp?.name || '').trim())
+                .filter(Boolean)
+        ));
+
+        if (!projectPath || runNames.length === 0) {
+            setFolderCheck({ status: 'idle', message: '' });
+            return;
+        }
+
+        setFolderCheck((prev) => ({ ...prev, status: 'checking', message: manual ? 'Checking run folders...' : prev.message }));
+        const result = await syncRunFolders(runNames);
+        if (!result) {
+            setFolderCheck({ status: 'error', message: 'Folder verification failed. Try Sync run folders.' });
+            return;
+        }
+
+        const skippedCount = Array.isArray(result.skipped) ? result.skipped.length : 0;
+        const ensuredCount = Array.isArray(result.ensured) ? result.ensured.length : 0;
+
+        if (skippedCount > 0) {
+            setFolderCheck({
+                status: 'warning',
+                message: `Verified ${ensuredCount}/${runNames.length}. ${skippedCount} run name(s) need cleanup.`,
+            });
+            return;
+        }
+
+        setFolderCheck({
+            status: 'ok',
+            message: `Verified folders for ${ensuredCount} run${ensuredCount === 1 ? '' : 's'}.`,
+        });
+    }, [experiments, projectPath, syncRunFolders]);
 
     const filesForRunName = useCallback((runName) => {
         const cleanName = String(runName || '').trim();
@@ -98,6 +180,15 @@ const PlanPage = ({
         const prefix = `${cleanName}/`;
         return rawDataFiles.filter((filePath) => String(filePath || '').startsWith(prefix));
     }, [rawDataFiles]);
+
+    const areStringArraysEqual = useCallback((left, right) => {
+        if (!Array.isArray(left) || !Array.isArray(right)) return false;
+        if (left.length !== right.length) return false;
+        for (let idx = 0; idx < left.length; idx += 1) {
+            if (String(left[idx]) !== String(right[idx])) return false;
+        }
+        return true;
+    }, []);
 
     const buildRunName = useCallback((groupValue, runValue) => {
         const cleanGroup = String(groupValue || '').trim().replace(/[/\\]/g, '-');
@@ -174,6 +265,13 @@ const PlanPage = ({
         if (Number.isFinite(parsed) && parsed > 0) return parsed;
         return fallbackIndex + 1;
     }, [getScheduleBaseDateRaw, ymdToOrdinal]);
+
+    const formatRunSchedule = useCallback((exp) => {
+        const plannedDate = String(exp?.meta?.plannedDate || '').trim();
+        if (plannedDate) return plannedDate;
+        const plannedDay = String(exp?.meta?.plannedDay || '').trim();
+        return plannedDay ? `D${plannedDay}` : '';
+    }, []);
 
     const normalizeRunName = useCallback((value) => String(value || '').trim().toLowerCase(), []);
     const isDuplicateRunName = useCallback((candidateName, ignoreId = null) => {
@@ -275,7 +373,6 @@ const PlanPage = ({
             done: false,
             meta: {
                 h2: String(input.h2 || "").trim(),
-                plannedDay: String(input.plannedDay || "").trim(),
                 plannedDate: String(input.plannedDate || "").trim(),
                 isPreparation: !!input.isPreparation,
                 shortDescription: "",
@@ -376,6 +473,41 @@ const PlanPage = ({
         }));
     }, [setExperiments]);
 
+    const exportPlanArtifact = useCallback(async (format) => {
+        if (!projectPath) {
+            window.alert('Open a project first. Export files are saved to the project Plan folder.');
+            return;
+        }
+        try {
+            const response = await fetch(`${apiBaseUrl}/export_plan_artifact`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectPath,
+                    planName,
+                    planMeta,
+                    experiments,
+                    format,
+                }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.error || `Failed to export ${format.toUpperCase()}`);
+            }
+            window.alert(`${format.toUpperCase()} exported to:\n${payload.path}`);
+        } catch (error) {
+            window.alert(`Could not export ${format.toUpperCase()}.\n${error?.message || 'Unknown error'}`);
+        }
+    }, [apiBaseUrl, experiments, planMeta, planName, projectPath]);
+
+    const exportPlanAsCsv = useCallback(() => {
+        exportPlanArtifact('csv');
+    }, [exportPlanArtifact]);
+
+    const exportPlanAsPdf = useCallback(() => {
+        exportPlanArtifact('pdf');
+    }, [exportPlanArtifact]);
+
     // --- DRAG AND DROP ---
     const onDrop = (targetId) => {
         if (!draggedId || draggedId === targetId) return;
@@ -449,7 +581,9 @@ const PlanPage = ({
     const groupedTasks = getGroupedExperiments();
     const scheduleBarSpan = 0.68;
     const scheduleBarOffset = (1 - scheduleBarSpan) / 2;
-    const scheduleData = experiments
+    const scheduleSource = [...experiments]
+        .sort((a, b) => compareRunNames(a?.name, b?.name));
+    const scheduleData = scheduleSource
         .map((exp, index) => {
             const day = getPlannedDay(exp, index);
             return {
@@ -458,10 +592,10 @@ const PlanPage = ({
                 offset: Math.max(0, day - 1) + scheduleBarOffset,
                 duration: scheduleBarSpan,
                 status: !!exp.done,
-                order: index,
+                runSortKey: String(exp?.name || ''),
             };
         })
-        .sort((a, b) => (a.day - b.day) || (a.order - b.order));
+        .sort((a, b) => (a.day - b.day) || compareRunNames(a.runSortKey, b.runSortKey));
     const scheduleMaxDay = scheduleData.reduce((maxValue, item) => Math.max(maxValue, item.day), 1);
     const scheduleTickStep = scheduleMaxDay > 14 ? Math.ceil(scheduleMaxDay / 7) : 1;
     const scheduleTicks = [];
@@ -533,13 +667,12 @@ const PlanPage = ({
     }, [setPlanMeta]);
 
     useEffect(() => {
-        if (!rawDataFiles.length || !experiments.length) return;
+        if (!experiments.length) return;
         let changed = false;
         const updated = experiments.map((exp) => {
             const current = Array.isArray(exp.meta?.dataFiles) ? exp.meta.dataFiles : [];
-            if (current.length > 0) return exp;
             const inferred = filesForRunName(exp.name);
-            if (!inferred.length) return exp;
+            if (areStringArraysEqual(current, inferred)) return exp;
             changed = true;
             return {
                 ...exp,
@@ -550,7 +683,14 @@ const PlanPage = ({
             };
         });
         if (changed) setExperiments(updated);
-    }, [rawDataFiles, experiments, setExperiments, filesForRunName]);
+    }, [rawDataFiles, experiments, setExperiments, filesForRunName, areStringArraysEqual]);
+
+    const handleSavePlan = useCallback(async () => {
+        await verifyRunFolders(true);
+        if (typeof onSave === 'function') {
+            await onSave();
+        }
+    }, [onSave, verifyRunFolders]);
 
     useEffect(() => {
         if (!isModalDragging) return undefined;
@@ -587,6 +727,10 @@ const PlanPage = ({
         setIsModalDragging(true);
     };
 
+    const editingSelectedFiles = Array.isArray(editingExp?.meta?.dataFiles) ? editingExp.meta.dataFiles : [];
+    const editingRunScopedFiles = editingExp ? filesForRunName(editingExp.name) : [];
+    const editingStaleLinkedFiles = editingSelectedFiles.filter((pathValue) => !editingRunScopedFiles.includes(pathValue));
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
             {/* LEFT: LIST & RUN CARDS (30%) */}
@@ -597,13 +741,15 @@ const PlanPage = ({
                        <input value={planName} onChange={e=>setPlanName(e.target.value)} className="bg-transparent border-b border-zinc-800 text-sm font-bold w-full outline-none focus:border-primary text-white"/>
                    </div>
                    <div className="flex gap-1">
-                       <button onClick={onSave} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Save size={18}/></button>
+                       <button onClick={handleSavePlan} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Save size={18}/></button>
                        <button onClick={onImport} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Upload size={18}/></button>
+                       <button onClick={exportPlanAsCsv} title="Export plan as CSV" className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Download size={18}/></button>
+                       <button onClick={exportPlanAsPdf} title="Export plan as PDF" className="px-2 text-[10px] font-bold text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors">PDF</button>
                    </div>
                 </div>
                 
                 <div className="flex flex-col gap-2 mb-4 bg-black/20 p-3 rounded border border-zinc-800/50">
-                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                         <input
                             value={input.group}
                             onChange={e=>{ setInput({...input, group:e.target.value}); setCreateError(""); }}
@@ -623,15 +769,10 @@ const PlanPage = ({
                             className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
                         />
                         <input
-                            value={input.plannedDay}
-                            onChange={e=>{ setInput({...input, plannedDay:e.target.value}); setCreateError(""); }}
-                            placeholder="Planned Day (e.g., 3)"
-                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
-                        />
-                        <input
                             type="date"
                             value={input.plannedDate}
                             onChange={e=>{ setInput({...input, plannedDate:e.target.value}); setCreateError(""); }}
+                            title="Schedule date"
                             className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
                         />
                     </div>
@@ -661,11 +802,21 @@ const PlanPage = ({
                     )}
                     <button onClick={addExp} className="bg-primary/10 border border-primary/30 px-3 py-1.5 rounded text-primary hover:border-primary/60 hover:bg-primary/20 flex items-center justify-center gap-2 font-bold text-xs"><Plus size={14}/> Add Planned Run</button>
                     <button
-                        onClick={() => syncRunFolders(experiments.map((e) => String(e.name || '').trim()).filter(Boolean))}
+                        onClick={() => verifyRunFolders(true)}
                         className="border border-zinc-700 px-3 py-1.5 rounded text-zinc-300 hover:border-zinc-500 hover:text-zinc-100 flex items-center justify-center gap-2 font-semibold text-xs"
                     >
                         <Layers size={14}/> Sync run folders
                     </button>
+                    {!!folderCheck.message && (
+                        <div className={`text-[10px] ${
+                            folderCheck.status === 'ok' ? 'text-primary' :
+                            folderCheck.status === 'warning' ? 'text-amber-400' :
+                            folderCheck.status === 'error' ? 'text-red-400' :
+                            'text-zinc-500'
+                        }`}>
+                            {folderCheck.message}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
@@ -765,14 +916,9 @@ const PlanPage = ({
                                                 <Beaker size={8}/> {e.meta.h2}% vol H2
                                             </div>
                                         )}
-                                        {String(e.meta?.plannedDay || '').trim() && (
-                                            <div className="flex items-center gap-1 border border-zinc-800 px-1.5 py-0.5 rounded text-[9px] text-zinc-500">
-                                                <Calendar size={8}/> D{e.meta.plannedDay}
-                                            </div>
-                                        )}
-                                        {String(e.meta?.plannedDate || '').trim() && (
+                                        {formatRunSchedule(e) && (
                                             <div className="flex items-center gap-1 border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded text-[9px] text-primary font-semibold">
-                                                <Calendar size={8}/> {e.meta.plannedDate}
+                                                <Calendar size={8}/> {formatRunSchedule(e)}
                                             </div>
                                         )}
                                         {isPreparationRun(e) && (
@@ -985,13 +1131,12 @@ const PlanPage = ({
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 pl-1 md:pl-2">
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Target H2%V</label><input value={editingExp.meta?.h2} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 10.5"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Measured Average H2%V">Avg. H2%V</label><input value={editingExp.meta?.h2MeasuredAvg || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2MeasuredAvg:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 10.2"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Standard Deviation H2%V">Std. Dev. H2%V</label><input value={editingExp.meta?.h2StdDev || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2StdDev:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 0.3"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Planned Day</label><input value={editingExp.meta?.plannedDay || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDay:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 3"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Planned Date</label><input type="date" value={editingExp.meta?.plannedDate || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDate:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"/></div>
+                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Injected hydrogen mass">H2 injected (g)</label><input value={editingExp.meta?.h2InjectedGrams || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2InjectedGrams:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 8"/></div>
+                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Mass flow controller flow">MFC flow (SLPM)</label><input value={editingExp.meta?.mfcFlowSlpm || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, mfcFlowSlpm:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 12.5"/></div>
+                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Schedule Date</label><input type="date" value={editingExp.meta?.plannedDate || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDate:e.target.value, plannedDay: ''}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"/></div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Init. P (Pa)</label><input value={editingExp.meta?.p0} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, p0:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 101325"/></div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Init. T (K)</label><input value={editingExp.meta?.t0} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, t0:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 293"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block whitespace-nowrap">Init. turb. vel. u' (m/s)</label><input value={editingExp.meta?.uPrime || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, uPrime:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 0.5"/></div>
+                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block whitespace-nowrap">Recirc stop → ignition time (s)</label><input value={editingExp.meta?.recircStopToIgnitionSec || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, recircStopToIgnitionSec:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 120"/></div>
                                     </div>
                                 </div>
                                 <div>
@@ -1027,10 +1172,10 @@ const PlanPage = ({
                                     </div>
                                     <div className="space-y-2">
                                         <div className="text-[10px] text-zinc-500">
-                                            Select one or more files for this test.
+                                            Showing files detected in this run folder: <span className="text-zinc-300 font-mono">Raw_Data/{String(editingExp?.name || '').trim() || '<run>'}/</span>
                                         </div>
                                         <div className="max-h-32 overflow-y-auto pr-1 space-y-1 border border-zinc-800 rounded bg-black/30 p-2">
-                                            {rawDataFiles.map((filePath) => {
+                                            {editingRunScopedFiles.map((filePath) => {
                                                 const checked = (editingExp.meta?.dataFiles || []).includes(filePath);
                                                 const parts = String(filePath).split('/');
                                                 const fileName = parts[parts.length - 1] || filePath;
@@ -1043,16 +1188,21 @@ const PlanPage = ({
                                                             className="h-3 w-3 accent-primary mt-0.5"
                                                         />
                                                         <span className="min-w-0">
-                                                            <span className="block truncate text-primary font-semibold">{fileName}</span>
-                                                            <span className="block truncate text-zinc-500 text-[9px]">{filePath}</span>
+                                                            <span className="block break-all leading-tight text-primary font-semibold">{fileName}</span>
+                                                            <span className="mt-0.5 block break-all leading-tight text-zinc-500 text-[9px]">{filePath}</span>
                                                         </span>
                                                     </label>
                                                 );
                                             })}
-                                            {rawDataFiles.length === 0 && (
-                                                <div className="text-[10px] text-zinc-500">No files found in Raw_Data.</div>
+                                            {editingRunScopedFiles.length === 0 && (
+                                                <div className="text-[10px] text-zinc-500">No files found in this run folder.</div>
                                             )}
                                         </div>
+                                        {editingStaleLinkedFiles.length > 0 && (
+                                            <div className="rounded border border-amber-600/40 bg-amber-900/15 px-2 py-1.5 text-[10px] text-amber-300">
+                                                {editingStaleLinkedFiles.length} linked file(s) are outside this run folder and will be cleaned automatically after sync.
+                                            </div>
+                                        )}
                                         <div className="text-[10px] text-zinc-500">
                                             Selected: {(editingExp.meta?.dataFiles || []).length}
                                         </div>

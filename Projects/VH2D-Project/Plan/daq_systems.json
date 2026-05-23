@@ -1,0 +1,79 @@
+{
+  "updatedAt": "2026-05-23 21:00:44",
+  "daqSystems": [
+    {
+      "channelCount": "8",
+      "id": "daq-1779560677718-e879bf",
+      "isActive": true,
+      "lastCalibrationDate": "",
+      "location": "",
+      "measuredQuantity": "pressure",
+      "model": "",
+      "name": "pDAQ-1",
+      "notes": "",
+      "owner": "LU",
+      "samplingRateHz": "",
+      "serialNumber": "",
+      "vendor": "Kistler"
+    },
+    {
+      "channelCount": "4",
+      "id": "daq-1779560843752-81b31b",
+      "isActive": true,
+      "lastCalibrationDate": "",
+      "location": "",
+      "measuredQuantity": "pressure",
+      "model": "",
+      "name": "pDAQ-2",
+      "notes": "",
+      "owner": "DBI",
+      "samplingRateHz": "",
+      "serialNumber": "",
+      "vendor": "Kistler"
+    },
+    {
+      "channelCount": "4",
+      "id": "daq-1779560915743-f3e914",
+      "isActive": true,
+      "lastCalibrationDate": "",
+      "location": "",
+      "measuredQuantity": "pressure",
+      "model": "",
+      "name": "pDAQ-3",
+      "notes": "",
+      "owner": "Kistler",
+      "samplingRateHz": "",
+      "serialNumber": "",
+      "vendor": "Kistler"
+    },
+    {
+      "channelCount": "8",
+      "id": "daq-1779561046023-1f3d8d",
+      "isActive": true,
+      "lastCalibrationDate": "",
+      "location": "",
+      "measuredQuantity": "pressure",
+      "model": "",
+      "name": "pDAQ-4",
+      "notes": "",
+      "owner": "Kistler",
+      "samplingRateHz": "",
+      "serialNumber": "",
+      "vendor": "Kistler"
+    },
+    {
+      "id": "daq-1779562448359-8bffa5",
+      "name": "JTCD",
+      "measuredQuantity": "concentration",
+      "vendor": "JCT",
+      "model": "JTCD-300",
+      "serialNumber": "14362",
+      "samplingRateHz": "1",
+      "channelCount": "",
+      "owner": "LU",
+      "lastCalibrationDate": "2025-07-21",
+      "notes": "",
+      "isActive": true
+    }
+  ]
+}

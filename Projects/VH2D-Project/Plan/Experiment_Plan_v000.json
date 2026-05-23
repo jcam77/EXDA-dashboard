@@ -6,11 +6,8 @@
       "id": 1777789635393,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [
-          "expData/FMG/Pressure/Experimental_Data_001.csv",
-          "expData/FMG/Pressure/Experimental_Data_001.png"
-        ],
-        "h2": "10",
+        "dataFiles": [],
+        "h2": "12",
         "ignition": "Back",
         "p0": "101325",
         "plannedDate": "2026-05-26",
@@ -55,7 +52,7 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "16",
+        "h2": "14",
         "ignition": "",
         "p0": "101325",
         "plannedDate": "2026-05-26",
@@ -70,7 +67,7 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "18",
+        "h2": "16",
         "ignition": "",
         "p0": "101325",
         "plannedDate": "2026-05-26",
@@ -85,11 +82,11 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "18",
+        "h2": "12",
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-27",
+        "plannedDate": "2026-05-26",
         "plannedDay": "",
         "t0": "293",
         "vent": ""
@@ -124,7 +121,7 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-29",
+        "plannedDate": "2026-05-28",
         "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
@@ -137,16 +134,24 @@
       "id": 1777818079357,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [],
-        "h2": "10",
-        "ignition": "",
+        "dataFiles": [
+          "Preparation-01/Preparation-01-DAQ-1",
+          "Preparation-01/Preparation-01-DAQ-2",
+          "Preparation-01/Preparation-01-DAQ-3",
+          "Preparation-01/Preparation-01-H2CM-1",
+          "Preparation-01/Preparation-01-H2CM-2",
+          "Preparation-01/Preparation-01-H2CM-3"
+        ],
+        "h2": "12",
+        "ignition": "back",
         "isPreparation": true,
+        "mfcFlowSlpm": "20",
         "p0": "101325",
         "plannedDate": "2026-05-25",
         "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
-        "vent": ""
+        "vent": "Thin Plastic + Hotwire"
       },
       "name": "Preparation-01"
     },
@@ -167,13 +172,159 @@
         "vent": ""
       },
       "name": "Preparation-02"
+    },
+    {
+      "done": false,
+      "id": 1779551515856,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-29",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-05-01"
+    },
+    {
+      "done": false,
+      "id": 1779551534036,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-29",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-06-01"
+    },
+    {
+      "done": false,
+      "id": 1779553347405,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "16",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-06"
+    },
+    {
+      "done": false,
+      "id": 1779553371390,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "18",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-07"
+    },
+    {
+      "done": false,
+      "id": 1779553399423,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "18",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-08"
+    },
+    {
+      "done": false,
+      "id": 1779553856903,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "14",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-02-02"
+    },
+    {
+      "done": false,
+      "id": 1779553883364,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "16",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-02-03"
+    },
+    {
+      "done": false,
+      "id": 1779553922943,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "18",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "plannedDay": "",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-02-04"
     }
   ],
   "meta": {
     "deadline": "2026-05-29",
-    "description": "The primary objectives of the experiments are:\n1. Internal Overpressure Development\nMeasurement of internal overpressure development during vented hydrogen deflagrations in a partially confined enclosure for homogeneous flammable hydrogen–air mixtures with hydrogen concentrations up to 19 vol.%.\n\n2.Flame Propagation (Under Consideration)\nMeasurement of flame propagation characteristics, including potential estimation of flame time-of-arrival (TOA) at selected locations.\n\n3.Instrumentation Evaluation\nEvaluation and cross-comparison of different pressure measurement systems and data acquisition configurations, including sensor characteristics and the influence of measurement chain dynamics (e.g., time constant  effects, sampling rate).\n\n4. Measurement Uncertainty Factors\nInvestigation of experimental factors that may affect the accuracy and reliability of pressure measurements, including structural vibration effects and thermal protection methods.\n\n5. Venting Behaviour\nInvestigation of vent opening behaviour and the influence of vent rupture mechanisms on pressure development, including comparison between pressure-driven thin-film rupture and controlled vent opening using a hot-wire cutting system.",
+    "description": "The primary objectives of the experiments are:\n1. Internal Over-pressure Development\nMeasurement of internal over-pressure development during vented hydrogen deflagrations in a partially confined enclosure for homogeneous flammable hydrogen–air mixtures with hydrogen concentrations up to 19 vol.%.\n\n2.Flame Propagation (Under Consideration)\nMeasurement of flame propagation characteristics, including potential estimation of flame time-of-arrival (TOA) at selected locations.\n\n3.Instrumentation Evaluation\nEvaluation and cross-comparison of different pressure measurement systems and data acquisition configurations, including sensor characteristics and the influence of measurement chain dynamics (e.g., time constant (tau) effects, sampling rate).\n\n4. Measurement Uncertainty Factors\nInvestigation of experimental factors that may affect the accuracy and reliability of pressure measurements, including structural vibration effects and thermal protection methods.\n\n5. Venting Behaviour\nInvestigation of vent opening behaviour and the influence of vent rupture mechanisms on pressure development, including comparison between pressure-driven thin-film rupture and controlled vent opening using a hot-wire cutting system.",
     "groupObjectives": {
-      "VH2D-01": "Vented deflagration concentration series"
+      "Preparation": "",
+      "VH2D-01": "Vented deflagration concentration series (Hotwire)",
+      "VH2D-02": "Vented deflagration concentration series (NO Hotwire)"
     },
     "objective": "LU / DBI / Kistler pressure DAQ systems characterisation.",
     "startDate": "2026-05-25",

@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FolderPlus, Folder, FileText, Trash2, Settings, Search, RefreshCw, Home } from 'lucide-react';
+import { FolderPlus, Folder, FolderOpen, Trash2, Search, RefreshCw, Home } from 'lucide-react';
 import ProjectPickerModal from '../components/ProjectPickerModal';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 
 const ProjectsPage = ({
   onOpenProject,
-  onEditProject,
   onCreateProject,
   activeProjectPath,
   refreshKey,
@@ -703,13 +702,7 @@ const ProjectsPage = ({
                       onClick={() => onOpenProject?.(project.path)}
                       className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary/20 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/30"
                     >
-                      <FileText size={14} /> View
-                    </button>
-                    <button
-                      onClick={() => onEditProject?.(project.path)}
-                      className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-ring hover:text-primary"
-                    >
-                      <Settings size={14} /> Edit
+                      <FolderOpen size={14} /> Open
                     </button>
                     <button
                       onClick={() => handleDeleteProject(project)}

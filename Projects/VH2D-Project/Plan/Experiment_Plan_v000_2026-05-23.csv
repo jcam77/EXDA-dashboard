@@ -1,0 +1,27 @@
+﻿Plan Name,Experiment_Plan_v000
+Responsible Researcher,PhD Student Javier I. Camacho
+Objective,LU / DBI / Kistler pressure DAQ systems characterisation.
+Start Date,2026-05-25
+Deadline,2026-05-29
+Total Experiments,18
+Generated At,2026-05-23 20:10:08
+
+Run Name,Group,Group Description,Done,Schedule,H2 (%),Ignition,Vent,Pressure P0 (Pa),Temperature T0 (K),Data Files Count,File Path (Raw_Data Folder)
+Preparation-01,Preparation,,No,2026-05-25,12,,,101325,293,6,Preparation-01/Preparation-01-DAQ-1.txt | Preparation-01/Preparation-01-DAQ-2.txt | Preparation-01/Preparation-01-DAQ-3.txt | Preparation-01/Preparation-01-H2CM-1.txt | Preparation-01/Preparation-01-H2CM-2.txt | Preparation-01/Preparation-01-H2CM-3.txt
+Preparation-02,Preparation,,No,2026-05-25,12,,,101325,293,0,
+VH2D-01-01,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-26,12,Back,Thin Plastic,101325,293,0,
+VH2D-01-02,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-26,12,,,101325,293,0,
+VH2D-01-03,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-26,14,,,101325,293,0,
+VH2D-01-04,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-26,14,,,101325,293,0,
+VH2D-01-05,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-26,16,,,101325,293,0,
+VH2D-01-06,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-26,16,,,101325,293,0,
+VH2D-01-07,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-26,18,,,101325,293,0,
+VH2D-01-08,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-26,18,,,101325,293,0,
+VH2D-02-01,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-26,12,,,101325,293,0,
+VH2D-02-02,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-26,14,,,101325,293,0,
+VH2D-02-03,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-26,16,,,101325,293,0,
+VH2D-02-04,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-26,18,,,101325,293,0,
+VH2D-03-01,VH2D-03,,No,2026-05-28,18,,,101325,293,0,
+VH2D-04-01,VH2D-04,,No,2026-05-28,18,,,101325,293,0,
+VH2D-05-01,VH2D-05,,No,2026-05-29,,,,101325,293,0,
+VH2D-06-01,VH2D-06,,No,2026-05-29,,,,101325,293,0,
