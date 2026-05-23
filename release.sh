@@ -13,9 +13,57 @@ require_cmd() {
 }
 
 run_cmd() {
+  local status=0
+
   echo
   echo ">> $*"
-  "$@"
+  if [[ "${1:-}" == "git" ]]; then
+    ensure_git_index_lock_clear
+  fi
+
+  if "$@"; then
+    return 0
+  else
+    status=$?
+  fi
+  if [[ "${1:-}" == "git" && -e ".git/index.lock" ]]; then
+    echo "Git command failed with an index lock present. Retrying once..."
+    if ! ensure_git_index_lock_clear; then
+      return "$status"
+    fi
+    if "$@"; then
+      return 0
+    else
+      status=$?
+    fi
+  fi
+
+  return "$status"
+}
+
+ensure_git_index_lock_clear() {
+  local lock_file=".git/index.lock"
+
+  if [[ ! -e "$lock_file" ]]; then
+    return 0
+  fi
+
+  echo "Git lock detected: ${lock_file}. Waiting briefly..."
+  for _ in 1 2 3 4 5; do
+    sleep 1
+    if [[ ! -e "$lock_file" ]]; then
+      echo "Git lock cleared."
+      return 0
+    fi
+  done
+
+  if command -v lsof >/dev/null 2>&1 && lsof "$lock_file" >/dev/null 2>&1; then
+    echo "Lock is still held by another process. Finish/close that process, then rerun."
+    return 1
+  fi
+
+  echo "Stale git lock detected. Removing ${lock_file}."
+  rm -f "$lock_file"
 }
 
 update_versioning_file() {
@@ -66,10 +114,10 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ -e ".git/index.lock" ]]; then
-  echo "Git lock detected: .git/index.lock"
-  echo "Another git process may still be running, or a previous one crashed."
-  echo "If you are sure no git process is active, remove it and retry:"
+if ! ensure_git_index_lock_clear; then
+  echo
+  echo "Cannot continue while git index is locked."
+  echo "If needed, after confirming no git process is active, run:"
   echo "  rm -f .git/index.lock"
   exit 1
 fi
