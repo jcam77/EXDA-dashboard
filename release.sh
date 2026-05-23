@@ -66,6 +66,14 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -e ".git/index.lock" ]]; then
+  echo "Git lock detected: .git/index.lock"
+  echo "Another git process may still be running, or a previous one crashed."
+  echo "If you are sure no git process is active, remove it and retry:"
+  echo "  rm -f .git/index.lock"
+  exit 1
+fi
+
 if ! git show-ref --verify --quiet refs/heads/CODEX-Updates; then
   echo "Branch 'CODEX-Updates' does not exist locally."
   exit 1
