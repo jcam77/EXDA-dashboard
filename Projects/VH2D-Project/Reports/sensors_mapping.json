@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-24 20:05:26",
+  "updatedAt": "2026-05-24 20:39:56",
   "selectedGroup": "Prep",
   "groupNotes": {
     "VH2D-01": "same configuration as preparation group",
@@ -80,7 +80,7 @@
         "serialNumber": "",
         "sensitivity": "",
         "sensitivityUnit": "pC/bar",
-        "locationLabel": "left wall",
+        "locationLabel": "4L",
         "x": "",
         "y": "",
         "z": "",
@@ -105,7 +105,7 @@
         "serialNumber": "",
         "sensitivity": "",
         "sensitivityUnit": "pC/bar",
-        "locationLabel": "blind/control channel",
+        "locationLabel": "2L",
         "x": "",
         "y": "",
         "z": "",
@@ -246,7 +246,7 @@
       },
       {
         "id": "sensor-1779634452083-e6e87d",
-        "sensorId": "Trigger-1",
+        "sensorId": "Trig-1",
         "measuredQuantity": "voltage",
         "daqSystem": "DAQ-1",
         "daqChannel": "CH5",
@@ -272,7 +272,7 @@
       },
       {
         "id": "sensor-1779634452083-af1f32",
-        "sensorId": "Trigger-2",
+        "sensorId": "Trig-2",
         "measuredQuantity": "voltage",
         "daqSystem": "DAQ-2",
         "daqChannel": "CH4",
@@ -298,7 +298,7 @@
       },
       {
         "id": "sensor-1779634452083-487fc0",
-        "sensorId": "Trigger-3",
+        "sensorId": "Trig-3",
         "measuredQuantity": "voltage",
         "daqSystem": "DAQ-3",
         "daqChannel": "CH2",

@@ -138,19 +138,42 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
   React.useEffect(() => {
     let mounted = true;
     const loadRecent = async () => {
+      const parseTs = (value) => {
+        if (!value) return 0;
+        const parsed = new Date(value).getTime();
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      const normalizePath = (value) => String(value || '').trim().replace(/\\/g, '/');
+      const dedupeByNameKeepingNewest = (items) => {
+        const byName = new Map();
+        items.forEach((item) => {
+          const nameKey = String(item?.name || '').trim().toLowerCase();
+          if (!nameKey) return;
+          const current = byName.get(nameKey);
+          if (!current || parseTs(item.lastOpened) > parseTs(current.lastOpened)) {
+            byName.set(nameKey, item);
+          }
+        });
+        return Array.from(byName.values());
+      };
+
       const storedRecents = getRecentProjects();
       const storedMapped = storedRecents.map((item) => {
-        const parts = String(item.path || '').split('/').filter(Boolean);
-        const name = parts[parts.length - 1] || item.path || 'Unknown';
+        const safePath = normalizePath(item?.path);
+        const parts = safePath.split('/').filter(Boolean);
+        const name = parts[parts.length - 1] || safePath || 'Unknown';
         return {
           name,
-          path: item.path,
+          path: safePath,
           status: 'recent',
           lastOpened: item.lastOpened || '',
         };
-      });
+      }).filter((item) => item.path);
       if (mounted && storedMapped.length > 0) {
-        setRecentProjects(storedMapped);
+        const fallback = dedupeByNameKeepingNewest(storedMapped)
+          .sort((a, b) => parseTs(b.lastOpened) - parseTs(a.lastOpened))
+          .slice(0, 6);
+        setRecentProjects(fallback);
       }
       try {
         let basePath = '';
@@ -199,28 +222,49 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
         );
         const listData = await listRes.json();
         if (!listData.success) return;
-        const recent = (listData.directories || [])
+        const backendProjects = (listData.directories || [])
           .map((project) => {
             const status = project.status || {};
             const lastOpened = status.last_opened_at || status.updated_at || status.created_at || '';
             return {
               name: project.name,
-              path: project.path,
+              path: normalizePath(project.path),
               status: status.status || 'planning',
               lastOpened,
             };
-          })
-          .sort((a, b) => new Date(b.lastOpened || 0) - new Date(a.lastOpened || 0))
-          .slice(0, 3);
-        const mergedMap = new Map();
-        [...recent, ...storedMapped].forEach((project) => {
-          if (project?.path) mergedMap.set(project.path, project);
+          });
+
+        // Merge by path first, prefer backend status metadata but keep newest timestamp.
+        const mergedByPath = new Map();
+        [...backendProjects, ...storedMapped].forEach((project) => {
+          if (!project?.path) return;
+          const key = normalizePath(project.path);
+          const existing = mergedByPath.get(key);
+          if (!existing) {
+            mergedByPath.set(key, project);
+            return;
+          }
+          const keepNewer = parseTs(project.lastOpened) >= parseTs(existing.lastOpened);
+          mergedByPath.set(key, {
+            ...existing,
+            ...project,
+            status: existing.status && existing.status !== 'recent' ? existing.status : project.status,
+            lastOpened: keepNewer ? project.lastOpened : existing.lastOpened,
+          });
         });
-        const merged = Array.from(mergedMap.values());
-        if (mounted) setRecentProjects(merged);
+
+        // Avoid duplicate-looking cards (same project name from different folders).
+        const mergedByName = dedupeByNameKeepingNewest(Array.from(mergedByPath.values()))
+          .sort((a, b) => parseTs(b.lastOpened) - parseTs(a.lastOpened))
+          .slice(0, 6);
+
+        if (mounted) setRecentProjects(mergedByName);
       } catch {
         if (mounted) {
-          setRecentProjects(storedMapped);
+          const fallback = dedupeByNameKeepingNewest(storedMapped)
+            .sort((a, b) => parseTs(b.lastOpened) - parseTs(a.lastOpened))
+            .slice(0, 6);
+          setRecentProjects(fallback);
         }
       }
     };

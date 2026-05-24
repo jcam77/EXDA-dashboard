@@ -751,7 +751,7 @@ def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=
                 "active": "-",
                 "blind": "-",
                 "trigger_method": "-",
-                "status": "Reference only (no sensor changes)",
+                "status": "Reference",
                 "notes": "-",
                 "is_reference_only": True,
             })
@@ -808,7 +808,7 @@ def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=
                 if not mounting:
                     status_errors.append("missing mounting")
 
-            status = "Complete" if not status_errors else f"Missing/Invalid ({'; '.join(status_errors[:2])})"
+            status = "Complete" if not status_errors else "Incomplete"
             coordinates = f"({x or '-'},{y or '-'},{z or '-'})"
             sensitivity_display = f"{sensitivity or '-'} {sensitivity_unit}".strip()
             rows.append({
@@ -1009,19 +1009,19 @@ def _write_sensors_pdf(project_name, rows, target_path):
     _write_line("")
 
     columns = [
-        ("Group", 8),
-        ("Sensor", 9),
+        ("Group", 7),
+        ("Sensor", 7),
         ("Qty", 9),
         ("DAQ", 8),
         ("Ch", 5),
-        ("S/N", 9),
+        ("S/N", 6),
         ("Sensitivity", 10),
         ("Location", 8),
         ("Coord.(x,y,z)m", 14),
-        ("Mount", 7),
+        ("Mount", 9),
         ("Active", 6),
         ("Blind", 5),
-        ("Trig Method", 14),
+        ("Trig Method", 11),
         ("Status", 10),
     ]
     divider = "-+-".join("-" * width for _, width in columns)

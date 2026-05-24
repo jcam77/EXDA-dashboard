@@ -2,66 +2,64 @@
   "planName": "DBI-TunnelExplosion-Project-000",
   "experiments": [
     {
-      "id": 1771477703104,
-      "name": "test1",
       "done": false,
+      "id": 1771477703104,
       "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
         "h2": "18",
+        "ignition": "back ignition",
         "p0": "1.013",
         "t0": "293",
-        "ignition": "back ignition",
-        "vent": "fix plastic film",
-        "cfdHash": "",
-        "dataFiles": [
-          "expData/Overpressure sensors/Problem grounding.txt"
-        ]
+        "vent": "fix plastic film"
       },
+      "name": "test1",
       "notes": "Binary file, no time stamp or sample rate metadata"
     },
     {
+      "done": false,
       "id": 1771478007022,
-      "name": "test2",
-      "done": false,
       "meta": {
+        "cfdHash": "",
         "h2": "18",
-        "p0": "1.013",
-        "t0": "293",
         "ignition": "back ignition",
-        "vent": "fix plastic film",
-        "cfdHash": ""
-      }
+        "p0": "1.013",
+        "t0": "293",
+        "vent": "fix plastic film"
+      },
+      "name": "test2"
     },
     {
+      "done": false,
       "id": 1771478019174,
-      "name": "test3",
-      "done": false,
       "meta": {
+        "cfdHash": "",
         "h2": "",
+        "ignition": "",
         "p0": "1.013",
         "t0": "293",
-        "ignition": "",
-        "vent": "",
-        "cfdHash": ""
-      }
+        "vent": ""
+      },
+      "name": "test3"
     },
     {
-      "id": 1771478040452,
-      "name": "test4",
       "done": false,
+      "id": 1771478040452,
       "meta": {
+        "cfdHash": "",
         "h2": "",
+        "ignition": "",
         "p0": "1.013",
         "t0": "293",
-        "ignition": "",
-        "vent": "",
-        "cfdHash": ""
-      }
+        "vent": ""
+      },
+      "name": "test4"
     }
   ],
   "meta": {
-    "objective": "",
-    "description": "",
     "deadline": "2025-10-10",
+    "description": "",
+    "objective": "",
     "startDate": "2025-10-07"
   }
 }
