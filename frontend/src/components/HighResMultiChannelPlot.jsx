@@ -62,7 +62,14 @@ const HighResMultiChannelPlot = ({
   const dataSeries = useMemo(() => {
     const base = [xValues];
     channels.forEach((channel) => {
-      base.push(plotData.map((row) => Number(row[channel.key])));
+      base.push(
+        plotData.map((row) => {
+          const raw = row?.[channel.key];
+          if (raw === null || raw === undefined || raw === '') return null;
+          const numeric = Number(raw);
+          return Number.isFinite(numeric) ? numeric : null;
+        })
+      );
     });
     return base;
   }, [channels, plotData, xValues]);
@@ -89,6 +96,30 @@ const HighResMultiChannelPlot = ({
     if (initial.y2 && chart.scales?.y2) {
       chart.setScale('y2', { min: initial.y2.min, max: initial.y2.max });
     }
+  }, []);
+
+  const clampXRange = useCallback((min, max, hardMin, hardMax) => {
+    if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(hardMin) || !Number.isFinite(hardMax)) {
+      return { min, max };
+    }
+    const span = max - min;
+    if (!(span > 0)) return { min, max };
+    if (span >= (hardMax - hardMin)) {
+      return { min: hardMin, max: hardMax };
+    }
+    let nextMin = min;
+    let nextMax = max;
+    if (nextMin < hardMin) {
+      const delta = hardMin - nextMin;
+      nextMin += delta;
+      nextMax += delta;
+    }
+    if (nextMax > hardMax) {
+      const delta = nextMax - hardMax;
+      nextMin -= delta;
+      nextMax -= delta;
+    }
+    return { min: nextMin, max: nextMax };
   }, []);
 
   useEffect(() => {
@@ -203,23 +234,88 @@ const HighResMultiChannelPlot = ({
     const onDoubleClick = () => handleResetZoom();
     chart.root.addEventListener('dblclick', onDoubleClick);
 
+    // Pan interaction: hold Alt and left-drag horizontally to move the current zoom window.
+    // This avoids conflict with normal drag-to-zoom.
+    const panState = {
+      active: false,
+      startClientX: 0,
+      startMin: null,
+      startMax: null,
+    };
+
+    const onPanMove = (event) => {
+      if (!panState.active) return;
+      const plotWidthPx = chart.bbox?.width || 0;
+      const startMin = Number(panState.startMin);
+      const startMax = Number(panState.startMax);
+      if (!(plotWidthPx > 0) || !Number.isFinite(startMin) || !Number.isFinite(startMax)) return;
+      const span = startMax - startMin;
+      if (!(span > 0)) return;
+      const dxPx = Number(event.clientX) - Number(panState.startClientX);
+      const deltaX = (dxPx / plotWidthPx) * span;
+      const hardMin = xMin;
+      const hardMax = xMax;
+      const desiredMin = startMin - deltaX;
+      const desiredMax = startMax - deltaX;
+      const next = clampXRange(desiredMin, desiredMax, hardMin, hardMax);
+      chart.setScale('x', { min: next.min, max: next.max });
+    };
+
+    const endPan = () => {
+      if (!panState.active) return;
+      panState.active = false;
+      if (chart?.root) chart.root.style.cursor = '';
+      window.removeEventListener('mousemove', onPanMove);
+      window.removeEventListener('mouseup', endPan);
+    };
+
+    const onPanStart = (event) => {
+      // Pan mode:
+      // - Shift + left drag (cross-platform friendly)
+      // - Middle mouse drag
+      // - Alt + left drag (kept as fallback where OS doesn't capture Alt)
+      const isLeftWithModifier = event.button === 0 && (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey);
+      const isMiddleMouse = event.button === 1;
+      if (!(isLeftWithModifier || isMiddleMouse)) return;
+      event.preventDefault();
+      const currentMin = chart.scales?.x?.min;
+      const currentMax = chart.scales?.x?.max;
+      if (!Number.isFinite(currentMin) || !Number.isFinite(currentMax)) return;
+      panState.active = true;
+      panState.startClientX = Number(event.clientX);
+      panState.startMin = Number(currentMin);
+      panState.startMax = Number(currentMax);
+      chart.root.style.cursor = 'grabbing';
+      window.addEventListener('mousemove', onPanMove);
+      window.addEventListener('mouseup', endPan);
+    };
+
+    chart.over?.addEventListener('mousedown', onPanStart);
+
     return () => {
       chart.root.removeEventListener('dblclick', onDoubleClick);
+      chart.over?.removeEventListener('mousedown', onPanStart);
+      endPan();
       chart.destroy();
       chartRef.current = null;
     };
-  }, [channels, colors, dataSeries, handleResetZoom, height, primaryLabel, secondaryLabel, showLegend, useDualAxis, width, xValues]);
+  }, [channels, clampXRange, colors, dataSeries, handleResetZoom, height, primaryLabel, secondaryLabel, showLegend, useDualAxis, width, xValues]);
 
   return (
     <div className="w-full relative" style={{ height: `${height}px` }}>
       {showResetButton && (
-        <button
-          type="button"
-          onClick={handleResetZoom}
-          className="absolute left-2 top-2 z-[6] rounded border border-border bg-background/80 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground transition"
-        >
-          Reset Zoom
-        </button>
+        <div className="absolute left-2 top-2 z-[6] flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleResetZoom}
+            className="rounded border border-border bg-background/80 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground transition"
+          >
+            Reset Zoom
+          </button>
+          <span className="rounded border border-border bg-background/70 px-2 py-1 text-[10px] text-muted-foreground">
+            Shift + Drag to Pan
+          </span>
+        </div>
       )}
       <div ref={mountRef} className="w-full h-full" />
     </div>

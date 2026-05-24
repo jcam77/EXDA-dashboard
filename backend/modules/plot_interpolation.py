@@ -41,6 +41,84 @@ def _interpolate(target: float, src_data: List[Dict[str, float]], key_x: str, ke
     return None
 
 
+def _time_key(value: float) -> str:
+    """Stable key for floating-point timeline merging."""
+    return f"{float(value):.9f}"
+
+
+def _aggregate_native_time(
+    request: AggregatePlotRequest,
+    *,
+    key_x: str,
+    key_y: str,
+    is_flame: bool,
+    max_points: int = 12000,
+) -> List[Dict[str, float]]:
+    """Merge series on the union of native x-values without interpolation."""
+    if is_flame:
+        return []
+
+    timeline = {}
+    series_maps: Dict[str, Dict[str, float]] = {}
+
+    for item in request.series:
+        if not item.name:
+            continue
+        value_map: Dict[str, float] = {}
+        for point in item.plot_data or []:
+            x_val = point.get(key_x)
+            y_val = point.get(key_y)
+            if x_val is None or y_val is None:
+                continue
+            try:
+                x_num = float(x_val)
+                y_num = float(y_val)
+            except (TypeError, ValueError):
+                continue
+            if not (x_num == x_num and y_num == y_num):  # NaN check
+                continue
+            key = _time_key(x_num)
+            timeline.setdefault(key, x_num)
+            value_map[key] = y_num
+        series_maps[item.name] = value_map
+
+    experimental_map: Dict[str, float] = {}
+    if request.experimental:
+        for point in request.experimental:
+            x_val = point.get(key_x)
+            y_val = point.get(key_y)
+            if x_val is None or y_val is None:
+                continue
+            try:
+                x_num = float(x_val)
+                y_num = float(y_val)
+            except (TypeError, ValueError):
+                continue
+            if not (x_num == x_num and y_num == y_num):
+                continue
+            key = _time_key(x_num)
+            timeline.setdefault(key, x_num)
+            experimental_map[key] = y_num
+
+    if not timeline:
+        return []
+
+    ordered_keys = sorted(timeline.keys(), key=lambda key: timeline[key])
+    if max_points > 0 and len(ordered_keys) > max_points:
+        picks = [int(round(i * (len(ordered_keys) - 1) / (max_points - 1))) for i in range(max_points)]
+        ordered_keys = [ordered_keys[idx] for idx in picks]
+
+    rows: List[Dict[str, float]] = []
+    for key in ordered_keys:
+        row = {"time": timeline[key]}
+        for series_name, value_map in series_maps.items():
+            row[series_name] = value_map.get(key)
+        if request.experimental:
+            row["Experimental"] = experimental_map.get(key)
+        rows.append(row)
+    return rows
+
+
 def aggregate_plot_data(payload: dict) -> List[Dict[str, float]]:
     """Build a common-grid plot dataset from heterogeneous input series."""
     request = AggregatePlotRequest.from_dict(payload or {})
@@ -48,6 +126,8 @@ def aggregate_plot_data(payload: dict) -> List[Dict[str, float]]:
     key_x = keys["key_x"]
     key_y = keys["key_y"]
     steps = keys["steps"]
+    if request.preserve_native_time:
+        return _aggregate_native_time(request, key_x=key_x, key_y=key_y, is_flame=keys["is_flame"])
 
     max_val = 0.0
     for item in request.series:

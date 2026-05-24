@@ -25,7 +25,14 @@ const formatSamplingRate = (value) => {
   return `${Number(value).toFixed(2)} Hz`;
 };
 
-const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) => {
+const getShortDisplayName = (value) => {
+  const base = formatFileName(value);
+  if (!base) return '';
+  return base.length > 32 ? `${base.slice(0, 29)}...` : base;
+};
+
+const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [], analysisMode = 'pressure' }) => {
+  const isConcentrationMode = analysisMode === 'concentration';
   const [selectedPath, setSelectedPath] = useState('');
   const [viewMode, setViewMode] = useState('single');
   const [comparePaths, setComparePaths] = useState([]);
@@ -37,7 +44,8 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
   const [timeWindowStart, setTimeWindowStart] = useState('');
   const [timeWindowEnd, setTimeWindowEnd] = useState('');
   const [plotLayout, setPlotLayout] = useState('stacked');
-  const [convertToKpa, setConvertToKpa] = useState(true);
+  const [convertToKpa, setConvertToKpa] = useState(!isConcentrationMode);
+  const [convertPpmToVolPercent, setConvertPpmToVolPercent] = useState(false);
   const [selectedChannelKeys, setSelectedChannelKeys] = useState([]);
   const [channelUnitOverrides, setChannelUnitOverrides] = useState({});
   const [preview, setPreview] = useState(null);
@@ -45,11 +53,21 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (isConcentrationMode) {
+      setConvertToKpa(false);
+    }
+  }, [isConcentrationMode]);
+
   const dataFiles = useMemo(() => {
     if (!Array.isArray(selectedCases)) return [];
     const seen = new Set();
     const selectedOnly = selectedCases
-      .filter((item) => item && (item.type === 'pressure' || item.type === 'flame'))
+      .filter((item) => {
+        if (!item) return false;
+        const itemType = String(item.type || '').toLowerCase();
+        return isConcentrationMode ? itemType === 'concentration' : (itemType === 'pressure' || itemType === 'flame');
+      })
       .filter((item) => (item.path || item.name) && /\.(txt|csv|dat|asc|ascii|mf4|tpc5)$/i.test(item.name || item.path || ''))
       .map((item) => {
         const path = item.path || item.name;
@@ -64,7 +82,7 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     return selectedOnly;
-  }, [selectedCases]);
+  }, [isConcentrationMode, selectedCases]);
 
   useEffect(() => {
     if (!dataFiles.length) {
@@ -314,12 +332,25 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
 
   const selectedChannels = useMemo(() => {
     if (!channels.length) return [];
+    if (isConcentrationMode) {
+      return [channels[0]].filter(Boolean);
+    }
     const selectedSet = new Set(selectedChannelKeys);
     return channels.filter((channel) => selectedSet.has(channel.key));
-  }, [channels, selectedChannelKeys]);
+  }, [channels, isConcentrationMode, selectedChannelKeys]);
 
   const convertedChannels = useMemo(() => {
     if (!selectedChannels.length) return [];
+    if (isConcentrationMode) {
+      const sourceLabel = displayNameByPath.get(selectedPath) || formatFileName(selectedPath) || 'Concentration';
+      return selectedChannels.map((channel) => ({
+        ...channel,
+        label: sourceLabel,
+        sourceUnit: 'ppm',
+        unit: convertPpmToVolPercent ? 'Vol.%' : 'ppm',
+        role: 'concentration',
+      }));
+    }
     return selectedChannels.map((channel) => ({
       ...channel,
       sourceUnit: channel.unit,
@@ -329,10 +360,23 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
         convertToKpa
       ),
     }));
-  }, [selectedChannels, resolveUnitToken, convertToKpa]);
+  }, [selectedChannels, isConcentrationMode, convertPpmToVolPercent, convertToKpa, displayNameByPath, resolveUnitToken, selectedPath]);
 
   const convertedPlotData = useMemo(() => {
     if (!plotData.length || !selectedChannels.length) return [];
+    if (isConcentrationMode) {
+      return plotData.map((row) => {
+        const nextRow = { t: row.t };
+        selectedChannels.forEach((channel) => {
+          const rawValue = Number(row[channel.key]);
+          const value = Number.isFinite(rawValue)
+            ? (convertPpmToVolPercent ? rawValue / 10000 : rawValue)
+            : rawValue;
+          nextRow[channel.key] = value;
+        });
+        return nextRow;
+      });
+    }
     const conversionByKey = {};
     selectedChannels.forEach((channel) => {
       const inferred = resolveUnitToken(channel);
@@ -354,12 +398,19 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
       });
       return nextRow;
     });
-  }, [plotData, selectedChannels, resolveUnitToken, convertToKpa]);
+  }, [plotData, selectedChannels, isConcentrationMode, convertPpmToVolPercent, resolveUnitToken, convertToKpa]);
 
   const compareOptions = useMemo(
-    () => dataFiles.map((item) => ({ value: item.path, label: formatFileName(item.path) })),
+    () => dataFiles.map((item) => ({ value: item.path, label: item.name || formatFileName(item.path) })),
     [dataFiles]
   );
+  const displayNameByPath = useMemo(() => {
+    const map = new Map();
+    dataFiles.forEach((item) => {
+      map.set(item.path, item.name || formatFileName(item.path));
+    });
+    return map;
+  }, [dataFiles]);
   const compareChannelOptionsByPath = useMemo(() => {
     const next = {};
     comparePaths.forEach((path) => {
@@ -387,24 +438,33 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
         const entry = comparePreviews[path];
         const rows = Array.isArray(entry?.plotData) ? entry.plotData : [];
         const channelsList = Array.isArray(entry?.channels) ? entry.channels : [];
-        const channelIndex = Math.max(
-          0,
-          Math.min(
-            channelsList.length - 1,
-            Number.isFinite(Number(compareChannelByPath[path])) ? Number(compareChannelByPath[path]) : 0
-          )
-        );
+        const channelIndex = isConcentrationMode
+          ? 0
+          : Math.max(
+              0,
+              Math.min(
+                channelsList.length - 1,
+                Number.isFinite(Number(compareChannelByPath[path])) ? Number(compareChannelByPath[path]) : 0
+              )
+            );
         const channelKey = `ch_${channelIndex}`;
         const channelMeta = channelsList[channelIndex] || channelsList[0] || null;
         if (!rows.length) return null;
-        const unitToken = normalizeUnitToken(compareUnitOverrides[path] || DEFAULT_INPUT_UNIT);
+        const unitToken = isConcentrationMode
+          ? 'ppm'
+          : normalizeUnitToken(compareUnitOverrides[path] || DEFAULT_INPUT_UNIT);
         const roleToken = normalizeUnitToken(channelMeta?.role);
         const convert = (v) => {
+          if (isConcentrationMode) {
+            const raw = Number(v);
+            if (!Number.isFinite(raw)) return raw;
+            return convertPpmToVolPercent ? raw / 10000 : raw;
+          }
           if (unitToken === 'v' || roleToken === 'trigger' || (!convertToKpa && unitToken === 'kpa')) return Number(v);
           if (unitToken === 'raw' && roleToken === 'pressure') return convertValueByUnit(v, 'bar', convertToKpa);
           return convertValueByUnit(v, unitToken, convertToKpa);
         };
-        const baseLabel = formatFileName(path);
+        const baseLabel = displayNameByPath.get(path) || formatFileName(path);
         const seenCount = seenLabels.get(baseLabel) || 0;
         seenLabels.set(baseLabel, seenCount + 1);
         const uniqueLabel = seenCount === 0 ? baseLabel : `${baseLabel} (${seenCount + 1})`;
@@ -413,30 +473,66 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
           color: CHANNEL_COLORS[idx % CHANNEL_COLORS.length],
           label: uniqueLabel,
           sourceLabel: channelMeta?.label || `Channel ${channelIndex + 1}`,
-          sourceUnit: getChannelDisplayUnit(
-            { ...channelMeta, unit: unitToken || channelMeta?.unit || DEFAULT_INPUT_UNIT },
-            unitToken || channelMeta?.unit || DEFAULT_INPUT_UNIT,
-            convertToKpa
-          ),
-          values: rows.map((row) => convert(row[channelKey])),
+          sourceUnit: isConcentrationMode
+            ? (convertPpmToVolPercent ? 'Vol.%' : 'ppm')
+            : getChannelDisplayUnit(
+                { ...channelMeta, unit: unitToken || channelMeta?.unit || DEFAULT_INPUT_UNIT },
+                unitToken || channelMeta?.unit || DEFAULT_INPUT_UNIT,
+                convertToKpa
+              ),
+          points: rows
+            .map((row) => {
+              const t = Number(row?.t);
+              const v = Number(convert(row?.[channelKey]));
+              if (!Number.isFinite(t) || !Number.isFinite(v)) return null;
+              return { t, v };
+            })
+            .filter(Boolean),
         };
       })
       .filter(Boolean);
 
     if (!perSeries.length) return { channels: [], plotData: [], summaries: [] };
-    const maxLen = Math.max(...perSeries.map((s) => s.values.length));
-    const safeLen = Math.max(0, Math.min(maxLen, 4000));
-    const compareRows = [];
-    for (let i = 0; i < safeLen; i += 1) {
-      const row = { t: i };
-      perSeries.forEach((series, sIdx) => {
-        const srcLen = series.values.length;
-        if (!srcLen) return;
-        const mapped = safeLen > 1 ? Math.round((i * (srcLen - 1)) / (safeLen - 1)) : 0;
-        row[`series_${sIdx}`] = series.values[mapped];
+
+    // Preserve each test's native time vector (important when DAQs use different sampling rates).
+    const timeMap = new Map();
+    perSeries.forEach((series) => {
+      (series.points || []).forEach((pt) => {
+        const key = pt.t.toFixed(9);
+        if (!timeMap.has(key)) timeMap.set(key, pt.t);
       });
-      compareRows.push(row);
+    });
+    let sortedTimeKeys = Array.from(timeMap.keys()).sort((a, b) => timeMap.get(a) - timeMap.get(b));
+    // Compare mode used to force-cap to 6000 points, which downsampled even when
+    // "Full Resolution" was enabled. Respect the full-resolution switch here.
+    const parsedMaxPoints = Number(maxPoints);
+    const maxPlotPoints = Number.isFinite(parsedMaxPoints) && parsedMaxPoints > 0 ? parsedMaxPoints : 6000;
+    if (!fullResolution && sortedTimeKeys.length > maxPlotPoints) {
+      const sampled = [];
+      for (let i = 0; i < maxPlotPoints; i += 1) {
+        const idx = Math.round((i * (sortedTimeKeys.length - 1)) / (maxPlotPoints - 1));
+        sampled.push(sortedTimeKeys[idx]);
+      }
+      sortedTimeKeys = sampled;
     }
+
+    const seriesValueMaps = perSeries.map((series) => {
+      const map = new Map();
+      (series.points || []).forEach((pt) => {
+        map.set(pt.t.toFixed(9), pt.v);
+      });
+      return map;
+    });
+
+    const compareRows = sortedTimeKeys.map((timeKey) => {
+      const row = { t: Number(timeMap.get(timeKey)) };
+      seriesValueMaps.forEach((valueMap, sIdx) => {
+        const value = valueMap.get(timeKey);
+        row[`series_${sIdx}`] = Number.isFinite(value) ? value : null;
+      });
+      return row;
+    });
+
     const channelsOut = perSeries.map((series, idx) => ({
       key: `series_${idx}`,
       label: series.label,
@@ -454,7 +550,7 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
         unit: series.sourceUnit,
       })),
     };
-  }, [viewMode, comparePaths, comparePreviews, compareChannelByPath, compareUnitOverrides, convertToKpa]);
+  }, [viewMode, comparePaths, comparePreviews, compareChannelByPath, compareUnitOverrides, convertToKpa, convertPpmToVolPercent, displayNameByPath, fullResolution, isConcentrationMode, maxPoints]);
 
   return (
     <div className="space-y-5">
@@ -543,15 +639,27 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
               disabled={fullResolution}
             />
           </div>
-          <label className="inline-flex items-center gap-2 text-xs text-foreground px-2 pb-2">
-            <input
-              type="checkbox"
-              checked={convertToKpa}
-              onChange={(event) => setConvertToKpa(event.target.checked)}
-              className="accent-blue-600 w-4 h-4"
-            />
-            Convert pressure to kPa
-          </label>
+          {!isConcentrationMode ? (
+            <label className="inline-flex items-center gap-2 text-xs text-foreground px-2 pb-2">
+              <input
+                type="checkbox"
+                checked={convertToKpa}
+                onChange={(event) => setConvertToKpa(event.target.checked)}
+                className="accent-blue-600 w-4 h-4"
+              />
+              Convert pressure to kPa
+            </label>
+          ) : (
+            <label className="inline-flex items-center gap-2 text-xs text-foreground px-2 pb-2">
+              <input
+                type="checkbox"
+                checked={convertPpmToVolPercent}
+                onChange={(event) => setConvertPpmToVolPercent(event.target.checked)}
+                className="accent-blue-600 w-4 h-4"
+              />
+              Convert concentration ppm to Vol.%
+            </label>
+          )}
           <label className="inline-flex items-center gap-2 text-xs text-foreground px-2 pb-2">
             <input
               type="checkbox"
@@ -624,9 +732,11 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
           </button>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Plot only selected channels to keep the tab lightweight. Use this tab to inspect signal quality before EWT/Pressure analysis.
+          {isConcentrationMode
+            ? 'Single-channel H2 concentration preview in ppm or Vol.% for quick sanity checks.'
+            : 'Plot only selected channels to keep the tab lightweight. Use this tab to inspect signal quality before EWT/Pressure analysis.'}
         </p>
-        {hasMixedUnits && (
+        {hasMixedUnits && !isConcentrationMode && (
           <p className="mt-1 text-xs text-amber-300">
             Mixed channel units detected. Pressure and trigger channels are displayed together; check unit tags.
           </p>
@@ -641,6 +751,24 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
             Time window is applied at file-read stage (especially useful for TPC5 full-resolution workflows).
           </p>
         )}
+        <div className="mt-3 rounded-lg border border-border bg-background/40 p-3">
+          <div className="text-xs font-semibold text-foreground">Screening Checklist</div>
+          {!isConcentrationMode ? (
+            <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground list-disc pl-4">
+              <li>Confirm sampling rate is expected for the DAQ system.</li>
+              <li>Check trigger alignment and ignition timing consistency.</li>
+              <li>Verify peak pressure magnitude and waveform shape look physically plausible.</li>
+              <li>Check for clipping, flatlines, or obvious acquisition dropouts.</li>
+            </ul>
+          ) : (
+            <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground list-disc pl-4">
+              <li>Confirm concentration values are close to expected target levels.</li>
+              <li>Check pre-ignition trend for stability and mixture homogeneity behavior.</li>
+              <li>Check concentration baseline drift and sensor warm-up behavior before ignition.</li>
+              <li>Check for spikes, flatlines, or sensor communication dropouts.</li>
+            </ul>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -666,7 +794,7 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
             </div>
             <div className="bg-background/70 border border-border rounded-lg px-3 py-2 text-xs">
               <div className="text-muted-foreground">X-axis</div>
-              <div className="text-foreground font-semibold">Aligned sample index</div>
+              <div className="text-foreground font-semibold">Merged time axis</div>
             </div>
           </div>
 
@@ -699,10 +827,10 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
                       height={260}
                       colors={[CHANNEL_COLORS[idx % CHANNEL_COLORS.length]]}
                     />
-                    {!!path && (
+                    {!!path && !isConcentrationMode && (
                       <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] text-muted-foreground">
-                        <span className="text-foreground font-semibold truncate max-w-[180px]" title={formatFileName(path)}>
-                          {formatFileName(path)}
+                        <span className="text-foreground font-semibold truncate max-w-[180px]" title={displayNameByPath.get(path) || formatFileName(path)}>
+                          {getShortDisplayName(displayNameByPath.get(path) || formatFileName(path))}
                         </span>
                         <span>/</span>
                         <span>Channel</span>
@@ -756,12 +884,12 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
             </div>
           )}
 
-          {plotLayout === 'overlay' && (
+          {plotLayout === 'overlay' && !isConcentrationMode && (
             <div className="mt-3 flex flex-wrap gap-2">
             {comparePaths.map((path) => (
               <div key={`controls-${path}`} className="inline-flex max-w-full items-center gap-2 rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] text-muted-foreground">
-                <span className="text-foreground font-semibold truncate max-w-[180px]" title={formatFileName(path)}>
-                  {formatFileName(path)}
+                <span className="text-foreground font-semibold truncate max-w-[180px]" title={displayNameByPath.get(path) || formatFileName(path)}>
+                  {getShortDisplayName(displayNameByPath.get(path) || formatFileName(path))}
                 </span>
                 <span>/</span>
                 <span>Channel</span>
@@ -813,7 +941,9 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
           )}
 
           <p className="mt-3 text-xs text-muted-foreground">
-            Comparison mode uses one selected channel per file. X-axis uses aligned sample index for lightweight multi-test viewing.
+            {isConcentrationMode
+              ? 'Comparison mode overlays one concentration trace per file while preserving each file time vector.'
+              : 'Comparison mode uses one selected channel per file. X-axis uses aligned sample index for lightweight multi-test viewing.'}
           </p>
         </div>
       )}
@@ -847,7 +977,7 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
             </div>
           </div>
 
-          {!!channels.length && (
+          {!!channels.length && !isConcentrationMode && (
             <div className="mb-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="text-xs text-muted-foreground font-semibold">
@@ -949,7 +1079,7 @@ const DataPreprocessingPage = ({ apiBaseUrl, projectPath, selectedCases = [] }) 
             </div>
           )}
 
-          {!!channels.length && (
+          {!!channels.length && !isConcentrationMode && (
             <div className="mt-3 flex flex-wrap gap-2">
               {channels.map((channel) => (
                 <span

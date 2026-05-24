@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, FileText, Database, FlaskConical, FolderOpen, Activity, Flame, Upload, Layers,Import } from 'lucide-react';
+import { Trash2, FileText, Database, FlaskConical, FolderOpen, Activity, Flame, Upload, Layers, Import, Droplets } from 'lucide-react';
 import { isSimulationCaseFile } from '../features/workspace/dataImportRules';
 
 const ImportDataPage = (props) => {
@@ -36,8 +36,35 @@ const ImportDataPage = (props) => {
 
     const expPressureFiles = filteredExpFiles.filter(f => !f.isDirectory);
     const expFlameFiles = filteredExpFiles.filter(f => !f.isDirectory);
+    const expConcentrationFiles = filteredExpFiles.filter((f) => {
+        if (f.isDirectory) return false;
+        const candidate = String(f.name || f.path || f.webkitRelativePath || '');
+        return /\.csv$/i.test(candidate);
+    });
 
     const simCaseFiles = Array.isArray(sessionFiles) ? sessionFiles.filter(isSimulationCaseFile) : [];
+
+    const expQueue = Array.isArray(experimentalData) ? experimentalData : [];
+    const isFlameQueueItem = (item) => {
+        const t = String(item?.type || "").toLowerCase();
+        return t.includes("flame");
+    };
+    const isConcentrationQueueItem = (item) => {
+        const t = String(item?.type || "").toLowerCase();
+        return t.includes("concentration");
+    };
+    const pressureQueue = expQueue.filter((item) => !isFlameQueueItem(item) && !isConcentrationQueueItem(item));
+    const flameQueue = expQueue.filter((item) => isFlameQueueItem(item));
+    const concentrationQueue = expQueue.filter((item) => isConcentrationQueueItem(item));
+
+    const getFullBaseName = (raw) => {
+        if (!raw) return "Unknown";
+        const parts = String(raw).split(/[/\\]/).filter(Boolean);
+        return parts[parts.length - 1] || String(raw);
+    };
+
+    const getQueueDisplayName = (item) => getFullBaseName(item?.path || item?.name);
+    const getQueuePath = (item) => String(item?.path || item?.name || "");
 
     const runSelectAll = (files, type, e) => {
         files.forEach((f) => {
@@ -54,20 +81,22 @@ const ImportDataPage = (props) => {
             <>
                 <div className={`grid grid-cols-1 gap-6 ${showSimulationSection ? 'md:grid-cols-2' : ''}`}>
                     {/* EXPERIMENTS CARD */}
-                    <div className="bg-card/60 border border-border p-6 rounded-xl flex flex-col h-full overflow-hidden shadow-sm">
+                    <div className="bg-card/60 border border-border p-4 rounded-xl flex flex-col h-full overflow-hidden shadow-sm">
                         <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                             <FlaskConical size={20} className="text-primary" />
                             Experiments Data
                         </h2>
-                        <button
-                            onClick={onOpenExpPicker}
-                            className="inline-flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:border-primary/60 hover:bg-primary/20 transition mb-2 self-start"
-                        >
-                            <Import size={16} /> Select Import Folder
-                        </button>
-                        <p className="mt-1 text-xs text-muted-foreground">Select the folder containing experimental data files (CSV/TXT/DAT/ASC/ASCII/MF4/TPC5) for Pressure and Flame.</p>
-                        <div className="mt-4 grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
+                        <p className="mt-0.5 text-xs text-muted-foreground">Select the folder containing experimental data files (CSV/TXT/DAT/ASC/ASCII/MF4/TPC5) for Pressure, Flame, and H2 Concentration.</p>
+                        <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                            <div className="md:col-span-3">
+                                <button
+                                    onClick={onOpenExpPicker}
+                                    className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:border-primary/60 hover:bg-primary/20 transition"
+                                >
+                                    <Import size={16} /> Select Import Folder
+                                </button>
+                            </div>
+                            <div className="space-y-1.5 md:col-span-3">
                                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                                     <Activity size={14} className="text-primary" /> Pressure Data
                                 </div>
@@ -97,7 +126,7 @@ const ImportDataPage = (props) => {
                                     ))}
                                 </select>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5 md:col-span-3">
                                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                                     <Flame size={14} className="text-primary" /> Flame Data
                                 </div>
@@ -127,30 +156,127 @@ const ImportDataPage = (props) => {
                                     ))}
                                 </select>
                             </div>
+                            <div className="space-y-1.5 md:col-span-3">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                    <Droplets size={14} className="text-cyan-400" /> Concentration Measurements
+                                </div>
+                                <select
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "__all__") {
+                                            runSelectAll(expConcentrationFiles, 'exp_concentration', e);
+                                            return;
+                                        }
+                                        if (val) {
+                                            const fileObj = expFiles.find(f => (f.webkitRelativePath || f.path) === val && (!f.isDirectory));
+                                            if (fileObj && !selectedCases.some(c => (c.path || c.name) === (fileObj.path || fileObj.name))) {
+                                                onToggleCase(fileObj.path || fileObj.name);
+                                            }
+                                            onSelectionChange(e, 'exp_concentration');
+                                        }
+                                    }}
+                                    className="w-full p-2.5 bg-background border border-border rounded-md text-xs text-foreground outline-none"
+                                    data-testid="concentration-csv-select"
+                                >
+                                    <option value="">Concentration data (.csv)...</option>
+                                    {expConcentrationFiles.length > 0 && <option value="__all__">Select All</option>}
+                                    {expConcentrationFiles.map((f, i) => (
+                                        <option key={i} value={f.webkitRelativePath || f.path}>{f.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
-                        <div className="mt-6 flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
+                        <div className="mt-4 flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
                             <h3 className="text-base font-semibold text-foreground mb-2">Imported Data Queue</h3>
-                            {Array.isArray(experimentalData) && experimentalData.length > 0 ? (
-                                experimentalData.map((d, i) => (
-                                    <div key={i} className="flex items-center gap-3 p-4 bg-background border border-border rounded-xl group">
-                                        <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="accent-blue-600 w-4 h-4 cursor-pointer"/>
-                                        {d.type === 'flame' ? (
-                                            <Flame size={16} className="text-amber-500" />
-                                        ) : (
-                                            <Activity size={16} className="text-red-500" />
-                                        )}
-                                        <div className="flex-1 text-xs text-foreground/80 truncate font-mono">
-                                            {formatName(d.name)}
+                            {expQueue.length > 0 ? (
+                                <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+                                    <div className="rounded-xl border border-border/80 bg-background/25 p-2.5">
+                                        <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                            <Activity size={13} className="text-red-500" />
+                                            Pressure Queue ({pressureQueue.length})
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => onRemoveCase && onRemoveCase(d.path || d.name)}
-                                            className="text-muted-foreground hover:text-red-400 p-1"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <div className="space-y-1.5">
+                                            {pressureQueue.length > 0 ? pressureQueue.map((d, i) => (
+                                                <div key={`pressure-${i}`} className="flex items-center gap-2.5 p-2.5 bg-background border border-border rounded-lg group">
+                                                    <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="mt-0.5 accent-blue-600 w-4 h-4 cursor-pointer"/>
+                                                    <Activity size={15} className="text-red-500 shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xs text-foreground/90 font-mono break-all whitespace-normal leading-relaxed pr-2" title={getQueuePath(d)}>
+                                                            {getQueueDisplayName(d)}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onRemoveCase && onRemoveCase(d.path || d.name)}
+                                                        className="text-muted-foreground hover:text-red-400 p-1 shrink-0"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            )) : (
+                                                <span className="block text-xs text-muted-foreground px-1 py-1.5">No pressure files in queue.</span>
+                                            )}
+                                        </div>
                                     </div>
-                                ))
+
+                                    <div className="rounded-xl border border-border/80 bg-background/25 p-2.5">
+                                        <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                            <Flame size={13} className="text-amber-500" />
+                                            Flame Queue ({flameQueue.length})
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            {flameQueue.length > 0 ? flameQueue.map((d, i) => (
+                                                <div key={`flame-${i}`} className="flex items-center gap-2.5 p-2.5 bg-background border border-border rounded-lg group">
+                                                    <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="mt-0.5 accent-blue-600 w-4 h-4 cursor-pointer"/>
+                                                    <Flame size={15} className="text-amber-500 shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xs text-foreground/90 font-mono break-all whitespace-normal leading-relaxed pr-2" title={getQueuePath(d)}>
+                                                            {getQueueDisplayName(d)}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onRemoveCase && onRemoveCase(d.path || d.name)}
+                                                        className="text-muted-foreground hover:text-red-400 p-1 shrink-0"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            )) : (
+                                                <span className="block text-xs text-muted-foreground px-1 py-1.5">No flame files in queue.</span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-xl border border-border/80 bg-background/25 p-2.5">
+                                        <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                            <Droplets size={13} className="text-cyan-400" />
+                                            Concentration Queue ({concentrationQueue.length})
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            {concentrationQueue.length > 0 ? concentrationQueue.map((d, i) => (
+                                                <div key={`concentration-${i}`} className="flex items-center gap-2.5 p-2.5 bg-background border border-border rounded-lg group">
+                                                    <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="mt-0.5 accent-blue-600 w-4 h-4 cursor-pointer"/>
+                                                    <Droplets size={15} className="text-cyan-400 shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xs text-foreground/90 font-mono break-all whitespace-normal leading-relaxed pr-2" title={getQueuePath(d)}>
+                                                            {getQueueDisplayName(d)}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onRemoveCase && onRemoveCase(d.path || d.name)}
+                                                        className="text-muted-foreground hover:text-red-400 p-1 shrink-0"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            )) : (
+                                                <span className="block text-xs text-muted-foreground px-1 py-1.5">No concentration files in queue.</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             ) : (
                                 <span className="text-xs text-muted-foreground">No experiment in queue.</span>
                             )}
@@ -222,7 +348,7 @@ const ImportDataPage = (props) => {
                                     <div key={i} className="flex items-center gap-3 p-4 bg-background border border-border rounded-xl group">
                                         <input type="checkbox" checked={selectedCases.some(c => c.path === s.path)} onChange={() => onToggleCase(s.path)} className="accent-blue-600 w-4 h-4 cursor-pointer"/>
                                         <Database size={16} className="text-primary" />
-                                        <div className="flex-1 text-xs text-foreground/80 truncate font-mono">{formatName(s.path || s.name)}</div>
+                                        <div className="flex-1 text-xs text-foreground/80 font-mono break-all whitespace-normal leading-relaxed">{formatName(s.path || s.name)}</div>
                                         <button
                                             type="button"
                                             onClick={() => {

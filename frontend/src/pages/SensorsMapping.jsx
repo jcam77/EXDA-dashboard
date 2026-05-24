@@ -6,6 +6,7 @@ const QUANTITY_OPTIONS = [
   'pressure',
   'temperature',
   'concentration',
+  'voltage',
   'acceleration',
   'flame_arrival',
   'photodiode',
@@ -13,8 +14,32 @@ const QUANTITY_OPTIONS = [
 ];
 const SENSITIVITY_UNIT_OPTIONS = ['pC/bar', 'pC/kPa', 'mV/bar', 'mV/kPa', 'V/bar', 'V/kPa', 'other'];
 const COORDINATE_UNIT_OPTIONS = ['m', 'mm'];
-const MOUNTING_OPTIONS = ['flush-mounted', 'recessed', 'tube-mounted', 'surface-mounted', 'other'];
+const MOUNTING_OPTIONS = ['flush', 'recessed', 'tube-mounted', 'surface-mounted', 'other'];
+const TRIGGER_METHOD_OPTIONS = ['', 'Camera', 'M-Duino', 'Other'];
 const RUN_GROUP_RE = /^(.*)-(\d+)(?:-[Rr]\d+)?$/;
+
+const normalizeMountingMethodValue = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (text.toLowerCase() === 'flush-mounted') return 'flush';
+  return text;
+};
+
+const normalizeTriggerMethodValue = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (text === 'M-Duino Control Box') return 'M-Duino';
+  return text;
+};
+
+const normalizeSensorRecord = (sensor) => {
+  const record = sensor && typeof sensor === 'object' ? sensor : {};
+  return {
+    ...record,
+    mountingMethod: normalizeMountingMethodValue(record.mountingMethod),
+    triggerMethod: normalizeTriggerMethodValue(record.triggerMethod),
+  };
+};
 
 const createDefaultSensor = (id = '') => ({
   id: `sensor-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -33,9 +58,11 @@ const createDefaultSensor = (id = '') => ({
   z: '',
   coordinateUnit: 'm',
   coordinateOrigin: 'internal lower-front-left corner of chamber',
-  mountingMethod: 'flush-mounted',
+  mountingMethod: 'flush',
   isActive: true,
   isBlindSensor: false,
+  isTriggerChannel: false,
+  triggerMethod: '',
   notes: '',
   calibrationDate: '',
   calibrationCertificateId: '',
@@ -63,20 +90,23 @@ const isNumeric = (value) => value !== '' && Number.isFinite(Number(value));
 const validateSensorAgainstList = (sensor, allSensors, currentId = null) => {
   const errors = [];
   const warnings = [];
+  const isTrigger = sensor.isTriggerChannel === true;
 
   if (!String(sensor.sensorId || '').trim()) errors.push('Sensor ID missing');
   if (String(sensor.isActive) === 'true' || sensor.isActive === true) {
     if (!String(sensor.daqSystem || '').trim()) errors.push('DAQ system missing');
     if (!String(sensor.daqChannel || '').trim()) errors.push('DAQ channel missing');
   }
-  if (!String(sensor.serialNumber || '').trim()) errors.push('Serial number missing');
-  if (!isNumeric(sensor.sensitivity)) errors.push('Sensitivity missing or not numeric');
-  else if (Number(sensor.sensitivity) <= 0) errors.push('Sensitivity must be > 0');
-  if (!String(sensor.sensitivityUnit || '').trim()) errors.push('Sensitivity unit missing');
-  if (!String(sensor.locationLabel || '').trim()) errors.push('Location label missing');
-  if (!isNumeric(sensor.x) || !isNumeric(sensor.y) || !isNumeric(sensor.z)) errors.push('Coordinates x/y/z must be numeric');
-  if (!String(sensor.coordinateOrigin || '').trim()) errors.push('Coordinate origin missing');
-  if (!String(sensor.mountingMethod || '').trim()) errors.push('Mounting method missing');
+  if (!isTrigger) {
+    if (!String(sensor.serialNumber || '').trim()) errors.push('Serial number missing');
+    if (!isNumeric(sensor.sensitivity)) errors.push('Sensitivity missing or not numeric');
+    else if (Number(sensor.sensitivity) <= 0) errors.push('Sensitivity must be > 0');
+    if (!String(sensor.sensitivityUnit || '').trim()) errors.push('Sensitivity unit missing');
+    if (!String(sensor.locationLabel || '').trim()) errors.push('Location label missing');
+    if (!isNumeric(sensor.x) || !isNumeric(sensor.y) || !isNumeric(sensor.z)) errors.push('Coordinates x/y/z must be numeric');
+    if (!String(sensor.coordinateOrigin || '').trim()) errors.push('Coordinate origin missing');
+    if (!String(sensor.mountingMethod || '').trim()) errors.push('Mounting method missing');
+  }
 
   const duplicateSensorId = allSensors.some((other) => {
     if (currentId && other.id === currentId) return false;
@@ -91,9 +121,13 @@ const validateSensorAgainstList = (sensor, allSensors, currentId = null) => {
   });
   if (duplicateActiveChannel) errors.push('Duplicate active DAQ channel in same DAQ system');
 
-  if (!String(sensor.calibrationDate || '').trim()) warnings.push('Calibration date missing');
-  if (!String(sensor.calibrationCertificateId || '').trim()) warnings.push('Calibration certificate ID missing');
+  if (!isTrigger) {
+    if (!String(sensor.calibrationDate || '').trim()) warnings.push('Calibration date missing');
+    if (!String(sensor.calibrationCertificateId || '').trim()) warnings.push('Calibration certificate ID missing');
+  }
   if (sensor.isActive && sensor.isBlindSensor) warnings.push('Sensor is active and blind/control');
+  if (isTrigger && normalize(sensor.measuredQuantity) !== 'voltage') warnings.push('Trigger channel is usually measured as voltage');
+  if (isTrigger && !String(sensor.triggerMethod || '').trim()) warnings.push('Trigger method missing');
 
   return { errors, warnings };
 };
@@ -115,13 +149,18 @@ const readSensorsFromStorage = (storageKey) => {
       return {
         selectedGroup: fallbackGroup,
         mappingsByGroup: {
-          [fallbackGroup]: parsed,
+          [fallbackGroup]: Array.isArray(parsed) ? parsed.map(normalizeSensorRecord) : [],
         },
         groupNotes: {},
       };
     }
     if (parsed && typeof parsed === 'object' && parsed.mappingsByGroup && typeof parsed.mappingsByGroup === 'object') {
-      const mappingsByGroup = { ...parsed.mappingsByGroup };
+      const mappingsByGroup = Object.fromEntries(
+        Object.entries(parsed.mappingsByGroup).map(([groupName, sensors]) => ([
+          groupName,
+          Array.isArray(sensors) ? sensors.map(normalizeSensorRecord) : [],
+        ])),
+      );
       const groupNotes = parsed.groupNotes && typeof parsed.groupNotes === 'object' ? { ...parsed.groupNotes } : {};
       const keys = Object.keys(mappingsByGroup);
       const selectedCandidate = String(parsed.selectedGroup || '').trim();
@@ -501,14 +540,14 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     setEditingGroup(groupName);
     setEditorError('');
     setEditingExistingId(sensor.id);
-    setEditingSensor({ ...sensor });
+    setEditingSensor(normalizeSensorRecord(sensor));
     setEditorOffset({ x: 0, y: 40 });
     setEditorOpen(true);
   };
 
   const duplicateSensor = (sensor, groupName = selectedGroup) => {
     const clone = {
-      ...sensor,
+      ...normalizeSensorRecord(sensor),
       id: `sensor-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
       sensorId: `${sensor.sensorId || 'Sensor'}-Copy`,
       daqChannel: '',
@@ -522,11 +561,11 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
 
   const saveSensor = () => {
     const targetGroup = editingGroup || selectedGroup;
-    const groupSensors = mappingsByGroup[targetGroup] || [];
+    const sanitized = normalizeSensorRecord(editingSensor);
     if (editingExistingId) {
-      updateGroupSensors(targetGroup, (prev) => prev.map((sensor) => (sensor.id === editingExistingId ? { ...editingSensor } : sensor)));
+      updateGroupSensors(targetGroup, (prev) => prev.map((sensor) => (sensor.id === editingExistingId ? { ...sanitized } : sensor)));
     } else {
-      updateGroupSensors(targetGroup, (prev) => [...prev, { ...editingSensor }]);
+      updateGroupSensors(targetGroup, (prev) => [...prev, { ...sanitized }]);
     }
     setEditorError('');
     setEditorOpen(false);
@@ -650,10 +689,12 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
                 <th className="py-2 pr-3">Last Cal.</th>
                 <th className="py-2 pr-3">Sensitivity</th>
                 <th className="py-2 pr-3">Location</th>
-                <th className="py-2 pr-3">Coords</th>
+                <th className="py-2 pr-3">Coord.(x,y,z)m</th>
                 <th className="py-2 pr-3">Mounting</th>
                 <th className="py-2 pr-3">Active</th>
                 <th className="py-2 pr-3">Blind</th>
+                <th className="py-2 pr-3">Trigger</th>
+                <th className="py-2 pr-3">Trigger Method</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2">Actions</th>
               </tr>
@@ -671,10 +712,12 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
                     <td className="py-2 pr-3">{sensor.calibrationDate || '-'}</td>
                     <td className="py-2 pr-3">{sensor.sensitivity || '-'} {sensor.sensitivityUnit || ''}</td>
                     <td className="py-2 pr-3">{sensor.locationLabel || '-'}</td>
-                    <td className="py-2 pr-3">x={sensor.x || '-'}, y={sensor.y || '-'}, z={sensor.z || '-'} {sensor.coordinateUnit}</td>
+                    <td className="py-2 pr-3">({sensor.x || '-'},{sensor.y || '-'},{sensor.z || '-'})</td>
                     <td className="py-2 pr-3">{sensor.mountingMethod || '-'}</td>
                     <td className="py-2 pr-3">{sensor.isActive ? 'Yes' : 'No'}</td>
                     <td className="py-2 pr-3">{sensor.isBlindSensor ? 'Yes' : 'No'}</td>
+                    <td className="py-2 pr-3">{sensor.isTriggerChannel ? 'Yes' : 'No'}</td>
+                    <td className="py-2 pr-3">{normalizeTriggerMethodValue(sensor.triggerMethod) || '-'}</td>
                     <td className="py-2 pr-3">
                       {status === 'complete' && (
                         <span className="inline-flex items-center gap-1 text-emerald-400">
@@ -956,6 +999,8 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
               <label className="text-xs">Mounting Method<select value={editingSensor.mountingMethod} onChange={(e) => setEditingSensor((prev) => ({ ...prev, mountingMethod: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{MOUNTING_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
               <label className="inline-flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={!!editingSensor.isActive} onChange={(e) => setEditingSensor((prev) => ({ ...prev, isActive: e.target.checked }))} /> Active Sensor</label>
               <label className="inline-flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={!!editingSensor.isBlindSensor} onChange={(e) => setEditingSensor((prev) => ({ ...prev, isBlindSensor: e.target.checked }))} /> Blind / Control Sensor</label>
+              <label className="inline-flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={!!editingSensor.isTriggerChannel} onChange={(e) => setEditingSensor((prev) => ({ ...prev, isTriggerChannel: e.target.checked }))} /> Trigger Channel (metadata exception)</label>
+              <label className="text-xs md:col-span-2">Trigger Method<select value={editingSensor.triggerMethod || ''} onChange={(e) => setEditingSensor((prev) => ({ ...prev, triggerMethod: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{TRIGGER_METHOD_OPTIONS.map((opt) => <option key={opt || 'blank'} value={opt}>{opt || 'Select trigger method'}</option>)}</select></label>
               <label className="text-xs md:col-span-2">Notes<textarea value={editingSensor.notes} onChange={(e) => setEditingSensor((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5 min-h-20" /></label>
             </div>
 

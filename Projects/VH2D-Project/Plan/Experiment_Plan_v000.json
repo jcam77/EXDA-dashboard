@@ -135,12 +135,12 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [
-          "Preparation-01/Preparation-01-DAQ-1",
-          "Preparation-01/Preparation-01-DAQ-2",
-          "Preparation-01/Preparation-01-DAQ-3",
-          "Preparation-01/Preparation-01-H2CM-1",
-          "Preparation-01/Preparation-01-H2CM-2",
-          "Preparation-01/Preparation-01-H2CM-3"
+          "Prep-01/Prep-01-DAQ-1",
+          "Prep-01/Prep-01-DAQ-2",
+          "Prep-01/Prep-01-DAQ-3",
+          "Prep-01/Prep-01-H2CM-1",
+          "Prep-01/Prep-01-H2CM-2",
+          "Prep-01/Prep-01-H2CM-3"
         ],
         "h2": "12",
         "ignition": "back",
@@ -153,7 +153,7 @@
         "t0": "293",
         "vent": "Thin Plastic + Hotwire"
       },
-      "name": "Preparation-01"
+      "name": "Prep-01"
     },
     {
       "done": false,
@@ -171,7 +171,7 @@
         "t0": "293",
         "vent": ""
       },
-      "name": "Preparation-02"
+      "name": "Prep-02"
     },
     {
       "done": false,
@@ -322,7 +322,7 @@
     "deadline": "2026-05-29",
     "description": "The primary objectives of the experiments are:\n1. Internal Over-pressure Development\nMeasurement of internal over-pressure development during vented hydrogen deflagrations in a partially confined enclosure for homogeneous flammable hydrogen–air mixtures with hydrogen concentrations up to 19 vol.%.\n\n2.Flame Propagation (Under Consideration)\nMeasurement of flame propagation characteristics, including potential estimation of flame time-of-arrival (TOA) at selected locations.\n\n3.Instrumentation Evaluation\nEvaluation and cross-comparison of different pressure measurement systems and data acquisition configurations, including sensor characteristics and the influence of measurement chain dynamics (e.g., time constant (tau) effects, sampling rate).\n\n4. Measurement Uncertainty Factors\nInvestigation of experimental factors that may affect the accuracy and reliability of pressure measurements, including structural vibration effects and thermal protection methods.\n\n5. Venting Behaviour\nInvestigation of vent opening behaviour and the influence of vent rupture mechanisms on pressure development, including comparison between pressure-driven thin-film rupture and controlled vent opening using a hot-wire cutting system.",
     "groupObjectives": {
-      "Preparation": "",
+      "Prep": "",
       "VH2D-01": "Vented deflagration concentration series (Hotwire)",
       "VH2D-02": "Vented deflagration concentration series (NO Hotwire)"
     },

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StopCircle, Send, Trash2, Save, Bot, BrainCircuit, User, ShieldAlert, ChevronDown, Cloud, Cpu, RefreshCw, Copy, Check } from 'lucide-react';
 import { marked } from 'marked';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+import { formatExdaTime } from '../utils/timezone';
 
 marked.setOptions({
     gfm: true,
@@ -460,9 +461,7 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
 
     const formatTime = (value) => {
         if (!value) return '';
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return formatExdaTime(value);
     };
 
     const handleCopy = async (text, index) => {

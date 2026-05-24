@@ -38,6 +38,12 @@ def _parse_datetime(value: str):
     formats = (
         "%m/%d/%Y %H:%M:%S.%f",
         "%d/%m/%Y %H:%M:%S.%f",
+        "%m/%d/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M:%S",
+        "%d.%m.%Y %H:%M:%S.%f",
+        "%d.%m.%Y %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S",
     )
     for fmt in formats:
         try:
@@ -56,7 +62,7 @@ def _looks_like_multichannel_waveform(lines: list[str]) -> bool:
         return True
     for line in lines[:8]:
         low = line.lower()
-        if low.startswith("time;") and ("y[" in low or ";[" in low):
+        if low.startswith("time;") and len([p for p in line.split(";") if p.strip()]) >= 2:
             return True
     return False
 

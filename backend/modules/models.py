@@ -25,6 +25,7 @@ class AggregatePlotRequest:
     active_tab: str
     series: List[PlotSeries]
     experimental: Optional[List[Dict[str, float]]]
+    preserve_native_time: bool = False
 
     @staticmethod
     def from_dict(payload: Dict[str, Any]) -> "AggregatePlotRequest":
@@ -33,4 +34,10 @@ class AggregatePlotRequest:
         series_payload = payload.get("series", [])
         series = [PlotSeries.from_dict(item) for item in series_payload]
         experimental = payload.get("experimental")
-        return AggregatePlotRequest(active_tab=active_tab, series=series, experimental=experimental)
+        preserve_native_time = bool(payload.get("preserveNativeTime") or payload.get("preserve_native_time"))
+        return AggregatePlotRequest(
+            active_tab=active_tab,
+            series=series,
+            experimental=experimental,
+            preserve_native_time=preserve_native_time,
+        )

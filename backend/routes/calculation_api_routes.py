@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from flask import Blueprint, jsonify, request
 
-from modules import data_parser, ewt_analysis, flame_analysis, plot_interpolation, pressure_analysis
+from modules import data_parser, ewt_analysis, flame_analysis, gas_mixing, plot_interpolation, pressure_analysis
 
 calculation_api_bp = Blueprint("calculation_api", __name__)
 TESTS_DIR = Path(__file__).resolve().parents[1] / "tests"
@@ -334,10 +334,14 @@ def preview_multichannel():
 
         # 1) Direct name-based hints.
         trigger_keywords = ("trigger", "trig", "ign", "ttl", "volt", "voltage")
+        concentration_keywords = ("conc", "ppm", "h2cm", "h2_conc", "hydrogen")
         for idx, label in enumerate(labels_lower):
             if any(token in label for token in trigger_keywords):
                 inferred_units[idx] = "V"
                 inferred_roles[idx] = "trigger"
+            elif any(token in label for token in concentration_keywords):
+                inferred_units[idx] = "ppm"
+                inferred_roles[idx] = "concentration"
 
         # 1b) Common acquisition convention:
         # waveform exports with generic Y[n] labels often use the last channel as trigger voltage.
@@ -392,6 +396,19 @@ def preview_multichannel():
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@calculation_api_bp.route('/calculate_gas_mix', methods=['POST'])
+def calculate_gas_mix():
+    """MATLAB-equivalent hydrogen fill calculator (AuxFcn_H2_MFC_FillCalculator_000)."""
+    try:
+        payload = request.json or {}
+        results = gas_mixing.calculate_h2_mfc_fill(payload)
+        return jsonify({"success": True, "results": results})
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
 
 
 @calculation_api_bp.route('/calculation_verification', methods=['GET', 'POST'])

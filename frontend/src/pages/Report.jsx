@@ -1,128 +1,118 @@
-import React, { useState } from 'react';
-import { FileText, ClipboardCheck, Activity, AlertTriangle, Save, Download } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { FileText, Download, Construction, Database } from 'lucide-react';
+import { getBackendBaseUrl } from '../utils/backendUrl';
+import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../utils/timezone';
 
 const ReportPage = ({
-    experiments = [],
-    checklistState = {},
-    planMeta = {},
+  projectPath = '',
+  planName = '',
 }) => {
-    const [selectedExpId, setSelectedExpId] = useState("");
-    const [observations, setObservations] = useState("");
+  const apiBaseUrl = useMemo(() => getBackendBaseUrl(), []);
+  const projectName = useMemo(
+    () => String(projectPath || '').split(/[/\\]/).filter(Boolean).pop() || 'No project selected',
+    [projectPath],
+  );
+  const [status, setStatus] = useState('');
+  const [busyFormat, setBusyFormat] = useState('');
 
-    const selectedExp = experiments.find(e => e.id === selectedExpId);
-    
-    // Safety Status Calculation
-    const totalChecklistItems = 18; // Based on your 4 groups
-    const completedItems = Object.values(checklistState).filter(Boolean).length;
-    const safetyScore = Math.round((completedItems / totalChecklistItems) * 100);
+  const exportMetadataReport = async (format) => {
+    if (!projectPath) {
+      window.alert('Open a project first. Export files are saved to the project Reports folder.');
+      return;
+    }
+    try {
+      setBusyFormat(format);
+      const response = await fetch(`${apiBaseUrl}/export_metadata_report_artifact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectPath,
+          format,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || `Failed to export ${String(format).toUpperCase()}`);
+      }
+      setStatus(`${String(format).toUpperCase()} exported to Reports (${formatExdaClock(new Date())} ${EXDA_DISPLAY_TIME_ZONE})`);
+      window.alert(`${String(format).toUpperCase()} exported to:\n${payload.path}`);
+    } catch (error) {
+      const message = error?.message || 'Unknown error';
+      setStatus(`Export failed: ${message}`);
+      window.alert(`Could not export ${String(format).toUpperCase()}.\n${message}`);
+    } finally {
+      setBusyFormat('');
+    }
+  };
 
-    return (
-        <div className="flex flex-col h-[75vh] bg-background p-6 animate-in fade-in duration-500 overflow-y-auto custom-scrollbar">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-8 border-b border-border pb-4">
-                <div className="flex items-center gap-3">
-                    <FileText className="text-blue-500" size={24} />
-                    <h1 className="text-xl font-bold text-foreground tracking-tight uppercase">Experimental Test Report</h1>
-                </div>
-                <button className="flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-4 py-2 rounded-lg text-xs font-bold transition-all">
-                    <Download size={14} /> Export PDF
-                </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column: Configuration & Safety */}
-                <div className="space-y-6">
-                    <div className="bg-card/60 border border-border/60 rounded-2xl p-5">
-                        <h2 className="text-xs font-black uppercase text-muted-foreground mb-4 tracking-widest">Test Selection</h2>
-                        <select 
-                            value={selectedExpId}
-                            onChange={(e) => setSelectedExpId(e.target.value)}
-                            className="w-full bg-background border border-border text-sm text-foreground p-2 rounded-lg outline-none focus:border-ring"
-                        >
-                            <option value="">Select Experiment from Plan...</option>
-                            {experiments.map(exp => (
-                                <option key={exp.id} value={exp.id}>{exp.name} ({exp.id})</option>
-                            ))}
-                        </select>
-                        {selectedExp && (
-                            <div className="mt-4 text-[11px] text-muted-foreground italic">
-                                Plan Objective: {planMeta.objective || "No objective defined."}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="bg-card/60 border border-border/60 rounded-2xl p-5">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xs font-black uppercase text-muted-foreground tracking-widest">Safety Compliance</h2>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${safetyScore === 100 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-orange-500/10 text-orange-500'}`}>
-                                {safetyScore}% Verified
-                            </span>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-[11px]">
-                                <span className="text-muted-foreground">Pre-test Checklist</span>
-                                <span className="text-foreground">{completedItems} / {totalChecklistItems} OK</span>
-                            </div>
-                            <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-emerald-500 h-full transition-all" style={{ width: `${safetyScore}%` }}></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Middle Column: Technical Results */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-card/60 border border-border/60 rounded-2xl p-6">
-                        <h2 className="text-xs font-black uppercase text-muted-foreground mb-6 tracking-widest flex items-center gap-2">
-                            <Activity size={14} className="text-red-500" /> Measured Performance
-                        </h2>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="p-4 bg-background rounded-xl border border-border/60">
-                                <div className="text-[10px] uppercase text-muted-foreground font-bold mb-1">Peak Pressure</div>
-                                <div className="text-lg font-mono text-foreground">-- <span className="text-xs text-muted-foreground">bar</span></div>
-                            </div>
-                            <div className="p-4 bg-background rounded-xl border border-border/60">
-                                <div className="text-[10px] uppercase text-muted-foreground font-bold mb-1">Total Impulse</div>
-                                <div className="text-lg font-mono text-foreground">-- <span className="text-xs text-muted-foreground">Pa·s</span></div>
-                            </div>
-                            <div className="p-4 bg-background rounded-xl border border-border/60">
-                                <div className="text-[10px] uppercase text-muted-foreground font-bold mb-1">Vent Timing</div>
-                                <div className="text-lg font-mono text-foreground">-- <span className="text-xs text-muted-foreground">ms</span></div>
-                            </div>
-                            <div className="p-4 bg-background rounded-xl border border-border/60">
-                                <div className="text-[10px] uppercase text-muted-foreground font-bold mb-1">H2 Conc.</div>
-                                <div className="text-lg font-mono text-foreground">-- <span className="text-xs text-muted-foreground">%</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-card/60 border border-border/60 rounded-2xl p-6">
-                        <h2 className="text-xs font-black uppercase text-muted-foreground mb-4 tracking-widest flex items-center gap-2">
-                            <ClipboardCheck size={14} className="text-blue-500" /> Manual Observations
-                        </h2>
-                        <textarea 
-                            className="w-full bg-background border border-border rounded-xl p-4 text-sm text-foreground outline-none focus:border-ring min-h-[120px] resize-none"
-                            placeholder="Describe seal behavior, reaction forces, or any deviations from the RAMS..."
-                            value={observations}
-                            onChange={(e) => setObservations(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Emergency Log Footer */}
-            <div className="mt-8 p-4 bg-orange-500/5 border border-orange-500/20 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <AlertTriangle size={18} className="text-orange-500" />
-                    <div>
-                        <div className="text-[10px] font-black uppercase text-orange-500">Event Log</div>
-                        <div className="text-[11px] text-muted-foreground italic">No emergency action cards triggered during this run.</div>
-                    </div>
-                </div>
-                <button className="text-[10px] font-bold uppercase text-muted-foreground hover:text-foreground transition-colors">Add incident report</button>
-            </div>
+  return (
+    <div className="w-full space-y-4">
+      <div className="rounded-xl border border-sidebar-border bg-card/80 p-5">
+        <div className="flex items-center gap-2">
+          <FileText size={18} className="text-primary" />
+          <h2 className="text-lg font-bold text-foreground">Report</h2>
         </div>
-    );
+        <p className="mt-1 text-sm text-muted-foreground">
+          Generate structured project reports for delivery and traceability.
+        </p>
+        <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
+          Project: <span className="text-foreground">{projectName}</span>
+          {planName ? <span className="ml-4">Plan: <span className="text-foreground">{planName}</span></span> : null}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <section className="rounded-xl border border-sidebar-border bg-card/60 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Database size={16} className="text-primary" />
+            <h3 className="text-base font-semibold text-foreground">1. Metadata Report</h3>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Builds one consolidated metadata report from Plan, DAQ Systems, Sensors Mapping, and Gas Mixing.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            CSV is exported as sectioned blocks (one labeled section per module), and PDF is exported as one merged file.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => exportMetadataReport('csv')}
+              disabled={busyFormat !== ''}
+              className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Download size={14} />
+              {busyFormat === 'csv' ? 'Exporting CSV...' : 'Export Metadata CSV'}
+            </button>
+            <button
+              type="button"
+              onClick={() => exportMetadataReport('pdf')}
+              disabled={busyFormat !== ''}
+              className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Download size={14} />
+              {busyFormat === 'pdf' ? 'Exporting PDF...' : 'Export Metadata PDF'}
+            </button>
+          </div>
+          {status ? (
+            <p className="mt-3 text-xs text-muted-foreground">{status}</p>
+          ) : null}
+        </section>
+
+        <section className="rounded-xl border border-sidebar-border bg-card/60 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Construction size={16} className="text-amber-400" />
+            <h3 className="text-base font-semibold text-foreground">2. Experiments Report</h3>
+            <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+              Under Construction
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            This subgroup is intentionally simplified in MVP mode and will be enabled in a future release.
+          </p>
+        </section>
+      </div>
+    </div>
+  );
 };
 
 export default ReportPage;

@@ -264,6 +264,7 @@ export const useAnalysisPipeline = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           activeTab,
+          preserveNativeTime: ['pressure_analysis', 'cfd_validation'].includes(activeTab),
           series: uniqueResults.flatMap((item) => {
             const primary = [
               {

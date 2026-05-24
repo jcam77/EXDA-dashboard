@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
     FlaskConical, AudioLines, ClipboardList, FileSpreadsheet, 
-    Folder, Activity, Flame, FolderOpen, BrainCircuit,
+    Folder, Activity, Flame, FolderOpen, BrainCircuit, Droplets,
     FileText, Beaker, BookOpen, Home, Layers, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck, Save, HardDrive
 } from 'lucide-react';
 
@@ -14,6 +14,7 @@ import { getBackendBaseUrl } from '../../utils/backendUrl';
 import { getPublicUrl } from '../../utils/assetUrl';
 import { recordRecentProject } from '../../utils/recentProjects';
 import { DEFAULT_INPUT_UNIT } from '../../utils/units';
+import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../../utils/timezone';
 import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
 import { useDataImportPipeline } from './hooks/useDataImportPipeline';
 /* global __EXDA_MVP_MODE__, __EXDA_MVP_UNLOCK_PASSWORD__ */
@@ -44,7 +45,6 @@ const DISABLED_MVP_TABS = new Set([
     'cfd_validation',
     'flame_speed',
     'ai',
-    'report',
     'resources',
     'data_preprocessing',
     'pressure_analysis',
@@ -61,6 +61,7 @@ const GasMixingPage = lazy(() => import('../../pages/GasMixing'));
 const ImportDataPage = lazy(() => import('../../pages/ImportData'));
 const DataPreprocessingPage = lazy(() => import('../../pages/DataPreprocessingPage'));
 const RawDataPressureAnalysisPage = lazy(() => import('../../pages/RawDataPressureAnalysis'));
+const RawDataH2ConcentrationAnalysisPage = lazy(() => import('../../pages/RawDataH2ConcentrationAnalysis'));
 const EWTPage = lazy(() => import('../../pages/EwtAnalysis'));
 const PressureAnalysisPage = lazy(() => import('../../pages/PressureAnalysis'));
 const CFDValidationPage = lazy(() => import('../../pages/CFDValidation'));
@@ -80,6 +81,7 @@ const TAB_PATHS = {
     gas: '/gas',
     data: '/data',
     data_preprocessing: '/data/preprocessing',
+    raw_h2_concentration_analysis: '/analysis/raw-h2-concentration',
     raw_pressure_analysis: '/analysis/raw-pressure',
     ewt: '/analysis/ewt',
     pressure_analysis: '/analysis/pressure',
@@ -98,8 +100,9 @@ const PROJECT_WORKSPACE_TABS = [
     {id:'sensors_mapping', l:'Sensors Mapping', i:Layers, to: TAB_PATHS.sensors_mapping},
     {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas},
     {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data},
+    {id:'raw_h2_concentration_analysis', l:'Raw Data Screening — H2 Concentration', i:Droplets, to: TAB_PATHS.raw_h2_concentration_analysis},
     {id:'data_preprocessing', l:'Data Preprocessing', i:FolderOpen, to: TAB_PATHS.data_preprocessing},
-    {id:'raw_pressure_analysis', l:'Raw Data Pressure Analysis', i:Activity, to: TAB_PATHS.raw_pressure_analysis},
+    {id:'raw_pressure_analysis', l:'Raw Data Screening — Pressure', i:Activity, to: TAB_PATHS.raw_pressure_analysis},
     {id:'ewt', l:'EWT', i:AudioLines, to: TAB_PATHS.ewt},
     {id:'pressure_analysis', l:'Pressure Analysis', i:Activity, to: TAB_PATHS.pressure_analysis},
     {id:'cfd_validation', l:'CFD Validation', i:Beaker, to: TAB_PATHS.cfd_validation},
@@ -127,6 +130,7 @@ const resolveTabFromPath = (pathname) => {
     if (pathname.startsWith('/daq-systems')) return 'daq_systems';
     if (pathname.startsWith('/sensors-mapping')) return 'sensors_mapping';
     if (pathname.startsWith('/gas')) return 'gas';
+    if (pathname.startsWith('/analysis/raw-h2-concentration')) return 'raw_h2_concentration_analysis';
     if (pathname.startsWith('/analysis/raw-pressure')) return 'raw_pressure_analysis';
     if (pathname.startsWith('/data/preprocessing')) return 'data_preprocessing';
     if (pathname.startsWith('/data/clean')) return 'data_preprocessing';
@@ -184,7 +188,7 @@ const WorkspacePage = () => {
         return isMvpModeEnabledByDefault();
     });
     const isTabAllowed = useCallback((tab) => {
-        if (tab === 'raw_pressure_analysis') return isMvpMode;
+        if (tab === 'raw_pressure_analysis' || tab === 'raw_h2_concentration_analysis') return isMvpMode;
         return !(isMvpMode && DISABLED_MVP_TABS.has(tab));
     }, [isMvpMode]);
     const headerTabs = HEADER_SHORTCUT_TABS.filter(isTabAllowed);
@@ -479,6 +483,9 @@ const WorkspacePage = () => {
                   if (state.data_files) {
                       setExpFiles(state.data_files);
                   }
+                  if (state.checklist_state && typeof state.checklist_state === 'object') {
+                      setChecklistState(state.checklist_state);
+                  }
               }
           } catch (e) {
               console.error("Critical State Sync Error:", e);
@@ -698,7 +705,8 @@ const WorkspacePage = () => {
   const formatLastSaved = (value) => {
       if (!value) return 'Not saved yet';
       try {
-          return `Saved ${new Date(value).toLocaleTimeString()}`;
+          const clock = formatExdaClock(value);
+          return clock ? `Saved ${clock}` : 'Saved';
       } catch {
           return 'Saved';
       }
@@ -813,6 +821,8 @@ const WorkspacePage = () => {
 
       let sensorsPath = '';
       let daqPath = '';
+      let gasPath = '';
+      let checklistPath = '';
       try {
           // Ensure DAQ metadata is also persisted to Reports/daq_systems.json
           const loadRes = await fetch(`${apiBaseUrl}/get_daq_systems?projectPath=${encodeURIComponent(projectPath)}`);
@@ -836,6 +846,60 @@ const WorkspacePage = () => {
           daqPath = savePayload.path || '';
       } catch (error) {
           notify('error', 'Partial Save', `Plan saved, but DAQ Systems could not be saved.${error?.message ? ` ${error.message}` : ''}`);
+          return;
+      }
+
+      try {
+          // Ensure Gas Mixing state is persisted to Reports/gas_mixing.json
+          const loadRes = await fetch(`${apiBaseUrl}/get_gas_mixing?projectPath=${encodeURIComponent(projectPath)}`);
+          const loadPayload = await loadRes.json();
+          if (!loadRes.ok || !loadPayload?.success) {
+              throw new Error(loadPayload?.error || 'Could not load Gas Mixing state for save');
+          }
+          const records = Array.isArray(loadPayload?.records) ? loadPayload.records : [];
+          const selectedGroup = String(loadPayload?.selectedGroup || '');
+          const selectedRunName = String(loadPayload?.selectedRunName || '');
+          const verificationMeta =
+              loadPayload?.verificationMeta && typeof loadPayload.verificationMeta === 'object'
+                  ? loadPayload.verificationMeta
+                  : undefined;
+          const saveRes = await fetch(`${apiBaseUrl}/save_gas_mixing`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  projectPath,
+                  records,
+                  selectedGroup,
+                  selectedRunName,
+                  verificationMeta,
+              }),
+          });
+          const savePayload = await saveRes.json();
+          if (!saveRes.ok || !savePayload?.success) {
+              throw new Error(savePayload?.error || 'Could not save Gas Mixing');
+          }
+          gasPath = savePayload.path || '';
+      } catch (error) {
+          notify('error', 'Partial Save', `Plan and DAQ saved, but Gas Mixing could not be saved.${error?.message ? ` ${error.message}` : ''}`);
+          return;
+      }
+
+      try {
+          const saveChecklistRes = await fetch(`${apiBaseUrl}/save_checklist_state`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  projectPath,
+                  checklistState,
+              }),
+          });
+          const saveChecklistPayload = await saveChecklistRes.json();
+          if (!saveChecklistRes.ok || !saveChecklistPayload?.success) {
+              throw new Error(saveChecklistPayload?.error || 'Could not save checklist state');
+          }
+          checklistPath = saveChecklistPayload.path || '';
+      } catch (error) {
+          notify('error', 'Partial Save', `Plan, DAQ, and Gas saved, but Checklist could not be saved.${error?.message ? ` ${error.message}` : ''}`);
           return;
       }
 
@@ -868,11 +932,36 @@ const WorkspacePage = () => {
           return;
       }
 
-      const details = sensorsPath
-          ? `Plan: ${planResult.path}\nDAQ Systems: ${daqPath}\nSensors Mapping: ${sensorsPath}`
-          : `Plan: ${planResult.path}\nDAQ Systems: ${daqPath}\nSensors Mapping: no local data detected`;
+      const savedItems = [
+          { label: 'Checklist', ok: Boolean(checklistPath) },
+          { label: 'Plan', ok: Boolean(planResult?.path) },
+          { label: 'DAQ Systems', ok: Boolean(daqPath) },
+          { label: 'Sensors Mapping', ok: Boolean(sensorsPath) },
+          { label: 'Gas Mixing', ok: Boolean(gasPath) },
+      ];
+
+      const details = (
+          <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Saved modules:</p>
+              <ul className="space-y-1.5 text-xs">
+                  {savedItems.map((item) => (
+                      <li key={item.label} className="flex items-start gap-2">
+                          <span className={item.ok ? 'text-emerald-400' : 'text-amber-400'}>
+                              {item.ok ? '✓' : '•'}
+                          </span>
+                          <div className="min-w-0">
+                              <div className="font-semibold text-foreground">
+                                  {item.label}
+                                  {!item.ok && item.label === 'Sensors Mapping' ? ' (no local data)' : ''}
+                              </div>
+                          </div>
+                      </li>
+                  ))}
+              </ul>
+          </div>
+      );
       notify('success', 'Project Saved', details);
-  }, [apiBaseUrl, notify, projectPath, savePlan]);
+  }, [apiBaseUrl, checklistState, notify, projectPath, savePlan]);
 
   const handleCloseProject = async () => {
       const confirmClose = await confirmWithModal({
@@ -1341,7 +1430,10 @@ const WorkspacePage = () => {
                                             <div className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-widest">
                                                 Press ? for shortcuts
                                             </div>
-                                            <div className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-widest">
+                                            <div
+                                                className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-widest"
+                                                title={`Time zone: ${EXDA_DISPLAY_TIME_ZONE}`}
+                                            >
                                                 {formatLastSaved(lastSavedAt)}
                                             </div>
                                             <button
@@ -1458,6 +1550,7 @@ const WorkspacePage = () => {
                       <Suspense fallback={<TabFallback />}>
                           <GasMixingPage 
                               projectPath={projectPath} 
+                              experiments={experiments}
                               checklistState={checklistState} 
                               setChecklistState={setChecklistState} 
                           />
@@ -1515,6 +1608,17 @@ const WorkspacePage = () => {
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
                                             <RawDataPressureAnalysisPage
+                                                apiBaseUrl={apiBaseUrl}
+                                                projectPath={projectPath}
+                                                selectedCases={selectedCases}
+                                            />
+                                        </Suspense>
+                                    </SafeComponent>
+              )}
+              {activeTab === 'raw_h2_concentration_analysis' && FLAGS.ENABLE_SOURCES && isTabAllowed('raw_h2_concentration_analysis') && (
+                                    <SafeComponent>
+                                        <Suspense fallback={<TabFallback />}>
+                                            <RawDataH2ConcentrationAnalysisPage
                                                 apiBaseUrl={apiBaseUrl}
                                                 projectPath={projectPath}
                                                 selectedCases={selectedCases}
@@ -1608,6 +1712,8 @@ const WorkspacePage = () => {
                   <SafeComponent>
                       <Suspense fallback={<TabFallback />}>
                           <ReportPage 
+                              projectPath={projectPath}
+                              planName={planName}
                               experiments={experiments} 
                               checklistState={checklistState} 
                               analysisResults={analysisResults} 

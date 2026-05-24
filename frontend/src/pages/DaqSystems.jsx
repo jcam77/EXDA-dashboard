@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { HardDrive, Plus, Pencil, Trash2, Save, X } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../utils/timezone';
 
 const createDefaultDaq = () => ({
   id: `daq-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -108,7 +109,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || `Request failed (${res.status})`);
       }
-      setSaveInfo(`${successMessage} (${new Date().toLocaleTimeString()})`);
+      setSaveInfo(`${successMessage} (${formatExdaClock(new Date())} ${EXDA_DISPLAY_TIME_ZONE})`);
     } catch (saveError) {
       setError(saveError?.message || 'Failed to save DAQ systems.');
     } finally {

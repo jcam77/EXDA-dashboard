@@ -2,11 +2,16 @@
 
 from flask import Blueprint, jsonify, request
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import re
 import csv
 import textwrap
+import tempfile
+try:
+    from zoneinfo import ZoneInfo
+except Exception:  # pragma: no cover
+    ZoneInfo = None
 
 from modules import data_parser, mf4_parser, project_manager, tpc5_parser
 
@@ -21,6 +26,46 @@ DAQ_MEASUREMENT_CHAIN_REFERENCE_PDF = os.path.join(REPO_ROOT, "frontend", "publi
 DAQ_MIXTURE_SAMPLING_REFERENCE_PDF = os.path.join(REPO_ROOT, "frontend", "public", "MixtureSampling_Sub-System_000.pdf")
 DAQ_SYSTEMS_FILENAME = "daq_systems.json"
 SENSORS_MAPPING_FILENAME = "sensors_mapping.json"
+GAS_MIXING_FILENAME = "gas_mixing.json"
+CHECKLIST_STATE_FILENAME = "checklist_state.json"
+EXDA_DISPLAY_TIMEZONE = "Europe/Stockholm"
+DEFAULT_GAS_VERIFY_FILE_A = "scripts/GasMixingVerificationFiles/H2_MFC_Fill_Calculator_v000.m"
+DEFAULT_GAS_VERIFY_FILE_B = "scripts/GasMixingVerificationFiles/AuxFcn_H2_MFC_FillCalculator_000.m"
+
+
+def _get_display_tz():
+    if ZoneInfo is None:
+        return None
+    try:
+        return ZoneInfo(EXDA_DISPLAY_TIMEZONE)
+    except Exception:
+        return None
+
+
+def _now_display_str(include_seconds=True):
+    fmt = "%Y-%m-%d %H:%M:%S" if include_seconds else "%Y-%m-%d %H:%M"
+    tz = _get_display_tz()
+    if tz is not None:
+        return datetime.now(tz).strftime(fmt)
+    return datetime.now().strftime(fmt)
+
+
+def _iso_to_display_str(value, include_seconds=True):
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    fmt = "%Y-%m-%d %H:%M:%S" if include_seconds else "%Y-%m-%d %H:%M"
+    tz = _get_display_tz()
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            # Naive values are treated as already-local display timestamps.
+            return parsed.strftime(fmt)
+        if tz is not None:
+            return parsed.astimezone(tz).strftime(fmt)
+        return parsed.astimezone().strftime(fmt)
+    except Exception:
+        return raw
 
 
 def _to_float(value):
@@ -33,6 +78,29 @@ def _to_float(value):
         return float(raw)
     except Exception:
         return None
+
+
+def _normalize_mounting_label(value):
+    text = str(value or "").strip()
+    if text.lower() == "flush-mounted":
+        return "flush"
+    return text
+
+
+def _normalize_trigger_method_label(value):
+    text = str(value or "").strip()
+    if text.lower() == "m-duino control box":
+        return "M-Duino"
+    return text
+
+
+def _normalize_gas_verification_meta(raw_meta):
+    source = raw_meta if isinstance(raw_meta, dict) else {}
+    return {
+        "isMatlabVerified": bool(source.get("isMatlabVerified")),
+        "verificationRefFileA": str(source.get("verificationRefFileA") or source.get("verificationRefFile") or DEFAULT_GAS_VERIFY_FILE_A).strip(),
+        "verificationRefFileB": str(source.get("verificationRefFileB") or DEFAULT_GAS_VERIFY_FILE_B).strip(),
+    }
 
 
 def _render_multichannel_content(t, y, channel_names):
@@ -682,6 +750,7 @@ def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=
                 "mounting": "-",
                 "active": "-",
                 "blind": "-",
+                "trigger_method": "-",
                 "status": "Reference only (no sensor changes)",
                 "notes": "-",
                 "is_reference_only": True,
@@ -703,12 +772,14 @@ def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=
             z = str(record.get("z") or "").strip()
             coordinate_unit = str(record.get("coordinateUnit") or "").strip()
             coordinate_origin = str(record.get("coordinateOrigin") or "").strip()
-            mounting = str(record.get("mountingMethod") or "").strip()
+            mounting = _normalize_mounting_label(record.get("mountingMethod"))
             manufacturer = str(record.get("manufacturer") or "").strip()
             model = str(record.get("model") or "").strip()
             notes = str(record.get("notes") or "").strip()
             is_active = bool(record.get("isActive"))
             is_blind = bool(record.get("isBlindSensor"))
+            is_trigger = bool(record.get("isTriggerChannel"))
+            trigger_method = _normalize_trigger_method_label(record.get("triggerMethod"))
 
             status_errors = []
             if not sensor_id:
@@ -723,21 +794,22 @@ def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=
                 key = f"{daq_system.lower()}::{daq_channel.lower()}"
                 if channel_counts.get(key, 0) > 1:
                     status_errors.append("duplicate active DAQ channel")
-            if not serial:
-                status_errors.append("missing serial")
-            if _to_float(sensitivity) is None or (_to_float(sensitivity) is not None and _to_float(sensitivity) <= 0):
-                status_errors.append("invalid sensitivity")
-            if not sensitivity_unit:
-                status_errors.append("missing sensitivity unit")
-            if _to_float(x) is None or _to_float(y) is None or _to_float(z) is None:
-                status_errors.append("invalid coordinates")
-            if not coordinate_origin:
-                status_errors.append("missing coordinate origin")
-            if not mounting:
-                status_errors.append("missing mounting")
+            if not is_trigger:
+                if not serial:
+                    status_errors.append("missing serial")
+                if _to_float(sensitivity) is None or (_to_float(sensitivity) is not None and _to_float(sensitivity) <= 0):
+                    status_errors.append("invalid sensitivity")
+                if not sensitivity_unit:
+                    status_errors.append("missing sensitivity unit")
+                if _to_float(x) is None or _to_float(y) is None or _to_float(z) is None:
+                    status_errors.append("invalid coordinates")
+                if not coordinate_origin:
+                    status_errors.append("missing coordinate origin")
+                if not mounting:
+                    status_errors.append("missing mounting")
 
             status = "Complete" if not status_errors else f"Missing/Invalid ({'; '.join(status_errors[:2])})"
-            coordinates = f"x={x or '-'}, y={y or '-'}, z={z or '-'} {coordinate_unit}".strip()
+            coordinates = f"({x or '-'},{y or '-'},{z or '-'})"
             sensitivity_display = f"{sensitivity or '-'} {sensitivity_unit}".strip()
             rows.append({
                 "group": group,
@@ -756,6 +828,8 @@ def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=
                 "mounting": mounting,
                 "active": "Yes" if is_active else "No",
                 "blind": "Yes" if is_blind else "No",
+                "trigger": "Yes" if is_trigger else "No",
+                "trigger_method": trigger_method,
                 "status": status,
                 "notes": notes,
                 "is_reference_only": False,
@@ -766,7 +840,6 @@ def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=
 def _write_sensors_csv(rows, target_path, project_name=None):
     headers = [
         "Group",
-        "Group Reference Note",
         "Sensor ID",
         "Measured Quantity",
         "DAQ System",
@@ -776,11 +849,12 @@ def _write_sensors_csv(rows, target_path, project_name=None):
         "Model",
         "Sensitivity",
         "Location Label",
-        "Coordinates",
+        "Coord.(x,y,z)m",
         "Coordinate Origin",
         "Mounting Method",
         "Active",
         "Blind/Control",
+        "Trigger Method",
         "Status",
         "Notes",
     ]
@@ -809,11 +883,19 @@ def _write_sensors_csv(rows, target_path, project_name=None):
         writer.writerow(["Sensor Mounting Reference File", reference_display])
         writer.writerow(["Generated At", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
         writer.writerow([])
-        writer.writerow(headers)
+        previous_group = None
+        previous_group_note = ""
         for row in rows:
+            current_group = str(row.get("group") or "").strip()
+            current_group_note = str(row.get("group_note") or "").strip()
+            if current_group != previous_group:
+                if previous_group is not None:
+                    if previous_group_note:
+                        writer.writerow([f"Group Reference Note ({previous_group})", previous_group_note])
+                    writer.writerow([])
+                writer.writerow(headers)
             writer.writerow([
                 row["group"],
-                row["group_note"],
                 row["sensor_id"],
                 row["quantity"],
                 row["daq_system"],
@@ -828,9 +910,14 @@ def _write_sensors_csv(rows, target_path, project_name=None):
                 row["mounting"],
                 row["active"],
                 row["blind"],
+                row.get("trigger_method", ""),
                 row["status"],
                 row["notes"],
             ])
+            previous_group = current_group
+            previous_group_note = current_group_note
+        if previous_group and previous_group_note:
+            writer.writerow([f"Group Reference Note ({previous_group})", previous_group_note])
 
 
 def _write_sensors_pdf(project_name, rows, target_path):
@@ -923,40 +1010,46 @@ def _write_sensors_pdf(project_name, rows, target_path):
 
     columns = [
         ("Group", 8),
-        ("Group Note", 16),
         ("Sensor", 9),
-        ("Qty", 7),
+        ("Qty", 9),
         ("DAQ", 8),
         ("Ch", 5),
-        ("Serial", 9),
+        ("S/N", 9),
         ("Sensitivity", 10),
         ("Location", 8),
-        ("Coordinates", 13),
+        ("Coord.(x,y,z)m", 14),
         ("Mount", 7),
         ("Active", 6),
         ("Blind", 5),
+        ("Trig Method", 14),
         ("Status", 10),
     ]
     divider = "-+-".join("-" * width for _, width in columns)
     header = " | ".join(_clip(name, width) for name, width in columns)
-    _write_line(header, bold=True)
-    _write_line(divider)
 
     previous_group = None
+    previous_group_note = ""
     for row in rows:
         current_group = str(row.get("group") or "")
+        current_group_note = str(row.get("group_note") or "").strip()
         if previous_group is None:
             _write_line("")
             _write_line(f"Group: {current_group or '-'}", bold=True)
+            _write_line(header, bold=True)
+            _write_line(divider)
         elif current_group != previous_group:
+            if previous_group_note:
+                _write_line(f"Group Reference Note: {previous_group_note}")
             _write_line("")
             _write_line("=" * len(divider), bold=False)
             _write_line(f"Group: {current_group or '-'}", bold=True)
+            _write_line(header, bold=True)
+            _write_line(divider)
         previous_group = current_group
+        previous_group_note = current_group_note
 
         row_values = [
             row.get("group"),
-            row.get("group_note"),
             row.get("sensor_id"),
             row.get("quantity"),
             row.get("daq_system"),
@@ -968,6 +1061,7 @@ def _write_sensors_pdf(project_name, rows, target_path):
             row.get("mounting"),
             row.get("active"),
             row.get("blind"),
+            row.get("trigger_method", "-"),
             row.get("status"),
         ]
         wrapped_cells = [_wrap(value, width) for value, (_, width) in zip(row_values, columns)]
@@ -979,6 +1073,9 @@ def _write_sensors_pdf(project_name, rows, target_path):
                 for col_idx in range(len(columns))
             )
             _write_line(line)
+
+    if previous_group and previous_group_note:
+        _write_line(f"Group Reference Note: {previous_group_note}")
 
     if reference_pdf:
         try:
@@ -1004,6 +1101,403 @@ def _write_sensors_pdf(project_name, rows, target_path):
         except Exception:
             # Keep export robust even if rendering the diagram fails.
             pass
+
+    total_pages = len(doc)
+    for page_index, page_obj in enumerate(doc, start=1):
+        footer_text = f"Page {page_index}/{total_pages}"
+        page_obj.insert_text(
+            (770, 582),
+            footer_text,
+            fontname="courier",
+            fontsize=8,
+            color=(0.25, 0.25, 0.25),
+        )
+
+    doc.save(target_path, deflate=True, garbage=4)
+    doc.close()
+    return True, target_path
+
+
+def _build_gas_mixing_export_rows(records):
+    def _short_run_name(group_name, run_name):
+        group_clean = str(group_name or "").strip()
+        run_clean = str(run_name or "").strip()
+        if not run_clean:
+            return ""
+        prefix = f"{group_clean}-" if group_clean else ""
+        if prefix and run_clean.startswith(prefix):
+            return run_clean[len(prefix):] or run_clean
+        return run_clean
+
+    def _fmt(value, decimals=None):
+        numeric = _to_float(value)
+        if numeric is None:
+            return ""
+        if decimals is None:
+            return f"{numeric}"
+        return f"{numeric:.{decimals}f}"
+
+    def _chamber_l(record):
+        v_l = _to_float(record.get("vChamberL"))
+        if v_l is not None:
+            return v_l
+        v_m3 = _to_float(record.get("vChamberCorrectedM3"))
+        if v_m3 is not None:
+            return v_m3 * 1e3
+        return None
+
+    def _h2_inj_l(record):
+        direct = _to_float(record.get("vH2InjectedL"))
+        if direct is not None:
+            return direct
+        results = record.get("results") if isinstance(record.get("results"), dict) else {}
+        return _to_float(results.get("V_H2_injected_L"))
+
+    safe_records = records if isinstance(records, list) else []
+    rows = []
+    for item in safe_records:
+        if not isinstance(item, dict):
+            continue
+        group = str(item.get("group") or "").strip()
+        run_name = str(item.get("runName") or "").strip()
+        raw_updated = str(item.get("updatedAt") or "").strip()
+        updated_short = _iso_to_display_str(raw_updated, include_seconds=True)
+        rows.append({
+            "group": group,
+            "run_name": run_name,
+            "run_short": _short_run_name(group, run_name),
+            "target_vol": _fmt(item.get("targetVol"), 2),
+            "p_chamber_pa": _fmt(item.get("pChamberPa") or item.get("P_chamber_Pa") or item.get("ambPressure"), 0),
+            "t_chamber_k": _fmt(item.get("tChamberK"), 2),
+            "l_m": _fmt(item.get("lM"), 3),
+            "w_m": _fmt(item.get("wM"), 3),
+            "h_m": _fmt(item.get("hM"), 3),
+            "vol_pipes_m3": _fmt(item.get("volPipesM3"), 3),
+            "hotwire_assembly_m3": _fmt(item.get("hotwireAssemblyM3"), 3),
+            "welded_parts_m3": _fmt(item.get("weldedPartsM3"), 3),
+            "bolts_m3": _fmt(item.get("boltsM3"), 3),
+            "v_chamber_corr_l": _fmt(_chamber_l(item), 2),
+            "h2_mass_g": _fmt(item.get("mH2InjectedG") or item.get("h2MassG"), 3),
+            "v_h2_inj_l": _fmt(_h2_inj_l(item), 2),
+            "mfc_flow_slpm": _fmt(item.get("mfcFlowSlpm"), 2),
+            "injection_time_s": _fmt(item.get("injectionTimeS"), 1),
+            "injection_time_min": _fmt(item.get("injectionTimeMin"), 1),
+            "notes": str(item.get("notes") or "").strip(),
+            "updated_at": updated_short,
+        })
+
+    rows.sort(key=lambda row: (
+        str(row.get("group") or "").lower(),
+        _parse_run_name_order(row.get("run_name"))[1],
+        _parse_run_name_order(row.get("run_name"))[2],
+        str(row.get("run_name") or "").lower(),
+    ))
+    return rows
+
+
+def _gas_mixing_shared_setup(rows):
+    """Detect shared chamber geometry/correction settings across exported rows."""
+    setup_fields = [
+        ("L (m)", "l_m"),
+        ("W (m)", "w_m"),
+        ("H (m)", "h_m"),
+        ("Pipes + (m^3)", "vol_pipes_m3"),
+        ("Hotwire + (m^3)", "hotwire_assembly_m3"),
+        ("Welded - (m^3)", "welded_parts_m3"),
+        ("Bolts - (m^3)", "bolts_m3"),
+        ("Vchamber Corrected (L)", "v_chamber_corr_l"),
+    ]
+    summary = {}
+    varies = False
+    for label, key in setup_fields:
+        values = [
+            str((row or {}).get(key) or "").strip()
+            for row in (rows or [])
+            if isinstance(row, dict)
+        ]
+        non_empty = [value for value in values if value]
+        if not non_empty:
+            summary[label] = "-"
+            continue
+        first = non_empty[0]
+        if all(value == first for value in non_empty):
+            summary[label] = first
+        else:
+            summary[label] = "VARIES"
+            varies = True
+    return summary, varies
+
+
+def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_meta=None):
+    verification = _normalize_gas_verification_meta(verification_meta)
+    shared_setup, shared_varies = _gas_mixing_shared_setup(rows)
+
+    headers = [
+        "Group",
+        "Run/Test",
+        "Target H2 (%vol)",
+        "Pchamber (Pa)",
+        "Tchamber (K)",
+        "H2 Injected (g)",
+        "H2 Injected Volume (L)",
+        "MFC Flow (SLPM)",
+        "Fill Time (s)",
+        "Fill Time (min)",
+        "Notes",
+        "Updated At",
+    ]
+    if shared_varies:
+        headers = [
+            "Group",
+            "Run/Test",
+            "Target H2 (%vol)",
+            "Pchamber (Pa)",
+            "Tchamber (K)",
+            "L (m)",
+            "W (m)",
+            "H (m)",
+            "Pipes + (m^3)",
+            "Hotwire + (m^3)",
+            "Welded - (m^3)",
+            "Bolts - (m^3)",
+            "Vchamber Corrected (L)",
+            "H2 Injected (g)",
+            "H2 Injected Volume (L)",
+            "MFC Flow (SLPM)",
+            "Fill Time (s)",
+            "Fill Time (min)",
+            "Notes",
+            "Updated At",
+        ]
+    with open(target_path, "w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["Export Type", "Gas Mixing"])
+        writer.writerow(["Project", str(project_name or "-")])
+        writer.writerow(["Responsible Researcher", "PhD Student Javier I. Camacho"])
+        writer.writerow(["Total Records", str(len(rows))])
+        writer.writerow(["Generated At", _now_display_str(include_seconds=True)])
+        writer.writerow(["MATLAB Verified", "Yes" if verification.get("isMatlabVerified") else "No"])
+        writer.writerow(["Verification Reference File A", str(verification.get("verificationRefFileA") or "-")])
+        writer.writerow(["Verification Reference File B", str(verification.get("verificationRefFileB") or "-")])
+        writer.writerow([])
+        writer.writerow(["Shared Chamber Setup", "Applies to all runs unless noted otherwise"])
+        for label, value in shared_setup.items():
+            writer.writerow([label, value])
+        if shared_varies:
+            writer.writerow(["Setup Note", "One or more chamber setup values vary between runs. Per-run setup columns are included below."])
+        writer.writerow([])
+        writer.writerow(headers)
+        for row in rows:
+            if shared_varies:
+                writer.writerow([
+                    row["group"],
+                    row["run_short"] or row["run_name"],
+                    row["target_vol"],
+                    row["p_chamber_pa"],
+                    row["t_chamber_k"],
+                    row["l_m"],
+                    row["w_m"],
+                    row["h_m"],
+                    row["vol_pipes_m3"],
+                    row["hotwire_assembly_m3"],
+                    row["welded_parts_m3"],
+                    row["bolts_m3"],
+                    row["v_chamber_corr_l"],
+                    row["h2_mass_g"],
+                    row["v_h2_inj_l"],
+                    row["mfc_flow_slpm"],
+                    row["injection_time_s"],
+                    row["injection_time_min"],
+                    row["notes"],
+                    row["updated_at"],
+                ])
+            else:
+                writer.writerow([
+                    row["group"],
+                    row["run_short"] or row["run_name"],
+                    row["target_vol"],
+                    row["p_chamber_pa"],
+                    row["t_chamber_k"],
+                    row["h2_mass_g"],
+                    row["v_h2_inj_l"],
+                    row["mfc_flow_slpm"],
+                    row["injection_time_s"],
+                    row["injection_time_min"],
+                    row["notes"],
+                    row["updated_at"],
+                ])
+
+
+def _write_gas_mixing_pdf(project_name, rows, target_path, verification_meta=None):
+    try:
+        import fitz  # PyMuPDF
+    except Exception as exc:
+        return False, f"PyMuPDF unavailable: {exc}"
+
+    def _clip(value, width):
+        text = str(value or "")
+        if len(text) <= width:
+            return text.ljust(width)
+        if width <= 1:
+            return text[:width]
+        return (text[: width - 1] + "…")
+
+    def _wrap(value, width):
+        text = str(value or "").strip()
+        if not text:
+            return ["-"]
+        return textwrap.wrap(text, width=width, break_long_words=False, break_on_hyphens=False) or ["-"]
+
+    doc = fitz.open()
+    page = doc.new_page(width=842, height=595)  # A4 landscape
+    x0 = 24
+    top_content_y = 92
+    y = top_content_y
+    line_h = 12
+    logo_paths = _resolve_pdf_logos()
+
+    def _draw_logo(page_obj):
+        try:
+            university_logo = logo_paths.get("university")
+            if university_logo:
+                page_obj.insert_image(
+                    fitz.Rect(500, 16, 660, 76),
+                    filename=university_logo,
+                    keep_proportion=True,
+                    overlay=True,
+                )
+            institute_logo = logo_paths.get("institute")
+            if institute_logo:
+                page_obj.insert_image(
+                    fitz.Rect(668, 16, 818, 76),
+                    filename=institute_logo,
+                    keep_proportion=True,
+                    overlay=True,
+                )
+        except Exception:
+            return
+
+    _draw_logo(page)
+
+    def _write_line(text, bold=False):
+        nonlocal page, y
+        if y > 570:
+            page = doc.new_page(width=842, height=595)
+            y = top_content_y
+            _draw_logo(page)
+        page.insert_text((x0, y), text, fontname="courier-bold" if bold else "courier", fontsize=8.5, color=(0, 0, 0))
+        y += line_h
+
+    _write_line("EXDA Gas Mixing Export", bold=True)
+    _write_line(f"Project: {str(project_name or '-')}")
+    _write_line("Responsible Researcher: PhD Student Javier I. Camacho")
+    _write_line(f"Total Records: {len(rows)}")
+    verification = _normalize_gas_verification_meta(verification_meta)
+    _write_line(f"Generated: {_now_display_str(include_seconds=True)}")
+    _write_line(f"MATLAB Verified: {'Yes' if verification.get('isMatlabVerified') else 'No'}")
+    _write_line(f"Verification File A: {str(verification.get('verificationRefFileA') or '-')}")
+    _write_line(f"Verification File B: {str(verification.get('verificationRefFileB') or '-')}")
+    _write_line("")
+
+    shared_setup, shared_varies = _gas_mixing_shared_setup(rows)
+    _write_line("Shared Chamber Setup (applies to all runs unless noted otherwise):", bold=True)
+    _write_line(
+        "L={L} m, W={W} m, H={H} m, Pipes+={P} m^3, Hotwire+={HW} m^3, Welded-={WD} m^3, Bolts-={B} m^3, Vcorr={VC} L".format(
+            L=shared_setup.get("L (m)", "-"),
+            W=shared_setup.get("W (m)", "-"),
+            H=shared_setup.get("H (m)", "-"),
+            P=shared_setup.get("Pipes + (m^3)", "-"),
+            HW=shared_setup.get("Hotwire + (m^3)", "-"),
+            WD=shared_setup.get("Welded - (m^3)", "-"),
+            B=shared_setup.get("Bolts - (m^3)", "-"),
+            VC=shared_setup.get("Vchamber Corrected (L)", "-"),
+        )
+    )
+    if shared_varies:
+        _write_line("Note: setup values vary across runs; detailed per-run setup table is included below.")
+    _write_line("")
+
+    core_columns = [
+        ("Group", 14),
+        ("Run/Test", 18),
+        ("H2%", 5),
+        ("Pch(Pa)", 8),
+        ("Tch(K)", 7),
+        ("H2(g)", 7),
+        ("H2inj(L)", 8),
+        ("MFC", 6),
+        ("t(s)", 6),
+        ("t(min)", 6),
+        ("Updated", 19),
+    ]
+    setup_columns = [
+        ("Group", 10),
+        ("Run/Test", 14),
+        ("L (m)", 5),
+        ("W (m)", 5),
+        ("H (m)", 5),
+        ("Pipes+ (m3)", 11),
+        ("Hotwire+ (m3)", 13),
+        ("Welded- (m3)", 12),
+        ("Bolts- (m3)", 11),
+        ("Vcorr(L)", 8),
+        ("Notes", 28),
+    ]
+
+    def _write_table(title, columns, row_builder):
+        _write_line(title, bold=True)
+        divider = "-+-".join("-" * width for _, width in columns)
+        header = " | ".join(_clip(name, width) for name, width in columns)
+        _write_line(header, bold=True)
+        _write_line(divider)
+        for row in rows:
+            row_values = row_builder(row)
+            wrapped_cells = [_wrap(value, width) for value, (_, width) in zip(row_values, columns)]
+            row_lines = max(len(lines) for lines in wrapped_cells) if wrapped_cells else 1
+            for idx in range(row_lines):
+                line = " | ".join(
+                    _clip((wrapped_cells[col_idx][idx] if idx < len(wrapped_cells[col_idx]) else ""), columns[col_idx][1])
+                    for col_idx in range(len(columns))
+                )
+                _write_line(line)
+        _write_line("")
+
+    _write_table(
+        "Core Gas Mixing Results",
+        core_columns,
+        lambda row: [
+            row.get("group"),
+            row.get("run_name"),
+            row.get("target_vol"),
+            row.get("p_chamber_pa"),
+            row.get("t_chamber_k"),
+            row.get("h2_mass_g"),
+            row.get("v_h2_inj_l"),
+            row.get("mfc_flow_slpm"),
+            row.get("injection_time_s"),
+            row.get("injection_time_min"),
+            row.get("updated_at"),
+        ],
+    )
+
+    if shared_varies:
+        _write_table(
+            "Per-Run Chamber Setup (because values vary)",
+            setup_columns,
+            lambda row: [
+                row.get("group"),
+                row.get("run_name"),
+                row.get("l_m"),
+                row.get("w_m"),
+                row.get("h_m"),
+                row.get("vol_pipes_m3"),
+                row.get("hotwire_assembly_m3"),
+                row.get("welded_parts_m3"),
+                row.get("bolts_m3"),
+                row.get("v_chamber_corr_l"),
+                row.get("notes"),
+            ],
+        )
 
     total_pages = len(doc)
     for page_index, page_obj in enumerate(doc, start=1):
@@ -1078,11 +1572,22 @@ def get_project_state():
                     sim_files.append(file_info)
 
     project_status = project_manager.read_project_status(project_root) or project_manager.ensure_project_status(project_root)
+    checklist_state = {}
+    checklist_path = os.path.join(project_root, "Reports", CHECKLIST_STATE_FILENAME)
+    if os.path.exists(checklist_path):
+        try:
+            with open(checklist_path, "r", encoding="utf-8") as handle:
+                checklist_payload = json.load(handle)
+            if isinstance(checklist_payload, dict) and isinstance(checklist_payload.get("checklistState"), dict):
+                checklist_state = checklist_payload.get("checklistState") or {}
+        except Exception:
+            checklist_state = {}
 
     return jsonify({
         "success": True,
         "plan": plan_data,
         "project_status": project_status,
+        "checklist_state": checklist_state,
         "data_files": data_files,
         "sim_files": sim_files
     })
@@ -1381,7 +1886,17 @@ def save_sensors_mapping():
         group_name = str(key or "").strip()
         if not group_name:
             continue
-        safe_groups[group_name] = value if isinstance(value, list) else []
+        if isinstance(value, list):
+            sanitized_group = []
+            for item in value:
+                record = item if isinstance(item, dict) else {}
+                sanitized_record = dict(record)
+                sanitized_record["mountingMethod"] = _normalize_mounting_label(record.get("mountingMethod"))
+                sanitized_record["triggerMethod"] = _normalize_trigger_method_label(record.get("triggerMethod"))
+                sanitized_group.append(sanitized_record)
+            safe_groups[group_name] = sanitized_group
+        else:
+            safe_groups[group_name] = []
 
     safe_notes = {}
     for key, value in group_notes.items():
@@ -1406,6 +1921,542 @@ def save_sensors_mapping():
             "groupCount": len(safe_groups),
             "sensorCount": total_sensors,
         })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@state_bp.route('/get_gas_mixing', methods=['GET'])
+def get_gas_mixing():
+    """Load gas mixing metadata for a project."""
+    project_path = request.args.get('projectPath')
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_path = os.path.join(project_root, "Reports", GAS_MIXING_FILENAME)
+    plan_path = os.path.join(project_root, "Plan", GAS_MIXING_FILENAME)
+    file_path = _resolve_existing_metadata_file(project_root, GAS_MIXING_FILENAME)
+
+    if not os.path.exists(file_path):
+        return jsonify({
+            "success": True,
+            "path": reports_path,
+            "verificationMeta": _normalize_gas_verification_meta({}),
+            "selectedGroup": "",
+            "selectedRunName": "",
+            "records": [],
+        })
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        records = payload.get("records") if isinstance(payload, dict) else []
+        if not isinstance(records, list):
+            records = []
+        verification_meta = _normalize_gas_verification_meta((payload or {}).get("verificationMeta"))
+        selected_group = str((payload or {}).get("selectedGroup") or "").strip() if isinstance(payload, dict) else ""
+        selected_run_name = str((payload or {}).get("selectedRunName") or "").strip() if isinstance(payload, dict) else ""
+
+        migrated = False
+        if os.path.exists(plan_path) and file_path == plan_path and not os.path.exists(reports_path):
+            try:
+                os.makedirs(os.path.dirname(reports_path), exist_ok=True)
+                with open(reports_path, "w", encoding="utf-8") as out_handle:
+                    json.dump({
+                        "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "verificationMeta": verification_meta,
+                        "selectedGroup": selected_group,
+                        "selectedRunName": selected_run_name,
+                        "records": records,
+                    }, out_handle, indent=2)
+                file_path = reports_path
+                migrated = True
+            except Exception:
+                migrated = False
+
+        return jsonify({
+            "success": True,
+            "path": file_path,
+            "verificationMeta": verification_meta,
+            "selectedGroup": selected_group,
+            "selectedRunName": selected_run_name,
+            "records": records,
+            "migratedToReports": migrated,
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@state_bp.route('/save_gas_mixing', methods=['POST'])
+def save_gas_mixing():
+    """Persist gas mixing metadata in Reports/gas_mixing.json."""
+    payload = request.json or {}
+    project_path = payload.get("projectPath")
+    selected_group = str(payload.get("selectedGroup") or "").strip()
+    selected_run_name = str(payload.get("selectedRunName") or "").strip()
+    records = payload.get("records")
+    if not isinstance(records, list):
+        return jsonify({"success": False, "error": "records must be a list"}), 400
+
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    file_path = os.path.join(reports_dir, GAS_MIXING_FILENAME)
+    if not project_manager.is_path_within(reports_dir, file_path):
+        return jsonify({"success": False, "error": "Invalid gas mixing path"}), 400
+
+    raw_verification_meta = payload.get("verificationMeta", None)
+    if raw_verification_meta is not None:
+        verification_meta = _normalize_gas_verification_meta(raw_verification_meta)
+    else:
+        # Backward-compatible safeguard:
+        # if caller omits verificationMeta, keep what is already saved.
+        existing_meta = {}
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as existing_handle:
+                    existing_payload = json.load(existing_handle)
+                if isinstance(existing_payload, dict):
+                    existing_meta = existing_payload.get("verificationMeta") or {}
+            except Exception:
+                existing_meta = {}
+        verification_meta = _normalize_gas_verification_meta(existing_meta)
+
+    safe_records = []
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        safe_records.append({
+            "group": str(item.get("group") or "").strip(),
+            "runName": str(item.get("runName") or "").strip(),
+            "targetVol": str(item.get("targetVol") or "").strip(),
+            "pChamberPa": str(item.get("pChamberPa") or item.get("P_chamber_Pa") or item.get("ambPressure") or "").strip(),
+            "tChamberK": str(item.get("tChamberK") or "").strip(),
+            "mfcFlowSlpm": str(item.get("mfcFlowSlpm") or "").strip(),
+            "lM": str(item.get("lM") or "").strip(),
+            "wM": str(item.get("wM") or "").strip(),
+            "hM": str(item.get("hM") or "").strip(),
+            "volPipesM3": str(item.get("volPipesM3") or "").strip(),
+            "hotwireAssemblyM3": str(item.get("hotwireAssemblyM3") or "").strip(),
+            "weldedPartsM3": str(item.get("weldedPartsM3") or "").strip(),
+            "boltsM3": str(item.get("boltsM3") or "").strip(),
+            "tStdK": str(item.get("tStdK") or "").strip(),
+            "pStdPa": str(item.get("pStdPa") or "").strip(),
+            "ru": str(item.get("ru") or "").strip(),
+            "mH2": str(item.get("mH2") or "").strip(),
+            "mH2InjectedG": str(item.get("mH2InjectedG") or item.get("h2MassG") or "").strip(),
+            "vH2StdL": str(item.get("vH2StdL") or "").strip(),
+            "vChamberCorrectedM3": str(item.get("vChamberCorrectedM3") or "").strip(),
+            "injectionTimeS": str(item.get("injectionTimeS") or "").strip(),
+            "injectionTimeMin": str(item.get("injectionTimeMin") or "").strip(),
+            "results": item.get("results") if isinstance(item.get("results"), dict) else None,
+            "notes": str(item.get("notes") or "").strip(),
+            "updatedAt": str(item.get("updatedAt") or "").strip(),
+        })
+
+    try:
+        data = {
+            "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "verificationMeta": verification_meta,
+            "selectedGroup": selected_group,
+            "selectedRunName": selected_run_name,
+            "records": safe_records,
+        }
+        with open(file_path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=2)
+        return jsonify({
+            "success": True,
+            "path": file_path,
+            "count": len(safe_records),
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@state_bp.route('/save_checklist_state', methods=['POST'])
+def save_checklist_state():
+    """Persist checklist state in Reports/checklist_state.json."""
+    payload = request.json or {}
+    project_path = payload.get("projectPath")
+    checklist_state = payload.get("checklistState")
+    if not isinstance(checklist_state, dict):
+        return jsonify({"success": False, "error": "checklistState must be an object"}), 400
+
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    file_path = os.path.join(reports_dir, CHECKLIST_STATE_FILENAME)
+    if not project_manager.is_path_within(reports_dir, file_path):
+        return jsonify({"success": False, "error": "Invalid checklist state path"}), 400
+
+    safe_state = {}
+    for key, value in checklist_state.items():
+        safe_key = str(key or "").strip()
+        if not safe_key:
+            continue
+        if isinstance(value, (bool, int, float)):
+            safe_state[safe_key] = value
+        elif value is None:
+            safe_state[safe_key] = ""
+        else:
+            safe_state[safe_key] = str(value)
+
+    try:
+        data = {
+            "updatedAt": _now_display_str(include_seconds=True),
+            "checklistState": safe_state,
+        }
+        with open(file_path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=2)
+        return jsonify({
+            "success": True,
+            "path": file_path,
+            "count": len(safe_state),
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+def _load_latest_plan_payload(project_root):
+    plan_dir = os.path.join(project_root, "Plan")
+    default_payload = {"planName": "Experiment_Plan", "meta": {}, "experiments": []}
+    if not os.path.isdir(plan_dir):
+        return default_payload
+
+    plan_candidates = [
+        os.path.join(plan_dir, name)
+        for name in os.listdir(plan_dir)
+        if name.lower().endswith(".json") and name != project_manager.STATUS_FILENAME and not name.startswith(".")
+    ]
+    valid = []
+    for candidate in plan_candidates:
+        try:
+            with open(candidate, "r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+            if isinstance(payload, dict) and isinstance(payload.get("experiments"), list):
+                valid.append((candidate, payload))
+        except Exception:
+            continue
+    if not valid:
+        return default_payload
+
+    latest_path, latest_payload = max(valid, key=lambda pair: os.path.getmtime(pair[0]))
+    return {
+        "path": latest_path,
+        "planName": latest_payload.get("planName") or "Experiment_Plan",
+        "meta": latest_payload.get("meta") if isinstance(latest_payload.get("meta"), dict) else {},
+        "experiments": latest_payload.get("experiments") if isinstance(latest_payload.get("experiments"), list) else [],
+    }
+
+
+def _load_daq_systems_payload(project_root):
+    file_path = _resolve_existing_metadata_file(project_root, DAQ_SYSTEMS_FILENAME)
+    if not os.path.exists(file_path):
+        return {"path": file_path, "daqSystems": []}
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        systems = payload.get("daqSystems") if isinstance(payload, dict) else payload
+        if not isinstance(systems, list):
+            systems = []
+        return {"path": file_path, "daqSystems": systems}
+    except Exception:
+        return {"path": file_path, "daqSystems": []}
+
+
+def _load_sensors_mapping_payload(project_root):
+    file_path = _resolve_existing_metadata_file(project_root, SENSORS_MAPPING_FILENAME)
+    if not os.path.exists(file_path):
+        return {"path": file_path, "mappingsByGroup": {}, "groupNotes": {}, "groupNames": []}
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        mappings_by_group = payload.get("mappingsByGroup") if isinstance(payload, dict) and isinstance(payload.get("mappingsByGroup"), dict) else {}
+        group_notes = payload.get("groupNotes") if isinstance(payload, dict) and isinstance(payload.get("groupNotes"), dict) else {}
+        groups = sorted(
+            set(list(mappings_by_group.keys()) + list(group_notes.keys())),
+            key=lambda value: str(value).lower(),
+        )
+        return {
+            "path": file_path,
+            "mappingsByGroup": mappings_by_group,
+            "groupNotes": group_notes,
+            "groupNames": groups,
+        }
+    except Exception:
+        return {"path": file_path, "mappingsByGroup": {}, "groupNotes": {}, "groupNames": []}
+
+
+def _load_gas_mixing_payload(project_root):
+    file_path = _resolve_existing_metadata_file(project_root, GAS_MIXING_FILENAME)
+    if not os.path.exists(file_path):
+        return {"path": file_path, "records": [], "verificationMeta": _normalize_gas_verification_meta({})}
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        records = payload.get("records") if isinstance(payload, dict) and isinstance(payload.get("records"), list) else []
+        verification_meta = _normalize_gas_verification_meta(payload.get("verificationMeta") if isinstance(payload, dict) else {})
+        return {"path": file_path, "records": records, "verificationMeta": verification_meta}
+    except Exception:
+        return {"path": file_path, "records": [], "verificationMeta": _normalize_gas_verification_meta({})}
+
+
+def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_payload, sensors_payload, gas_payload):
+    plan_rows = _build_plan_export_rows(plan_payload.get("experiments"), plan_payload.get("meta"))
+    daq_rows = _build_daq_export_rows(daq_payload.get("daqSystems"))
+    sensor_rows = _build_sensors_export_rows(
+        sensors_payload.get("mappingsByGroup"),
+        group_notes=sensors_payload.get("groupNotes"),
+        group_names=sensors_payload.get("groupNames"),
+    )
+    gas_rows = _build_gas_mixing_export_rows(gas_payload.get("records"))
+
+    with open(target_path, "w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["Export Type", "Metadata Report"])
+        writer.writerow(["Project", str(project_name or "-")])
+        writer.writerow(["Responsible Researcher", "PhD Student Javier I. Camacho"])
+        writer.writerow(["Generated At", _now_display_str(include_seconds=True)])
+        writer.writerow(["Sections", "Plan, DAQ Systems, Sensors Mapping, Gas Mixing"])
+        writer.writerow([])
+
+        writer.writerow(["[TAB] Plan"])
+        writer.writerow(["Run Name", "Group", "Group Description", "Done", "Schedule", "H2 (%)", "Ignition", "Vent", "P0 (Pa)", "T0 (K)", "Data Files Count", "File Path (Raw_Data Folder)"])
+        for row in plan_rows:
+            writer.writerow([
+                row.get("run_name", ""),
+                row.get("group", ""),
+                row.get("group_description", ""),
+                row.get("done", ""),
+                row.get("schedule", ""),
+                row.get("h2", ""),
+                row.get("ignition", ""),
+                row.get("vent", ""),
+                row.get("p0", ""),
+                row.get("t0", ""),
+                row.get("data_files_count", ""),
+                row.get("data_files", ""),
+            ])
+        writer.writerow([])
+
+        writer.writerow(["[TAB] DAQ Systems"])
+        writer.writerow(["DAQ System Name", "Measured Quantity", "Vendor", "Model", "Serial Number", "Sampling Rate (Hz)", "Channel Count", "Owner", "Last Calibration Date", "Calibration Certificate ID", "Active", "Notes"])
+        for row in daq_rows:
+            writer.writerow([
+                row.get("name", ""),
+                row.get("measured_quantity", ""),
+                row.get("vendor", ""),
+                row.get("model", ""),
+                row.get("serial", ""),
+                row.get("sampling_rate_hz", ""),
+                row.get("channel_count", ""),
+                row.get("owner", ""),
+                row.get("last_calibration_date", ""),
+                row.get("calibration_certificate_id", ""),
+                row.get("active", ""),
+                row.get("notes", ""),
+            ])
+        writer.writerow([])
+
+        writer.writerow(["[TAB] Sensors Mapping"])
+        sensors_headers = ["Group", "Sensor ID", "Measured Quantity", "DAQ System", "DAQ Channel", "Serial Number", "Sensitivity", "Location", "Coord.(x,y,z)m", "Mounting", "Active", "Blind", "Trigger Method", "Status", "Notes"]
+        previous_group = None
+        previous_group_note = ""
+        for row in sensor_rows:
+            current_group = str(row.get("group") or "").strip()
+            current_group_note = str(row.get("group_note") or "").strip()
+            if current_group != previous_group:
+                if previous_group is not None:
+                    if previous_group_note:
+                        writer.writerow([f"Group Reference Note ({previous_group})", previous_group_note])
+                    writer.writerow([])
+                writer.writerow(sensors_headers)
+            writer.writerow([
+                row.get("group", ""),
+                row.get("sensor_id", ""),
+                row.get("quantity", ""),
+                row.get("daq_system", ""),
+                row.get("daq_channel", ""),
+                row.get("serial", ""),
+                row.get("sensitivity", ""),
+                row.get("location", ""),
+                row.get("coordinates", ""),
+                row.get("mounting", ""),
+                row.get("active", ""),
+                row.get("blind", ""),
+                row.get("trigger_method", ""),
+                row.get("status", ""),
+                row.get("notes", ""),
+            ])
+            previous_group = current_group
+            previous_group_note = current_group_note
+        if previous_group and previous_group_note:
+            writer.writerow([f"Group Reference Note ({previous_group})", previous_group_note])
+        writer.writerow([])
+
+        writer.writerow(["[TAB] Gas Mixing"])
+        writer.writerow(["Group", "Run/Test", "Target H2 (%vol)", "Pchamber (Pa)", "Tchamber (K)", "H2 Injected (g)", "H2 Injected Volume (L)", "MFC Flow (SLPM)", "Fill Time (s)", "Fill Time (min)", "Notes", "Updated At"])
+        for row in gas_rows:
+            writer.writerow([
+                row.get("group", ""),
+                row.get("run_short", "") or row.get("run_name", ""),
+                row.get("target_vol", ""),
+                row.get("p_chamber_pa", ""),
+                row.get("t_chamber_k", ""),
+                row.get("h2_mass_g", ""),
+                row.get("v_h2_inj_l", ""),
+                row.get("mfc_flow_slpm", ""),
+                row.get("injection_time_s", ""),
+                row.get("injection_time_min", ""),
+                row.get("notes", ""),
+                row.get("updated_at", ""),
+            ])
+
+
+@state_bp.route('/export_metadata_report_artifact', methods=['POST'])
+def export_metadata_report_artifact():
+    """Export consolidated metadata report artifact (CSV or merged PDF) into Reports folder."""
+    payload = request.json or {}
+    project_path = payload.get("projectPath")
+    export_format = str(payload.get("format") or "").strip().lower()
+    if export_format not in {"csv", "pdf"}:
+        return jsonify({"success": False, "error": "format must be 'csv' or 'pdf'"}), 400
+
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    if not project_manager.is_path_within(project_root, reports_dir):
+        return jsonify({"success": False, "error": "Invalid reports path"}), 400
+
+    project_name = os.path.basename(project_root.rstrip(os.sep)) or "Project"
+    date_stamp = datetime.now().strftime("%Y-%m-%d")
+    stem = _sanitize_export_stem(f"{project_name}_Metadata_Report", "Metadata_Report")
+    target_name = f"{stem}_{date_stamp}.{export_format}"
+    target_path = os.path.join(reports_dir, target_name)
+    if not project_manager.is_path_within(reports_dir, target_path):
+        return jsonify({"success": False, "error": "Invalid export filename"}), 400
+
+    plan_payload = _load_latest_plan_payload(project_root)
+    daq_payload = _load_daq_systems_payload(project_root)
+    sensors_payload = _load_sensors_mapping_payload(project_root)
+    gas_payload = _load_gas_mixing_payload(project_root)
+
+    try:
+        if export_format == "csv":
+            _write_metadata_sections_csv(
+                target_path=target_path,
+                project_name=project_name,
+                plan_payload=plan_payload,
+                daq_payload=daq_payload,
+                sensors_payload=sensors_payload,
+                gas_payload=gas_payload,
+            )
+            return jsonify({"success": True, "path": target_path, "format": "csv"})
+
+        try:
+            import fitz  # PyMuPDF
+        except Exception as exc:
+            return jsonify({"success": False, "error": f"PyMuPDF unavailable: {exc}"}), 500
+
+        plan_rows = _build_plan_export_rows(plan_payload.get("experiments"), plan_payload.get("meta"))
+        daq_rows = _build_daq_export_rows(daq_payload.get("daqSystems"))
+        sensors_rows = _build_sensors_export_rows(
+            sensors_payload.get("mappingsByGroup"),
+            group_notes=sensors_payload.get("groupNotes"),
+            group_names=sensors_payload.get("groupNames"),
+        )
+        gas_rows = _build_gas_mixing_export_rows(gas_payload.get("records"))
+
+        with tempfile.TemporaryDirectory(prefix="exda-meta-") as tmp_dir:
+            plan_pdf = os.path.join(tmp_dir, "plan.pdf")
+            daq_pdf = os.path.join(tmp_dir, "daq.pdf")
+            sensors_pdf = os.path.join(tmp_dir, "sensors.pdf")
+            gas_pdf = os.path.join(tmp_dir, "gas.pdf")
+
+            ok, result = _write_plan_pdf(
+                plan_payload.get("planName") or "Experiment_Plan",
+                plan_payload.get("meta") if isinstance(plan_payload.get("meta"), dict) else {},
+                plan_rows,
+                plan_pdf,
+            )
+            if not ok:
+                return jsonify({"success": False, "error": result}), 500
+
+            ok, result = _write_daq_pdf(project_name, daq_rows, daq_pdf)
+            if not ok:
+                return jsonify({"success": False, "error": result}), 500
+
+            ok, result = _write_sensors_pdf(project_name, sensors_rows, sensors_pdf)
+            if not ok:
+                return jsonify({"success": False, "error": result}), 500
+
+            ok, result = _write_gas_mixing_pdf(project_name, gas_rows, gas_pdf, gas_payload.get("verificationMeta"))
+            if not ok:
+                return jsonify({"success": False, "error": result}), 500
+
+            merged = fitz.open()
+            cover = merged.new_page(width=842, height=595)
+            # Keep metadata cover page consistent with the other report headers.
+            logo_paths = _resolve_pdf_logos()
+            try:
+                university_logo = logo_paths.get("university")
+                if university_logo:
+                    cover.insert_image(
+                        fitz.Rect(500, 16, 660, 76),
+                        filename=university_logo,
+                        keep_proportion=True,
+                        overlay=True,
+                    )
+                institute_logo = logo_paths.get("institute")
+                if institute_logo:
+                    cover.insert_image(
+                        fitz.Rect(668, 16, 818, 76),
+                        filename=institute_logo,
+                        keep_proportion=True,
+                        overlay=True,
+                    )
+            except Exception:
+                pass
+            cover.insert_text((36, 54), "EXDA Metadata Report", fontname="courier-bold", fontsize=18, color=(0, 0, 0))
+            cover.insert_text((36, 84), f"Project: {project_name}", fontname="courier", fontsize=10, color=(0, 0, 0))
+            cover.insert_text((36, 100), f"Generated: {_now_display_str(include_seconds=True)}", fontname="courier", fontsize=10, color=(0, 0, 0))
+            cover.insert_text((36, 130), "Includes: Plan, DAQ Systems, Sensors Mapping, Gas Mixing", fontname="courier", fontsize=10, color=(0, 0, 0))
+            cover.insert_text((36, 146), "Responsible Researcher: PhD Student Javier I. Camacho", fontname="courier", fontsize=10, color=(0, 0, 0))
+
+            for section_path in [plan_pdf, daq_pdf, sensors_pdf, gas_pdf]:
+                if not os.path.exists(section_path):
+                    continue
+                section_doc = fitz.open(section_path)
+                try:
+                    merged.insert_pdf(section_doc)
+                finally:
+                    section_doc.close()
+
+            total_pages = len(merged)
+            for page_index, page_obj in enumerate(merged, start=1):
+                footer_text = f"Page {page_index}/{total_pages}"
+                # Clear any pre-existing footer marks in the bottom-right corner before writing unified numbering.
+                page_obj.draw_rect(
+                    fitz.Rect(720, 572, 838, 592),
+                    color=None,
+                    fill=(1, 1, 1),
+                    overlay=True,
+                )
+                page_obj.insert_text((770, 582), footer_text, fontname="courier", fontsize=8, color=(0.25, 0.25, 0.25))
+
+            merged.save(target_path, deflate=True, garbage=4)
+            merged.close()
+
+        return jsonify({"success": True, "path": target_path, "format": "pdf"})
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
@@ -1489,6 +2540,47 @@ def export_sensors_mapping_artifact():
             return jsonify({"success": True, "path": target_path, "format": "csv", "rows": len(rows)})
 
         ok, result = _write_sensors_pdf(project_name, rows, target_path)
+        if not ok:
+            return jsonify({"success": False, "error": result}), 500
+        return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@state_bp.route('/export_gas_mixing_artifact', methods=['POST'])
+def export_gas_mixing_artifact():
+    """Export gas mixing artifact (CSV or PDF) into the project's Reports folder."""
+    payload = request.json or {}
+    project_path = payload.get("projectPath")
+    records = payload.get("records") if isinstance(payload.get("records"), list) else []
+    verification_meta = _normalize_gas_verification_meta(payload.get("verificationMeta"))
+    export_format = str(payload.get("format") or "").strip().lower()
+
+    if export_format not in {"csv", "pdf"}:
+        return jsonify({"success": False, "error": "format must be 'csv' or 'pdf'"}), 400
+
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+
+    project_name = os.path.basename(project_root.rstrip(os.sep)) or "Project"
+    date_stamp = datetime.now().strftime("%Y-%m-%d")
+    stem = _sanitize_export_stem(f"{project_name}_Gas_Mixing", "Gas_Mixing")
+    target_name = f"{stem}_{date_stamp}.{export_format}"
+    target_path = os.path.join(reports_dir, target_name)
+    if not project_manager.is_path_within(reports_dir, target_path):
+        return jsonify({"success": False, "error": "Invalid export filename"}), 400
+
+    rows = _build_gas_mixing_export_rows(records)
+    try:
+        if export_format == "csv":
+            _write_gas_mixing_csv(rows, target_path, project_name=project_name, verification_meta=verification_meta)
+            return jsonify({"success": True, "path": target_path, "format": "csv", "rows": len(rows)})
+
+        ok, result = _write_gas_mixing_pdf(project_name, rows, target_path, verification_meta=verification_meta)
         if not ok:
             return jsonify({"success": False, "error": result}), 500
         return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})

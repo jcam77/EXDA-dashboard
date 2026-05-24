@@ -130,18 +130,25 @@ export const useDataImportPipeline = ({
           setSimulationData((prev) => [...prev.filter((item) => item.path !== nextCase.path), nextCase]);
           setSelectedCases((prev) => [...prev.filter((item) => item.path !== nextCase.path), nextCase]);
         }
-      } else if (type === 'exp_pressure' || type === 'exp_flame') {
+      } else if (type === 'exp_pressure' || type === 'exp_flame' || type === 'exp_concentration') {
         const selectedFile = expFiles.find((fileObj) => fileObj.webkitRelativePath === filePath || fileObj.path === filePath);
         if (selectedFile) {
           const content = selectedFile.path
             ? await readProjectFile(selectedFile.path)
             : await readBrowserFile(selectedFile);
 
+          const mappedType =
+            type === 'exp_pressure'
+              ? 'pressure'
+              : type === 'exp_flame'
+                ? 'flame'
+                : 'concentration';
+
           const expCase = {
             name: selectedFile.name,
             path: selectedFile.path || selectedFile.webkitRelativePath,
             content,
-            type: type === 'exp_pressure' ? 'pressure' : 'flame',
+            type: mappedType,
           };
 
           setSelectedCases((prev) => {
@@ -168,7 +175,7 @@ export const useDataImportPipeline = ({
                 ]);
               }
             });
-          } else {
+          } else if (type === 'exp_flame') {
             processFile({ name: selectedFile.name, content }, 'flame_speed').then((result) => {
               if (result) {
                 setExperimentalData((prev) => [
@@ -177,6 +184,11 @@ export const useDataImportPipeline = ({
                 ]);
               }
             });
+          } else {
+            setExperimentalData((prev) => [
+              ...prev.filter((item) => item.path !== expCase.path),
+              expCase,
+            ]);
           }
         }
       }

@@ -19,6 +19,7 @@ import {
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { getPublicUrl } from '../utils/assetUrl';
 import { getRecentProjects } from '../utils/recentProjects';
+import { formatExdaDate } from '../utils/timezone';
 
 const HomePage = ({
   onSelectTab,
@@ -232,13 +233,8 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
 
   const formatDate = (value) => {
     if (!value) return 'Unknown';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(date);
+    const formatted = formatExdaDate(value);
+    return formatted || value;
   };
   const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
   const displayVersion = appVersion.replace(/\.0$/, '');

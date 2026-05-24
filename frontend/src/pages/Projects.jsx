@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FolderPlus, Folder, FolderOpen, Trash2, Search, RefreshCw, Home } from 'lucide-react';
 import ProjectPickerModal from '../components/ProjectPickerModal';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+import { formatExdaDate } from '../utils/timezone';
 
 const ProjectsPage = ({
   onOpenProject,
@@ -319,9 +320,8 @@ const ProjectsPage = ({
 
   const formatDate = (value) => {
     if (!value) return 'Unknown';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString();
+    const formatted = formatExdaDate(value);
+    return formatted || value;
   };
 
   const normalizedProjects = useMemo(() => {

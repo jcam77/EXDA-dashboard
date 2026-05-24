@@ -161,7 +161,12 @@ const PressureAnalysis = ({
     const rows = chartData.map((row) => {
       const nextRow = { t: Number(row?.time) };
       series.forEach((entry) => {
-        const y = Number(row?.[entry.key]);
+        const rawValue = row?.[entry.key];
+        if (rawValue === null || rawValue === undefined || rawValue === '') {
+          nextRow[entry.key] = NaN;
+          return;
+        }
+        const y = Number(rawValue);
         nextRow[entry.key] = Number.isFinite(y) ? y : NaN;
       });
       return nextRow;
@@ -230,8 +235,8 @@ const PressureAnalysis = ({
                 <div className="flex items-start gap-2 bg-yellow-900/10 border border-yellow-900/30 p-2 rounded max-w-md">
                   <Info size={14} className="text-yellow-500 mt-0.5 shrink-0" />
                   <p className="text-[10px] text-yellow-500/80 leading-tight">
-                    <strong>Visualization Note:</strong> Data is interpolated to a common grid for comparison. Exact
-                    peak values are computed from raw data in the table.
+                    <strong>Visualization Note:</strong> Each run keeps its native time vector and sampling rate.
+                    Gaps between series are expected when DAQs have different sampling.
                   </p>
                 </div>
               )}
