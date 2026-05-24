@@ -59,9 +59,9 @@ const DaqSystemsPage = lazy(() => import('../../pages/DaqSystems'));
 const SensorsMappingPage = lazy(() => import('../../pages/SensorsMapping'));
 const GasMixingPage = lazy(() => import('../../pages/GasMixing'));
 const ImportDataPage = lazy(() => import('../../pages/ImportData'));
-const DataPreprocessingPage = lazy(() => import('../../pages/DataPreprocessingPage'));
-const RawDataPressureAnalysisPage = lazy(() => import('../../pages/RawDataPressureAnalysis'));
-const RawDataH2ConcentrationAnalysisPage = lazy(() => import('../../pages/RawDataH2ConcentrationAnalysis'));
+const RawDataScreeningCorePage = lazy(() => import('../../pages/RawDataScreeningCorePage'));
+const RawDataPressureScreeningPage = lazy(() => import('../../pages/RawDataPressureScreening'));
+const RawDataH2ConcentrationScreeningPage = lazy(() => import('../../pages/RawDataH2ConcentrationScreening'));
 const EWTPage = lazy(() => import('../../pages/EwtAnalysis'));
 const PressureAnalysisPage = lazy(() => import('../../pages/PressureAnalysis'));
 const CFDValidationPage = lazy(() => import('../../pages/CFDValidation'));
@@ -1596,7 +1596,7 @@ const WorkspacePage = () => {
               {activeTab === 'data_preprocessing' && FLAGS.ENABLE_SOURCES && isTabAllowed('data_preprocessing') && (
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
-                                            <DataPreprocessingPage
+                                            <RawDataScreeningCorePage
                                                 apiBaseUrl={apiBaseUrl}
                                                 projectPath={projectPath}
                                                 selectedCases={selectedCases}
@@ -1607,7 +1607,7 @@ const WorkspacePage = () => {
               {activeTab === 'raw_pressure_analysis' && FLAGS.ENABLE_SOURCES && isTabAllowed('raw_pressure_analysis') && (
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
-                                            <RawDataPressureAnalysisPage
+                                            <RawDataPressureScreeningPage
                                                 apiBaseUrl={apiBaseUrl}
                                                 projectPath={projectPath}
                                                 selectedCases={selectedCases}
@@ -1618,7 +1618,7 @@ const WorkspacePage = () => {
               {activeTab === 'raw_h2_concentration_analysis' && FLAGS.ENABLE_SOURCES && isTabAllowed('raw_h2_concentration_analysis') && (
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
-                                            <RawDataH2ConcentrationAnalysisPage
+                                            <RawDataH2ConcentrationScreeningPage
                                                 apiBaseUrl={apiBaseUrl}
                                                 projectPath={projectPath}
                                                 selectedCases={selectedCases}

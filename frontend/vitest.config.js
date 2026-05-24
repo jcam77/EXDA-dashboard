@@ -1,8 +1,8 @@
 import fs from 'fs';
-import path from 'path';
+import { fileURLToPath } from 'url';
 import { defineConfig } from 'vitest/config';
 
-const defaultsPath = path.resolve(process.cwd(), 'config', 'exda-defaults.env');
+const defaultsPath = fileURLToPath(new URL('../config/exda-defaults.env', import.meta.url));
 
 function readDefaults() {
   try {
