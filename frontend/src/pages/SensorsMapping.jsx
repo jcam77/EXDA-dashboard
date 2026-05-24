@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MapPinned, Info, Plus, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, GripVertical, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MapPinned, Plus, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, GripVertical, X } from 'lucide-react';
+import { getBackendBaseUrl } from '../utils/backendUrl';
 
 const QUANTITY_OPTIONS = [
   'pressure',
@@ -13,6 +14,7 @@ const QUANTITY_OPTIONS = [
 const SENSITIVITY_UNIT_OPTIONS = ['pC/bar', 'pC/kPa', 'mV/bar', 'mV/kPa', 'V/bar', 'V/kPa', 'other'];
 const COORDINATE_UNIT_OPTIONS = ['m', 'mm'];
 const MOUNTING_OPTIONS = ['flush-mounted', 'recessed', 'tube-mounted', 'surface-mounted', 'other'];
+const RUN_GROUP_RE = /^(.*)-(\d+)(?:-[Rr]\d+)?$/;
 
 const createDefaultSensor = (id = '') => ({
   id: `sensor-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -39,47 +41,25 @@ const createDefaultSensor = (id = '') => ({
   calibrationCertificateId: '',
 });
 
-const DEFAULT_SENSORS = [
-  {
-    ...createDefaultSensor('P1'),
-    daqChannel: 'CH1',
-    serialNumber: 'SN-P1-PLACEHOLDER',
-    sensitivity: 10.0,
-    locationLabel: 'right wall',
-    x: 0.45,
-    y: 0.9,
-    z: 0.45,
-  },
-  {
-    ...createDefaultSensor('P2'),
-    daqChannel: 'CH2',
-    serialNumber: 'SN-P2-PLACEHOLDER',
-    sensitivity: 10.0,
-    locationLabel: 'left wall',
-    x: 0.1,
-    y: 0.9,
-    z: 0.45,
-  },
-  {
-    ...createDefaultSensor('Blind-1'),
-    daqChannel: 'CH8',
-    serialNumber: 'SN-BLIND-1',
-    sensitivity: 10.0,
-    locationLabel: 'blind/control channel',
-    mountingMethod: 'other',
-    isBlindSensor: true,
-    notes: 'Used to detect electrical/mechanical contamination and ignition-related EMI.',
-  },
-];
+const getGroupFromRunName = (runName) => {
+  const clean = String(runName || '').trim();
+  if (!clean) return '';
+  const match = clean.match(RUN_GROUP_RE);
+  if (match && String(match[1] || '').trim()) return String(match[1]).trim();
+  return '';
+};
+
+const listGroupsFromExperiments = (experiments) => {
+  const names = new Set();
+  (Array.isArray(experiments) ? experiments : []).forEach((item) => {
+    const group = getGroupFromRunName(item?.name);
+    if (group) names.add(group);
+  });
+  return Array.from(names).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+};
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 const isNumeric = (value) => value !== '' && Number.isFinite(Number(value));
-const escapeHtml = (value) => String(value ?? '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#39;');
 const validateSensorAgainstList = (sensor, allSensors, currentId = null) => {
   const errors = [];
   const warnings = [];
@@ -121,30 +101,314 @@ const validateSensorAgainstList = (sensor, allSensors, currentId = null) => {
 const readSensorsFromStorage = (storageKey) => {
   try {
     const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return DEFAULT_SENSORS;
+    if (!raw) {
+      return {
+        selectedGroup: '',
+        mappingsByGroup: {},
+        groupNotes: {},
+      };
+    }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_SENSORS;
+    if (Array.isArray(parsed)) {
+      // Backward compatibility with legacy single-list shape.
+      const fallbackGroup = 'Imported';
+      return {
+        selectedGroup: fallbackGroup,
+        mappingsByGroup: {
+          [fallbackGroup]: parsed,
+        },
+        groupNotes: {},
+      };
+    }
+    if (parsed && typeof parsed === 'object' && parsed.mappingsByGroup && typeof parsed.mappingsByGroup === 'object') {
+      const mappingsByGroup = { ...parsed.mappingsByGroup };
+      const groupNotes = parsed.groupNotes && typeof parsed.groupNotes === 'object' ? { ...parsed.groupNotes } : {};
+      const keys = Object.keys(mappingsByGroup);
+      const selectedCandidate = String(parsed.selectedGroup || '').trim();
+      const selectedGroup = keys.includes(selectedCandidate) ? selectedCandidate : (keys[0] || '');
+      return { selectedGroup, mappingsByGroup, groupNotes };
+    }
+    return {
+      selectedGroup: '',
+      mappingsByGroup: {},
+      groupNotes: {},
+    };
   } catch {
-    return DEFAULT_SENSORS;
+    return {
+      selectedGroup: '',
+      mappingsByGroup: {},
+      groupNotes: {},
+    };
   }
 };
 
 const SensorsMappingPage = ({ projectPath = '' }) => {
+  const apiBaseUrl = getBackendBaseUrl();
   const projectName = String(projectPath || '').split(/[/\\]/).filter(Boolean).pop() || 'No project selected';
   const storageKey = `exda:sensors-mapping:${projectPath || 'global'}`;
+  const sensorLocationDiagramUrl = `${import.meta.env.BASE_URL}SensorMountingLocation-000.pdf`;
 
-  const [sensors, setSensors] = useState(() => readSensorsFromStorage(storageKey));
+  const initialState = useMemo(() => readSensorsFromStorage(storageKey), [storageKey]);
+  const [mappingsByGroup, setMappingsByGroup] = useState(initialState.mappingsByGroup);
+  const [selectedGroup, setSelectedGroup] = useState(initialState.selectedGroup);
+  const [groupNotes, setGroupNotes] = useState(initialState.groupNotes || {});
+  const [showAllGroups, setShowAllGroups] = useState(true);
+  const [planGroups, setPlanGroups] = useState([]);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [groupError, setGroupError] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSensor, setEditingSensor] = useState(createDefaultSensor());
   const [editingExistingId, setEditingExistingId] = useState(null);
+  const [editingGroup, setEditingGroup] = useState(initialState.selectedGroup || '');
   const [editorError, setEditorError] = useState('');
   const [editorOffset, setEditorOffset] = useState({ x: 0, y: 40 });
   const [editorDragging, setEditorDragging] = useState(false);
+  const [showMountingPreview, setShowMountingPreview] = useState(false);
   const editorDragRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 });
 
+  const availableGroups = useMemo(() => {
+    const merged = new Set([...planGroups, ...Object.keys(mappingsByGroup || {}), ...Object.keys(groupNotes || {})]);
+    const sorted = Array.from(merged).filter(Boolean).sort((a, b) => {
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+    return sorted;
+  }, [mappingsByGroup, planGroups, groupNotes]);
+
   useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(sensors));
-  }, [sensors, storageKey]);
+    if (!availableGroups.includes(selectedGroup)) {
+      setSelectedGroup(availableGroups[0] || '');
+    }
+  }, [availableGroups, selectedGroup]);
+
+  const sensors = useMemo(() => mappingsByGroup[selectedGroup] || [], [mappingsByGroup, selectedGroup]);
+
+  const updateGroupSensors = useCallback((groupName, updater) => {
+    const targetGroup = String(groupName || '').trim();
+    if (!targetGroup) return;
+    setMappingsByGroup((prev) => {
+      const current = prev[targetGroup] || [];
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      return {
+        ...prev,
+        [targetGroup]: Array.isArray(next) ? next : current,
+      };
+    });
+  }, []);
+
+  const addManualGroup = () => {
+    const requested = String(newGroupName || '').trim().replace(/[/\\]/g, '-');
+    if (!requested) {
+      setGroupError('Group name is required.');
+      return;
+    }
+    const exists = availableGroups.some((group) => normalize(group) === normalize(requested));
+    if (exists) {
+      setSelectedGroup(availableGroups.find((group) => normalize(group) === normalize(requested)) || requested);
+      setNewGroupName('');
+      setGroupError('');
+      return;
+    }
+    setMappingsByGroup((prev) => ({
+      ...prev,
+      [requested]: prev[requested] || [],
+    }));
+    setSelectedGroup(requested);
+    setNewGroupName('');
+    setGroupError('');
+  };
+
+  const generateGroupsFromPlan = () => {
+    const candidates = (planGroups || [])
+      .map((group) => String(group || '').trim())
+      .filter(Boolean);
+    if (!candidates.length) {
+      setGroupError('No plan groups found. Create runs in Plan first.');
+      return;
+    }
+    const existing = new Set(Object.keys(mappingsByGroup || {}).map((group) => normalize(group)));
+    const missing = candidates.filter((group) => !existing.has(normalize(group)));
+    if (!missing.length) {
+      setGroupError('All plan groups are already available.');
+      return;
+    }
+
+    setMappingsByGroup((prev) => {
+      const next = { ...prev };
+      missing.forEach((group) => {
+        next[group] = next[group] || [];
+      });
+      return next;
+    });
+    setSelectedGroup(missing[0]);
+    setGroupError('');
+  };
+
+  const setNoteForGroup = (groupName, value) => {
+    const key = String(groupName || '').trim();
+    if (!key) return;
+    const nextValue = String(value || '');
+    setGroupNotes((prev) => ({
+      ...prev,
+      [key]: nextValue,
+    }));
+  };
+
+  const makeUniqueGroupName = useCallback((baseName) => {
+    const base = String(baseName || '').trim() || 'Group';
+    const existing = new Set(availableGroups.map((group) => normalize(group)));
+    if (!existing.has(normalize(base))) return base;
+    let suffix = 1;
+    while (suffix < 5000) {
+      const candidate = `${base}-Copy${suffix === 1 ? '' : `-${suffix}`}`;
+      if (!existing.has(normalize(candidate))) return candidate;
+      suffix += 1;
+    }
+    return `${base}-${Date.now()}`;
+  }, [availableGroups]);
+
+  const duplicateGroup = (sourceGroup) => {
+    const source = String(sourceGroup || '').trim();
+    if (!source) return;
+    const sourceGroupName = availableGroups.find((group) => normalize(group) === normalize(source)) || source;
+    const sourceSensors = mappingsByGroup[sourceGroupName] || [];
+    const defaultTarget = makeUniqueGroupName(`${sourceGroupName}-Copy`);
+    const targetRaw = window.prompt(
+      `Copy sensors configuration from "${sourceGroupName}" to which group? (existing or new)`,
+      defaultTarget,
+    );
+    if (targetRaw == null) return;
+    const targetGroupName = String(targetRaw || '').trim().replace(/[/\\]/g, '-');
+    if (!targetGroupName) {
+      setGroupError('Target group name is required.');
+      return;
+    }
+    if (normalize(targetGroupName) === normalize(sourceGroupName)) {
+      setGroupError('Target group must be different from source group.');
+      return;
+    }
+    const targetExists = availableGroups.some((group) => normalize(group) === normalize(targetGroupName));
+    if (targetExists) {
+      const confirmedOverwrite = window.confirm(
+        `Group "${targetGroupName}" already exists. Replace its sensors configuration with "${sourceGroupName}"?`,
+      );
+      if (!confirmedOverwrite) return;
+    }
+    const clonedSensors = sourceSensors.map((sensor) => ({
+      ...sensor,
+      id: `sensor-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    }));
+    setMappingsByGroup((prev) => ({
+      ...prev,
+      [targetGroupName]: clonedSensors,
+    }));
+    const sourceNote = String(groupNotes[sourceGroupName] || '').trim();
+    setGroupNotes((prev) => ({
+      ...prev,
+      [targetGroupName]: sourceNote ? `Copied from ${sourceGroupName}: ${sourceNote}` : `Copied from ${sourceGroupName}`,
+    }));
+    setSelectedGroup(targetGroupName);
+    setGroupError('');
+  };
+
+  const deleteGroup = (groupName) => {
+    const target = String(groupName || '').trim();
+    if (!target) return;
+    const knownGroups = availableGroups.filter(Boolean);
+    if (!knownGroups.includes(target)) return;
+    const confirmed = window.confirm(`Delete sensors group "${target}"?`);
+    if (!confirmed) return;
+
+    if (knownGroups.length <= 1) {
+      setMappingsByGroup({});
+      setSelectedGroup('');
+      setGroupError('');
+      return;
+    }
+
+    const remainingGroups = knownGroups.filter((group) => group !== target);
+    setMappingsByGroup((prev) => {
+      const next = { ...prev };
+      delete next[target];
+      return next;
+    });
+    setGroupNotes((prev) => {
+      const next = { ...prev };
+      delete next[target];
+      return next;
+    });
+    setSelectedGroup(remainingGroups[0] || '');
+    setGroupError('');
+  };
+
+  const renameGroup = (sourceGroup) => {
+    const source = String(sourceGroup || '').trim();
+    if (!source) return;
+    const proposedRaw = window.prompt(`Rename group "${source}" to:`, source);
+    if (proposedRaw == null) return;
+    const proposed = String(proposedRaw || '').trim().replace(/[/\\]/g, '-');
+    if (!proposed) {
+      setGroupError('Group name is required.');
+      return;
+    }
+    if (normalize(proposed) === normalize(source)) {
+      setGroupError('');
+      return;
+    }
+    const exists = availableGroups.some((group) => normalize(group) === normalize(proposed));
+    if (exists) {
+      setGroupError(`Group "${proposed}" already exists.`);
+      return;
+    }
+
+    setMappingsByGroup((prev) => {
+      const next = { ...prev };
+      const sourceData = Array.isArray(next[source]) ? next[source] : [];
+      delete next[source];
+      next[proposed] = sourceData;
+      return next;
+    });
+    setGroupNotes((prev) => {
+      const next = { ...prev };
+      const sourceNote = String(next[source] || '');
+      delete next[source];
+      next[proposed] = sourceNote;
+      return next;
+    });
+    if (selectedGroup === source) setSelectedGroup(proposed);
+    if (editingGroup === source) setEditingGroup(proposed);
+    setGroupError('');
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPlanGroups = async () => {
+      if (!projectPath) {
+        if (!cancelled) setPlanGroups([]);
+        return;
+      }
+      try {
+        const response = await fetch(`${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(projectPath)}`);
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Failed to load project state');
+        }
+        const groups = listGroupsFromExperiments(payload?.plan?.experiments || []);
+        if (!cancelled) setPlanGroups(groups);
+      } catch {
+        if (!cancelled) setPlanGroups([]);
+      }
+    };
+    loadPlanGroups();
+    return () => { cancelled = true; };
+  }, [apiBaseUrl, projectPath]);
+
+  useEffect(() => {
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      selectedGroup,
+      mappingsByGroup,
+      groupNotes,
+    }));
+  }, [groupNotes, mappingsByGroup, selectedGroup, storageKey]);
 
   const validationById = useMemo(() => {
     const map = {};
@@ -153,6 +417,37 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     });
     return map;
   }, [sensors]);
+
+  const buildValidationMap = useCallback((groupName) => {
+    const groupSensors = mappingsByGroup[groupName] || [];
+    const map = {};
+    groupSensors.forEach((sensor) => {
+      map[sensor.id] = validateSensorAgainstList(sensor, groupSensors, sensor.id);
+    });
+    return map;
+  }, [mappingsByGroup]);
+
+  const summarizeGroup = useCallback((groupName) => {
+    const groupSensors = mappingsByGroup[groupName] || [];
+    const groupValidation = buildValidationMap(groupName);
+    let complete = 0;
+    let warnings = 0;
+    let errors = 0;
+    groupSensors.forEach((sensor) => {
+      const result = groupValidation[sensor.id] || { errors: [], warnings: [] };
+      if (result.errors.length > 0) errors += 1;
+      else if (result.warnings.length > 0) warnings += 1;
+      else complete += 1;
+    });
+    return {
+      total: groupSensors.length,
+      active: groupSensors.filter((sensor) => sensor.isActive).length,
+      blind: groupSensors.filter((sensor) => sensor.isBlindSensor).length,
+      complete,
+      warnings,
+      errors,
+    };
+  }, [buildValidationMap, mappingsByGroup]);
 
   const summary = useMemo(() => {
     let complete = 0;
@@ -174,7 +469,26 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     };
   }, [sensors, validationById]);
 
-  const openAdd = () => {
+  const editorValidation = useMemo(() => {
+    if (!editorOpen) return { errors: [], warnings: [] };
+    const targetGroup = editingGroup || selectedGroup;
+    const groupSensors = mappingsByGroup[targetGroup] || [];
+    const candidatePool = editingExistingId
+      ? groupSensors.map((sensor) => (sensor.id === editingExistingId ? editingSensor : sensor))
+      : [...groupSensors, editingSensor];
+    return validateSensorAgainstList(editingSensor, candidatePool, editingExistingId);
+  }, [
+    editorOpen,
+    editingGroup,
+    selectedGroup,
+    mappingsByGroup,
+    editingExistingId,
+    editingSensor,
+  ]);
+
+  const openAdd = (groupName = selectedGroup) => {
+    setSelectedGroup(groupName);
+    setEditingGroup(groupName);
     setEditorError('');
     setEditingExistingId(null);
     setEditingSensor(createDefaultSensor(''));
@@ -182,7 +496,9 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     setEditorOpen(true);
   };
 
-  const openEdit = (sensor) => {
+  const openEdit = (sensor, groupName = selectedGroup) => {
+    setSelectedGroup(groupName);
+    setEditingGroup(groupName);
     setEditorError('');
     setEditingExistingId(sensor.id);
     setEditingSensor({ ...sensor });
@@ -190,113 +506,57 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     setEditorOpen(true);
   };
 
-  const duplicateSensor = (sensor) => {
+  const duplicateSensor = (sensor, groupName = selectedGroup) => {
     const clone = {
       ...sensor,
       id: `sensor-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
       sensorId: `${sensor.sensorId || 'Sensor'}-Copy`,
       daqChannel: '',
     };
-    setSensors((prev) => [...prev, clone]);
+    updateGroupSensors(groupName, (prev) => [...prev, clone]);
   };
 
-  const removeSensor = (sensorId) => {
-    setSensors((prev) => prev.filter((sensor) => sensor.id !== sensorId));
+  const removeSensor = (sensorId, groupName = selectedGroup) => {
+    updateGroupSensors(groupName, (prev) => prev.filter((sensor) => sensor.id !== sensorId));
   };
 
   const saveSensor = () => {
-    const candidatePool = editingExistingId
-      ? sensors.map((sensor) => (sensor.id === editingExistingId ? editingSensor : sensor))
-      : [...sensors, editingSensor];
-    const validation = validateSensorAgainstList(editingSensor, candidatePool, editingExistingId);
-    if (validation.errors.length > 0) {
-      setEditorError(validation.errors[0]);
-      return;
-    }
+    const targetGroup = editingGroup || selectedGroup;
+    const groupSensors = mappingsByGroup[targetGroup] || [];
     if (editingExistingId) {
-      setSensors((prev) => prev.map((sensor) => (sensor.id === editingExistingId ? { ...editingSensor } : sensor)));
+      updateGroupSensors(targetGroup, (prev) => prev.map((sensor) => (sensor.id === editingExistingId ? { ...editingSensor } : sensor)));
     } else {
-      setSensors((prev) => [...prev, { ...editingSensor }]);
+      updateGroupSensors(targetGroup, (prev) => [...prev, { ...editingSensor }]);
     }
     setEditorError('');
     setEditorOpen(false);
   };
 
-  const exportPdfReport = () => {
-    const popup = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=800');
-    if (!popup) return;
-
-    const generatedAt = new Date().toLocaleString();
-    const statusLabelFor = (sensor) => {
-      const result = validationById[sensor.id] || { errors: [], warnings: [] };
-      if (result.errors.length > 0) return 'Error';
-      if (result.warnings.length > 0) return 'Warning';
-      return 'Complete';
-    };
-
-    const rowsHtml = sensors.map((sensor) => `
-      <tr>
-        <td>${escapeHtml(sensor.sensorId || '-')}</td>
-        <td>${escapeHtml(sensor.measuredQuantity || '-')}</td>
-        <td>${escapeHtml(sensor.daqSystem || '-')}</td>
-        <td>${escapeHtml(sensor.daqChannel || '-')}</td>
-        <td>${escapeHtml(sensor.serialNumber || '-')}</td>
-        <td>${escapeHtml(`${sensor.sensitivity || '-'} ${sensor.sensitivityUnit || ''}`.trim())}</td>
-        <td>${escapeHtml(sensor.locationLabel || '-')}</td>
-        <td>${escapeHtml(`x=${sensor.x || '-'}, y=${sensor.y || '-'}, z=${sensor.z || '-'} ${sensor.coordinateUnit || ''}`.trim())}</td>
-        <td>${escapeHtml(sensor.mountingMethod || '-')}</td>
-        <td>${sensor.isActive ? 'Yes' : 'No'}</td>
-        <td>${sensor.isBlindSensor ? 'Yes' : 'No'}</td>
-        <td>${statusLabelFor(sensor)}</td>
-      </tr>
-    `).join('');
-
-    popup.document.open();
-    popup.document.write(`<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>EXDA Sensors Mapping</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; color: #111; }
-    h1 { margin: 0 0 6px 0; font-size: 22px; }
-    p { margin: 2px 0; font-size: 12px; color: #333; }
-    .summary { margin: 14px 0; display: grid; grid-template-columns: repeat(6, minmax(90px, 1fr)); gap: 8px; }
-    .card { border: 1px solid #c8c8c8; border-radius: 8px; padding: 8px; }
-    .card .k { font-size: 10px; text-transform: uppercase; color: #666; }
-    .card .v { margin-top: 2px; font-weight: bold; font-size: 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
-    th, td { border: 1px solid #d2d2d2; padding: 6px; text-align: left; vertical-align: top; }
-    th { background: #f3f4f6; }
-    .footnote { margin-top: 14px; font-size: 10px; color: #555; }
-  </style>
-</head>
-<body>
-  <h1>Sensors Mapping & Traceability</h1>
-  <p><strong>Project:</strong> ${escapeHtml(projectName)}</p>
-  <p><strong>Generated:</strong> ${escapeHtml(generatedAt)}</p>
-  <div class="summary">
-    <div class="card"><div class="k">Total</div><div class="v">${summary.total}</div></div>
-    <div class="card"><div class="k">Active</div><div class="v">${summary.active}</div></div>
-    <div class="card"><div class="k">Blind/Control</div><div class="v">${summary.blind}</div></div>
-    <div class="card"><div class="k">Complete</div><div class="v">${summary.complete}</div></div>
-    <div class="card"><div class="k">Warnings</div><div class="v">${summary.warnings}</div></div>
-    <div class="card"><div class="k">Errors</div><div class="v">${summary.errors}</div></div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Sensor ID</th><th>Quantity</th><th>DAQ System</th><th>DAQ Channel</th><th>Serial Number</th>
-        <th>Sensitivity</th><th>Location</th><th>Coordinates</th><th>Mounting</th><th>Active</th><th>Blind</th><th>Status</th>
-      </tr>
-    </thead>
-    <tbody>${rowsHtml}</tbody>
-  </table>
-  <p class="footnote">Exact coordinates are recommended for traceability and CFD comparison. Blind/control sensors help identify non-physical signal contamination.</p>
-  <script>window.onload = () => { window.print(); };</script>
-</body>
-</html>`);
-    popup.document.close();
+  const exportSensorsArtifact = async (format) => {
+    if (!projectPath) {
+      window.alert('Open a project first. Export files are saved to the project Reports folder.');
+      return;
+    }
+    try {
+      const response = await fetch(`${apiBaseUrl}/export_sensors_mapping_artifact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectPath,
+          mappingsByGroup,
+          groupNotes,
+          groupNames: availableGroups,
+          format,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || `Failed to export ${format.toUpperCase()}`);
+      }
+      window.alert(`${format.toUpperCase()} exported to:\n${payload.path}`);
+    } catch (exportError) {
+      window.alert(`Could not export ${format.toUpperCase()}.\n${exportError?.message || 'Unknown error'}`);
+    }
   };
 
   useEffect(() => {
@@ -333,6 +593,138 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     setEditorDragging(true);
   };
 
+  const renderSensorsTable = (groupName) => {
+    const groupSensors = mappingsByGroup[groupName] || [];
+    const groupValidationById = buildValidationMap(groupName);
+    const groupNote = String(groupNotes[groupName] || '');
+    return (
+      <div className="rounded-xl border border-sidebar-border bg-card/60 p-4" key={groupName}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">
+            Sensors Table ({groupName})
+            {groupNote.trim() ? <span className="ml-2 text-xs font-normal text-muted-foreground">- {groupNote}</span> : null}
+          </h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => duplicateGroup(groupName)}
+              className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/60"
+            >
+              <Copy size={13} /> Copy To...
+            </button>
+            <button
+              onClick={() => renameGroup(groupName)}
+              className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/60"
+            >
+              <Pencil size={13} /> Rename
+            </button>
+            <button
+              onClick={() => deleteGroup(groupName)}
+              className="inline-flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/15 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/25"
+            >
+              <Trash2 size={13} /> Delete
+            </button>
+            <button onClick={() => openAdd(groupName)} className="inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/15 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/25">
+              <Plus size={13} /> Add Sensor
+            </button>
+          </div>
+        </div>
+        <div className="mb-3">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Group Reference Note
+            <input
+              value={groupNote}
+              onChange={(event) => setNoteForGroup(groupName, event.target.value)}
+              placeholder="e.g., Same configuration as VH2D-01; no sensor/channel changes."
+              className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5 text-xs text-foreground"
+            />
+          </label>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-xs">
+            <thead>
+              <tr className="text-left text-muted-foreground border-b border-sidebar-border">
+                <th className="py-2 pr-3">Sensor ID</th>
+                <th className="py-2 pr-3">Quantity</th>
+                <th className="py-2 pr-3">DAQ</th>
+                <th className="py-2 pr-3">Serial</th>
+                <th className="py-2 pr-3">Last Cal.</th>
+                <th className="py-2 pr-3">Sensitivity</th>
+                <th className="py-2 pr-3">Location</th>
+                <th className="py-2 pr-3">Coords</th>
+                <th className="py-2 pr-3">Mounting</th>
+                <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Blind</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groupSensors.map((sensor) => {
+                const result = groupValidationById[sensor.id] || { errors: [], warnings: [] };
+                const status = result.errors.length > 0 ? 'error' : result.warnings.length > 0 ? 'warning' : 'complete';
+                return (
+                  <tr key={sensor.id} className="border-b border-sidebar-border/50">
+                    <td className="py-2 pr-3 font-semibold">{sensor.sensorId || '-'}</td>
+                    <td className="py-2 pr-3">{sensor.measuredQuantity}</td>
+                    <td className="py-2 pr-3">{sensor.daqSystem} / {sensor.daqChannel || '-'}</td>
+                    <td className="py-2 pr-3">{sensor.serialNumber || '-'}</td>
+                    <td className="py-2 pr-3">{sensor.calibrationDate || '-'}</td>
+                    <td className="py-2 pr-3">{sensor.sensitivity || '-'} {sensor.sensitivityUnit || ''}</td>
+                    <td className="py-2 pr-3">{sensor.locationLabel || '-'}</td>
+                    <td className="py-2 pr-3">x={sensor.x || '-'}, y={sensor.y || '-'}, z={sensor.z || '-'} {sensor.coordinateUnit}</td>
+                    <td className="py-2 pr-3">{sensor.mountingMethod || '-'}</td>
+                    <td className="py-2 pr-3">{sensor.isActive ? 'Yes' : 'No'}</td>
+                    <td className="py-2 pr-3">{sensor.isBlindSensor ? 'Yes' : 'No'}</td>
+                    <td className="py-2 pr-3">
+                      {status === 'complete' && (
+                        <span className="inline-flex items-center gap-1 text-emerald-400">
+                          <CheckCircle2 size={12} /> Complete
+                        </span>
+                      )}
+                      {status === 'warning' && (
+                        <div className="space-y-1">
+                          <span
+                            className="inline-flex items-center gap-1 text-amber-400"
+                            title={result.warnings.join(' | ')}
+                          >
+                            <AlertTriangle size={12} /> Warning
+                          </span>
+                          <p className="max-w-[220px] text-[10px] leading-tight text-amber-300">
+                            {result.warnings[0]}
+                          </p>
+                        </div>
+                      )}
+                      {status === 'error' && (
+                        <div className="space-y-1">
+                          <span
+                            className="inline-flex items-center gap-1 text-destructive"
+                            title={result.errors.join(' | ')}
+                          >
+                            <AlertTriangle size={12} /> Error
+                          </span>
+                          <p className="max-w-[220px] text-[10px] leading-tight text-destructive/90">
+                            {result.errors[0]}
+                          </p>
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-2">
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => openEdit(sensor, groupName)} className="p-1 rounded hover:bg-muted"><Pencil size={12} /></button>
+                        <button onClick={() => duplicateSensor(sensor, groupName)} className="p-1 rounded hover:bg-muted"><Copy size={12} /></button>
+                        <button onClick={() => removeSensor(sensor.id, groupName)} className="p-1 rounded hover:bg-destructive/20 text-destructive"><Trash2 size={12} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full space-y-4">
       <div className="rounded-xl border border-sidebar-border bg-card/80 p-5">
@@ -346,16 +738,127 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
         <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
           Project: <span className="text-foreground">{projectName}</span>
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label className="text-[11px] uppercase tracking-widest text-muted-foreground">Mapping Group</label>
+          <select
+            value={selectedGroup || ''}
+            onChange={(event) => {
+              setSelectedGroup(event.target.value);
+              setGroupError('');
+            }}
+            disabled={!availableGroups.length}
+            className="rounded border border-sidebar-border bg-background px-2 py-1 text-xs text-foreground"
+          >
+            {!availableGroups.length && (
+              <option value="">No groups yet</option>
+            )}
+            {availableGroups.map((group) => (
+              <option key={group} value={group}>{group}</option>
+            ))}
+          </select>
+          <input
+            value={newGroupName}
+            onChange={(event) => {
+              setNewGroupName(event.target.value);
+              setGroupError('');
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                addManualGroup();
+              }
+            }}
+            placeholder="New group (e.g., Test)"
+            className="rounded border border-sidebar-border bg-background px-2 py-1 text-xs text-foreground"
+          />
+          <button
+            type="button"
+            onClick={addManualGroup}
+            className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/15 px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/25"
+          >
+            <Plus size={11} /> Add Group
+          </button>
+          <button
+            type="button"
+            onClick={generateGroupsFromPlan}
+            className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+          >
+            Generate from Plan
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAllGroups((prev) => !prev)}
+            className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+          >
+            {showAllGroups ? 'Single Group View' : 'All Groups View'}
+          </button>
+          <button
+            type="button"
+            onClick={() => exportSensorsArtifact('csv')}
+            className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+          >
+            Export CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => exportSensorsArtifact('pdf')}
+            className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+          >
+            Export PDF
+          </button>
+          {groupError && (
+            <span className="text-[11px] text-destructive">{groupError}</span>
+          )}
+        </div>
+      </div>
+
+      <div className="w-full max-w-3xl rounded-xl border border-sidebar-border bg-card/60 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Sensor Mounting Location Reference</h3>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowMountingPreview((prev) => !prev)}
+              className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+            >
+              {showMountingPreview ? 'Hide Preview' : 'Preview'}
+            </button>
+            <a
+              href={sensorLocationDiagramUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+            >
+              Open PDF
+            </a>
+            <a
+              href={sensorLocationDiagramUrl}
+              download
+              className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+            >
+              Download
+            </a>
+          </div>
+        </div>
+        {showMountingPreview && (
+          <div className="rounded-lg border border-sidebar-border overflow-hidden bg-background">
+            <iframe
+              title="Sensor mounting location reference diagram"
+              src={sensorLocationDiagramUrl}
+              className="w-full h-[260px]"
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         {[
-          ['Total', summary.total],
-          ['Active', summary.active],
-          ['Blind/Control', summary.blind],
-          ['Complete', summary.complete],
-          ['Warnings', summary.warnings],
-          ['Errors', summary.errors],
+          ['Total', showAllGroups ? availableGroups.reduce((acc, group) => acc + summarizeGroup(group).total, 0) : summary.total],
+          ['Active', showAllGroups ? availableGroups.reduce((acc, group) => acc + summarizeGroup(group).active, 0) : summary.active],
+          ['Blind/Control', showAllGroups ? availableGroups.reduce((acc, group) => acc + summarizeGroup(group).blind, 0) : summary.blind],
+          ['Complete', showAllGroups ? availableGroups.reduce((acc, group) => acc + summarizeGroup(group).complete, 0) : summary.complete],
+          ['Warnings', showAllGroups ? availableGroups.reduce((acc, group) => acc + summarizeGroup(group).warnings, 0) : summary.warnings],
+          ['Errors', showAllGroups ? availableGroups.reduce((acc, group) => acc + summarizeGroup(group).errors, 0) : summary.errors],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border border-sidebar-border bg-card/60 p-3">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
@@ -364,89 +867,19 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-sidebar-border bg-card/70 p-4">
-          <div className="flex items-center gap-2 text-primary text-sm font-semibold"><Info size={14} /> Mapping Guidance</div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Exact sensor coordinates are recommended. Side labels such as left wall or right wall are useful, but not sufficient for traceability or CFD comparison.
-          </p>
+      {availableGroups.length === 0 ? (
+        <div className="rounded-xl border border-sidebar-border bg-card/60 p-4 text-sm text-muted-foreground">
+          No mapping groups yet. Add one manually or use <span className="text-foreground font-semibold">Generate from Plan</span>.
         </div>
-        <div className="rounded-xl border border-sidebar-border bg-card/70 p-4">
-          <div className="flex items-center gap-2 text-primary text-sm font-semibold"><Info size={14} /> Blind / Control Sensors</div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Blind/control sensors can help detect electrical noise, ignition-related EMI, or mechanical contamination that may not represent physical chamber pressure.
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-sidebar-border bg-card/60 p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Sensors Table</h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={exportPdfReport}
-              className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/60"
-            >
-              Export PDF
-            </button>
-            <button onClick={openAdd} className="inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/15 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/25">
-              <Plus size={13} /> Add Sensor
-            </button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-xs">
-            <thead>
-              <tr className="text-left text-muted-foreground border-b border-sidebar-border">
-                <th className="py-2 pr-3">Sensor ID</th>
-                <th className="py-2 pr-3">Quantity</th>
-                <th className="py-2 pr-3">DAQ</th>
-                <th className="py-2 pr-3">Serial</th>
-                <th className="py-2 pr-3">Sensitivity</th>
-                <th className="py-2 pr-3">Location</th>
-                <th className="py-2 pr-3">Coords</th>
-                <th className="py-2 pr-3">Mounting</th>
-                <th className="py-2 pr-3">Active</th>
-                <th className="py-2 pr-3">Blind</th>
-                <th className="py-2 pr-3">Status</th>
-                <th className="py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sensors.map((sensor) => {
-                const result = validationById[sensor.id] || { errors: [], warnings: [] };
-                const status = result.errors.length > 0 ? 'error' : result.warnings.length > 0 ? 'warning' : 'complete';
-                return (
-                  <tr key={sensor.id} className="border-b border-sidebar-border/50">
-                    <td className="py-2 pr-3 font-semibold">{sensor.sensorId || '-'}</td>
-                    <td className="py-2 pr-3">{sensor.measuredQuantity}</td>
-                    <td className="py-2 pr-3">{sensor.daqSystem} / {sensor.daqChannel || '-'}</td>
-                    <td className="py-2 pr-3">{sensor.serialNumber || '-'}</td>
-                    <td className="py-2 pr-3">{sensor.sensitivity || '-'} {sensor.sensitivityUnit || ''}</td>
-                    <td className="py-2 pr-3">{sensor.locationLabel || '-'}</td>
-                    <td className="py-2 pr-3">x={sensor.x || '-'}, y={sensor.y || '-'}, z={sensor.z || '-'} {sensor.coordinateUnit}</td>
-                    <td className="py-2 pr-3">{sensor.mountingMethod || '-'}</td>
-                    <td className="py-2 pr-3">{sensor.isActive ? 'Yes' : 'No'}</td>
-                    <td className="py-2 pr-3">{sensor.isBlindSensor ? 'Yes' : 'No'}</td>
-                    <td className="py-2 pr-3">
-                      {status === 'complete' && <span className="inline-flex items-center gap-1 text-emerald-400"><CheckCircle2 size={12} /> Complete</span>}
-                      {status === 'warning' && <span className="inline-flex items-center gap-1 text-amber-400"><AlertTriangle size={12} /> Warning</span>}
-                      {status === 'error' && <span className="inline-flex items-center gap-1 text-destructive"><AlertTriangle size={12} /> Error</span>}
-                    </td>
-                    <td className="py-2">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(sensor)} className="p-1 rounded hover:bg-muted"><Pencil size={12} /></button>
-                        <button onClick={() => duplicateSensor(sensor)} className="p-1 rounded hover:bg-muted"><Copy size={12} /></button>
-                        <button onClick={() => removeSensor(sensor.id)} className="p-1 rounded hover:bg-destructive/20 text-destructive"><Trash2 size={12} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      ) : (
+        showAllGroups
+          ? (
+            <div className="space-y-4">
+              {availableGroups.map((groupName) => renderSensorsTable(groupName))}
+            </div>
+          )
+          : renderSensorsTable(selectedGroup)
+      )}
 
       {editorOpen && (
         <div className={`fixed inset-0 z-[70] bg-background/80 flex items-center justify-center px-4 py-4 backdrop-blur-md overflow-y-auto ${editorDragging ? 'select-none' : ''}`}>
@@ -477,6 +910,31 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
               </div>
             </div>
 
+            {(editorValidation.errors.length > 0 || editorValidation.warnings.length > 0) && (
+              <div className="mt-3 rounded-lg border border-sidebar-border bg-background/60 p-3">
+                {editorValidation.errors.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-destructive">Open Issues (can be completed later)</p>
+                    <ul className="mt-1 space-y-1 text-xs text-destructive">
+                      {editorValidation.errors.map((message) => (
+                        <li key={`err-${message}`}>• {message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {editorValidation.warnings.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">Warnings (recommended)</p>
+                    <ul className="mt-1 space-y-1 text-xs text-amber-200">
+                      {editorValidation.warnings.map((message) => (
+                        <li key={`warn-${message}`}>• {message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="mt-4 flex-1 overflow-y-auto pr-1 px-1 md:px-2 grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="text-xs">Sensor ID<input value={editingSensor.sensorId} onChange={(e) => setEditingSensor((prev) => ({ ...prev, sensorId: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Measured Quantity<select value={editingSensor.measuredQuantity} onChange={(e) => setEditingSensor((prev) => ({ ...prev, measuredQuantity: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{QUANTITY_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
@@ -485,6 +943,8 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
               <label className="text-xs">Manufacturer<input value={editingSensor.manufacturer} onChange={(e) => setEditingSensor((prev) => ({ ...prev, manufacturer: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Model<input value={editingSensor.model} onChange={(e) => setEditingSensor((prev) => ({ ...prev, model: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Serial Number<input value={editingSensor.serialNumber} onChange={(e) => setEditingSensor((prev) => ({ ...prev, serialNumber: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <label className="text-xs">Last Calibration Date<input type="date" value={editingSensor.calibrationDate || ''} onChange={(e) => setEditingSensor((prev) => ({ ...prev, calibrationDate: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <label className="text-xs">Calibration Certificate ID<input value={editingSensor.calibrationCertificateId || ''} onChange={(e) => setEditingSensor((prev) => ({ ...prev, calibrationCertificateId: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Sensitivity<input value={editingSensor.sensitivity} onChange={(e) => setEditingSensor((prev) => ({ ...prev, sensitivity: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Sensitivity Unit<select value={editingSensor.sensitivityUnit} onChange={(e) => setEditingSensor((prev) => ({ ...prev, sensitivityUnit: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{SENSITIVITY_UNIT_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
               <label className="text-xs">Location Label<input value={editingSensor.locationLabel} onChange={(e) => setEditingSensor((prev) => ({ ...prev, locationLabel: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>

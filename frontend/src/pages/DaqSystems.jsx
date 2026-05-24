@@ -13,6 +13,7 @@ const createDefaultDaq = () => ({
   channelCount: '',
   owner: '',
   lastCalibrationDate: '',
+  calibrationCertificateId: '',
   notes: '',
   isActive: true,
 });
@@ -21,6 +22,19 @@ const normalize = (value) => String(value || '').trim().toLowerCase();
 
 const DaqSystemsPage = ({ projectPath = '' }) => {
   const apiBaseUrl = getBackendBaseUrl();
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const daqReferenceDocs = [
+    {
+      title: 'LU-DBI Measurement Chain',
+      fileName: 'LU-DBI_MeasurementChain_v001.pdf',
+      url: `${baseUrl}LU-DBI_MeasurementChain_v001.pdf`,
+    },
+    {
+      title: 'Mixture Sampling Sub-System',
+      fileName: 'MixtureSampling_Sub-System_000.pdf',
+      url: `${baseUrl}MixtureSampling_Sub-System_000.pdf`,
+    },
+  ];
   const projectName = String(projectPath || '').split(/[/\\]/).filter(Boolean).pop() || 'No project selected';
   const [daqSystems, setDaqSystems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,6 +45,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState(createDefaultDaq());
+  const [openPreviews, setOpenPreviews] = useState({});
 
   const validation = useMemo(() => {
     const messages = [];
@@ -64,6 +79,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
         ...item,
         owner: String(item?.owner || item?.location || '').trim(),
         lastCalibrationDate: String(item?.lastCalibrationDate || '').trim(),
+        calibrationCertificateId: String(item?.calibrationCertificateId || '').trim(),
       }));
       setDaqSystems(normalized);
     } catch (loadError) {
@@ -131,6 +147,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
       channelCount: String(draft.channelCount || '').trim(),
       owner: String(draft.owner || '').trim(),
       lastCalibrationDate: String(draft.lastCalibrationDate || '').trim(),
+      calibrationCertificateId: String(draft.calibrationCertificateId || '').trim(),
       notes: String(draft.notes || '').trim(),
       isActive: !!draft.isActive,
     };
@@ -188,6 +205,62 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
         <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
           Project: <span className="text-foreground">{projectName}</span>
         </p>
+      </div>
+
+      <div className="w-full rounded-xl border border-sidebar-border bg-card/60 p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">DAQ Reference Documents</h3>
+        </div>
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          {daqReferenceDocs.map((doc) => (
+            <div
+              key={doc.fileName}
+              className="rounded-lg border border-sidebar-border bg-background/40 p-3"
+            >
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{doc.title}</p>
+                  <p className="text-[11px] text-muted-foreground">{doc.fileName}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenPreviews((prev) => ({ ...prev, [doc.fileName]: !prev[doc.fileName] }))
+                    }
+                    className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+                  >
+                    {openPreviews[doc.fileName] ? 'Hide Preview' : 'Preview'}
+                  </button>
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+                  >
+                    Open PDF
+                  </a>
+                  <a
+                    href={doc.url}
+                    download
+                    className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+                  >
+                    Download
+                  </a>
+                </div>
+              </div>
+              {openPreviews[doc.fileName] && (
+                <div className="overflow-hidden rounded border border-sidebar-border bg-background">
+                  <iframe
+                    title={`${doc.title} preview`}
+                    src={doc.url}
+                    className="h-[240px] w-full"
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -255,6 +328,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
                 <th className="py-2 pr-3">Channels</th>
                 <th className="py-2 pr-3">Owner</th>
                 <th className="py-2 pr-3">Last Calibration</th>
+                <th className="py-2 pr-3">Cal. Cert ID</th>
                 <th className="py-2 pr-3">Active</th>
                 <th className="py-2">Actions</th>
               </tr>
@@ -262,11 +336,11 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-3 text-center text-muted-foreground">Loading…</td>
+                  <td colSpan={12} className="py-3 text-center text-muted-foreground">Loading…</td>
                 </tr>
               ) : daqSystems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-3 text-center text-muted-foreground">No DAQ systems yet. Add your first one.</td>
+                  <td colSpan={12} className="py-3 text-center text-muted-foreground">No DAQ systems yet. Add your first one.</td>
                 </tr>
               ) : (
                 daqSystems.map((item) => (
@@ -280,6 +354,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
                     <td className="py-2 pr-3">{item.channelCount || '-'}</td>
                     <td className="py-2 pr-3">{item.owner || '-'}</td>
                     <td className="py-2 pr-3">{item.lastCalibrationDate || '-'}</td>
+                    <td className="py-2 pr-3">{item.calibrationCertificateId || '-'}</td>
                     <td className="py-2 pr-3">{item.isActive ? 'Yes' : 'No'}</td>
                     <td className="py-2">
                       <div className="flex items-center gap-1">
@@ -350,6 +425,9 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
               </label>
               <label className="text-xs">Last Calibration Date
                 <input type="date" value={draft.lastCalibrationDate} onChange={(e) => setDraft((prev) => ({ ...prev, lastCalibrationDate: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" />
+              </label>
+              <label className="text-xs">Calibration Certificate ID
+                <input value={draft.calibrationCertificateId || ''} onChange={(e) => setDraft((prev) => ({ ...prev, calibrationCertificateId: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" placeholder="e.g. CAL-2026-014" />
               </label>
               <label className="text-xs md:col-span-2">Notes
                 <textarea value={draft.notes} onChange={(e) => setDraft((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5 min-h-20" />

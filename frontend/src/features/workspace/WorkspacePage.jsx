@@ -479,13 +479,6 @@ const WorkspacePage = () => {
                   if (state.data_files) {
                       setExpFiles(state.data_files);
                   }
-                  
-                  setModal({
-                      show: true,
-                      type: 'success',
-                      title: 'Project Loaded',
-                      content: 'Data and Plan restored from folder.',
-                  });
               }
           } catch (e) {
               console.error("Critical State Sync Error:", e);
@@ -780,7 +773,10 @@ const WorkspacePage = () => {
     };
 
   const savePlan = useCallback(async ({ silent = false } = {}) => {
-      if(!projectPath) return silent ? null : notify('error', 'Save Failed', 'No project selected');
+      if(!projectPath) {
+          if (!silent) notify('error', 'Save Failed', 'No project selected');
+          return { success: false, error: 'No project selected' };
+      }
       let content = JSON.stringify({ planName, experiments, meta: planMeta }, null, 2);
       try {
           const res = await fetch(`${apiBaseUrl}/save_plan`, {
@@ -792,13 +788,64 @@ const WorkspacePage = () => {
           if(d.success) {
               setLastSavedAt(new Date());
               if (!silent) notify('success', 'Plan Saved', d.path);
+              return { success: true, path: d.path };
           } else if (!silent) {
               notify('error', 'Save Failed', d.error);
           }
+          return { success: false, error: d.error || 'Save failed' };
       } catch {
           if (!silent) notify('error', 'Network Error', 'Save failed');
+          return { success: false, error: 'Network error' };
       }
   }, [apiBaseUrl, experiments, notify, planMeta, planName, projectPath, saveFormat]);
+
+  const saveProject = useCallback(async () => {
+      if (!projectPath) {
+          notify('error', 'Save Failed', 'No project selected');
+          return;
+      }
+
+      const planResult = await savePlan({ silent: true });
+      if (!planResult?.success) {
+          notify('error', 'Save Failed', planResult?.error || 'Could not save plan');
+          return;
+      }
+
+      let sensorsPath = '';
+      try {
+          const sensorsStorageKey = `exda:sensors-mapping:${projectPath}`;
+          const rawSensorsState = localStorage.getItem(sensorsStorageKey);
+          if (rawSensorsState) {
+              const parsed = JSON.parse(rawSensorsState);
+              const mappingsByGroup = parsed?.mappingsByGroup && typeof parsed.mappingsByGroup === 'object' ? parsed.mappingsByGroup : {};
+              const groupNotes = parsed?.groupNotes && typeof parsed.groupNotes === 'object' ? parsed.groupNotes : {};
+              const selectedGroup = String(parsed?.selectedGroup || '');
+              const response = await fetch(`${apiBaseUrl}/save_sensors_mapping`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      projectPath,
+                      mappingsByGroup,
+                      groupNotes,
+                      selectedGroup,
+                  }),
+              });
+              const payload = await response.json();
+              if (!response.ok || !payload?.success) {
+                  throw new Error(payload?.error || 'Could not save sensors mapping');
+              }
+              sensorsPath = payload.path || '';
+          }
+      } catch (error) {
+          notify('error', 'Partial Save', `Plan saved, but Sensors Mapping could not be saved.${error?.message ? ` ${error.message}` : ''}`);
+          return;
+      }
+
+      const details = sensorsPath
+          ? `Plan: ${planResult.path}\nSensors Mapping: ${sensorsPath}`
+          : `Plan: ${planResult.path}\nSensors Mapping: no local data detected`;
+      notify('success', 'Project Saved', details);
+  }, [apiBaseUrl, notify, projectPath, savePlan]);
 
   const handleCloseProject = async () => {
       const confirmClose = await confirmWithModal({
@@ -1271,10 +1318,10 @@ const WorkspacePage = () => {
                                                 {formatLastSaved(lastSavedAt)}
                                             </div>
                                             <button
-                                                onClick={() => savePlan({ silent: false })}
+                                                onClick={saveProject}
                                                 className="text-[10px] font-bold uppercase tracking-widest bg-primary/15 px-4 py-2 rounded border border-primary/40 hover:bg-primary/25 transition-all shadow-sm text-primary flex items-center gap-2"
-                                                title="Save Plan"
-                                                aria-label="Save Plan"
+                                                title="Save Project"
+                                                aria-label="Save Project"
                                             >
                                                 <Save size={12} /> Save Now
                                             </button>

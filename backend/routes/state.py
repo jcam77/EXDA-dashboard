@@ -16,7 +16,11 @@ RUN_NAME_ORDER_RE = re.compile(r"^(.*)-(\d+)(?:-([Rr])(\d+))?$")
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 PDF_INSTITUTE_LOGO = os.path.join(REPO_ROOT, "frontend", "public", "institute_logo-LightMode.png")
 PDF_UNIVERSITY_LOGO = os.path.join(REPO_ROOT, "frontend", "public", "university_logo-LightMode.png")
+SENSOR_MAPPING_REFERENCE_PDF = os.path.join(REPO_ROOT, "frontend", "public", "SensorMountingLocation-000.pdf")
+DAQ_MEASUREMENT_CHAIN_REFERENCE_PDF = os.path.join(REPO_ROOT, "frontend", "public", "LU-DBI_MeasurementChain_v001.pdf")
+DAQ_MIXTURE_SAMPLING_REFERENCE_PDF = os.path.join(REPO_ROOT, "frontend", "public", "MixtureSampling_Sub-System_000.pdf")
 DAQ_SYSTEMS_FILENAME = "daq_systems.json"
+SENSORS_MAPPING_FILENAME = "sensors_mapping.json"
 
 
 def _to_float(value):
@@ -114,6 +118,47 @@ def _resolve_pdf_logos():
         "institute": PDF_INSTITUTE_LOGO if os.path.exists(PDF_INSTITUTE_LOGO) else None,
         "university": PDF_UNIVERSITY_LOGO if os.path.exists(PDF_UNIVERSITY_LOGO) else None,
     }
+
+
+def _resolve_sensor_mapping_reference_pdf():
+    return SENSOR_MAPPING_REFERENCE_PDF if os.path.exists(SENSOR_MAPPING_REFERENCE_PDF) else None
+
+
+def _resolve_daq_reference_pdfs():
+    references = [
+        ("LU-DBI Measurement Chain", DAQ_MEASUREMENT_CHAIN_REFERENCE_PDF),
+        ("Mixture Sampling Sub-System", DAQ_MIXTURE_SAMPLING_REFERENCE_PDF),
+    ]
+    existing = []
+    for title, path in references:
+        if os.path.exists(path):
+            existing.append({"title": title, "path": path})
+    return existing
+
+
+def _render_pdf_first_page_png(fitz_module, pdf_path, max_width_px=1400, max_height_px=1000):
+    """Render first page of a PDF to a bounded-size PNG bytes payload."""
+    ref_doc = fitz_module.open(pdf_path)
+    try:
+        ref_page = ref_doc.load_page(0)
+        rect = ref_page.rect
+        width = max(float(rect.width or 1.0), 1.0)
+        height = max(float(rect.height or 1.0), 1.0)
+
+        scale_x = max_width_px / width
+        scale_y = max_height_px / height
+        scale = min(scale_x, scale_y, 2.0)
+        if scale <= 0:
+            scale = 1.0
+
+        pix = ref_page.get_pixmap(
+            matrix=fitz_module.Matrix(scale, scale),
+            alpha=False,
+            annots=False,
+        )
+        return pix.tobytes("png")
+    finally:
+        ref_doc.close()
 
 
 def _build_plan_export_rows(experiments, plan_meta=None):
@@ -339,6 +384,7 @@ def _build_daq_export_rows(daq_systems):
             "channel_count": str(record.get("channelCount") or "").strip(),
             "owner": str(record.get("owner") or record.get("location") or "").strip(),
             "last_calibration_date": str(record.get("lastCalibrationDate") or "").strip(),
+            "calibration_certificate_id": str(record.get("calibrationCertificateId") or "").strip(),
             "active": "Yes" if bool(record.get("isActive")) else "No",
             "notes": str(record.get("notes") or "").strip(),
         })
@@ -361,15 +407,22 @@ def _write_daq_csv(rows, target_path, project_name=None):
         "Channel Count",
         "Owner",
         "Last Calibration Date",
+        "Calibration Certificate ID",
         "Active",
         "Notes",
     ]
+    reference_pdfs = _resolve_daq_reference_pdfs()
     with open(target_path, "w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(["Export Type", "DAQ Systems"])
         writer.writerow(["Project", str(project_name or "-")])
         writer.writerow(["Responsible Researcher", "PhD Student Javier I. Camacho"])
         writer.writerow(["Total DAQ Systems", str(len(rows))])
+        if reference_pdfs:
+            for item in reference_pdfs:
+                writer.writerow(["Reference PDF", f"{item['title']}: {os.path.relpath(item['path'], REPO_ROOT)}"])
+        else:
+            writer.writerow(["Reference PDF", "Not found"])
         writer.writerow(["Generated At", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
         writer.writerow([])
         writer.writerow(headers)
@@ -384,6 +437,7 @@ def _write_daq_csv(rows, target_path, project_name=None):
                 row["channel_count"],
                 row["owner"],
                 row["last_calibration_date"],
+                row["calibration_certificate_id"],
                 row["active"],
                 row["notes"],
             ])
@@ -421,6 +475,7 @@ def _write_daq_pdf(project_name, rows, target_path):
     y = top_content_y
     line_h = 12
     logo_paths = _resolve_pdf_logos()
+    reference_pdfs = _resolve_daq_reference_pdfs()
 
     def _draw_logo(page_obj):
         try:
@@ -458,6 +513,11 @@ def _write_daq_pdf(project_name, rows, target_path):
     _write_line(f"Project: {str(project_name or '-')}")
     _write_line("Responsible Researcher: PhD Student Javier I. Camacho")
     _write_line(f"Total DAQ Systems: {len(rows)}")
+    if reference_pdfs:
+        for item in reference_pdfs:
+            _write_line(f"Reference PDF: {item['title']} ({os.path.relpath(item['path'], REPO_ROOT)})")
+    else:
+        _write_line("Reference PDF: Not found")
     _write_line(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     _write_line("")
 
@@ -471,8 +531,9 @@ def _write_daq_pdf(project_name, rows, target_path):
         ("Ch", 4),
         ("Owner", 12),
         ("Last Cal.", 10),
+        ("Cal Cert ID", 12),
         ("Active", 6),
-        ("Notes", 21),
+        ("Notes", 18),
     ]
     divider = "-+-".join("-" * width for _, width in columns)
     header = " | ".join(_clip(name, width) for name, width in columns)
@@ -490,6 +551,7 @@ def _write_daq_pdf(project_name, rows, target_path):
             row.get("channel_count"),
             row.get("owner"),
             row.get("last_calibration_date"),
+            row.get("calibration_certificate_id"),
             row.get("active"),
             row.get("notes"),
         ]
@@ -503,6 +565,31 @@ def _write_daq_pdf(project_name, rows, target_path):
             )
             _write_line(line)
 
+    for item in reference_pdfs:
+        try:
+            ref_png = _render_pdf_first_page_png(
+                fitz,
+                item["path"],
+                max_width_px=1400,
+                max_height_px=1000,
+            )
+
+            page = doc.new_page(width=842, height=595)
+            _draw_logo(page)
+            page.insert_text((x0, top_content_y), f"DAQ Reference Diagram - {item['title']}", fontname="courier-bold", fontsize=10, color=(0, 0, 0))
+            page.insert_text(
+                (x0, top_content_y + 14),
+                f"Source: {os.path.relpath(item['path'], REPO_ROOT)}",
+                fontname="courier",
+                fontsize=8.5,
+                color=(0, 0, 0),
+            )
+            image_rect = fitz.Rect(40, top_content_y + 28, 802, 570)
+            page.insert_image(image_rect, stream=ref_png, keep_proportion=True, overlay=True)
+        except Exception:
+            # Keep export robust even if rendering a reference diagram fails.
+            continue
+
     total_pages = len(doc)
     for page_index, page_obj in enumerate(doc, start=1):
         footer_text = f"Page {page_index}/{total_pages}"
@@ -514,7 +601,406 @@ def _write_daq_pdf(project_name, rows, target_path):
             color=(0.25, 0.25, 0.25),
         )
 
-    doc.save(target_path)
+    doc.save(target_path, deflate=True, garbage=4)
+    doc.close()
+    return True, target_path
+
+
+def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=None):
+    safe_groups = mappings_by_group if isinstance(mappings_by_group, dict) else {}
+    safe_notes = group_notes if isinstance(group_notes, dict) else {}
+    provided_groups = group_names if isinstance(group_names, list) else []
+    merged_groups = set()
+    for group in provided_groups:
+        text = str(group).strip()
+        if text:
+            merged_groups.add(text)
+    for group in safe_groups.keys():
+        text = str(group).strip()
+        if text:
+            merged_groups.add(text)
+    for group in safe_notes.keys():
+        text = str(group).strip()
+        if text:
+            merged_groups.add(text)
+    groups = sorted(merged_groups, key=lambda value: value.lower())
+    rows = []
+    for group in groups:
+        sensors = safe_groups.get(group)
+        safe_sensors = sensors if isinstance(sensors, list) else []
+        group_note = str(safe_notes.get(group) or "").strip()
+
+        sensor_id_counts = {}
+        channel_counts = {}
+        for item in safe_sensors:
+            record = item if isinstance(item, dict) else {}
+            sensor_id = str(record.get("sensorId") or "").strip().lower()
+            if sensor_id:
+                sensor_id_counts[sensor_id] = sensor_id_counts.get(sensor_id, 0) + 1
+            if bool(record.get("isActive")):
+                daq_system = str(record.get("daqSystem") or "").strip().lower()
+                daq_channel = str(record.get("daqChannel") or "").strip().lower()
+                if daq_system and daq_channel:
+                    key = f"{daq_system}::{daq_channel}"
+                    channel_counts[key] = channel_counts.get(key, 0) + 1
+
+        ordered = sorted(
+            safe_sensors,
+            key=lambda item: str((item if isinstance(item, dict) else {}).get("sensorId") or "").strip().lower(),
+        )
+        if not ordered:
+            rows.append({
+                "group": group,
+                "group_note": group_note,
+                "sensor_id": "-",
+                "quantity": "-",
+                "daq_system": "-",
+                "daq_channel": "-",
+                "serial": "-",
+                "manufacturer": "-",
+                "model": "-",
+                "sensitivity": "-",
+                "location": "-",
+                "coordinates": "-",
+                "coordinate_origin": "-",
+                "mounting": "-",
+                "active": "-",
+                "blind": "-",
+                "status": "Reference only (no sensor changes)",
+                "notes": "-",
+                "is_reference_only": True,
+            })
+            continue
+
+        for item in ordered:
+            record = item if isinstance(item, dict) else {}
+            sensor_id = str(record.get("sensorId") or "").strip()
+            measured_quantity = str(record.get("measuredQuantity") or "").strip()
+            daq_system = str(record.get("daqSystem") or "").strip()
+            daq_channel = str(record.get("daqChannel") or "").strip()
+            serial = str(record.get("serialNumber") or "").strip()
+            sensitivity = str(record.get("sensitivity") or "").strip()
+            sensitivity_unit = str(record.get("sensitivityUnit") or "").strip()
+            location = str(record.get("locationLabel") or "").strip()
+            x = str(record.get("x") or "").strip()
+            y = str(record.get("y") or "").strip()
+            z = str(record.get("z") or "").strip()
+            coordinate_unit = str(record.get("coordinateUnit") or "").strip()
+            coordinate_origin = str(record.get("coordinateOrigin") or "").strip()
+            mounting = str(record.get("mountingMethod") or "").strip()
+            manufacturer = str(record.get("manufacturer") or "").strip()
+            model = str(record.get("model") or "").strip()
+            notes = str(record.get("notes") or "").strip()
+            is_active = bool(record.get("isActive"))
+            is_blind = bool(record.get("isBlindSensor"))
+
+            status_errors = []
+            if not sensor_id:
+                status_errors.append("missing sensor id")
+            elif sensor_id_counts.get(sensor_id.lower(), 0) > 1:
+                status_errors.append("duplicate sensor id")
+            if is_active and not daq_system:
+                status_errors.append("missing DAQ system")
+            if is_active and not daq_channel:
+                status_errors.append("missing DAQ channel")
+            if is_active and daq_system and daq_channel:
+                key = f"{daq_system.lower()}::{daq_channel.lower()}"
+                if channel_counts.get(key, 0) > 1:
+                    status_errors.append("duplicate active DAQ channel")
+            if not serial:
+                status_errors.append("missing serial")
+            if _to_float(sensitivity) is None or (_to_float(sensitivity) is not None and _to_float(sensitivity) <= 0):
+                status_errors.append("invalid sensitivity")
+            if not sensitivity_unit:
+                status_errors.append("missing sensitivity unit")
+            if _to_float(x) is None or _to_float(y) is None or _to_float(z) is None:
+                status_errors.append("invalid coordinates")
+            if not coordinate_origin:
+                status_errors.append("missing coordinate origin")
+            if not mounting:
+                status_errors.append("missing mounting")
+
+            status = "Complete" if not status_errors else f"Missing/Invalid ({'; '.join(status_errors[:2])})"
+            coordinates = f"x={x or '-'}, y={y or '-'}, z={z or '-'} {coordinate_unit}".strip()
+            sensitivity_display = f"{sensitivity or '-'} {sensitivity_unit}".strip()
+            rows.append({
+                "group": group,
+                "group_note": group_note,
+                "sensor_id": sensor_id,
+                "quantity": measured_quantity,
+                "daq_system": daq_system,
+                "daq_channel": daq_channel,
+                "serial": serial,
+                "manufacturer": manufacturer,
+                "model": model,
+                "sensitivity": sensitivity_display,
+                "location": location,
+                "coordinates": coordinates,
+                "coordinate_origin": coordinate_origin,
+                "mounting": mounting,
+                "active": "Yes" if is_active else "No",
+                "blind": "Yes" if is_blind else "No",
+                "status": status,
+                "notes": notes,
+                "is_reference_only": False,
+            })
+    return rows
+
+
+def _write_sensors_csv(rows, target_path, project_name=None):
+    headers = [
+        "Group",
+        "Group Reference Note",
+        "Sensor ID",
+        "Measured Quantity",
+        "DAQ System",
+        "DAQ Channel",
+        "Serial Number",
+        "Manufacturer",
+        "Model",
+        "Sensitivity",
+        "Location Label",
+        "Coordinates",
+        "Coordinate Origin",
+        "Mounting Method",
+        "Active",
+        "Blind/Control",
+        "Status",
+        "Notes",
+    ]
+    total_groups = len({str(row.get("group") or "").strip() for row in rows if str(row.get("group") or "").strip()})
+    total_mappings = sum(1 for row in rows if not bool(row.get("is_reference_only")))
+    unique_sensor_ids = {
+        str(row.get("sensor_id") or "").strip().lower()
+        for row in rows
+        if not bool(row.get("is_reference_only")) and str(row.get("sensor_id") or "").strip() and str(row.get("sensor_id") or "").strip() != "-"
+    }
+    total_sensors = len(unique_sensor_ids)
+    reference_pdf = _resolve_sensor_mapping_reference_pdf()
+    reference_display = (
+        os.path.relpath(reference_pdf, REPO_ROOT)
+        if reference_pdf
+        else "Not found (expected: frontend/public/SensorMountingLocation-000.pdf)"
+    )
+    with open(target_path, "w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["Export Type", "Sensors Mapping"])
+        writer.writerow(["Project", str(project_name or "-")])
+        writer.writerow(["Responsible Researcher", "PhD Student Javier I. Camacho"])
+        writer.writerow(["Total Groups", str(total_groups)])
+        writer.writerow(["Total Sensor IDs", str(total_sensors)])
+        writer.writerow(["Total Sensor Mappings", str(total_mappings)])
+        writer.writerow(["Sensor Mounting Reference File", reference_display])
+        writer.writerow(["Generated At", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+        writer.writerow([])
+        writer.writerow(headers)
+        for row in rows:
+            writer.writerow([
+                row["group"],
+                row["group_note"],
+                row["sensor_id"],
+                row["quantity"],
+                row["daq_system"],
+                row["daq_channel"],
+                row["serial"],
+                row["manufacturer"],
+                row["model"],
+                row["sensitivity"],
+                row["location"],
+                row["coordinates"],
+                row["coordinate_origin"],
+                row["mounting"],
+                row["active"],
+                row["blind"],
+                row["status"],
+                row["notes"],
+            ])
+
+
+def _write_sensors_pdf(project_name, rows, target_path):
+    try:
+        import fitz  # PyMuPDF
+    except Exception as exc:
+        return False, f"PyMuPDF unavailable: {exc}"
+
+    def _clip(value, width):
+        text = str(value or "")
+        if len(text) <= width:
+            return text.ljust(width)
+        if width <= 1:
+            return text[:width]
+        return (text[: width - 1] + "…")
+
+    def _wrap(value, width):
+        text = str(value or "").strip()
+        if not text:
+            return ["-"]
+        return textwrap.wrap(
+            text,
+            width=width,
+            break_long_words=True,
+            break_on_hyphens=False,
+        ) or ["-"]
+
+    doc = fitz.open()
+    page = doc.new_page(width=842, height=595)  # A4 landscape
+    x0 = 24
+    top_content_y = 92
+    y = top_content_y
+    line_h = 12
+    logo_paths = _resolve_pdf_logos()
+    reference_pdf = _resolve_sensor_mapping_reference_pdf()
+
+    def _draw_logo(page_obj):
+        try:
+            university_logo = logo_paths.get("university")
+            if university_logo:
+                page_obj.insert_image(
+                    fitz.Rect(500, 16, 660, 76),
+                    filename=university_logo,
+                    keep_proportion=True,
+                    overlay=True,
+                )
+            institute_logo = logo_paths.get("institute")
+            if institute_logo:
+                page_obj.insert_image(
+                    fitz.Rect(668, 16, 818, 76),
+                    filename=institute_logo,
+                    keep_proportion=True,
+                    overlay=True,
+                )
+        except Exception:
+            return
+
+    _draw_logo(page)
+
+    def _write_line(text, bold=False):
+        nonlocal page, y
+        if y > 570:
+            page = doc.new_page(width=842, height=595)
+            y = top_content_y
+            _draw_logo(page)
+        page.insert_text((x0, y), text, fontname="courier-bold" if bold else "courier", fontsize=8.5, color=(0, 0, 0))
+        y += line_h
+
+    total_groups = len({str(row.get("group") or "").strip() for row in rows if str(row.get("group") or "").strip()})
+    total_mappings = sum(1 for row in rows if not bool(row.get("is_reference_only")))
+    unique_sensor_ids = {
+        str(row.get("sensor_id") or "").strip().lower()
+        for row in rows
+        if not bool(row.get("is_reference_only")) and str(row.get("sensor_id") or "").strip() and str(row.get("sensor_id") or "").strip() != "-"
+    }
+    total_sensors = len(unique_sensor_ids)
+
+    _write_line("EXDA Sensors Mapping Export", bold=True)
+    _write_line(f"Project: {str(project_name or '-')}")
+    _write_line("Responsible Researcher: PhD Student Javier I. Camacho")
+    _write_line(f"Total Groups: {total_groups}")
+    _write_line(f"Total Sensor IDs: {total_sensors}")
+    _write_line(f"Total Sensor Mappings: {total_mappings}")
+    _write_line(
+        "Sensor Mounting Reference File: "
+        + (os.path.relpath(reference_pdf, REPO_ROOT) if reference_pdf else "Not found")
+    )
+    _write_line(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    _write_line("")
+
+    columns = [
+        ("Group", 8),
+        ("Group Note", 16),
+        ("Sensor", 9),
+        ("Qty", 7),
+        ("DAQ", 8),
+        ("Ch", 5),
+        ("Serial", 9),
+        ("Sensitivity", 10),
+        ("Location", 8),
+        ("Coordinates", 13),
+        ("Mount", 7),
+        ("Active", 6),
+        ("Blind", 5),
+        ("Status", 10),
+    ]
+    divider = "-+-".join("-" * width for _, width in columns)
+    header = " | ".join(_clip(name, width) for name, width in columns)
+    _write_line(header, bold=True)
+    _write_line(divider)
+
+    previous_group = None
+    for row in rows:
+        current_group = str(row.get("group") or "")
+        if previous_group is None:
+            _write_line("")
+            _write_line(f"Group: {current_group or '-'}", bold=True)
+        elif current_group != previous_group:
+            _write_line("")
+            _write_line("=" * len(divider), bold=False)
+            _write_line(f"Group: {current_group or '-'}", bold=True)
+        previous_group = current_group
+
+        row_values = [
+            row.get("group"),
+            row.get("group_note"),
+            row.get("sensor_id"),
+            row.get("quantity"),
+            row.get("daq_system"),
+            row.get("daq_channel"),
+            row.get("serial"),
+            row.get("sensitivity"),
+            row.get("location"),
+            row.get("coordinates"),
+            row.get("mounting"),
+            row.get("active"),
+            row.get("blind"),
+            row.get("status"),
+        ]
+        wrapped_cells = [_wrap(value, width) for value, (_, width) in zip(row_values, columns)]
+        row_lines = max(len(lines) for lines in wrapped_cells) if wrapped_cells else 1
+
+        for idx in range(row_lines):
+            line = " | ".join(
+                _clip((wrapped_cells[col_idx][idx] if idx < len(wrapped_cells[col_idx]) else ""), columns[col_idx][1])
+                for col_idx in range(len(columns))
+            )
+            _write_line(line)
+
+    if reference_pdf:
+        try:
+            ref_png = _render_pdf_first_page_png(
+                fitz,
+                reference_pdf,
+                max_width_px=1400,
+                max_height_px=1000,
+            )
+
+            page = doc.new_page(width=842, height=595)
+            _draw_logo(page)
+            page.insert_text((x0, top_content_y), "Sensor Mounting Reference Diagram", fontname="courier-bold", fontsize=10, color=(0, 0, 0))
+            page.insert_text(
+                (x0, top_content_y + 14),
+                f"Source: {os.path.relpath(reference_pdf, REPO_ROOT)}",
+                fontname="courier",
+                fontsize=8.5,
+                color=(0, 0, 0),
+            )
+            image_rect = fitz.Rect(40, top_content_y + 28, 802, 570)
+            page.insert_image(image_rect, stream=ref_png, keep_proportion=True, overlay=True)
+        except Exception:
+            # Keep export robust even if rendering the diagram fails.
+            pass
+
+    total_pages = len(doc)
+    for page_index, page_obj in enumerate(doc, start=1):
+        footer_text = f"Page {page_index}/{total_pages}"
+        page_obj.insert_text(
+            (770, 582),
+            footer_text,
+            fontname="courier",
+            fontsize=8,
+            color=(0.25, 0.25, 0.25),
+        )
+
+    doc.save(target_path, deflate=True, garbage=4)
     doc.close()
     return True, target_path
 
@@ -530,15 +1016,28 @@ def get_project_state():
     plan_data = None
     plan_dir = os.path.join(project_root, "Plan")
     if os.path.exists(plan_dir):
-        plans = [
-            f for f in os.listdir(plan_dir)
+        plan_candidates = [
+            os.path.join(plan_dir, f)
+            for f in os.listdir(plan_dir)
             if f.endswith('.json') and f != project_manager.STATUS_FILENAME
         ]
-        if plans:
-            latest_plan_path = max([os.path.join(plan_dir, f) for f in plans], key=os.path.getmtime)
+
+        # Prefer files that look like actual experiment plans (contain an experiments array).
+        valid_plan_files = []
+        for candidate_path in plan_candidates:
             try:
-                with open(latest_plan_path, 'r') as f:
-                    plan_data = json.load(f)
+                with open(candidate_path, 'r', encoding='utf-8') as handle:
+                    payload = json.load(handle)
+                if isinstance(payload, dict) and isinstance(payload.get("experiments"), list):
+                    valid_plan_files.append(candidate_path)
+            except Exception:
+                continue
+
+        if valid_plan_files:
+            latest_plan_path = max(valid_plan_files, key=os.path.getmtime)
+            try:
+                with open(latest_plan_path, 'r', encoding='utf-8') as handle:
+                    plan_data = json.load(handle)
             except Exception as e:
                 print(f"Error loading plan: {e}")
 
@@ -822,6 +1321,62 @@ def save_daq_systems():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
+@state_bp.route('/save_sensors_mapping', methods=['POST'])
+def save_sensors_mapping():
+    """Persist sensors mapping metadata in Plan/sensors_mapping.json."""
+    payload = request.json or {}
+    project_path = payload.get("projectPath")
+    mappings_by_group = payload.get("mappingsByGroup")
+    group_notes = payload.get("groupNotes") if isinstance(payload.get("groupNotes"), dict) else {}
+    selected_group = str(payload.get("selectedGroup") or "").strip()
+
+    if not isinstance(mappings_by_group, dict):
+        return jsonify({"success": False, "error": "mappingsByGroup must be an object"}), 400
+
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    plan_dir = os.path.join(project_root, "Plan")
+    os.makedirs(plan_dir, exist_ok=True)
+    file_path = os.path.join(plan_dir, SENSORS_MAPPING_FILENAME)
+    if not project_manager.is_path_within(plan_dir, file_path):
+        return jsonify({"success": False, "error": "Invalid sensors mapping path"}), 400
+
+    safe_groups = {}
+    for key, value in mappings_by_group.items():
+        group_name = str(key or "").strip()
+        if not group_name:
+            continue
+        safe_groups[group_name] = value if isinstance(value, list) else []
+
+    safe_notes = {}
+    for key, value in group_notes.items():
+        group_name = str(key or "").strip()
+        if not group_name:
+            continue
+        safe_notes[group_name] = str(value or "")
+
+    total_sensors = sum(len(items) for items in safe_groups.values() if isinstance(items, list))
+    try:
+        data = {
+            "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "selectedGroup": selected_group,
+            "groupNotes": safe_notes,
+            "mappingsByGroup": safe_groups,
+        }
+        with open(file_path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=2)
+        return jsonify({
+            "success": True,
+            "path": file_path,
+            "groupCount": len(safe_groups),
+            "sensorCount": total_sensors,
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
 @state_bp.route('/export_daq_artifact', methods=['POST'])
 def export_daq_artifact():
     """Export DAQ systems artifact (CSV or PDF) into the project's Reports folder."""
@@ -855,6 +1410,52 @@ def export_daq_artifact():
             return jsonify({"success": True, "path": target_path, "format": "csv", "rows": len(rows)})
 
         ok, result = _write_daq_pdf(project_name, rows, target_path)
+        if not ok:
+            return jsonify({"success": False, "error": result}), 500
+        return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@state_bp.route('/export_sensors_mapping_artifact', methods=['POST'])
+def export_sensors_mapping_artifact():
+    """Export sensors mapping artifact (CSV or PDF) into the project's Reports folder."""
+    payload = request.json or {}
+    project_path = payload.get("projectPath")
+    mappings_by_group = payload.get("mappingsByGroup") if isinstance(payload.get("mappingsByGroup"), dict) else {}
+    group_notes = payload.get("groupNotes") if isinstance(payload.get("groupNotes"), dict) else {}
+    group_names = payload.get("groupNames") if isinstance(payload.get("groupNames"), list) else []
+    export_format = str(payload.get("format") or "").strip().lower()
+
+    if export_format not in {"csv", "pdf"}:
+        return jsonify({"success": False, "error": "format must be 'csv' or 'pdf'"}), 400
+
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+
+    project_name = os.path.basename(project_root.rstrip(os.sep)) or "Project"
+    date_stamp = datetime.now().strftime("%Y-%m-%d")
+    stem = _sanitize_export_stem(f"{project_name}_Sensors_Mapping", "Sensors_Mapping")
+    target_name = f"{stem}_{date_stamp}.{export_format}"
+    target_path = os.path.join(reports_dir, target_name)
+    if not project_manager.is_path_within(reports_dir, target_path):
+        return jsonify({"success": False, "error": "Invalid export filename"}), 400
+
+    rows = _build_sensors_export_rows(
+        mappings_by_group,
+        group_notes=group_notes,
+        group_names=group_names,
+    )
+    try:
+        if export_format == "csv":
+            _write_sensors_csv(rows, target_path, project_name=project_name)
+            return jsonify({"success": True, "path": target_path, "format": "csv", "rows": len(rows)})
+
+        ok, result = _write_sensors_pdf(project_name, rows, target_path)
         if not ok:
             return jsonify({"success": False, "error": result}), 500
         return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
