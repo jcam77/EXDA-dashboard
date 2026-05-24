@@ -14,7 +14,7 @@ const QUANTITY_OPTIONS = [
 ];
 const SENSITIVITY_UNIT_OPTIONS = ['pC/bar', 'pC/kPa', 'mV/bar', 'mV/kPa', 'V/bar', 'V/kPa', 'other'];
 const COORDINATE_UNIT_OPTIONS = ['m', 'mm'];
-const MOUNTING_OPTIONS = ['flush', 'recessed', 'tube-mounted', 'surface-mounted', 'other'];
+const MOUNTING_OPTIONS = ['flush', 'recessed', 'tube-mounted', 'surface-mounted', 'N/A', 'other'];
 const TRIGGER_METHOD_OPTIONS = ['', 'Camera', 'M-Duino', 'Other'];
 const RUN_GROUP_RE = /^(.*)-(\d+)(?:-[Rr]\d+)?$/;
 
@@ -22,6 +22,7 @@ const normalizeMountingMethodValue = (value) => {
   const text = String(value || '').trim();
   if (!text) return '';
   if (text.toLowerCase() === 'flush-mounted') return 'flush';
+  if (['n/a', 'na', 'not applicable'].includes(text.toLowerCase())) return 'N/A';
   return text;
 };
 

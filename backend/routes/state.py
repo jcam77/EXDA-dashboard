@@ -84,6 +84,8 @@ def _normalize_mounting_label(value):
     text = str(value or "").strip()
     if text.lower() == "flush-mounted":
         return "flush"
+    if text.lower() in {"n/a", "na", "not applicable"}:
+        return "N/A"
     return text
 
 
@@ -355,7 +357,8 @@ def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
         page.insert_text((x0, y), text, fontname="courier-bold" if bold else "courier", fontsize=8.5, color=(0, 0, 0))
         y += line_h
 
-    _write_line(f"EXDA Plan Export - {plan_name or 'Experiment Plan'}", bold=True)
+    page.insert_text((x0, y), f"EXDA Plan Export - {plan_name or 'Experiment Plan'}", fontname="courier-bold", fontsize=18, color=(0, 0, 0))
+    y += 22
     _write_line("Responsible Researcher: PhD Student Javier I. Camacho")
     _write_line(f"Objective: {str((plan_meta or {}).get('objective') or '-')}")
     _write_line(f"Start: {str((plan_meta or {}).get('startDate') or '-')} | Deadline: {str((plan_meta or {}).get('deadline') or '-')}")
@@ -593,7 +596,8 @@ def _write_daq_pdf(project_name, rows, target_path):
         page.insert_text((x0, y), text, fontname="courier-bold" if bold else "courier", fontsize=8.5, color=(0, 0, 0))
         y += line_h
 
-    _write_line("EXDA DAQ Systems Export", bold=True)
+    page.insert_text((x0, y), "EXDA DAQ Systems Export", fontname="courier-bold", fontsize=18, color=(0, 0, 0))
+    y += 22
     _write_line(f"Project: {str(project_name or '-')}")
     _write_line("Responsible Researcher: PhD Student Javier I. Camacho")
     _write_line(f"Total DAQ Systems: {len(rows)}")
@@ -995,7 +999,8 @@ def _write_sensors_pdf(project_name, rows, target_path):
     }
     total_sensors = len(unique_sensor_ids)
 
-    _write_line("EXDA Sensors Mapping Export", bold=True)
+    page.insert_text((x0, y), "EXDA Sensors Mapping Export", fontname="courier-bold", fontsize=18, color=(0, 0, 0))
+    y += 22
     _write_line(f"Project: {str(project_name or '-')}")
     _write_line("Responsible Researcher: PhD Student Javier I. Camacho")
     _write_line(f"Total Groups: {total_groups}")
@@ -1388,7 +1393,8 @@ def _write_gas_mixing_pdf(project_name, rows, target_path, verification_meta=Non
         page.insert_text((x0, y), text, fontname="courier-bold" if bold else "courier", fontsize=8.5, color=(0, 0, 0))
         y += line_h
 
-    _write_line("EXDA Gas Mixing Export", bold=True)
+    page.insert_text((x0, y), "EXDA Gas Mixing Export", fontname="courier-bold", fontsize=18, color=(0, 0, 0))
+    y += 22
     _write_line(f"Project: {str(project_name or '-')}")
     _write_line("Responsible Researcher: PhD Student Javier I. Camacho")
     _write_line(f"Total Records: {len(rows)}")
@@ -2375,6 +2381,9 @@ def export_metadata_report_artifact():
             group_names=sensors_payload.get("groupNames"),
         )
         gas_rows = _build_gas_mixing_export_rows(gas_payload.get("records"))
+        plan_meta = plan_payload.get("meta") if isinstance(plan_payload.get("meta"), dict) else {}
+        project_objective = str(plan_meta.get("objective") or "").strip() or "-"
+        project_description = str(plan_meta.get("description") or "").strip() or "-"
 
         with tempfile.TemporaryDirectory(prefix="exda-meta-") as tmp_dir:
             plan_pdf = os.path.join(tmp_dir, "plan.pdf")
@@ -2431,6 +2440,26 @@ def export_metadata_report_artifact():
             cover.insert_text((36, 100), f"Generated: {_now_display_str(include_seconds=True)}", fontname="courier", fontsize=10, color=(0, 0, 0))
             cover.insert_text((36, 130), "Includes: Plan, DAQ Systems, Sensors Mapping, Gas Mixing", fontname="courier", fontsize=10, color=(0, 0, 0))
             cover.insert_text((36, 146), "Responsible Researcher: PhD Student Javier I. Camacho", fontname="courier", fontsize=10, color=(0, 0, 0))
+
+            objective_y = 176
+            cover.insert_text((36, objective_y), "Project Objective:", fontname="courier-bold", fontsize=10, color=(0, 0, 0))
+            objective_y += 14
+            objective_lines = textwrap.wrap(project_objective, width=100, break_long_words=False, break_on_hyphens=False) or ["-"]
+            for line in objective_lines:
+                cover.insert_text((36, objective_y), line, fontname="courier", fontsize=9.5, color=(0, 0, 0))
+                objective_y += 12
+
+            objective_y += 6
+            cover.insert_text((36, objective_y), "Project Description:", fontname="courier-bold", fontsize=10, color=(0, 0, 0))
+            objective_y += 14
+            for paragraph in [part.strip() for part in project_description.splitlines()] or ["-"]:
+                if not paragraph:
+                    objective_y += 6
+                    continue
+                wrapped = textwrap.wrap(paragraph, width=100, break_long_words=False, break_on_hyphens=False) or ["-"]
+                for line in wrapped:
+                    cover.insert_text((36, objective_y), line, fontname="courier", fontsize=9.5, color=(0, 0, 0))
+                    objective_y += 12
 
             for section_path in [plan_pdf, daq_pdf, sensors_pdf, gas_pdf]:
                 if not os.path.exists(section_path):
