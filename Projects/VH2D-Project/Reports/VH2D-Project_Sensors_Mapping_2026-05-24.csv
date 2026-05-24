@@ -1,11 +1,11 @@
 ﻿Export Type,Sensors Mapping
 Project,VH2D-Project
 Responsible Researcher,PhD Student Javier I. Camacho
-Total Groups,2
+Total Groups,7
 Total Sensor IDs,8
 Total Sensor Mappings,9
 Sensor Mounting Reference File,frontend/public/SensorMountingLocation-000.pdf
-Generated At,2026-05-24 09:41:47
+Generated At,2026-05-24 09:56:02
 
 Group,Group Reference Note,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Manufacturer,Model,Sensitivity,Location Label,Coordinates,Coordinate Origin,Mounting Method,Active,Blind/Control,Status,Notes
 Preparation,,P1,pressure,DAQ-1,CH1,m123,Kistler,m,75 pC/bar,1L,"x=1, y=1, z=1 m",1 left,recessed,Yes,No,Complete,
@@ -17,3 +17,8 @@ Preparation,,P6,pressure,Kistler LabAmp,,,Kistler,,- pC/bar,,"x=-, y=-, z=- m",i
 Preparation,,P7,pressure,Kistler LabAmp,,,Kistler,,- pC/bar,,"x=-, y=-, z=- m",internal lower-front-left corner of chamber,flush-mounted,Yes,No,Missing/Invalid (missing DAQ channel; missing serial),
 Preparation,,P8,pressure,Kistler LabAmp,,,Kistler,,- pC/bar,,"x=-, y=-, z=- m",internal lower-front-left corner of chamber,flush-mounted,Yes,No,Missing/Invalid (missing DAQ channel; missing serial),
 VH2D-01,same configuration as preparation,P8,pressure,Kistler LabAmp,,,Kistler,,- pC/bar,,"x=-, y=-, z=- m",internal lower-front-left corner of chamber,flush-mounted,Yes,No,Missing/Invalid (missing DAQ channel; missing serial),
+VH2D-02,,-,-,-,-,-,-,-,-,-,-,-,-,-,-,Reference only (no sensor changes),-
+VH2D-03,,-,-,-,-,-,-,-,-,-,-,-,-,-,-,Reference only (no sensor changes),-
+VH2D-04,,-,-,-,-,-,-,-,-,-,-,-,-,-,-,Reference only (no sensor changes),-
+VH2D-05,,-,-,-,-,-,-,-,-,-,-,-,-,-,-,Reference only (no sensor changes),-
+VH2D-06,,-,-,-,-,-,-,-,-,-,-,-,-,-,-,Reference only (no sensor changes),-

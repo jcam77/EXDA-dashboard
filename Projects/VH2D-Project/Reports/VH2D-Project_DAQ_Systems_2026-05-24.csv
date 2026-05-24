@@ -4,7 +4,7 @@ Responsible Researcher,PhD Student Javier I. Camacho
 Total DAQ Systems,5
 Reference PDF,LU-DBI Measurement Chain: frontend/public/LU-DBI_MeasurementChain_v001.pdf
 Reference PDF,Mixture Sampling Sub-System: frontend/public/MixtureSampling_Sub-System_000.pdf
-Generated At,2026-05-24 09:41:32
+Generated At,2026-05-24 09:55:52
 
 DAQ System Name,Measured Quantity,Vendor,Model,Serial Number,Sampling Rate (Hz),Channel Count,Owner,Last Calibration Date,Calibration Certificate ID,Active,Notes
 DAQ-1,pressure,Kistler,,,,8,LU,,,Yes,

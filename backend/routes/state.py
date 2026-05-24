@@ -136,6 +136,22 @@ def _resolve_daq_reference_pdfs():
     return existing
 
 
+def _metadata_file_candidates(project_root, filename):
+    reports_dir = os.path.join(project_root, "Reports")
+    plan_dir = os.path.join(project_root, "Plan")
+    return [
+        os.path.join(reports_dir, filename),
+        os.path.join(plan_dir, filename),
+    ]
+
+
+def _resolve_existing_metadata_file(project_root, filename):
+    for candidate in _metadata_file_candidates(project_root, filename):
+        if os.path.exists(candidate):
+            return candidate
+    return _metadata_file_candidates(project_root, filename)[0]
+
+
 def _render_pdf_first_page_png(fitz_module, pdf_path, max_width_px=1400, max_height_px=1000):
     """Render first page of a PDF to a bounded-size PNG bytes payload."""
     ref_doc = fitz_module.open(pdf_path)
@@ -364,7 +380,7 @@ def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
             color=(0.25, 0.25, 0.25),
         )
 
-    doc.save(target_path)
+    doc.save(target_path, deflate=True, garbage=4)
     doc.close()
     return True, target_path
 
@@ -1270,8 +1286,9 @@ def get_daq_systems():
     if err:
         return jsonify({"success": False, "error": err}), 400
 
-    plan_dir = os.path.join(project_root, "Plan")
-    file_path = os.path.join(plan_dir, DAQ_SYSTEMS_FILENAME)
+    reports_path = os.path.join(project_root, "Reports", DAQ_SYSTEMS_FILENAME)
+    plan_path = os.path.join(project_root, "Plan", DAQ_SYSTEMS_FILENAME)
+    file_path = _resolve_existing_metadata_file(project_root, DAQ_SYSTEMS_FILENAME)
 
     if not os.path.exists(file_path):
         return jsonify({"success": True, "daqSystems": [], "path": file_path})
@@ -1285,14 +1302,30 @@ def get_daq_systems():
             daq_systems = payload
         if not isinstance(daq_systems, list):
             daq_systems = []
-        return jsonify({"success": True, "daqSystems": daq_systems, "path": file_path})
+
+        migrated = False
+        # One-time migration: if data is still in Plan, copy it into Reports for consistency.
+        if os.path.exists(plan_path) and file_path == plan_path and not os.path.exists(reports_path):
+            try:
+                os.makedirs(os.path.dirname(reports_path), exist_ok=True)
+                with open(reports_path, "w", encoding="utf-8") as out_handle:
+                    json.dump({
+                        "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "daqSystems": daq_systems,
+                    }, out_handle, indent=2)
+                file_path = reports_path
+                migrated = True
+            except Exception:
+                migrated = False
+
+        return jsonify({"success": True, "daqSystems": daq_systems, "path": file_path, "migratedToReports": migrated})
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
 @state_bp.route('/save_daq_systems', methods=['POST'])
 def save_daq_systems():
-    """Persist DAQ systems metadata in Plan/daq_systems.json."""
+    """Persist DAQ systems metadata in Reports/daq_systems.json."""
     payload = request.json or {}
     project_path = payload.get("projectPath")
     daq_systems = payload.get("daqSystems")
@@ -1303,10 +1336,10 @@ def save_daq_systems():
     if err:
         return jsonify({"success": False, "error": err}), 400
 
-    plan_dir = os.path.join(project_root, "Plan")
-    os.makedirs(plan_dir, exist_ok=True)
-    file_path = os.path.join(plan_dir, DAQ_SYSTEMS_FILENAME)
-    if not project_manager.is_path_within(plan_dir, file_path):
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    file_path = os.path.join(reports_dir, DAQ_SYSTEMS_FILENAME)
+    if not project_manager.is_path_within(reports_dir, file_path):
         return jsonify({"success": False, "error": "Invalid DAQ systems path"}), 400
 
     try:
@@ -1323,7 +1356,7 @@ def save_daq_systems():
 
 @state_bp.route('/save_sensors_mapping', methods=['POST'])
 def save_sensors_mapping():
-    """Persist sensors mapping metadata in Plan/sensors_mapping.json."""
+    """Persist sensors mapping metadata in Reports/sensors_mapping.json."""
     payload = request.json or {}
     project_path = payload.get("projectPath")
     mappings_by_group = payload.get("mappingsByGroup")
@@ -1337,10 +1370,10 @@ def save_sensors_mapping():
     if err:
         return jsonify({"success": False, "error": err}), 400
 
-    plan_dir = os.path.join(project_root, "Plan")
-    os.makedirs(plan_dir, exist_ok=True)
-    file_path = os.path.join(plan_dir, SENSORS_MAPPING_FILENAME)
-    if not project_manager.is_path_within(plan_dir, file_path):
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    file_path = os.path.join(reports_dir, SENSORS_MAPPING_FILENAME)
+    if not project_manager.is_path_within(reports_dir, file_path):
         return jsonify({"success": False, "error": "Invalid sensors mapping path"}), 400
 
     safe_groups = {}

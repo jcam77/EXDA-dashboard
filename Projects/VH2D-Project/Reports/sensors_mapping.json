@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-24 07:42:09",
+  "updatedAt": "2026-05-24 09:51:07",
   "selectedGroup": "Preparation",
   "groupNotes": {
     "VH2D-01": "same configuration as preparation"
@@ -224,6 +224,10 @@
         "calibrationDate": "",
         "calibrationCertificateId": ""
       }
-    ]
+    ],
+    "VH2D-02": [],
+    "VH2D-03": [],
+    "VH2D-04": [],
+    "VH2D-05": []
   }
 }

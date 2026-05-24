@@ -812,6 +812,33 @@ const WorkspacePage = () => {
       }
 
       let sensorsPath = '';
+      let daqPath = '';
+      try {
+          // Ensure DAQ metadata is also persisted to Reports/daq_systems.json
+          const loadRes = await fetch(`${apiBaseUrl}/get_daq_systems?projectPath=${encodeURIComponent(projectPath)}`);
+          const loadPayload = await loadRes.json();
+          if (!loadRes.ok || !loadPayload?.success) {
+              throw new Error(loadPayload?.error || 'Could not load DAQ systems for save');
+          }
+          const daqSystems = Array.isArray(loadPayload?.daqSystems) ? loadPayload.daqSystems : [];
+          const saveRes = await fetch(`${apiBaseUrl}/save_daq_systems`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  projectPath,
+                  daqSystems,
+              }),
+          });
+          const savePayload = await saveRes.json();
+          if (!saveRes.ok || !savePayload?.success) {
+              throw new Error(savePayload?.error || 'Could not save DAQ systems');
+          }
+          daqPath = savePayload.path || '';
+      } catch (error) {
+          notify('error', 'Partial Save', `Plan saved, but DAQ Systems could not be saved.${error?.message ? ` ${error.message}` : ''}`);
+          return;
+      }
+
       try {
           const sensorsStorageKey = `exda:sensors-mapping:${projectPath}`;
           const rawSensorsState = localStorage.getItem(sensorsStorageKey);
@@ -842,8 +869,8 @@ const WorkspacePage = () => {
       }
 
       const details = sensorsPath
-          ? `Plan: ${planResult.path}\nSensors Mapping: ${sensorsPath}`
-          : `Plan: ${planResult.path}\nSensors Mapping: no local data detected`;
+          ? `Plan: ${planResult.path}\nDAQ Systems: ${daqPath}\nSensors Mapping: ${sensorsPath}`
+          : `Plan: ${planResult.path}\nDAQ Systems: ${daqPath}\nSensors Mapping: no local data detected`;
       notify('success', 'Project Saved', details);
   }, [apiBaseUrl, notify, projectPath, savePlan]);
 
