@@ -135,14 +135,15 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [
-          "Prep-01/Prep-01-DAQ-1",
-          "Prep-01/Prep-01-DAQ-2",
-          "Prep-01/Prep-01-DAQ-3",
-          "Prep-01/Prep-01-H2CM-1",
-          "Prep-01/Prep-01-H2CM-2",
-          "Prep-01/Prep-01-H2CM-3"
+          "Prep-01/DAQ_1/Prep-01.exp/Prep-01.exp",
+          "Prep-01/DAQ_1/Prep-01.exp/Prep-01.tps.xml",
+          "Prep-01/DAQ_1/Prep-01.exp/Prep-01.zip",
+          "Prep-01/DAQ_1/Prep-01.exp/data/Prep_01.tpc5",
+          "Prep-01/DAQ_2/Prep-01/Prep-01.k2l",
+          "Prep-01/DAQ_2/Prep-01/Prep-01.mf4",
+          "Prep-01/H2CM/Prep_01/H2CM-1-260525-173742.csv"
         ],
-        "h2": "12",
+        "h2": "13.5",
         "ignition": "back",
         "isPreparation": true,
         "mfcFlowSlpm": "20",
@@ -154,24 +155,6 @@
         "vent": "Thin Plastic + Hotwire"
       },
       "name": "Prep-01"
-    },
-    {
-      "done": false,
-      "id": 1777818089548,
-      "meta": {
-        "cfdHash": "",
-        "dataFiles": [],
-        "h2": "12",
-        "ignition": "",
-        "isPreparation": true,
-        "p0": "101325",
-        "plannedDate": "2026-05-25",
-        "plannedDay": "",
-        "shortDescription": "",
-        "t0": "293",
-        "vent": ""
-      },
-      "name": "Prep-02"
     },
     {
       "done": false,
@@ -328,6 +311,6 @@
     },
     "objective": "LU / DBI / Kistler pressure DAQ systems characterisation.",
     "startDate": "2026-05-25",
-    "status": "planning"
+    "status": "active"
   }
 }
