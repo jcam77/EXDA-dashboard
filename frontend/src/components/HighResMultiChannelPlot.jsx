@@ -22,6 +22,13 @@ const formatXTick = (v) => {
   const scaled = num / (10 ** exp);
   return `${scaled.toFixed(1)}e${exp >= 0 ? '+' : ''}${exp}`;
 };
+const formatXIndexTick = (v) => {
+  const num = Number(v);
+  if (!Number.isFinite(num)) return '';
+  if (Math.abs(num) >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+  if (Math.abs(num) >= 1000) return `${(num / 1000).toFixed(1)}k`;
+  return `${Math.round(num)}`;
+};
 const formatYTick = (v) => {
   const num = Number(v);
   if (!Number.isFinite(num)) return '';
@@ -51,6 +58,8 @@ const HighResMultiChannelPlot = ({
   colors = FALLBACK_COLORS,
   showLegend = true,
   showResetButton = true,
+  xAxisLabel = 'Time (s)',
+  xAxisMode = 'time',
 }) => {
   const mountRef = useRef(null);
   const chartRef = useRef(null);
@@ -145,7 +154,7 @@ const HighResMultiChannelPlot = ({
 
     const series = [
       {
-        label: 't (s)',
+        label: xAxisMode === 'index' ? 'i' : 't (s)',
         value: (_u, v) => (Number.isFinite(Number(v)) ? Number(v).toExponential(4) : ''),
       },
       ...channels.map((channel, idx) => ({
@@ -168,11 +177,11 @@ const HighResMultiChannelPlot = ({
       },
       axes: [
         {
-          label: 'Time (s)',
           size: 52,
           stroke: '#94a3b8',
           grid: { stroke: 'rgba(148,163,184,0.18)' },
-          values: (_u, vals) => vals.map(formatXTick),
+          label: xAxisLabel,
+          values: (_u, vals) => vals.map(xAxisMode === 'index' ? formatXIndexTick : formatXTick),
         },
         {
           label: primaryLabel,

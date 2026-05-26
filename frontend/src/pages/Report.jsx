@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Download, Construction, Database } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../utils/timezone';
+import UnifiedModal from '../components/UnifiedModal';
 
 const ReportPage = ({
   projectPath = '',
@@ -14,10 +15,72 @@ const ReportPage = ({
   );
   const [status, setStatus] = useState('');
   const [busyFormat, setBusyFormat] = useState('');
+  const [metadataPdf, setMetadataPdf] = useState({ found: false, filename: '', relativePath: '' });
+  const [checkingMetadataPdf, setCheckingMetadataPdf] = useState(false);
+  const [showMetadataPreview, setShowMetadataPreview] = useState(false);
+  const [exportModal, setExportModal] = useState({ show: false, type: 'success', title: '', content: null });
+
+  const metadataPdfUrls = useMemo(() => {
+    if (!projectPath || !metadataPdf?.relativePath) return { inlineUrl: '', downloadUrl: '' };
+    const encodedProject = encodeURIComponent(projectPath);
+    const encodedPath = encodeURIComponent(metadataPdf.relativePath);
+    const inlineUrl = `${apiBaseUrl}/project_artifact_file?projectPath=${encodedProject}&path=${encodedPath}`;
+    return {
+      inlineUrl,
+      downloadUrl: `${inlineUrl}&download=1`,
+    };
+  }, [apiBaseUrl, metadataPdf, projectPath]);
+
+  const refreshLatestMetadataPdf = async () => {
+    if (!projectPath) {
+      setMetadataPdf({ found: false, filename: '', relativePath: '' });
+      setShowMetadataPreview(false);
+      return;
+    }
+    try {
+      setCheckingMetadataPdf(true);
+      const response = await fetch(
+        `${apiBaseUrl}/latest_report_artifact?projectPath=${encodeURIComponent(projectPath)}&kind=metadata&format=pdf`,
+      );
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Could not check latest metadata PDF');
+      }
+      if (payload?.found && payload?.relativePath) {
+        setMetadataPdf({
+          found: true,
+          filename: String(payload.filename || ''),
+          relativePath: String(payload.relativePath || ''),
+        });
+      } else {
+        setMetadataPdf({ found: false, filename: '', relativePath: '' });
+        setShowMetadataPreview(false);
+      }
+    } catch {
+      setMetadataPdf({ found: false, filename: '', relativePath: '' });
+      setShowMetadataPreview(false);
+    } finally {
+      setCheckingMetadataPdf(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshLatestMetadataPdf();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectPath, apiBaseUrl]);
 
   const exportMetadataReport = async (format) => {
     if (!projectPath) {
-      window.alert('Open a project first. Export files are saved to the project Reports folder.');
+      setExportModal({
+        show: true,
+        type: 'error',
+        title: 'Project Required',
+        content: (
+          <div>
+            Open a project first. Export files are saved to the project <span className="font-mono">Reports</span> folder.
+          </div>
+        ),
+      });
       return;
     }
     try {
@@ -35,11 +98,31 @@ const ReportPage = ({
         throw new Error(payload?.error || `Failed to export ${String(format).toUpperCase()}`);
       }
       setStatus(`${String(format).toUpperCase()} exported to Reports (${formatExdaClock(new Date())} ${EXDA_DISPLAY_TIME_ZONE})`);
-      window.alert(`${String(format).toUpperCase()} exported to:\n${payload.path}`);
+      setExportModal({
+        show: true,
+        type: 'success',
+        title: `${String(format).toUpperCase()} Exported`,
+        content: (
+          <div className="space-y-2">
+            <p>Export saved to:</p>
+            <p className="break-all rounded border border-border bg-black/30 px-2 py-1 font-mono text-xs text-zinc-300">
+              {String(payload.path || '')}
+            </p>
+          </div>
+        ),
+      });
+      if (String(format).toLowerCase() === 'pdf') {
+        refreshLatestMetadataPdf();
+      }
     } catch (error) {
       const message = error?.message || 'Unknown error';
       setStatus(`Export failed: ${message}`);
-      window.alert(`Could not export ${String(format).toUpperCase()}.\n${message}`);
+      setExportModal({
+        show: true,
+        type: 'error',
+        title: `Could Not Export ${String(format).toUpperCase()}`,
+        content: <div>{message}</div>,
+      });
     } finally {
       setBusyFormat('');
     }
@@ -93,6 +176,59 @@ const ReportPage = ({
               {busyFormat === 'pdf' ? 'Exporting PDF...' : 'Export Metadata PDF'}
             </button>
           </div>
+          <div className="mt-3 rounded-lg border border-sidebar-border bg-background/40 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Latest Metadata PDF</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {checkingMetadataPdf
+                    ? 'Checking latest file...'
+                    : metadataPdf.found
+                      ? (metadataPdf.filename || 'Metadata report available')
+                      : 'No metadata PDF found yet. Export one to enable preview.'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowMetadataPreview((prev) => !prev)}
+                  disabled={!metadataPdfUrls.inlineUrl}
+                  className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {showMetadataPreview ? 'Hide Preview' : 'Preview'}
+                </button>
+                <a
+                  href={metadataPdfUrls.inlineUrl || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) => {
+                    if (!metadataPdfUrls.inlineUrl) event.preventDefault();
+                  }}
+                  className={`inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold ${metadataPdfUrls.inlineUrl ? 'text-foreground hover:bg-muted/60' : 'cursor-not-allowed text-muted-foreground opacity-60'}`}
+                >
+                  Open PDF
+                </a>
+                <a
+                  href={metadataPdfUrls.downloadUrl || '#'}
+                  onClick={(event) => {
+                    if (!metadataPdfUrls.downloadUrl) event.preventDefault();
+                  }}
+                  className={`inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold ${metadataPdfUrls.downloadUrl ? 'text-foreground hover:bg-muted/60' : 'cursor-not-allowed text-muted-foreground opacity-60'}`}
+                >
+                  Download
+                </a>
+              </div>
+            </div>
+            {showMetadataPreview && metadataPdfUrls.inlineUrl ? (
+              <div className="mt-3 overflow-hidden rounded border border-sidebar-border bg-background">
+                <iframe
+                  title="Metadata report preview"
+                  src={metadataPdfUrls.inlineUrl}
+                  className="h-[320px] w-full"
+                />
+              </div>
+            ) : null}
+          </div>
           {status ? (
             <p className="mt-3 text-xs text-muted-foreground">{status}</p>
           ) : null}
@@ -111,6 +247,7 @@ const ReportPage = ({
           </p>
         </section>
       </div>
+      <UnifiedModal modal={exportModal} setModal={setExportModal} />
     </div>
   );
 };

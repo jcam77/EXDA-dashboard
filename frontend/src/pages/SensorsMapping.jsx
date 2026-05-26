@@ -101,7 +101,7 @@ const validateSensorAgainstList = (sensor, allSensors, currentId = null) => {
   if (!isTrigger) {
     if (!String(sensor.serialNumber || '').trim()) errors.push('Serial number missing');
     if (!isNumeric(sensor.sensitivity)) errors.push('Sensitivity missing or not numeric');
-    else if (Number(sensor.sensitivity) <= 0) errors.push('Sensitivity must be > 0');
+    else if (Number(sensor.sensitivity) === 0) errors.push('Sensitivity cannot be zero');
     if (!String(sensor.sensitivityUnit || '').trim()) errors.push('Sensitivity unit missing');
     if (!String(sensor.locationLabel || '').trim()) errors.push('Location label missing');
     if (!isNumeric(sensor.x) || !isNumeric(sensor.y) || !isNumeric(sensor.z)) errors.push('Coordinates x/y/z must be numeric');
@@ -115,16 +115,8 @@ const validateSensorAgainstList = (sensor, allSensors, currentId = null) => {
   });
   if (duplicateSensorId) errors.push('Duplicate sensor ID');
 
-  const duplicateActiveChannel = allSensors.some((other) => {
-    if (currentId && other.id === currentId) return false;
-    if (!sensor.isActive || !other.isActive) return false;
-    return normalize(other.daqSystem) === normalize(sensor.daqSystem) && normalize(other.daqChannel) === normalize(sensor.daqChannel) && normalize(sensor.daqChannel) !== '';
-  });
-  if (duplicateActiveChannel) errors.push('Duplicate active DAQ channel in same DAQ system');
-
   if (!isTrigger) {
     if (!String(sensor.calibrationDate || '').trim()) warnings.push('Calibration date missing');
-    if (!String(sensor.calibrationCertificateId || '').trim()) warnings.push('Calibration certificate ID missing');
   }
   if (sensor.isActive && sensor.isBlindSensor) warnings.push('Sensor is active and blind/control');
   if (isTrigger && normalize(sensor.measuredQuantity) !== 'voltage') warnings.push('Trigger channel is usually measured as voltage');

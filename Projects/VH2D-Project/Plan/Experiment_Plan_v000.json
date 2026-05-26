@@ -99,11 +99,11 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "18",
+        "h2": "12",
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-28",
+        "plannedDate": "2026-05-27",
         "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
@@ -130,31 +130,30 @@
       "name": "VH2D-04-01"
     },
     {
-      "done": false,
+      "done": true,
       "id": 1777818079357,
       "meta": {
         "cfdHash": "",
         "dataFiles": [
-          "Prep-01/DAQ_1/Prep-01.exp/Prep-01.exp",
-          "Prep-01/DAQ_1/Prep-01.exp/Prep-01.tps.xml",
-          "Prep-01/DAQ_1/Prep-01.exp/Prep-01.zip",
-          "Prep-01/DAQ_1/Prep-01.exp/data/Prep_01.tpc5",
-          "Prep-01/DAQ_2/Prep-01/Prep-01.k2l",
-          "Prep-01/DAQ_2/Prep-01/Prep-01.mf4",
-          "Prep-01/H2CM/Prep_01/H2CM-1-260525-173742.csv"
+          "Prep-01/DAQ_1/Prep-01.exp/data/Prep_01-DAQ-1.tpc5",
+          "Prep-01/DAQ_2/Prep-01-DAQ-2.mf4",
+          "Prep-01/H2CM/Prep-01-H2CM-1.csv"
         ],
         "h2": "13.5",
+        "h2InjectedGrams": "8.276",
         "ignition": "back",
         "isPreparation": true,
         "mfcFlowSlpm": "20",
         "p0": "101325",
         "plannedDate": "2026-05-25",
         "plannedDay": "",
-        "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Plastic + Hotwire"
+        "recircStopToIgnitionSec": "",
+        "shortDescription": "Preliminar Test",
+        "t0": "292.15",
+        "vent": "Thin Plastic. Hotwire Not Activated"
       },
-      "name": "Prep-01"
+      "name": "Prep-01",
+      "notes": "Recirc stop → ignition time (s): No Recorded"
     },
     {
       "done": false,
@@ -299,6 +298,57 @@
         "vent": ""
       },
       "name": "VH2D-02-04"
+    },
+    {
+      "done": false,
+      "id": 1779743254449,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "14",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-27",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-03-02"
+    },
+    {
+      "done": false,
+      "id": 1779743266295,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "16",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-27",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-03-03"
+    },
+    {
+      "done": false,
+      "id": 1779743286126,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "18",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-27",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-03-04"
     }
   ],
   "meta": {

@@ -401,13 +401,14 @@ const PlanPage = ({
             }
             setEditError("");
             const current = Array.isArray(editingExp.meta?.dataFiles) ? editingExp.meta.dataFiles : [];
-            const inferred = filesForRunName(editingExp.name);
-            const merged = Array.from(new Set([...current, ...inferred]));
+            const runScoped = new Set(filesForRunName(editingExp.name));
+            // Respect user selection: keep only checked files that belong to this run folder.
+            const selected = current.filter((filePath) => runScoped.has(filePath));
             const updatedEditingExp = {
                 ...editingExp,
                 meta: {
                     ...(editingExp.meta || {}),
-                    dataFiles: merged
+                    dataFiles: selected
                 }
             };
             setExperiments(experiments.map(e => e.id === updatedEditingExp.id ? updatedEditingExp : e));
@@ -558,6 +559,28 @@ const PlanPage = ({
         });
     };
 
+    const selectAllDataFilesForEditingExp = () => {
+        if (!editingExp) return;
+        setEditingExp({
+            ...editingExp,
+            meta: {
+                ...editingExp.meta,
+                dataFiles: [...editingRunScopedFiles]
+            }
+        });
+    };
+
+    const clearAllDataFilesForEditingExp = () => {
+        if (!editingExp) return;
+        setEditingExp({
+            ...editingExp,
+            meta: {
+                ...editingExp.meta,
+                dataFiles: []
+            }
+        });
+    };
+
     // --- NUMERICAL GROUPING FIX ---
     const getGroupedExperiments = () => {
         const groups = {};
@@ -666,24 +689,9 @@ const PlanPage = ({
         });
     }, [setPlanMeta]);
 
-    useEffect(() => {
-        if (!experiments.length) return;
-        let changed = false;
-        const updated = experiments.map((exp) => {
-            const current = Array.isArray(exp.meta?.dataFiles) ? exp.meta.dataFiles : [];
-            const inferred = filesForRunName(exp.name);
-            if (areStringArraysEqual(current, inferred)) return exp;
-            changed = true;
-            return {
-                ...exp,
-                meta: {
-                    ...(exp.meta || {}),
-                    dataFiles: inferred
-                }
-            };
-        });
-        if (changed) setExperiments(updated);
-    }, [rawDataFiles, experiments, setExperiments, filesForRunName, areStringArraysEqual]);
+    // IMPORTANT:
+    // Do not auto-overwrite dataFiles from Raw_Data discovery.
+    // File linking is user-curated in Run Metadata Card checkboxes.
 
     const handleSavePlan = useCallback(async () => {
         await verifyRunFolders(true);
@@ -1198,9 +1206,27 @@ const PlanPage = ({
                                                 <div className="text-[10px] text-zinc-500">No files found in this run folder.</div>
                                             )}
                                         </div>
+                                        {editingRunScopedFiles.length > 0 && (
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={clearAllDataFilesForEditingExp}
+                                                    className="text-[10px] px-2 py-1 rounded border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
+                                                >
+                                                    Clear all
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={selectAllDataFilesForEditingExp}
+                                                    className="text-[10px] px-2 py-1 rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                                >
+                                                    Select all
+                                                </button>
+                                            </div>
+                                        )}
                                         {editingStaleLinkedFiles.length > 0 && (
                                             <div className="rounded border border-amber-600/40 bg-amber-900/15 px-2 py-1.5 text-[10px] text-amber-300">
-                                                {editingStaleLinkedFiles.length} linked file(s) are outside this run folder and will be cleaned automatically after sync.
+                                                {editingStaleLinkedFiles.length} linked file(s) are outside this run folder and will be removed when you save this run card.
                                             </div>
                                         )}
                                         <div className="text-[10px] text-zinc-500">

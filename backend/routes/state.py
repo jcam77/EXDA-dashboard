@@ -1,6 +1,6 @@
 """State routes for loading project files, plan data, and raw-data inventory."""
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 import json
 from datetime import datetime, timezone
 import os
@@ -8,6 +8,7 @@ import re
 import csv
 import textwrap
 import tempfile
+import mimetypes
 try:
     from zoneinfo import ZoneInfo
 except Exception:  # pragma: no cover
@@ -66,6 +67,13 @@ def _iso_to_display_str(value, include_seconds=True):
         return parsed.astimezone().strftime(fmt)
     except Exception:
         return raw
+
+
+def _to_posix_rel_path(base_path, target_path):
+    try:
+        return os.path.relpath(target_path, base_path).replace("\\", "/")
+    except Exception:
+        return str(target_path).replace("\\", "/")
 
 
 def _to_float(value):
@@ -366,7 +374,7 @@ def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
     _write_line(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     _write_line("")
 
-    file_path_width = 45
+    file_path_width = 50
     columns = [
         ("Run", 16), ("Done", 4), ("Schedule", 10),
         ("H2 (%)", 6), ("Ignition", 10), ("Vent", 10), ("P0 (Pa)", 8), ("T0 (K)", 6), ("Files", 5), ("File Path (Raw_Data Folder)", file_path_width),
@@ -719,18 +727,11 @@ def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=
         group_note = str(safe_notes.get(group) or "").strip()
 
         sensor_id_counts = {}
-        channel_counts = {}
         for item in safe_sensors:
             record = item if isinstance(item, dict) else {}
             sensor_id = str(record.get("sensorId") or "").strip().lower()
             if sensor_id:
                 sensor_id_counts[sensor_id] = sensor_id_counts.get(sensor_id, 0) + 1
-            if bool(record.get("isActive")):
-                daq_system = str(record.get("daqSystem") or "").strip().lower()
-                daq_channel = str(record.get("daqChannel") or "").strip().lower()
-                if daq_system and daq_channel:
-                    key = f"{daq_system}::{daq_channel}"
-                    channel_counts[key] = channel_counts.get(key, 0) + 1
 
         ordered = sorted(
             safe_sensors,
@@ -794,14 +795,13 @@ def _build_sensors_export_rows(mappings_by_group, group_notes=None, group_names=
                 status_errors.append("missing DAQ system")
             if is_active and not daq_channel:
                 status_errors.append("missing DAQ channel")
-            if is_active and daq_system and daq_channel:
-                key = f"{daq_system.lower()}::{daq_channel.lower()}"
-                if channel_counts.get(key, 0) > 1:
-                    status_errors.append("duplicate active DAQ channel")
+            # Reused active channel mappings are allowed for repeated runs/groups.
+            # Keep duplicate sensor-id checks as hard errors, but do not mark channel reuse as incomplete.
             if not is_trigger:
                 if not serial:
                     status_errors.append("missing serial")
-                if _to_float(sensitivity) is None or (_to_float(sensitivity) is not None and _to_float(sensitivity) <= 0):
+                sensitivity_value = _to_float(sensitivity)
+                if sensitivity_value is None or sensitivity_value == 0:
                     status_errors.append("invalid sensitivity")
                 if not sensitivity_unit:
                     status_errors.append("missing sensitivity unit")
@@ -1019,7 +1019,7 @@ def _write_sensors_pdf(project_name, rows, target_path):
         ("Qty", 9),
         ("DAQ", 8),
         ("Ch", 5),
-        ("S/N", 6),
+        ("S/N", 7),
         ("Sensitivity", 10),
         ("Location", 8),
         ("Coord.(x,y,z)m", 14),
@@ -1655,6 +1655,92 @@ def read_project_file():
         return jsonify({"success": True, "content": content_windowed})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@state_bp.route('/project_artifact_file', methods=['GET'])
+def project_artifact_file():
+    """Serve a project-scoped artifact file for inline preview or download."""
+    project_path = request.args.get("projectPath")
+    file_path = request.args.get("path")
+    as_download = str(request.args.get("download", "")).strip().lower() in ("1", "true", "yes", "on")
+
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    if not file_path:
+        return jsonify({"success": False, "error": "File path is required"}), 400
+
+    target = file_path if os.path.isabs(file_path) else os.path.join(project_root, file_path)
+    if not project_manager.is_path_within(project_root, target):
+        return jsonify({"success": False, "error": "File path not allowed"}), 403
+    if not os.path.exists(target):
+        return jsonify({"success": False, "error": "File not found"}), 404
+
+    mime_type, _ = mimetypes.guess_type(target)
+    return send_file(
+        target,
+        as_attachment=as_download,
+        download_name=os.path.basename(target),
+        mimetype=mime_type or "application/octet-stream",
+        conditional=True,
+    )
+
+
+@state_bp.route('/latest_report_artifact', methods=['GET'])
+def latest_report_artifact():
+    """Return latest report artifact path for a given kind/format."""
+    project_path = request.args.get("projectPath")
+    kind = str(request.args.get("kind") or "").strip().lower()
+    fmt = str(request.args.get("format") or "").strip().lower()
+
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    if not kind or not fmt:
+        return jsonify({"success": False, "error": "Both kind and format are required"}), 400
+
+    reports_dir = os.path.join(project_root, "Reports")
+    if not os.path.isdir(reports_dir):
+        return jsonify({"success": True, "found": False})
+
+    project_name = os.path.basename(project_root.rstrip("/\\"))
+    prefix_map = {
+        "metadata": f"{project_name}_Metadata_Report_",
+        "daq": f"{project_name}_DAQ_Systems_",
+        "sensors": f"{project_name}_Sensors_Mapping_",
+        "gas": f"{project_name}_Gas_Mixing_",
+    }
+    prefix = prefix_map.get(kind)
+    if not prefix:
+        return jsonify({"success": False, "error": f"Unsupported report kind: {kind}"}), 400
+
+    extension = ".pdf" if fmt == "pdf" else ".csv" if fmt == "csv" else None
+    if not extension:
+        return jsonify({"success": False, "error": f"Unsupported report format: {fmt}"}), 400
+
+    candidates = []
+    try:
+        for entry in os.listdir(reports_dir):
+            if not entry.startswith(prefix) or not entry.lower().endswith(extension):
+                continue
+            candidate_path = os.path.join(reports_dir, entry)
+            if os.path.isfile(candidate_path):
+                candidates.append(candidate_path)
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+    if not candidates:
+        return jsonify({"success": True, "found": False})
+
+    latest_path = max(candidates, key=lambda p: os.path.getmtime(p))
+    relative_path = _to_posix_rel_path(project_root, latest_path)
+    return jsonify({
+        "success": True,
+        "found": True,
+        "path": latest_path,
+        "relativePath": relative_path,
+        "filename": os.path.basename(latest_path),
+    })
 
 
 @state_bp.route('/select_data_folder', methods=['POST'])
