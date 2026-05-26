@@ -135,9 +135,9 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [
-          "Prep-01/DAQ_1/Prep-01.exp/data/Prep_01-DAQ-1.tpc5",
-          "Prep-01/DAQ_2/Prep-01-DAQ-2.mf4",
-          "Prep-01/H2CM/Prep-01-H2CM-1.csv"
+          "Prep-01/DAQ-1/Prep-01.exp/data/Prep_01-DAQ-1.tpc5",
+          "Prep-01/DAQ-2/Prep-01-DAQ-2.mf4",
+          "Prep-01/H2CM/Prep-01-H2CM-U.csv"
         ],
         "h2": "13.5",
         "h2InjectedGrams": "8.276",
@@ -349,15 +349,84 @@
         "vent": ""
       },
       "name": "VH2D-03-04"
+    },
+    {
+      "done": false,
+      "id": 1779769278452,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "12",
+        "ignition": "",
+        "isPreparation": true,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "Verif-01"
+    },
+    {
+      "done": false,
+      "id": 1779769665039,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "14",
+        "ignition": "",
+        "isPreparation": true,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "Verif-02"
+    },
+    {
+      "done": false,
+      "id": 1779769676978,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "16",
+        "ignition": "",
+        "isPreparation": true,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "Verif-03"
+    },
+    {
+      "done": false,
+      "id": 1779769693772,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "18",
+        "ignition": "",
+        "isPreparation": true,
+        "p0": "101325",
+        "plannedDate": "2026-05-26",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "Verif-04"
     }
   ],
   "meta": {
     "deadline": "2026-05-29",
     "description": "The primary objectives of the experiments are:\n1. Internal Over-pressure Development\nMeasurement of internal over-pressure development during vented hydrogen deflagrations in a partially confined enclosure for homogeneous flammable hydrogen–air mixtures with hydrogen concentrations up to 19 vol.%.\n\n2.Flame Propagation (Under Consideration)\nMeasurement of flame propagation characteristics, including potential estimation of flame time-of-arrival (TOA) at selected locations.\n\n3.Instrumentation Evaluation\nEvaluation and cross-comparison of different pressure measurement systems and data acquisition configurations, including sensor characteristics and the influence of measurement chain dynamics (e.g., time constant (tau) effects, sampling rate).\n\n4. Measurement Uncertainty Factors\nInvestigation of experimental factors that may affect the accuracy and reliability of pressure measurements, including structural vibration effects and thermal protection methods.\n\n5. Venting Behaviour\nInvestigation of vent opening behaviour and the influence of vent rupture mechanisms on pressure development, including comparison between pressure-driven thin-film rupture and controlled vent opening using a hot-wire cutting system.",
     "groupObjectives": {
-      "Prep": "",
+      "Prep": "Preparation",
       "VH2D-01": "Vented deflagration concentration series (Hotwire)",
-      "VH2D-02": "Vented deflagration concentration series (NO Hotwire)"
+      "VH2D-02": "Vented deflagration concentration series (NO Hotwire)",
+      "Verif": "Performance Verification"
     },
     "objective": "LU / DBI / Kistler pressure DAQ systems characterisation.",
     "startDate": "2026-05-25",

@@ -87,6 +87,41 @@ const ImportDataPage = (props) => {
                             Experiments Data
                         </h2>
                         <p className="mt-0.5 text-xs text-muted-foreground">Select the folder containing experimental data files (CSV/TXT/DAT/ASC/ASCII/MF4/TPC5) for Pressure, Flame, and H2 Concentration.</p>
+                        <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-primary">Folder Structure Convention (Data)</div>
+                                <div className="mt-1 text-[11px] text-zinc-300 font-mono break-all">
+                                    Projects/&lt;ProjectName&gt;/Raw_Data/&lt;Run&gt;/&lt;DAQ&gt;/
+                                </div>
+                                <div className="mt-2 text-[11px] text-zinc-400">
+                                    Example:
+                                </div>
+                                <ul className="mt-1 space-y-1 text-[11px] text-zinc-300 font-mono">
+                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/DAQ-1/VH2D-01-01-DAQ-1.tpc5</li>
+                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/DAQ-2/VH2D-01-01-DAQ-2.mf4</li>
+                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/H2CM/VH2D-01-01-H2CM-U.csv</li>
+                                </ul>
+                            </div>
+                            <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-primary">Filename Convention</div>
+                                <div className="mt-1 text-[11px] text-zinc-300 font-mono break-all">
+                                    &lt;Run&gt;-&lt;DAQ&gt;.&lt;ext&gt;
+                                </div>
+                                <div className="mt-2 text-[11px] text-zinc-400">
+                                    Recommended examples:
+                                </div>
+                                <ul className="mt-1 space-y-1 text-[11px] text-zinc-300 font-mono">
+                                    <li>VH2D-01-01-DAQ-1.tpc5</li>
+                                    <li>VH2D-01-01-DAQ-2.mf4</li>
+                                    <li>VH2D-01-01-H2CM-U.csv</li>
+                                    <li>VH2D-01-01-H2CM-M.csv</li>
+                                    <li>VH2D-01-01-H2CM-L.csv</li>
+                                </ul>
+                                <div className="mt-2 text-[11px] text-zinc-400">
+                                    H2CM legend (sampling point location in chamber): <span className="font-mono">U</span>=Upper, <span className="font-mono">M</span>=Middle, <span className="font-mono">L</span>=Lower
+                                </div>
+                            </div>
+                        </div>
                         <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                             <div className="md:col-span-3">
                                 <button
