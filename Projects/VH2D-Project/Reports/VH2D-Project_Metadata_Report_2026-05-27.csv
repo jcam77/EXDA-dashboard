@@ -1,7 +1,7 @@
 ﻿Export Type,Metadata Report
 Project,VH2D-Project
 Responsible Researcher,PhD Student Javier I. Camacho
-Generated At,2026-05-27 13:10:08
+Generated At,2026-05-27 22:43:16
 Sections,"Plan, DAQ Systems, Sensors Mapping, Gas Mixing"
 
 [TAB] Plan
@@ -9,16 +9,20 @@ Run Name,Group,Group Description,Done,Schedule,H2 (%),Ignition,Vent,P0 (Pa),T0 (
 Prep-01,Prep,Preparation,Yes,2026-05-25,13.5,back,Thin Plastic. Hotwire Not Activated,101325,292.15,3,Prep-01/DAQ-1/Prep-01.exp/data/Prep_01-DAQ-1.tpc5 | Prep-01/DAQ-2/Prep-01-DAQ-2.mf4 | Prep-01/H2CM/Prep-01-H2CM-U.csv
 Verif-01,Verif,Performance Verification,Yes,2026-05-26,13.5,,,101325,293,5,Verif-01/DAQ-1-Verif-01.tpc5 | Verif-01/DAQ-2-Verif_01/DAQ-2-Verif_01.mf4 | Verif-01/H2CM-L-260526-120036.csv | Verif-01/H2CM-M-260526-115955.csv | Verif-01/H2CM-U-260526-115817.csv
 Verif-02,Verif,Performance Verification,Yes,2026-05-26,14,,,101325,293,3,Verif-02/DAQ-1-Verif-02.tpc5 | Verif-02/DAQ-2-Verif_02/DAQ-2-Verif_02.mf4 | Verif-02/H2CM-U-M-L-260526-144155.csv
-Verif-03,Verif,Performance Verification,Yes,2026-05-26,16,,,101325,293,3,Verif-03/DAQ-1-Verif-03.tpc5 | Verif-03/DAQ-2-Verif-03/DAQ-2-Verif-03.mf4 | Verif-03/H2CM-U-M-L-260526-160316.csv
+Verif-03,Verif,Performance Verification,Yes,2026-05-26,16,,,101325,293,3,Verif-03/DAQ-1/DAQ-1-Verif-03.tpc5 | Verif-03/DAQ-2/DAQ-2-Verif-03/DAQ-2-Verif-03.mf4 | Verif-03/H2CM/H2CM-U-M-L-Verif-03-260526-160316.csv
 Verif-04,Verif,Performance Verification,Yes,2026-05-26,18,,,101325,293,3,Verif-04/DAQ-1/DAQ-1-Verif-04.tpc5 | Verif-04/DAQ-2/DAQ-2-Verif-04/DAQ-2-Verif-04.mf4 | Verif-04/H2CM/H2CM-U-M-L-Verif-04-260526-174304.csv
-VH2D-01-01,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-27,16,Back,Thin Plastic,101325,293,0,
-VH2D-01-02,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-27,18,,,101325,293,0,
-VH2D-01-03,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-27,19,,,101325,293,0,
-VH2D-01-04,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-27,20,,,101325,293,0,
-VH2D-02-01,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-27,12,,,101325,293,0,
-VH2D-02-02,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-27,14,,,101325,293,0,
-VH2D-02-03,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-27,16,,,101325,293,0,
-VH2D-02-04,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-27,18,,,101325,293,0,
+VH2D-01-01,VH2D-01,Vented deflagration concentration series (Hotwire),Yes,2026-05-27,16,Back,Thin Plastic,101325,293,3,VH2D-01-01/DAQ-1/DAQ-1-VH2D-01-01.tpc5 | VH2D-01-01/H2CM/H2CM-U-M-L-VH2D-01-01-260527-140320.csv | VH2D-01-01/DAQ-2-3/DAQ-2-3-VH2D-01-01.mf4
+VH2D-01-02,VH2D-01,Vented deflagration concentration series (Hotwire),Yes,2026-05-27,16,Back,Thin Plastic,101325,293,3,VH2D-01-02/DAQ-1/DAQ-1-VH2D-01-02.tpc5 | VH2D-01-02/H2CM/H2CM-U-M-L-VH2D-01-02-260527-150043.csv | VH2D-01-02/DAQ-2-3/DAQ-2-3-VH2D-01-02.mf4
+VH2D-01-03,VH2D-01,Vented deflagration concentration series (Hotwire),Yes,2026-05-27,18,back,Film,101325,293,2,VH2D-01-03/DAQ-1/DAQ-1-VH2D-01-03.tpc5 | VH2D-01-03/DAQ-2-3/DAQ-2-3-VH2D-01-03.mf4
+VH2D-01-04,VH2D-01,Vented deflagration concentration series (Hotwire),Yes,2026-05-27,18,back,thin film,101325,293,3,VH2D-01-04/DAQ-1/DAQ-1-VH2D-01-04.tpc5 | VH2D-01-04/DAQ-2-3/DAQ-2-3-VH2D-01-04.mf4 | VH2D-01-04/H2CM/H2CM-U-M-L-VH2D-01-04-260527-164423.csv
+VH2D-01-05,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-27,19,back,Thin Plastic,101325,293,0,
+VH2D-01-06,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-27,19,,,101325,293,0,
+VH2D-01-07,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-27,20,,,101325,293,0,
+VH2D-01-08,VH2D-01,Vented deflagration concentration series (Hotwire),No,2026-05-27,20,,,101325,293,0,
+VH2D-02-01,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-28,12,,,101325,293,0,
+VH2D-02-02,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-28,14,,,101325,293,0,
+VH2D-02-03,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-28,16,,,101325,293,0,
+VH2D-02-04,VH2D-02,Vented deflagration concentration series (NO Hotwire),No,2026-05-28,18,,,101325,293,0,
 VH2D-03-01,VH2D-03,,No,2026-05-28,12,,,101325,293,0,
 VH2D-03-02,VH2D-03,,No,2026-05-28,14,,,101325,293,0,
 VH2D-03-03,VH2D-03,,No,2026-05-28,16,,,101325,293,0,
@@ -106,3 +110,9 @@ Verif,01,13.50,101325,294.25,8.217,98.42,20.00,299.2,5.0,,2026-05-26 11:46:08
 Verif,02,14.00,101325,293.15,9.384,111.97,20.00,334.8,5.6,,2026-05-26 14:03:57
 Verif,03,16.00,101325,294.15,10.638,127.37,20.00,387.3,6.5,,2026-05-26 15:53:24
 Verif,04,18.00,101325,291.65,12.070,143.29,20.00,439.5,7.3,,2026-05-26 17:31:49
+VH2D-01,01,16.00,101325,293.15,10.674,127.37,20.00,388.6,6.5,,2026-05-27 13:51:19
+VH2D-01,02,16.00,101325,292.05,10.714,127.37,20.00,390.1,6.5,,2026-05-27 14:47:32
+VH2D-01,03,18.00,101325,291.35,12.083,143.29,20.00,439.9,7.3,,2026-05-27 15:24:55
+VH2D-01,04,18.00,101325,290.85,12.103,143.29,20.00,440.7,7.3,,2026-05-27 16:30:34
+VH2D-01,05,19.00,101325,290.55,12.789,151.26,20.00,465.6,7.8,,2026-05-27 17:50:04
+VH2D-01,07,20.00,101325,290.56,13.462,159.22,20.00,490.1,8.2,,2026-05-27 17:57:37

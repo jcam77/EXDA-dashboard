@@ -414,12 +414,12 @@
         "h2": "19",
         "ignition": "back",
         "isPreparation": false,
+        "mfcFlowSlpm": "20",
         "p0": "101325",
         "plannedDate": "2026-05-27",
         "shortDescription": "",
         "t0": "293",
-        "vent": "Thin Plastic",
-        "mfcFlowSlpm": "20"
+        "vent": "Thin Plastic"
       },
       "name": "VH2D-01-05",
       "notes": "DAQ-3 sampling rate 62.5kHz changed to 200kHz"

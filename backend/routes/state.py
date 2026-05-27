@@ -2017,6 +2017,45 @@ def save_sensors_mapping():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
+@state_bp.route('/get_sensors_mapping', methods=['GET'])
+def get_sensors_mapping():
+    """Load sensors mapping metadata for a project."""
+    project_path = request.args.get('projectPath')
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_path = os.path.join(project_root, "Reports", SENSORS_MAPPING_FILENAME)
+    file_path = _resolve_existing_metadata_file(project_root, SENSORS_MAPPING_FILENAME)
+
+    if not os.path.exists(file_path):
+        return jsonify({
+            "success": True,
+            "path": reports_path,
+            "selectedGroup": "",
+            "groupNotes": {},
+            "mappingsByGroup": {},
+        })
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        if not isinstance(payload, dict):
+            payload = {}
+        mappings_by_group = payload.get("mappingsByGroup") if isinstance(payload.get("mappingsByGroup"), dict) else {}
+        group_notes = payload.get("groupNotes") if isinstance(payload.get("groupNotes"), dict) else {}
+        selected_group = str(payload.get("selectedGroup") or "").strip()
+        return jsonify({
+            "success": True,
+            "path": file_path,
+            "selectedGroup": selected_group,
+            "groupNotes": group_notes,
+            "mappingsByGroup": mappings_by_group,
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
 @state_bp.route('/get_gas_mixing', methods=['GET'])
 def get_gas_mixing():
     """Load gas mixing metadata for a project."""

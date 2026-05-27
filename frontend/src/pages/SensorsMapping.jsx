@@ -125,52 +125,45 @@ const validateSensorAgainstList = (sensor, allSensors, currentId = null) => {
   return { errors, warnings };
 };
 
+const normalizeSensorsStatePayload = (payload) => {
+  if (Array.isArray(payload)) {
+    const fallbackGroup = 'Imported';
+    return {
+      selectedGroup: fallbackGroup,
+      mappingsByGroup: {
+        [fallbackGroup]: payload.map(normalizeSensorRecord),
+      },
+      groupNotes: {},
+    };
+  }
+  if (payload && typeof payload === 'object' && payload.mappingsByGroup && typeof payload.mappingsByGroup === 'object') {
+    const mappingsByGroup = Object.fromEntries(
+      Object.entries(payload.mappingsByGroup).map(([groupName, sensors]) => ([
+        groupName,
+        Array.isArray(sensors) ? sensors.map(normalizeSensorRecord) : [],
+      ])),
+    );
+    const groupNotes = payload.groupNotes && typeof payload.groupNotes === 'object' ? { ...payload.groupNotes } : {};
+    const keys = Object.keys(mappingsByGroup);
+    const selectedCandidate = String(payload.selectedGroup || '').trim();
+    const selectedGroup = keys.includes(selectedCandidate) ? selectedCandidate : (keys[0] || '');
+    return { selectedGroup, mappingsByGroup, groupNotes };
+  }
+  return {
+    selectedGroup: '',
+    mappingsByGroup: {},
+    groupNotes: {},
+  };
+};
+
 const readSensorsFromStorage = (storageKey) => {
   try {
     const raw = window.localStorage.getItem(storageKey);
-    if (!raw) {
-      return {
-        selectedGroup: '',
-        mappingsByGroup: {},
-        groupNotes: {},
-      };
-    }
+    if (!raw) return normalizeSensorsStatePayload(null);
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      // Backward compatibility with legacy single-list shape.
-      const fallbackGroup = 'Imported';
-      return {
-        selectedGroup: fallbackGroup,
-        mappingsByGroup: {
-          [fallbackGroup]: Array.isArray(parsed) ? parsed.map(normalizeSensorRecord) : [],
-        },
-        groupNotes: {},
-      };
-    }
-    if (parsed && typeof parsed === 'object' && parsed.mappingsByGroup && typeof parsed.mappingsByGroup === 'object') {
-      const mappingsByGroup = Object.fromEntries(
-        Object.entries(parsed.mappingsByGroup).map(([groupName, sensors]) => ([
-          groupName,
-          Array.isArray(sensors) ? sensors.map(normalizeSensorRecord) : [],
-        ])),
-      );
-      const groupNotes = parsed.groupNotes && typeof parsed.groupNotes === 'object' ? { ...parsed.groupNotes } : {};
-      const keys = Object.keys(mappingsByGroup);
-      const selectedCandidate = String(parsed.selectedGroup || '').trim();
-      const selectedGroup = keys.includes(selectedCandidate) ? selectedCandidate : (keys[0] || '');
-      return { selectedGroup, mappingsByGroup, groupNotes };
-    }
-    return {
-      selectedGroup: '',
-      mappingsByGroup: {},
-      groupNotes: {},
-    };
+    return normalizeSensorsStatePayload(parsed);
   } catch {
-    return {
-      selectedGroup: '',
-      mappingsByGroup: {},
-      groupNotes: {},
-    };
+    return normalizeSensorsStatePayload(null);
   }
 };
 
@@ -197,6 +190,43 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
   const [editorDragging, setEditorDragging] = useState(false);
   const [showMountingPreview, setShowMountingPreview] = useState(false);
   const editorDragRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    const hydrateFromProjectFile = async () => {
+      const storageState = readSensorsFromStorage(storageKey);
+      if (!projectPath) {
+        if (cancelled) return;
+        setMappingsByGroup(storageState.mappingsByGroup);
+        setSelectedGroup(storageState.selectedGroup);
+        setGroupNotes(storageState.groupNotes || {});
+        return;
+      }
+      try {
+        const response = await fetch(`${apiBaseUrl}/get_sensors_mapping?projectPath=${encodeURIComponent(projectPath)}`);
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load sensors mapping');
+        const serverState = normalizeSensorsStatePayload(payload);
+        const hasServerState = (
+          Object.keys(serverState.mappingsByGroup || {}).length > 0
+          || Object.keys(serverState.groupNotes || {}).length > 0
+          || Boolean(serverState.selectedGroup)
+        );
+        const nextState = hasServerState ? serverState : storageState;
+        if (cancelled) return;
+        setMappingsByGroup(nextState.mappingsByGroup);
+        setSelectedGroup(nextState.selectedGroup);
+        setGroupNotes(nextState.groupNotes || {});
+      } catch {
+        if (cancelled) return;
+        setMappingsByGroup(storageState.mappingsByGroup);
+        setSelectedGroup(storageState.selectedGroup);
+        setGroupNotes(storageState.groupNotes || {});
+      }
+    };
+    hydrateFromProjectFile();
+    return () => { cancelled = true; };
+  }, [apiBaseUrl, projectPath, storageKey]);
 
   const availableGroups = useMemo(() => {
     const merged = new Set([...planGroups, ...Object.keys(mappingsByGroup || {}), ...Object.keys(groupNotes || {})]);

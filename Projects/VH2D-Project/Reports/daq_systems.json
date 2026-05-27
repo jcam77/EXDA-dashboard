@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-27 18:05:23",
+  "updatedAt": "2026-05-27 23:31:27",
   "daqSystems": [
     {
       "calibrationCertificateId": "",
@@ -13,7 +13,7 @@
       "name": "DAQ-1",
       "notes": "2 equipement",
       "owner": "LU",
-      "samplingRateHz": "",
+      "samplingRateHz": "1000000",
       "serialNumber": "441309",
       "vendor": "Elsys - Kistler"
     },
@@ -29,7 +29,7 @@
       "name": "DAQ-2",
       "notes": "",
       "owner": "DBI",
-      "samplingRateHz": "",
+      "samplingRateHz": "208000",
       "serialNumber": "6306100",
       "vendor": "Kistler"
     },
@@ -45,7 +45,7 @@
       "name": "DAQ-3",
       "notes": "",
       "owner": "Kistler",
-      "samplingRateHz": "",
+      "samplingRateHz": "62500",
       "serialNumber": "5358310",
       "vendor": "Kistler"
     },

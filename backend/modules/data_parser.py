@@ -158,13 +158,39 @@ def _select_signal_columns(header_tokens, ncols: int, time_col: int) -> list[int
     """Pick likely signal columns excluding time/index metadata."""
     if header_tokens and len(header_tokens) >= ncols:
         cols = []
+        prioritized = []
+        metadata_only = {
+            "idx",
+            "index",
+            "sample",
+            "sample_index",
+            "serial",
+            "serial_no",
+            "serialno",
+            "sn",
+            "s/n",
+            "id",
+            "channel_id",
+        }
         for idx, token in enumerate(header_tokens[:ncols]):
             if idx == time_col:
                 continue
             low = token.strip().lower()
-            if "index" in low or low in ("idx", "sample", "sample_index"):
+            low_norm = low.replace(" ", "_")
+            if (
+                "index" in low
+                or low_norm in metadata_only
+                or low_norm.startswith("serial")
+                or low_norm.endswith("_id")
+                or low_norm.endswith("id")
+            ):
+                continue
+            if any(key in low for key in ("conc", "ppm", "h2", "pressure", "volt", "signal", "ch")):
+                prioritized.append(idx)
                 continue
             cols.append(idx)
+        if prioritized:
+            return prioritized + cols
         if cols:
             return cols
     return [idx for idx in range(ncols) if idx != time_col]
@@ -193,13 +219,11 @@ def _parse_semicolon_multichannel(lines: list[str], channel_index: int = 0):
     if header_idx is None or not header_parts:
         return None, None, "Missing 'time;...' header row"
 
-    preferred_col = 1 + max(0, int(channel_index))
-    if preferred_col < len(header_parts):
-        value_col = preferred_col
-    else:
-        value_col = 1 if len(header_parts) > 1 else None
-    if value_col is None:
+    signal_rel_cols = _select_signal_columns(header_parts, len(header_parts), time_col=0)
+    if not signal_rel_cols:
         return None, None, "Missing channel columns"
+    chosen_rel_idx = min(max(0, int(channel_index)), len(signal_rel_cols) - 1)
+    value_col = signal_rel_cols[chosen_rel_idx]
 
     time_tokens: list[str] = []
     y_values: list[float] = []
@@ -270,8 +294,13 @@ def _parse_semicolon_multichannel_all(lines: list[str]):
     if header_idx is None or not header_parts or len(header_parts) < 2:
         return None, None, None, "Missing 'time;...' header row"
 
-    channel_names = [name or f"Y[{i}]" for i, name in enumerate(header_parts[1:])]
-    value_cols = list(range(1, len(header_parts)))
+    value_cols = _select_signal_columns(header_parts, len(header_parts), time_col=0)
+    if not value_cols:
+        return None, None, None, "Missing channel columns"
+    channel_names = []
+    for col_idx in value_cols:
+        token = (header_parts[col_idx] or "").strip()
+        channel_names.append(token if token else f"Y[{col_idx}]")
     y_rows: list[list[float]] = []
     time_tokens: list[str] = []
 

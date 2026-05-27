@@ -807,6 +807,41 @@ const WorkspacePage = () => {
       }
   }, [apiBaseUrl, experiments, notify, planMeta, planName, projectPath, saveFormat]);
 
+  const normalizeSensorsStateForSave = useCallback((payload) => {
+      if (!payload || typeof payload !== 'object') {
+          return { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+      }
+      const rawGroups = payload?.mappingsByGroup && typeof payload.mappingsByGroup === 'object'
+          ? payload.mappingsByGroup
+          : {};
+      const rawNotes = payload?.groupNotes && typeof payload.groupNotes === 'object'
+          ? payload.groupNotes
+          : {};
+      const mappingsByGroup = Object.fromEntries(
+          Object.entries(rawGroups).map(([groupName, sensors]) => ([
+              String(groupName || '').trim(),
+              Array.isArray(sensors) ? sensors : [],
+          ])).filter(([groupName]) => Boolean(groupName)),
+      );
+      const groupNotes = Object.fromEntries(
+          Object.entries(rawNotes).map(([groupName, note]) => ([
+              String(groupName || '').trim(),
+              String(note || ''),
+          ])).filter(([groupName]) => Boolean(groupName)),
+      );
+      const selectedGroup = String(payload?.selectedGroup || '').trim();
+      return { selectedGroup, mappingsByGroup, groupNotes };
+  }, []);
+
+  const hasSensorsStateForSave = useCallback((state) => {
+      if (!state || typeof state !== 'object') return false;
+      const groups = state.mappingsByGroup && typeof state.mappingsByGroup === 'object' ? state.mappingsByGroup : {};
+      const notes = state.groupNotes && typeof state.groupNotes === 'object' ? state.groupNotes : {};
+      if (Object.keys(groups).length > 0) return true;
+      if (Object.keys(notes).length > 0) return true;
+      return Boolean(String(state.selectedGroup || '').trim());
+  }, []);
+
   const saveProject = useCallback(async () => {
       if (!projectPath) {
           notify('error', 'Save Failed', 'No project selected');
@@ -905,28 +940,54 @@ const WorkspacePage = () => {
 
       try {
           const sensorsStorageKey = `exda:sensors-mapping:${projectPath}`;
-          const rawSensorsState = localStorage.getItem(sensorsStorageKey);
-          if (rawSensorsState) {
-              const parsed = JSON.parse(rawSensorsState);
-              const mappingsByGroup = parsed?.mappingsByGroup && typeof parsed.mappingsByGroup === 'object' ? parsed.mappingsByGroup : {};
-              const groupNotes = parsed?.groupNotes && typeof parsed.groupNotes === 'object' ? parsed.groupNotes : {};
-              const selectedGroup = String(parsed?.selectedGroup || '');
-              const response = await fetch(`${apiBaseUrl}/save_sensors_mapping`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                      projectPath,
-                      mappingsByGroup,
-                      groupNotes,
-                      selectedGroup,
-                  }),
-              });
-              const payload = await response.json();
-              if (!response.ok || !payload?.success) {
-                  throw new Error(payload?.error || 'Could not save sensors mapping');
-              }
-              sensorsPath = payload.path || '';
+          let localSensorsState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+          try {
+              const rawSensorsState = localStorage.getItem(sensorsStorageKey);
+              const parsed = rawSensorsState ? JSON.parse(rawSensorsState) : {};
+              localSensorsState = normalizeSensorsStateForSave(parsed);
+          } catch {
+              localSensorsState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
           }
+
+          let serverSensorsState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+          try {
+              const getSensorsRes = await fetch(`${apiBaseUrl}/get_sensors_mapping?projectPath=${encodeURIComponent(projectPath)}`);
+              const getSensorsPayload = await getSensorsRes.json();
+              if (!getSensorsRes.ok || !getSensorsPayload?.success) {
+                  throw new Error(getSensorsPayload?.error || 'Could not load sensors mapping');
+              }
+              serverSensorsState = normalizeSensorsStateForSave(getSensorsPayload);
+          } catch {
+              serverSensorsState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+          }
+
+          const localHasState = hasSensorsStateForSave(localSensorsState);
+          const serverHasState = hasSensorsStateForSave(serverSensorsState);
+          let sensorsStateToSave = serverSensorsState;
+
+          if (activeTab === 'sensors_mapping' && localHasState) {
+              sensorsStateToSave = localSensorsState;
+          } else if (serverHasState) {
+              sensorsStateToSave = serverSensorsState;
+          } else if (localHasState) {
+              sensorsStateToSave = localSensorsState;
+          }
+
+          const response = await fetch(`${apiBaseUrl}/save_sensors_mapping`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  projectPath,
+                  mappingsByGroup: sensorsStateToSave.mappingsByGroup || {},
+                  groupNotes: sensorsStateToSave.groupNotes || {},
+                  selectedGroup: String(sensorsStateToSave.selectedGroup || ''),
+              }),
+          });
+          const payload = await response.json();
+          if (!response.ok || !payload?.success) {
+              throw new Error(payload?.error || 'Could not save sensors mapping');
+          }
+          sensorsPath = payload.path || '';
       } catch (error) {
           notify('error', 'Partial Save', `Plan saved, but Sensors Mapping could not be saved.${error?.message ? ` ${error.message}` : ''}`);
           return;
@@ -952,7 +1013,6 @@ const WorkspacePage = () => {
                           <div className="min-w-0">
                               <div className="font-semibold text-foreground">
                                   {item.label}
-                                  {!item.ok && item.label === 'Sensors Mapping' ? ' (no local data)' : ''}
                               </div>
                           </div>
                       </li>
@@ -961,7 +1021,7 @@ const WorkspacePage = () => {
           </div>
       );
       notify('success', 'Project Saved', details);
-  }, [apiBaseUrl, checklistState, notify, projectPath, savePlan]);
+  }, [activeTab, apiBaseUrl, checklistState, hasSensorsStateForSave, normalizeSensorsStateForSave, notify, projectPath, savePlan]);
 
   const handleCloseProject = async () => {
       const confirmClose = await confirmWithModal({
