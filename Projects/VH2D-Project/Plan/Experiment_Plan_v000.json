@@ -2,79 +2,91 @@
   "planName": "Experiment_Plan_v000",
   "experiments": [
     {
-      "done": false,
+      "done": true,
       "id": 1777789635393,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [],
-        "h2": "12",
+        "dataFiles": [
+          "VH2D-01-01/DAQ-1/DAQ-1-VH2D-01-01.tpc5",
+          "VH2D-01-01/H2CM/H2CM-U-M-L-VH2D-01-01-260527-140320.csv",
+          "VH2D-01-01/DAQ-2-3/DAQ-2-3-VH2D-01-01.mf4"
+        ],
+        "h2": "16",
         "ignition": "Back",
+        "mfcFlowSlpm": "20",
         "p0": "101325",
-        "plannedDate": "2026-05-26",
+        "plannedDate": "2026-05-27",
+        "plannedDay": "",
         "t0": "293",
         "vent": "Thin Plastic"
       },
       "name": "VH2D-01-01"
     },
     {
-      "done": false,
+      "done": true,
       "id": 1777789752771,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [],
-        "h2": "12",
-        "ignition": "",
+        "dataFiles": [
+          "VH2D-01-02/DAQ-1/DAQ-1-VH2D-01-02.tpc5",
+          "VH2D-01-02/H2CM/H2CM-U-M-L-VH2D-01-02-260527-150043.csv",
+          "VH2D-01-02/DAQ-2-3/DAQ-2-3-VH2D-01-02.mf4"
+        ],
+        "h2": "16",
+        "ignition": "Back",
+        "mfcFlowSlpm": "20",
         "p0": "101325",
-        "plannedDate": "2026-05-26",
+        "plannedDate": "2026-05-27",
+        "plannedDay": "",
+        "recircStopToIgnitionSec": "228",
         "t0": "293",
-        "vent": ""
+        "vent": "Thin Plastic"
       },
       "name": "VH2D-01-02"
     },
     {
-      "done": false,
+      "done": true,
       "id": 1777789799545,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [],
-        "h2": "14",
-        "ignition": "",
+        "dataFiles": [
+          "VH2D-01-03/DAQ-1/DAQ-1-VH2D-01-03.tpc5",
+          "VH2D-01-03/DAQ-2-3/DAQ-2-3-VH2D-01-03.mf4"
+        ],
+        "h2": "18",
+        "ignition": "back",
+        "mfcFlowSlpm": "20",
         "p0": "101325",
-        "plannedDate": "2026-05-26",
+        "plannedDate": "2026-05-27",
+        "plannedDay": "",
+        "recircStopToIgnitionSec": "201",
         "t0": "293",
-        "vent": ""
+        "vent": "Film"
       },
       "name": "VH2D-01-03"
     },
     {
-      "done": false,
+      "done": true,
       "id": 1777789930495,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [],
-        "h2": "14",
-        "ignition": "",
+        "dataFiles": [
+          "VH2D-01-04/DAQ-1/DAQ-1-VH2D-01-04.tpc5",
+          "VH2D-01-04/DAQ-2-3/DAQ-2-3-VH2D-01-04.mf4",
+          "VH2D-01-04/H2CM/H2CM-U-M-L-VH2D-01-04-260527-164423.csv"
+        ],
+        "h2": "18",
+        "ignition": "back",
+        "mfcFlowSlpm": "20",
         "p0": "101325",
-        "plannedDate": "2026-05-26",
+        "plannedDate": "2026-05-27",
+        "plannedDay": "",
+        "recircStopToIgnitionSec": "168",
         "t0": "293",
-        "vent": ""
+        "vent": "thin film"
       },
-      "name": "VH2D-01-04"
-    },
-    {
-      "done": false,
-      "id": 1777791812494,
-      "meta": {
-        "cfdHash": "",
-        "dataFiles": [],
-        "h2": "16",
-        "ignition": "",
-        "p0": "101325",
-        "plannedDate": "2026-05-26",
-        "t0": "293",
-        "vent": ""
-      },
-      "name": "VH2D-01-05"
+      "name": "VH2D-01-04",
+      "notes": "PP1 and PP3 swapped\n\nDAQ-3 sampling rate 62.5kHz changed to 200kHz"
     },
     {
       "done": false,
@@ -86,7 +98,7 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-26",
+        "plannedDate": "2026-05-28",
         "plannedDay": "",
         "t0": "293",
         "vent": ""
@@ -103,7 +115,7 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-27",
+        "plannedDate": "2026-05-28",
         "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
@@ -121,7 +133,7 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-28",
+        "plannedDate": "2026-05-29",
         "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
@@ -161,7 +173,7 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "",
+        "h2": "18",
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
@@ -179,7 +191,7 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "",
+        "h2": "18",
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
@@ -193,60 +205,6 @@
     },
     {
       "done": false,
-      "id": 1779553347405,
-      "meta": {
-        "cfdHash": "",
-        "dataFiles": [],
-        "h2": "16",
-        "ignition": "",
-        "isPreparation": false,
-        "p0": "101325",
-        "plannedDate": "2026-05-26",
-        "plannedDay": "",
-        "shortDescription": "",
-        "t0": "293",
-        "vent": ""
-      },
-      "name": "VH2D-01-06"
-    },
-    {
-      "done": false,
-      "id": 1779553371390,
-      "meta": {
-        "cfdHash": "",
-        "dataFiles": [],
-        "h2": "18",
-        "ignition": "",
-        "isPreparation": false,
-        "p0": "101325",
-        "plannedDate": "2026-05-26",
-        "plannedDay": "",
-        "shortDescription": "",
-        "t0": "293",
-        "vent": ""
-      },
-      "name": "VH2D-01-07"
-    },
-    {
-      "done": false,
-      "id": 1779553399423,
-      "meta": {
-        "cfdHash": "",
-        "dataFiles": [],
-        "h2": "18",
-        "ignition": "",
-        "isPreparation": false,
-        "p0": "101325",
-        "plannedDate": "2026-05-26",
-        "plannedDay": "",
-        "shortDescription": "",
-        "t0": "293",
-        "vent": ""
-      },
-      "name": "VH2D-01-08"
-    },
-    {
-      "done": false,
       "id": 1779553856903,
       "meta": {
         "cfdHash": "",
@@ -255,7 +213,7 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-26",
+        "plannedDate": "2026-05-28",
         "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
@@ -273,7 +231,7 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-26",
+        "plannedDate": "2026-05-28",
         "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
@@ -291,7 +249,7 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-26",
+        "plannedDate": "2026-05-28",
         "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
@@ -309,7 +267,8 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-27",
+        "plannedDate": "2026-05-28",
+        "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
         "vent": ""
@@ -326,7 +285,8 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-27",
+        "plannedDate": "2026-05-28",
+        "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
         "vent": ""
@@ -343,7 +303,8 @@
         "ignition": "",
         "isPreparation": false,
         "p0": "101325",
-        "plannedDate": "2026-05-27",
+        "plannedDate": "2026-05-28",
+        "plannedDay": "",
         "shortDescription": "",
         "t0": "293",
         "vent": ""
@@ -351,72 +312,168 @@
       "name": "VH2D-03-04"
     },
     {
-      "done": false,
+      "done": true,
       "id": 1779769278452,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [],
-        "h2": "12",
+        "dataFiles": [
+          "Verif-01/DAQ-1-Verif-01.tpc5",
+          "Verif-01/DAQ-2-Verif_01/DAQ-2-Verif_01.mf4",
+          "Verif-01/H2CM-L-260526-120036.csv",
+          "Verif-01/H2CM-M-260526-115955.csv",
+          "Verif-01/H2CM-U-260526-115817.csv"
+        ],
+        "h2": "13.5",
         "ignition": "",
         "isPreparation": true,
         "p0": "101325",
         "plannedDate": "2026-05-26",
+        "recircStopToIgnitionSec": "312",
         "shortDescription": "",
         "t0": "293",
         "vent": ""
       },
-      "name": "Verif-01"
+      "name": "Verif-01",
+      "notes": "Physical Range -1,1 bar"
     },
     {
-      "done": false,
+      "done": true,
       "id": 1779769665039,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [],
+        "dataFiles": [
+          "Verif-02/DAQ-1-Verif-02.tpc5",
+          "Verif-02/DAQ-2-Verif_02/DAQ-2-Verif_02.mf4",
+          "Verif-02/H2CM-U-M-L-260526-144155.csv"
+        ],
         "h2": "14",
         "ignition": "",
         "isPreparation": true,
         "p0": "101325",
         "plannedDate": "2026-05-26",
+        "recircStopToIgnitionSec": "321",
         "shortDescription": "",
         "t0": "293",
         "vent": ""
       },
-      "name": "Verif-02"
+      "name": "Verif-02",
+      "notes": "Physical Range -1,1 bar"
     },
     {
-      "done": false,
+      "done": true,
       "id": 1779769676978,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [],
+        "dataFiles": [
+          "Verif-03/DAQ-1/DAQ-1-Verif-03.tpc5",
+          "Verif-03/DAQ-2/DAQ-2-Verif-03/DAQ-2-Verif-03.mf4",
+          "Verif-03/H2CM/H2CM-U-M-L-Verif-03-260526-160316.csv"
+        ],
         "h2": "16",
         "ignition": "",
         "isPreparation": true,
         "p0": "101325",
         "plannedDate": "2026-05-26",
+        "recircStopToIgnitionSec": "263",
         "shortDescription": "",
         "t0": "293",
         "vent": ""
       },
-      "name": "Verif-03"
+      "name": "Verif-03",
+      "notes": "\nChannel 2 Physical Range -1, ,1 bar\nChannel 2 Physical Range -0.5, ,0.5 bar\nLeak on Blind Sensor Flange Connection 3L & 5L \n\nVolume Correction +0.06708 \n\n"
     },
     {
-      "done": false,
+      "done": true,
       "id": 1779769693772,
       "meta": {
         "cfdHash": "",
-        "dataFiles": [],
+        "dataFiles": [
+          "Verif-04/DAQ-1/DAQ-1-Verif-04.tpc5",
+          "Verif-04/DAQ-2/DAQ-2-Verif-04/DAQ-2-Verif-04.mf4",
+          "Verif-04/H2CM/H2CM-U-M-L-Verif-04-260526-174304.csv"
+        ],
         "h2": "18",
         "ignition": "",
         "isPreparation": true,
         "p0": "101325",
         "plannedDate": "2026-05-26",
+        "recircStopToIgnitionSec": "233",
         "shortDescription": "",
         "t0": "293",
         "vent": ""
       },
-      "name": "Verif-04"
+      "name": "Verif-04",
+      "notes": "P1 swapped for P5"
+    },
+    {
+      "done": false,
+      "id": 1779886549235,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "19",
+        "ignition": "back",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-27",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": "Thin Plastic",
+        "mfcFlowSlpm": "20"
+      },
+      "name": "VH2D-01-05",
+      "notes": "DAQ-3 sampling rate 62.5kHz changed to 200kHz"
+    },
+    {
+      "done": false,
+      "id": 1779886673209,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "19",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-27",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-06"
+    },
+    {
+      "done": false,
+      "id": 1779886693688,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "20",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-27",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-07"
+    },
+    {
+      "done": false,
+      "id": 1779886699737,
+      "meta": {
+        "cfdHash": "",
+        "dataFiles": [],
+        "h2": "20",
+        "ignition": "",
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-05-27",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-01-08"
     }
   ],
   "meta": {

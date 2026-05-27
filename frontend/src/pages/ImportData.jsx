@@ -97,9 +97,9 @@ const ImportDataPage = (props) => {
                                     Example:
                                 </div>
                                 <ul className="mt-1 space-y-1 text-[11px] text-zinc-300 font-mono">
-                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/DAQ-1/VH2D-01-01-DAQ-1.tpc5</li>
-                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/DAQ-2/VH2D-01-01-DAQ-2.mf4</li>
-                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/H2CM/VH2D-01-01-H2CM-U.csv</li>
+                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/DAQ-1/DAQ-1-VH2D-01-01.tpc5</li>
+                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/DAQ-2/DAQ-2-VH2D-01-01.mf4</li>
+                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/H2CM/H2CM-U-M-L-VH2D-01-01.csv</li>
                                 </ul>
                             </div>
                             <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
@@ -111,11 +111,9 @@ const ImportDataPage = (props) => {
                                     Recommended examples:
                                 </div>
                                 <ul className="mt-1 space-y-1 text-[11px] text-zinc-300 font-mono">
-                                    <li>VH2D-01-01-DAQ-1.tpc5</li>
-                                    <li>VH2D-01-01-DAQ-2.mf4</li>
-                                    <li>VH2D-01-01-H2CM-U.csv</li>
-                                    <li>VH2D-01-01-H2CM-M.csv</li>
-                                    <li>VH2D-01-01-H2CM-L.csv</li>
+                                    <li>DAQ-1-VH2D-01-01.tpc5</li>
+                                    <li>DAQ-2-VH2D-01-01.mf4</li>
+                                    <li>H2CM-U-M-L-VH2D-01-01.csv</li>
                                 </ul>
                                 <div className="mt-2 text-[11px] text-zinc-400">
                                     H2CM legend (sampling point location in chamber): <span className="font-mono">U</span>=Upper, <span className="font-mono">M</span>=Middle, <span className="font-mono">L</span>=Lower
