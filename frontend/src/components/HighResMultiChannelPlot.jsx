@@ -60,6 +60,7 @@ const HighResMultiChannelPlot = ({
   showResetButton = true,
   xAxisLabel = 'Time (s)',
   xAxisMode = 'time',
+  spanGaps = false,
 }) => {
   const mountRef = useRef(null);
   const chartRef = useRef(null);
@@ -161,6 +162,7 @@ const HighResMultiChannelPlot = ({
         label: `${channel.label || `Channel ${channel.index + 1}`}${channel.unit && channel.unit !== 'raw' ? ` (${channel.unit})` : ''}`,
         stroke: colors[idx % colors.length],
         width: 1.2,
+        spanGaps,
         scale: useDualAxis && isVoltageChannel(channel) ? 'y2' : 'y',
         value: (_u, v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(5) : ''),
       })),
@@ -308,7 +310,7 @@ const HighResMultiChannelPlot = ({
       chart.destroy();
       chartRef.current = null;
     };
-  }, [channels, clampXRange, colors, dataSeries, handleResetZoom, height, primaryLabel, secondaryLabel, showLegend, useDualAxis, width, xValues]);
+  }, [channels, clampXRange, colors, dataSeries, handleResetZoom, height, primaryLabel, secondaryLabel, showLegend, spanGaps, useDualAxis, width, xAxisLabel, xAxisMode, xValues]);
 
   return (
     <div className="w-full relative" style={{ height: `${height}px` }}>

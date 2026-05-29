@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MapPinned, Plus, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, GripVertical, X } from 'lucide-react';
+import { MapPinned, Plus, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, GripVertical, X, ChevronRight, ChevronDown } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 
 const QUANTITY_OPTIONS = [
@@ -178,6 +178,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
   const [selectedGroup, setSelectedGroup] = useState(initialState.selectedGroup);
   const [groupNotes, setGroupNotes] = useState(initialState.groupNotes || {});
   const [showAllGroups, setShowAllGroups] = useState(true);
+  const [collapsedGroups, setCollapsedGroups] = useState({});
   const [planGroups, setPlanGroups] = useState([]);
   const [newGroupName, setNewGroupName] = useState('');
   const [groupError, setGroupError] = useState('');
@@ -194,8 +195,8 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
   useEffect(() => {
     let cancelled = false;
     const hydrateFromProjectFile = async () => {
-      const storageState = readSensorsFromStorage(storageKey);
       if (!projectPath) {
+        const storageState = readSensorsFromStorage(storageKey);
         if (cancelled) return;
         setMappingsByGroup(storageState.mappingsByGroup);
         setSelectedGroup(storageState.selectedGroup);
@@ -207,21 +208,18 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
         const payload = await response.json();
         if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load sensors mapping');
         const serverState = normalizeSensorsStatePayload(payload);
-        const hasServerState = (
-          Object.keys(serverState.mappingsByGroup || {}).length > 0
-          || Object.keys(serverState.groupNotes || {}).length > 0
-          || Boolean(serverState.selectedGroup)
-        );
-        const nextState = hasServerState ? serverState : storageState;
         if (cancelled) return;
-        setMappingsByGroup(nextState.mappingsByGroup);
-        setSelectedGroup(nextState.selectedGroup);
-        setGroupNotes(nextState.groupNotes || {});
+        // For project-backed workspaces we always trust filesystem JSON from backend.
+        // This prevents stale browser-local cache from diverging across macOS/Linux/Windows.
+        setMappingsByGroup(serverState.mappingsByGroup || {});
+        setSelectedGroup(serverState.selectedGroup || '');
+        setGroupNotes(serverState.groupNotes || {});
       } catch {
         if (cancelled) return;
-        setMappingsByGroup(storageState.mappingsByGroup);
-        setSelectedGroup(storageState.selectedGroup);
-        setGroupNotes(storageState.groupNotes || {});
+        // If backend is unavailable, keep a safe empty state rather than loading stale cache.
+        setMappingsByGroup({});
+        setSelectedGroup('');
+        setGroupNotes({});
       }
     };
     hydrateFromProjectFile();
@@ -242,7 +240,33 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     }
   }, [availableGroups, selectedGroup]);
 
+  useEffect(() => {
+    setCollapsedGroups((prev) => {
+      const next = {};
+      availableGroups.forEach((group) => {
+        if (group === selectedGroup) {
+          next[group] = false;
+          return;
+        }
+        if (Object.prototype.hasOwnProperty.call(prev, group)) {
+          next[group] = prev[group];
+          return;
+        }
+        next[group] = true;
+      });
+      return next;
+    });
+  }, [availableGroups, selectedGroup]);
+
   const sensors = useMemo(() => mappingsByGroup[selectedGroup] || [], [mappingsByGroup, selectedGroup]);
+  const allGroupsExpanded = useMemo(
+    () => availableGroups.length > 0 && availableGroups.every((group) => collapsedGroups[group] === false),
+    [availableGroups, collapsedGroups],
+  );
+  const allGroupsCollapsed = useMemo(
+    () => availableGroups.length > 0 && availableGroups.every((group) => collapsedGroups[group] === true),
+    [availableGroups, collapsedGroups],
+  );
 
   const updateGroupSensors = useCallback((groupName, updater) => {
     const targetGroup = String(groupName || '').trim();
@@ -550,6 +574,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
 
   const openAdd = (groupName = selectedGroup) => {
     setSelectedGroup(groupName);
+    setCollapsedGroups((prev) => ({ ...prev, [groupName]: false }));
     setEditingGroup(groupName);
     setEditorError('');
     setEditingExistingId(null);
@@ -560,6 +585,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
 
   const openEdit = (sensor, groupName = selectedGroup) => {
     setSelectedGroup(groupName);
+    setCollapsedGroups((prev) => ({ ...prev, [groupName]: false }));
     setEditingGroup(groupName);
     setEditorError('');
     setEditingExistingId(sensor.id);
@@ -659,13 +685,28 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     const groupSensors = mappingsByGroup[groupName] || [];
     const groupValidationById = buildValidationMap(groupName);
     const groupNote = String(groupNotes[groupName] || '');
+    const groupSummary = summarizeGroup(groupName);
+    const isCollapsed = showAllGroups ? Boolean(collapsedGroups[groupName]) : false;
     return (
       <div className="rounded-xl border border-sidebar-border bg-card/60 p-4" key={groupName}>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">
-            Sensors Table ({groupName})
-            {groupNote.trim() ? <span className="ml-2 text-xs font-normal text-muted-foreground">- {groupNote}</span> : null}
-          </h3>
+          <div className="flex items-center gap-2">
+            {showAllGroups && (
+              <button
+                type="button"
+                onClick={() => setCollapsedGroups((prev) => ({ ...prev, [groupName]: !isCollapsed }))}
+                className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-sidebar-border bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                title={isCollapsed ? 'Expand group' : 'Collapse group'}
+                aria-label={isCollapsed ? `Expand ${groupName}` : `Collapse ${groupName}`}
+              >
+                {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+              </button>
+            )}
+            <h3 className="text-sm font-semibold text-foreground">
+              Sensors Table ({groupName})
+              {groupNote.trim() ? <span className="ml-2 text-xs font-normal text-muted-foreground">- {groupNote}</span> : null}
+            </h3>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => duplicateGroup(groupName)}
@@ -690,103 +731,111 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
             </button>
           </div>
         </div>
-        <div className="mb-3">
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Group Reference Note
-            <input
-              value={groupNote}
-              onChange={(event) => setNoteForGroup(groupName, event.target.value)}
-              placeholder="e.g., Same configuration as VH2D-01; no sensor/channel changes."
-              className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5 text-xs text-foreground"
-            />
-          </label>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-xs">
-            <thead>
-              <tr className="text-left text-muted-foreground border-b border-sidebar-border">
-                <th className="py-2 pr-3">Sensor ID</th>
-                <th className="py-2 pr-3">Quantity</th>
-                <th className="py-2 pr-3">DAQ</th>
-                <th className="py-2 pr-3">Serial</th>
-                <th className="py-2 pr-3">Last Cal.</th>
-                <th className="py-2 pr-3">Sensitivity</th>
-                <th className="py-2 pr-3">Location</th>
-                <th className="py-2 pr-3">Coord.(x,y,z)m</th>
-                <th className="py-2 pr-3">Mounting</th>
-                <th className="py-2 pr-3">Active</th>
-                <th className="py-2 pr-3">Blind</th>
-                <th className="py-2 pr-3">Trigger</th>
-                <th className="py-2 pr-3">Trigger Method</th>
-                <th className="py-2 pr-3">Status</th>
-                <th className="py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groupSensors.map((sensor) => {
-                const result = groupValidationById[sensor.id] || { errors: [], warnings: [] };
-                const status = result.errors.length > 0 ? 'error' : result.warnings.length > 0 ? 'warning' : 'complete';
-                return (
-                  <tr key={sensor.id} className="border-b border-sidebar-border/50">
-                    <td className="py-2 pr-3 font-semibold">{sensor.sensorId || '-'}</td>
-                    <td className="py-2 pr-3">{sensor.measuredQuantity}</td>
-                    <td className="py-2 pr-3">{sensor.daqSystem} / {sensor.daqChannel || '-'}</td>
-                    <td className="py-2 pr-3">{sensor.serialNumber || '-'}</td>
-                    <td className="py-2 pr-3">{sensor.calibrationDate || '-'}</td>
-                    <td className="py-2 pr-3">{sensor.sensitivity || '-'} {sensor.sensitivityUnit || ''}</td>
-                    <td className="py-2 pr-3">{sensor.locationLabel || '-'}</td>
-                    <td className="py-2 pr-3">({sensor.x || '-'},{sensor.y || '-'},{sensor.z || '-'})</td>
-                    <td className="py-2 pr-3">{sensor.mountingMethod || '-'}</td>
-                    <td className="py-2 pr-3">{sensor.isActive ? 'Yes' : 'No'}</td>
-                    <td className="py-2 pr-3">{sensor.isBlindSensor ? 'Yes' : 'No'}</td>
-                    <td className="py-2 pr-3">{sensor.isTriggerChannel ? 'Yes' : 'No'}</td>
-                    <td className="py-2 pr-3">{normalizeTriggerMethodValue(sensor.triggerMethod) || '-'}</td>
-                    <td className="py-2 pr-3">
-                      {status === 'complete' && (
-                        <span className="inline-flex items-center gap-1 text-emerald-400">
-                          <CheckCircle2 size={12} /> Complete
-                        </span>
-                      )}
-                      {status === 'warning' && (
-                        <div className="space-y-1">
-                          <span
-                            className="inline-flex items-center gap-1 text-amber-400"
-                            title={result.warnings.join(' | ')}
-                          >
-                            <AlertTriangle size={12} /> Warning
-                          </span>
-                          <p className="max-w-[220px] text-[10px] leading-tight text-amber-300">
-                            {result.warnings[0]}
-                          </p>
-                        </div>
-                      )}
-                      {status === 'error' && (
-                        <div className="space-y-1">
-                          <span
-                            className="inline-flex items-center gap-1 text-destructive"
-                            title={result.errors.join(' | ')}
-                          >
-                            <AlertTriangle size={12} /> Error
-                          </span>
-                          <p className="max-w-[220px] text-[10px] leading-tight text-destructive/90">
-                            {result.errors[0]}
-                          </p>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-2">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(sensor, groupName)} className="p-1 rounded hover:bg-muted"><Pencil size={12} /></button>
-                        <button onClick={() => duplicateSensor(sensor, groupName)} className="p-1 rounded hover:bg-muted"><Copy size={12} /></button>
-                        <button onClick={() => removeSensor(sensor.id, groupName)} className="p-1 rounded hover:bg-destructive/20 text-destructive"><Trash2 size={12} /></button>
-                      </div>
-                    </td>
+        {isCollapsed ? (
+          <div className="rounded-md border border-sidebar-border/60 bg-background/30 px-3 py-2 text-xs text-muted-foreground">
+            {groupSummary.total} sensors, {groupSummary.complete} complete, {groupSummary.warnings} warnings, {groupSummary.errors} errors
+          </div>
+        ) : (
+          <>
+            <div className="mb-3">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Group Reference Note
+                <input
+                  value={groupNote}
+                  onChange={(event) => setNoteForGroup(groupName, event.target.value)}
+                  placeholder="e.g., Same configuration as VH2D-01; no sensor/channel changes."
+                  className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5 text-xs text-foreground"
+                />
+              </label>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs">
+                <thead>
+                  <tr className="text-left text-muted-foreground border-b border-sidebar-border">
+                    <th className="py-2 pr-3">Sensor ID</th>
+                    <th className="py-2 pr-3">Quantity</th>
+                    <th className="py-2 pr-3">DAQ</th>
+                    <th className="py-2 pr-3">Serial</th>
+                    <th className="py-2 pr-3">Last Cal.</th>
+                    <th className="py-2 pr-3">Sensitivity</th>
+                    <th className="py-2 pr-3">Location</th>
+                    <th className="py-2 pr-3">Coord.(x,y,z)m</th>
+                    <th className="py-2 pr-3">Mounting</th>
+                    <th className="py-2 pr-3">Active</th>
+                    <th className="py-2 pr-3">Blind</th>
+                    <th className="py-2 pr-3">Trigger</th>
+                    <th className="py-2 pr-3">Trigger Method</th>
+                    <th className="py-2 pr-3">Status</th>
+                    <th className="py-2">Actions</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {groupSensors.map((sensor) => {
+                    const result = groupValidationById[sensor.id] || { errors: [], warnings: [] };
+                    const status = result.errors.length > 0 ? 'error' : result.warnings.length > 0 ? 'warning' : 'complete';
+                    return (
+                      <tr key={sensor.id} className="border-b border-sidebar-border/50">
+                        <td className="py-2 pr-3 font-semibold">{sensor.sensorId || '-'}</td>
+                        <td className="py-2 pr-3">{sensor.measuredQuantity}</td>
+                        <td className="py-2 pr-3">{sensor.daqSystem} / {sensor.daqChannel || '-'}</td>
+                        <td className="py-2 pr-3">{sensor.serialNumber || '-'}</td>
+                        <td className="py-2 pr-3">{sensor.calibrationDate || '-'}</td>
+                        <td className="py-2 pr-3">{sensor.sensitivity || '-'} {sensor.sensitivityUnit || ''}</td>
+                        <td className="py-2 pr-3">{sensor.locationLabel || '-'}</td>
+                        <td className="py-2 pr-3">({sensor.x || '-'},{sensor.y || '-'},{sensor.z || '-'})</td>
+                        <td className="py-2 pr-3">{sensor.mountingMethod || '-'}</td>
+                        <td className="py-2 pr-3">{sensor.isActive ? 'Yes' : 'No'}</td>
+                        <td className="py-2 pr-3">{sensor.isBlindSensor ? 'Yes' : 'No'}</td>
+                        <td className="py-2 pr-3">{sensor.isTriggerChannel ? 'Yes' : 'No'}</td>
+                        <td className="py-2 pr-3">{normalizeTriggerMethodValue(sensor.triggerMethod) || '-'}</td>
+                        <td className="py-2 pr-3">
+                          {status === 'complete' && (
+                            <span className="inline-flex items-center gap-1 text-emerald-400">
+                              <CheckCircle2 size={12} /> Complete
+                            </span>
+                          )}
+                          {status === 'warning' && (
+                            <div className="space-y-1">
+                              <span
+                                className="inline-flex items-center gap-1 text-amber-400"
+                                title={result.warnings.join(' | ')}
+                              >
+                                <AlertTriangle size={12} /> Warning
+                              </span>
+                              <p className="max-w-[220px] text-[10px] leading-tight text-amber-300">
+                                {result.warnings[0]}
+                              </p>
+                            </div>
+                          )}
+                          {status === 'error' && (
+                            <div className="space-y-1">
+                              <span
+                                className="inline-flex items-center gap-1 text-destructive"
+                                title={result.errors.join(' | ')}
+                              >
+                                <AlertTriangle size={12} /> Error
+                              </span>
+                              <p className="max-w-[220px] text-[10px] leading-tight text-destructive/90">
+                                {result.errors[0]}
+                              </p>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => openEdit(sensor, groupName)} className="p-1 rounded hover:bg-muted"><Pencil size={12} /></button>
+                            <button onClick={() => duplicateSensor(sensor, groupName)} className="p-1 rounded hover:bg-muted"><Copy size={12} /></button>
+                            <button onClick={() => removeSensor(sensor.id, groupName)} className="p-1 rounded hover:bg-destructive/20 text-destructive"><Trash2 size={12} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     );
   };
@@ -857,6 +906,30 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
             className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
           >
             {showAllGroups ? 'Single Group View' : 'All Groups View'}
+          </button>
+          <button
+            type="button"
+            disabled={!showAllGroups || !availableGroups.length || allGroupsExpanded}
+            onClick={() => {
+              const next = {};
+              availableGroups.forEach((group) => { next[group] = false; });
+              setCollapsedGroups(next);
+            }}
+            className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Expand All
+          </button>
+          <button
+            type="button"
+            disabled={!showAllGroups || !availableGroups.length || allGroupsCollapsed}
+            onClick={() => {
+              const next = {};
+              availableGroups.forEach((group) => { next[group] = true; });
+              setCollapsedGroups(next);
+            }}
+            className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Collapse All
           </button>
           <button
             type="button"

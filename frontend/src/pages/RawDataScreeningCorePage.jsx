@@ -31,11 +31,24 @@ const getShortDisplayName = (value) => {
   return base.length > 32 ? `${base.slice(0, 29)}...` : base;
 };
 
-const median = (values = []) => {
-  if (!Array.isArray(values) || values.length === 0) return NaN;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+const getRunKeyFromFileName = (value) => {
+  const base = formatFileName(value).replace(/\.[^.]+$/, '');
+  if (!base) return '';
+  return base
+    .replace(/-DAQ-[A-Za-z0-9_-]+$/i, '')
+    .replace(/-H2CM(?:-[UML])?$/i, '')
+    .replace(/-H2CM-U-M-L$/i, '');
+};
+
+const getPreviewSamplingRate = (preview, preferredChannelIndex = 0) => {
+  const summaryRate = Number(preview?.summary?.samplingRateHz);
+  if (Number.isFinite(summaryRate) && summaryRate > 0) return summaryRate;
+
+  const channels = Array.isArray(preview?.channels) ? preview.channels : [];
+  if (!channels.length) return null;
+  const boundedIndex = Math.max(0, Math.min(channels.length - 1, Number(preferredChannelIndex) || 0));
+  const channelRate = Number(channels[boundedIndex]?.sampleRateHz ?? channels[0]?.sampleRateHz);
+  return Number.isFinite(channelRate) && channelRate > 0 ? channelRate : null;
 };
 
 const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [], analysisMode = 'pressure' }) => {
@@ -51,7 +64,6 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
   const [timeWindowStart, setTimeWindowStart] = useState('');
   const [timeWindowEnd, setTimeWindowEnd] = useState('');
   const [plotLayout, setPlotLayout] = useState('stacked');
-  const [overlayXAxisMode, setOverlayXAxisMode] = useState('reference'); // reference | merged
   const [convertToKpa, setConvertToKpa] = useState(!isConcentrationMode);
   const [convertPpmToVolPercent, setConvertPpmToVolPercent] = useState(false);
   const [selectedChannelKeys, setSelectedChannelKeys] = useState([]);
@@ -66,13 +78,6 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
       setConvertToKpa(false);
     }
   }, [isConcentrationMode]);
-
-  useEffect(() => {
-    // Migrate old persisted/session state away from sample-index mode.
-    if (overlayXAxisMode === 'index') {
-      setOverlayXAxisMode('reference');
-    }
-  }, [overlayXAxisMode]);
 
   const dataFiles = useMemo(() => {
     if (!Array.isArray(selectedCases)) return [];
@@ -449,73 +454,39 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
     if (activePaths.length < 2) {
       return { enabled: false, reason: 'Select at least two tests to enable Overlay.' };
     }
-
-    const signatures = activePaths.map((path) => {
-      const previewEntry = comparePreviews[path] || {};
-      const rows = Array.isArray(previewEntry?.plotData) ? previewEntry.plotData : [];
-      const times = rows
-        .map((row) => Number(row?.t))
-        .filter((value) => Number.isFinite(value));
-
-      const sampleCount = Number.isFinite(Number(previewEntry?.summary?.sampleCount))
-        ? Number(previewEntry.summary.sampleCount)
-        : times.length;
-
-      const dtValues = [];
-      for (let i = 1; i < times.length; i += 1) {
-        const dt = times[i] - times[i - 1];
-        if (Number.isFinite(dt) && dt > 0) dtValues.push(dt);
-      }
-      const dtMedian = median(dtValues);
-
-      return {
-        path,
-        sampleCount,
-        start: times[0],
-        end: times[times.length - 1],
-        dtMedian,
-      };
-    });
-
-    const hasInvalid = signatures.some(
-      (sig) =>
-        !Number.isFinite(sig.sampleCount) ||
-        sig.sampleCount < 2 ||
-        !Number.isFinite(sig.start) ||
-        !Number.isFinite(sig.end) ||
-        !Number.isFinite(sig.dtMedian) ||
-        sig.dtMedian <= 0
-    );
-    if (hasInvalid) {
-      return {
-        enabled: false,
-        reason: 'Overlay is under construction for this selection. Some tests do not expose a stable time grid.',
-      };
-    }
-
-    const reference = signatures[0];
-    const absoluteTimeTolerance = Math.max(reference.dtMedian * 1.5, 1e-9);
-    const relativeDtTolerance = 0.005; // 0.5%
-
-    const allCompatible = signatures.every((sig) => {
-      if (sig.sampleCount !== reference.sampleCount) return false;
-      if (Math.abs(sig.start - reference.start) > absoluteTimeTolerance) return false;
-      if (Math.abs(sig.end - reference.end) > absoluteTimeTolerance) return false;
-      const relDtDiff = Math.abs(sig.dtMedian - reference.dtMedian) / reference.dtMedian;
-      if (!Number.isFinite(relDtDiff) || relDtDiff > relativeDtTolerance) return false;
-      return true;
-    });
-
-    if (!allCompatible) {
+    const runKeys = activePaths.map((path) => getRunKeyFromFileName(displayNameByPath.get(path) || path));
+    const base = runKeys[0] || '';
+    const sameRun = runKeys.every((k) => k && k === base);
+    if (!sameRun) {
       return {
         enabled: false,
         reason:
-          'Overlay is under construction for mixed DAQ sampling/time grids. Use Separate Tests for now.',
+          'Overlay is currently enabled only for files from the same run/test. Use Separate Tests for cross-run comparison.',
       };
     }
 
+    const samplingRates = activePaths
+      .map((path) => {
+        const preferredChannel = Number.isFinite(Number(compareChannelByPath[path]))
+          ? Number(compareChannelByPath[path])
+          : 0;
+        return getPreviewSamplingRate(comparePreviews[path], preferredChannel);
+      })
+      .filter((rate) => Number.isFinite(rate) && rate > 0);
+    if (samplingRates.length >= 2) {
+      const minRate = Math.min(...samplingRates);
+      const maxRate = Math.max(...samplingRates);
+      if (minRate > 0 && maxRate / minRate > 1.2) {
+        return {
+          enabled: false,
+          reason:
+            'Overlay is temporarily disabled for mixed DAQ sampling rates in compare mode. Use Separate Tests for accurate native-time review.',
+        };
+      }
+    }
+
     return { enabled: true, reason: '' };
-  }, [viewMode, comparePaths, comparePreviews]);
+  }, [viewMode, comparePaths, comparePreviews, displayNameByPath, compareChannelByPath]);
 
   useEffect(() => {
     if (viewMode === 'compare' && plotLayout === 'overlay' && !compareOverlayCompatibility.enabled) {
@@ -590,56 +561,31 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
 
     if (!perSeries.length) return { channels: [], plotData: [], xAxisMode: 'time', perSeriesRows: [], summaries: [] };
 
-    const useMergedOverlay = plotLayout === 'overlay' && overlayXAxisMode === 'merged';
-    let compareRows = [];
-    if (useMergedOverlay) {
-      // Merged real-time overlay (raw values, no interpolation).
-      // Each series retains native timestamps; unmatched timestamps are null.
-      const timeMap = new Map();
-      perSeries.forEach((series) => {
-        (series.points || []).forEach((pt) => {
-          const key = pt.t.toFixed(9);
-          if (!timeMap.has(key)) timeMap.set(key, pt.t);
+    // Keep native per-series time vectors in compare overlay.
+    // No interpolation: we only emit original points and merge by exact timestamp.
+    const mergedRows = [];
+    perSeries.forEach((series, sIdx) => {
+      (series.points || []).forEach((point) => {
+        if (!Number.isFinite(point?.t) || !Number.isFinite(point?.v)) return;
+        mergedRows.push({
+          t: Number(point.t),
+          seriesKey: `series_${sIdx}`,
+          value: Number(point.v),
         });
       });
-      let sortedTimeKeys = Array.from(timeMap.keys()).sort((a, b) => timeMap.get(a) - timeMap.get(b));
-      const parsedMaxPoints = Number(maxPoints);
-      const maxPlotPoints = Number.isFinite(parsedMaxPoints) && parsedMaxPoints > 0 ? parsedMaxPoints : 6000;
-      if (!fullResolution && sortedTimeKeys.length > maxPlotPoints) {
-        const sampled = [];
-        for (let i = 0; i < maxPlotPoints; i += 1) {
-          const idx = Math.round((i * (sortedTimeKeys.length - 1)) / (maxPlotPoints - 1));
-          sampled.push(sortedTimeKeys[idx]);
-        }
-        sortedTimeKeys = sampled;
+    });
+    mergedRows.sort((a, b) => a.t - b.t);
+
+    const compareRows = [];
+    for (let i = 0; i < mergedRows.length; i += 1) {
+      const current = mergedRows[i];
+      const row = { t: current.t, [current.seriesKey]: current.value };
+      while (i + 1 < mergedRows.length && mergedRows[i + 1].t === current.t) {
+        i += 1;
+        const sameTs = mergedRows[i];
+        row[sameTs.seriesKey] = sameTs.value;
       }
-      const seriesValueMaps = perSeries.map((series) => {
-        const map = new Map();
-        (series.points || []).forEach((pt) => {
-          map.set(pt.t.toFixed(9), pt.v);
-        });
-        return map;
-      });
-      compareRows = sortedTimeKeys.map((timeKey) => {
-        const row = { t: Number(timeMap.get(timeKey)) };
-        seriesValueMaps.forEach((valueMap, sIdx) => {
-          const value = valueMap.get(timeKey);
-          row[`series_${sIdx}`] = Number.isFinite(value) ? value : null;
-        });
-        return row;
-      });
-    } else {
-      // Reference-time overlay (default): use first selected file time vector,
-      // and map each other series by sample index (no interpolation).
-      const referencePoints = perSeries[0]?.points || [];
-      compareRows = referencePoints.map((pt, idx) => {
-        const row = { t: Number(pt.t) };
-        perSeries.forEach((series, sIdx) => {
-          const point = (series.points || [])[idx];
-          row[`series_${sIdx}`] = Number.isFinite(point?.v) ? point.v : null;
-        });
-        return row;
-      });
+      compareRows.push(row);
     }
 
     const channelsOut = perSeries.map((series, idx) => ({
@@ -652,7 +598,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
     return {
       channels: channelsOut,
       plotData: compareRows,
-      xAxisMode: useMergedOverlay ? 'merged' : 'reference',
+      xAxisMode: 'native-merged',
       perSeriesRows: perSeries.map((series, idx) => ({
         key: `series_${idx}`,
         rows: (series.points || []).map((pt) => ({
@@ -667,7 +613,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
         unit: series.sourceUnit,
       })),
     };
-  }, [viewMode, comparePaths, comparePreviews, compareChannelByPath, compareUnitOverrides, convertToKpa, convertPpmToVolPercent, displayNameByPath, fullResolution, isConcentrationMode, maxPoints, overlayXAxisMode, plotLayout]);
+  }, [viewMode, comparePaths, comparePreviews, compareChannelByPath, compareUnitOverrides, convertToKpa, convertPpmToVolPercent, displayNameByPath, isConcentrationMode]);
 
   return (
     <div className="space-y-5">
@@ -897,24 +843,6 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
             {compareOverlayCompatibility.reason}
           </p>
         )}
-        {viewMode === 'compare' && plotLayout === 'overlay' && (
-          <div className="mt-2 inline-flex rounded-md border border-border overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setOverlayXAxisMode('reference')}
-              className={`px-3 py-1.5 text-[11px] font-semibold transition ${overlayXAxisMode === 'reference' ? 'bg-primary/20 text-primary' : 'bg-background text-muted-foreground hover:text-foreground'}`}
-            >
-              X: Time (reference)
-            </button>
-            <button
-              type="button"
-              onClick={() => setOverlayXAxisMode('merged')}
-              className={`px-3 py-1.5 text-[11px] font-semibold border-l border-border transition ${overlayXAxisMode === 'merged' ? 'bg-primary/20 text-primary' : 'bg-background text-muted-foreground hover:text-foreground'}`}
-            >
-              X: Time (merged raw)
-            </button>
-          </div>
-        )}
         <p className="mt-2 text-xs text-muted-foreground">
           {isConcentrationMode
             ? 'Single-channel H2 concentration preview in ppm or Vol.% for quick sanity checks.'
@@ -965,7 +893,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
               <div className="text-muted-foreground">{plotLayout === 'overlay' ? 'X-axis' : 'Time axis'}</div>
               <div className="text-foreground font-semibold">
                 {plotLayout === 'overlay'
-                  ? (compareOverlay.xAxisMode === 'merged' ? 'Merged real timestamps (no interpolation)' : 'Reference file time vector (no interpolation)')
+                  ? 'Merged native timestamps (no interpolation)'
                   : 'Native per-file time vectors'}
               </div>
             </div>
@@ -980,6 +908,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                 colors={CHANNEL_COLORS}
                 xAxisMode="time"
                 xAxisLabel="Time (s)"
+                spanGaps
               />
             </div>
           ) : (
@@ -1116,14 +1045,10 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
           <p className="mt-3 text-xs text-muted-foreground">
             {isConcentrationMode
               ? plotLayout === 'overlay'
-                ? compareOverlay.xAxisMode === 'merged'
-                  ? 'Overlay uses merged real timestamps (no interpolation); unequal DAQ sampling grids can create visible gaps.'
-                  : 'Overlay uses the reference file time vector and maps other files by sample order (no interpolation).'
+                ? 'Overlay uses merged native timestamps from each selected file (no interpolation).'
                 : 'Separate Tests keeps each concentration file on its native time vector (no interpolation).'
               : plotLayout === 'overlay'
-                ? compareOverlay.xAxisMode === 'merged'
-                  ? 'Overlay uses merged real timestamps (no interpolation); unequal DAQ sampling grids can create visible gaps.'
-                  : 'Overlay uses the reference file time vector and maps other files by sample order (no interpolation).'
+                ? 'Overlay uses merged native timestamps from each selected file (no interpolation).'
                 : 'Separate Tests keeps each file on its native time vector (no interpolation).'}
           </p>
         </div>

@@ -366,7 +366,6 @@ const PlanPage = ({
             return;
         }
         setCreateError("");
-        const inferredFiles = filesForRunName(runName);
         setExperiments([...experiments, {
             id: Date.now(),
             name: runName,
@@ -381,7 +380,8 @@ const PlanPage = ({
                 ignition: "",
                 vent: "",
                 cfdHash: "",
-                dataFiles: inferredFiles
+                // Keep associated files opt-in; user selects explicitly in Run Metadata Card.
+                dataFiles: []
             }
         }]);
         setInput((prev) => ({ ...prev, run: "", name: "", isPreparation: false }));

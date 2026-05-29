@@ -845,13 +845,13 @@ const WorkspacePage = () => {
   const saveProject = useCallback(async () => {
       if (!projectPath) {
           notify('error', 'Save Failed', 'No project selected');
-          return;
+          return { success: false, error: 'No project selected' };
       }
 
       const planResult = await savePlan({ silent: true });
       if (!planResult?.success) {
           notify('error', 'Save Failed', planResult?.error || 'Could not save plan');
-          return;
+          return { success: false, error: planResult?.error || 'Could not save plan' };
       }
 
       let sensorsPath = '';
@@ -881,7 +881,7 @@ const WorkspacePage = () => {
           daqPath = savePayload.path || '';
       } catch (error) {
           notify('error', 'Partial Save', `Plan saved, but DAQ Systems could not be saved.${error?.message ? ` ${error.message}` : ''}`);
-          return;
+          return { success: false, error: error?.message || 'Could not save DAQ systems' };
       }
 
       try {
@@ -916,7 +916,7 @@ const WorkspacePage = () => {
           gasPath = savePayload.path || '';
       } catch (error) {
           notify('error', 'Partial Save', `Plan and DAQ saved, but Gas Mixing could not be saved.${error?.message ? ` ${error.message}` : ''}`);
-          return;
+          return { success: false, error: error?.message || 'Could not save Gas Mixing' };
       }
 
       try {
@@ -935,7 +935,7 @@ const WorkspacePage = () => {
           checklistPath = saveChecklistPayload.path || '';
       } catch (error) {
           notify('error', 'Partial Save', `Plan, DAQ, and Gas saved, but Checklist could not be saved.${error?.message ? ` ${error.message}` : ''}`);
-          return;
+          return { success: false, error: error?.message || 'Could not save checklist state' };
       }
 
       try {
@@ -990,7 +990,7 @@ const WorkspacePage = () => {
           sensorsPath = payload.path || '';
       } catch (error) {
           notify('error', 'Partial Save', `Plan saved, but Sensors Mapping could not be saved.${error?.message ? ` ${error.message}` : ''}`);
-          return;
+          return { success: false, error: error?.message || 'Could not save sensors mapping' };
       }
 
       const savedItems = [
@@ -1021,6 +1021,7 @@ const WorkspacePage = () => {
           </div>
       );
       notify('success', 'Project Saved', details);
+      return { success: true, savedItems };
   }, [activeTab, apiBaseUrl, checklistState, hasSensorsStateForSave, normalizeSensorsStateForSave, notify, projectPath, savePlan]);
 
   const handleCloseProject = async () => {
@@ -1036,7 +1037,7 @@ const WorkspacePage = () => {
 
       const confirmSave = await confirmWithModal({
           title: 'Save changes?',
-          content: 'Do you want to save the latest plan changes before closing?',
+          content: 'Do you want to save all project modules before closing?',
           confirmLabel: 'Save and Close',
           cancelLabel: 'Close Without Saving',
           type: 'success',
@@ -1044,15 +1045,19 @@ const WorkspacePage = () => {
       });
       try {
           if (confirmSave) {
-              await savePlan({ silent: true });
+              const saveResult = await saveProject();
+              if (!saveResult?.success) {
+                  notify('error', 'Close Blocked', 'Project was not closed because save did not complete successfully.');
+                  return;
+              }
           }
       } catch {
-          notify('error', 'Auto-save Failed', 'Could not save the latest plan before closing.');
-      } finally {
-          setProjectPath(null);
-          setProjectStatusFromFile('');
-          localStorage.removeItem('currentProjectPath');
+          notify('error', 'Auto-save Failed', 'Could not save the latest project state before closing.');
+          return;
       }
+      setProjectPath(null);
+      setProjectStatusFromFile('');
+      localStorage.removeItem('currentProjectPath');
   };
 
   const openProjectFolder = async () => {

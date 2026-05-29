@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-27 23:31:27",
+  "updatedAt": "2026-05-28 22:39:45",
   "daqSystems": [
     {
       "calibrationCertificateId": "",
@@ -27,9 +27,9 @@
       "measuredQuantity": "pressure",
       "model": "5165A4",
       "name": "DAQ-2",
-      "notes": "",
+      "notes": "200 kHz from VH2D-02",
       "owner": "DBI",
-      "samplingRateHz": "208000",
+      "samplingRateHz": "200000",
       "serialNumber": "6306100",
       "vendor": "Kistler"
     },
@@ -43,9 +43,9 @@
       "measuredQuantity": "pressure",
       "model": "5165A4",
       "name": "DAQ-3",
-      "notes": "",
+      "notes": "200 kHz from VH2D-02",
       "owner": "Kistler",
-      "samplingRateHz": "62500",
+      "samplingRateHz": "200000",
       "serialNumber": "5358310",
       "vendor": "Kistler"
     },
@@ -61,7 +61,7 @@
       "name": "DAQ-4",
       "notes": "",
       "owner": "Kistler",
-      "samplingRateHz": "",
+      "samplingRateHz": "2500000",
       "serialNumber": "",
       "vendor": "Kistler"
     },

@@ -9,6 +9,7 @@ import csv
 import textwrap
 import tempfile
 import mimetypes
+import numpy as np
 try:
     from zoneinfo import ZoneInfo
 except Exception:  # pragma: no cover
@@ -160,6 +161,211 @@ def _apply_time_window_to_text_content(content, time_start=None, time_end=None, 
     t_selected = t[indices]
     y_selected = y[indices]
     return _render_multichannel_content(t_selected, y_selected, channel_names), None
+
+
+def _safe_stats(values):
+    if values is None:
+        return None
+    arr = np.asarray(values, dtype=float).reshape(-1)
+    if arr.size == 0:
+        return None
+    finite = arr[np.isfinite(arr)]
+    if finite.size == 0:
+        return None
+    return {
+        "min": float(np.min(finite)),
+        "max": float(np.max(finite)),
+        "mean": float(np.mean(finite)),
+    }
+
+
+def _time_summary(time_values):
+    arr = np.asarray(time_values, dtype=float).reshape(-1)
+    if arr.size == 0:
+        return {
+            "samples": 0,
+            "start": None,
+            "end": None,
+            "durationSeconds": None,
+            "strictlyIncreasing": False,
+            "duplicates": 0,
+            "estimatedSampleRateHz": None,
+        }
+    finite = arr[np.isfinite(arr)]
+    if finite.size == 0:
+        return {
+            "samples": 0,
+            "start": None,
+            "end": None,
+            "durationSeconds": None,
+            "strictlyIncreasing": False,
+            "duplicates": 0,
+            "estimatedSampleRateHz": None,
+        }
+
+    diffs = np.diff(finite)
+    positive_diffs = diffs[diffs > 0]
+    estimated_rate = None
+    if positive_diffs.size > 0:
+        median_dt = float(np.median(positive_diffs))
+        if np.isfinite(median_dt) and median_dt > 0:
+            estimated_rate = float(1.0 / median_dt)
+
+    return {
+        "samples": int(finite.size),
+        "start": float(finite[0]),
+        "end": float(finite[-1]),
+        "durationSeconds": float(finite[-1] - finite[0]) if finite.size > 1 else 0.0,
+        "strictlyIncreasing": bool(np.all(diffs > 0)) if finite.size > 1 else True,
+        "duplicates": int(np.sum(diffs == 0)) if finite.size > 1 else 0,
+        "estimatedSampleRateHz": estimated_rate,
+    }
+
+
+def _inspect_text_file_structure(target):
+    with open(target, "r", encoding="utf-8") as handle:
+        content = handle.read()
+
+    t, y, names, err = data_parser.parse_multichannel_content(content)
+    if err:
+        return None, f"Could not parse text data structure: {err}"
+
+    y_arr = np.asarray(y, dtype=float)
+    if y_arr.ndim == 1:
+        y_arr = y_arr.reshape(-1, 1)
+    names = names or [f"Signal {idx + 1}" for idx in range(y_arr.shape[1])]
+
+    channel_summaries = []
+    for idx in range(y_arr.shape[1]):
+        channel_summaries.append(
+            {
+                "index": int(idx),
+                "name": str(names[idx]) if idx < len(names) else f"Signal {idx + 1}",
+                "samples": int(y_arr.shape[0]),
+                "sampleRateHz": _time_summary(t).get("estimatedSampleRateHz"),
+                "triggerSample": None,
+                "triggerTimeSeconds": None,
+                "stats": _safe_stats(y_arr[:, idx]),
+            }
+        )
+
+    return {
+        "parser": "text/csv parser",
+        "timeSummary": _time_summary(t),
+        "channelCount": int(y_arr.shape[1]),
+        "channels": channel_summaries,
+        "notes": [
+            "Each channel uses the same parsed time vector for this file.",
+            "No interpolation is applied in this structure report.",
+        ],
+    }, None
+
+
+def _inspect_tpc5_file_structure(target):
+    if getattr(tpc5_parser, "h5py", None) is None:
+        return None, (
+            "TPC5 structure inspection requires optional dependency 'h5py'. "
+            "Install with: pip install h5py"
+        )
+
+    try:
+        with tpc5_parser.h5py.File(target, "r") as handle:
+            channels = tpc5_parser._collect_channels(handle)
+    except Exception as exc:
+        return None, f"Failed to inspect TPC5 file: {exc}"
+
+    if not channels:
+        return None, "TPC5 file has no readable numeric channels."
+
+    ref = channels[0]
+    sample_count = int(len(ref.get("values") or []))
+    sample_idx = np.arange(sample_count, dtype=np.int64)
+    t_ref = (
+        sample_idx.astype(float) - float(ref.get("trigger_sample") or 0.0)
+    ) / float(ref.get("sample_rate") or 1.0) + float(ref.get("trigger_time") or 0.0)
+
+    channel_summaries = []
+    for idx, channel in enumerate(channels):
+        values = np.asarray(channel.get("values") or [], dtype=float).reshape(-1)
+        channel_summaries.append(
+            {
+                "index": int(idx),
+                "name": str(channel.get("name") or f"Channel {idx + 1}"),
+                "samples": int(values.size),
+                "sampleRateHz": float(channel.get("sample_rate") or 0.0),
+                "triggerSample": int(channel.get("trigger_sample") or 0),
+                "triggerTimeSeconds": float(channel.get("trigger_time") or 0.0),
+                "stats": _safe_stats(values),
+            }
+        )
+
+    return {
+        "parser": "tpc5 parser",
+        "timeSummary": _time_summary(t_ref),
+        "channelCount": int(len(channel_summaries)),
+        "channels": channel_summaries,
+        "notes": [
+            "TPC5 may contain channels with different per-channel timing metadata.",
+            "Parsing for screening uses per-series native time vectors.",
+        ],
+    }, None
+
+
+def _inspect_mf4_file_structure(target):
+    if getattr(mf4_parser, "MDF", None) is None:
+        return None, (
+            "MF4 structure inspection requires optional dependency 'asammdf'. "
+            "Install with: pip install asammdf"
+        )
+
+    try:
+        mdf = mf4_parser.MDF(target)
+        df = mdf.to_dataframe(time_from_zero=True)
+    except Exception as exc:
+        return None, f"Failed to inspect MF4 file: {exc}"
+    finally:
+        try:
+            mdf.close()
+        except Exception:
+            pass
+
+    if df is None or df.empty:
+        return None, "MF4 file has no samples."
+
+    numeric_df = df.select_dtypes(include=["number"]).copy()
+    if numeric_df.empty:
+        return None, "MF4 file has no numeric channels."
+
+    try:
+        t = numeric_df.index.to_numpy(dtype=float)
+    except Exception:
+        t = np.arange(len(numeric_df), dtype=float)
+
+    channel_summaries = []
+    for idx, col_name in enumerate(numeric_df.columns):
+        values = numeric_df.iloc[:, idx].to_numpy(dtype=float, copy=False)
+        channel_summaries.append(
+            {
+                "index": int(idx),
+                "name": str(col_name).strip() or f"Signal {idx + 1}",
+                "samples": int(values.size),
+                "sampleRateHz": _time_summary(t).get("estimatedSampleRateHz"),
+                "triggerSample": None,
+                "triggerTimeSeconds": None,
+                "stats": _safe_stats(values),
+            }
+        )
+
+    return {
+        "parser": "mf4/asammdf parser",
+        "timeSummary": _time_summary(t),
+        "channelCount": int(len(channel_summaries)),
+        "channels": channel_summaries,
+        "notes": [
+            "MF4 channels are represented with a numeric dataframe time index.",
+            "No interpolation is applied in this structure report.",
+        ],
+    }, None
 
 
 def _sanitize_export_stem(value, fallback="Experiment_Plan"):
@@ -1655,6 +1861,58 @@ def read_project_file():
         return jsonify({"success": True, "content": content_windowed})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@state_bp.route('/inspect_project_file_structure', methods=['GET'])
+def inspect_project_file_structure():
+    """Inspect parser-level data structure for a project-scoped data file."""
+    project_path = request.args.get('projectPath')
+    file_path = request.args.get('path')
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    if not file_path:
+        return jsonify({"success": False, "error": "File path is required"}), 400
+
+    target = file_path if os.path.isabs(file_path) else os.path.join(project_root, file_path)
+    if not project_manager.is_path_within(project_root, target):
+        return jsonify({"success": False, "error": "File path not allowed"}), 403
+    if not os.path.exists(target):
+        return jsonify({"success": False, "error": "File not found"}), 404
+
+    ext = os.path.splitext(target)[1].lower()
+    base = {
+        "fileName": os.path.basename(target),
+        "relativePath": _to_posix_rel_path(project_root, target),
+        "extension": ext,
+        "sizeBytes": int(os.path.getsize(target)),
+        "inspectedAt": _now_display_str(include_seconds=True),
+    }
+
+    try:
+        if ext == ".mf4":
+            details, parse_err = _inspect_mf4_file_structure(target)
+        elif ext == ".tpc5":
+            details, parse_err = _inspect_tpc5_file_structure(target)
+        elif ext in (".csv", ".txt", ".dat", ".asc", ".ascii"):
+            details, parse_err = _inspect_text_file_structure(target)
+        else:
+            return jsonify({"success": False, "error": f"Unsupported file type for structure inspection: {ext}"}), 400
+
+        if parse_err:
+            return jsonify({"success": False, "error": parse_err}), 400
+
+        return jsonify(
+            {
+                "success": True,
+                "inspection": {
+                    **base,
+                    **(details or {}),
+                },
+            }
+        )
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
 
 
 @state_bp.route('/project_artifact_file', methods=['GET'])
