@@ -26,3 +26,14 @@ export const recordRecentProject = (path) => {
 };
 
 export const getRecentProjects = () => readRecentProjects();
+
+export const replaceRecentProjects = (items) => {
+  const normalized = (Array.isArray(items) ? items : [])
+    .filter((item) => item?.path)
+    .map((item) => ({
+      path: String(item.path),
+      lastOpened: item.lastOpened || new Date().toISOString(),
+    }))
+    .slice(0, MAX_RECENTS);
+  writeRecentProjects(normalized);
+};

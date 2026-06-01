@@ -1,0 +1,14 @@
+﻿Export Type,DAQ Systems
+Project,VH2D-Project
+Responsible Researcher,PhD Student Javier I. Camacho
+Total DAQ Systems,5
+Reference PDF,LU-DBI Measurement Chain: frontend/public/LU-DBI_MeasurementChain_v001.pdf
+Reference PDF,Mixture Sampling Sub-System: frontend/public/MixtureSampling_Sub-System_000.pdf
+Generated At,2026-05-31 16:29:53
+
+DAQ System Name,Measured Quantity,Vendor,Model,Serial Number,Sampling Rate (Hz),Channel Count,Owner,Last Calibration Date,Calibration Certificate ID,Active,Notes
+DAQ-1,pressure,Elsys - Kistler,TraNET 204S8,441309,1000000,8,LU,2024-10-21,,Yes,2 equipement
+DAQ-2,pressure,Kistler,5165A4,6306100,200000,4,DBI,,,Yes,200 kHz from VH2D-02
+DAQ-3,pressure,Kistler,5165A4,5358310,200000,4,Kistler,,,Yes,200 kHz from VH2D-02
+DAQ-4,pressure,Kistler,,,2500000,8,Kistler,,,Yes,
+H2CM,concentration,JCT,JTCD-300,14362,1,,LU,2025-07-21,,Yes,

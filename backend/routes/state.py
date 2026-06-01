@@ -9,6 +9,7 @@ import csv
 import textwrap
 import tempfile
 import mimetypes
+import shutil
 import numpy as np
 try:
     from zoneinfo import ZoneInfo
@@ -222,6 +223,237 @@ def _time_summary(time_values):
     }
 
 
+def _build_preview_payload(t, y, channel_names, max_rows=50):
+    """Build a compact first-rows preview table for inspector UI."""
+    try:
+        t_arr = np.asarray(t, dtype=float).reshape(-1)
+    except Exception:
+        t_arr = np.array([], dtype=float)
+
+    try:
+        y_arr = np.asarray(y, dtype=float)
+    except Exception:
+        y_arr = np.array([], dtype=float)
+
+    if y_arr.ndim == 1:
+        y_arr = y_arr.reshape(-1, 1)
+    if y_arr.ndim != 2:
+        y_arr = np.array([], dtype=float).reshape(0, 0)
+
+    rows_available = min(int(t_arr.size), int(y_arr.shape[0])) if y_arr.size > 0 else 0
+    if rows_available <= 0:
+        return {"columns": ["time"], "rows": [], "rowCount": 0, "shownRows": 0}
+
+    shown_rows = min(rows_available, int(max_rows))
+    names = channel_names or [f"Signal {idx + 1}" for idx in range(y_arr.shape[1])]
+    columns = ["time"] + [str(name or f"Signal {idx + 1}") for idx, name in enumerate(names[: y_arr.shape[1]])]
+
+    rows = []
+    for idx in range(shown_rows):
+        row = [float(t_arr[idx]) if np.isfinite(t_arr[idx]) else None]
+        for value in y_arr[idx, :]:
+            row.append(float(value) if np.isfinite(value) else None)
+        rows.append(row)
+
+    return {
+        "columns": columns,
+        "rows": rows,
+        "rowCount": int(rows_available),
+        "shownRows": int(shown_rows),
+    }
+
+
+def _build_mf4_raw_preview_payload(mdf_obj, max_rows=50):
+    """Build MF4 preview from native per-channel timestamps/samples (no dataframe merge)."""
+    channel_pairs = []
+    for group_idx, group in enumerate(getattr(mdf_obj, "groups", []) or []):
+        channels = getattr(group, "channels", []) or []
+        for channel_idx, channel in enumerate(channels):
+            name = str(getattr(channel, "name", "") or "").strip()
+            if not name:
+                continue
+            # Skip explicit MF4 time channels; each signal already carries native timestamps.
+            if name.lower() == "time":
+                continue
+            try:
+                signal = mdf_obj.get(group=group_idx, index=channel_idx, samples_only=False, raw=True)
+            except Exception:
+                continue
+            samples = np.asarray(getattr(signal, "samples", []))
+            timestamps = np.asarray(getattr(signal, "timestamps", []), dtype=float)
+            if samples.size == 0 or timestamps.size == 0:
+                continue
+            if not np.issubdtype(samples.dtype, np.number):
+                continue
+            sample_values = np.asarray(samples, dtype=float).reshape(-1)
+            time_values = np.asarray(timestamps, dtype=float).reshape(-1)
+            pair_len = min(int(sample_values.size), int(time_values.size))
+            if pair_len <= 0:
+                continue
+            unit = str(getattr(signal, "unit", "") or "").strip()
+            label = f"{name} [{unit}]" if unit else str(name)
+            channel_pairs.append(
+                {
+                    "label": label,
+                    "groupLabel": f"g{group_idx}:{label}",
+                    "time": time_values[:pair_len],
+                    "values": sample_values[:pair_len],
+                    "count": pair_len,
+                }
+            )
+
+    if not channel_pairs:
+        return {"columns": ["time"], "rows": [], "rowCount": 0, "shownRows": 0}
+
+    min_available = min(pair["count"] for pair in channel_pairs)
+    max_available = max(pair["count"] for pair in channel_pairs)
+
+    # Prefer a single time column when all signal channels share the same native timestamp vector.
+    shared_time_vector = False
+    if min_available > 0:
+        ref_time = channel_pairs[0]["time"][:min_available]
+        shared_time_vector = all(
+            pair["count"] >= min_available
+            and np.allclose(ref_time, pair["time"][:min_available], rtol=1e-9, atol=1e-12, equal_nan=False)
+            for pair in channel_pairs[1:]
+        )
+
+    if shared_time_vector:
+        shown_rows = min(int(max_rows), int(min_available))
+        labels = []
+        used = {}
+        for pair in channel_pairs:
+            base = str(pair["label"] or "Signal")
+            seen = used.get(base, 0)
+            used[base] = seen + 1
+            labels.append(base if seen == 0 else f"{base}__{seen + 1}")
+
+        columns = ["time"] + labels
+        rows = []
+        for row_idx in range(shown_rows):
+            row = [
+                float(ref_time[row_idx]) if np.isfinite(ref_time[row_idx]) else None,
+            ]
+            for pair in channel_pairs:
+                value = pair["values"][row_idx]
+                row.append(float(value) if np.isfinite(value) else None)
+            rows.append(row)
+
+        return {
+            "columns": columns,
+            "rows": rows,
+            "rowCount": int(min_available),
+            "shownRows": int(shown_rows),
+        }
+
+    columns = []
+    for pair in channel_pairs:
+        columns.append(f"{pair['groupLabel']}__time")
+        columns.append(pair["groupLabel"])
+
+    shown_rows = min(int(max_rows), int(max_available))
+    rows = []
+    for row_idx in range(shown_rows):
+        row = []
+        for pair in channel_pairs:
+            if row_idx < pair["count"]:
+                t_val = pair["time"][row_idx]
+                s_val = pair["values"][row_idx]
+                row.append(float(t_val) if np.isfinite(t_val) else None)
+                row.append(float(s_val) if np.isfinite(s_val) else None)
+            else:
+                row.append(None)
+                row.append(None)
+        rows.append(row)
+
+    return {
+        "columns": columns,
+        "rows": rows,
+        "rowCount": int(max_available),
+        "shownRows": int(shown_rows),
+    }
+
+
+def _build_native_channel_preview_payload(channel_pairs, max_rows=50):
+    """Build preview from native per-channel {label,time,values,count} records."""
+    if not channel_pairs:
+        return {"columns": ["time"], "rows": [], "rowCount": 0, "shownRows": 0}
+
+    min_available = min(int(pair.get("count", 0)) for pair in channel_pairs)
+    max_available = max(int(pair.get("count", 0)) for pair in channel_pairs)
+    if max_available <= 0:
+        return {"columns": ["time"], "rows": [], "rowCount": 0, "shownRows": 0}
+
+    shared_time_vector = False
+    if min_available > 0:
+        ref_time = np.asarray(channel_pairs[0].get("time", []), dtype=float)[:min_available]
+        shared_time_vector = all(
+            int(pair.get("count", 0)) >= min_available
+            and np.allclose(
+                ref_time,
+                np.asarray(pair.get("time", []), dtype=float)[:min_available],
+                rtol=1e-9,
+                atol=1e-12,
+                equal_nan=False,
+            )
+            for pair in channel_pairs[1:]
+        )
+    if shared_time_vector:
+        shown_rows = min(int(max_rows), int(min_available))
+        labels = []
+        used = {}
+        for pair in channel_pairs:
+            base = str(pair.get("label") or "Signal").strip() or "Signal"
+            seen = used.get(base, 0)
+            used[base] = seen + 1
+            labels.append(base if seen == 0 else f"{base}__{seen + 1}")
+        columns = ["time"] + labels
+        rows = []
+        for row_idx in range(shown_rows):
+            row = [float(ref_time[row_idx]) if np.isfinite(ref_time[row_idx]) else None]
+            for pair in channel_pairs:
+                values = np.asarray(pair.get("values", []), dtype=float)
+                value = values[row_idx] if row_idx < values.size else np.nan
+                row.append(float(value) if np.isfinite(value) else None)
+            rows.append(row)
+        return {
+            "columns": columns,
+            "rows": rows,
+            "rowCount": int(min_available),
+            "shownRows": int(shown_rows),
+        }
+
+    shown_rows = min(int(max_rows), int(max_available))
+    columns = []
+    for pair in channel_pairs:
+        label = str(pair.get("label") or "Signal").strip() or "Signal"
+        columns.append(f"{label}__time")
+        columns.append(label)
+
+    rows = []
+    for row_idx in range(shown_rows):
+        row = []
+        for pair in channel_pairs:
+            times = np.asarray(pair.get("time", []), dtype=float)
+            values = np.asarray(pair.get("values", []), dtype=float)
+            count = int(pair.get("count", 0))
+            if row_idx < count:
+                t_val = times[row_idx] if row_idx < times.size else np.nan
+                v_val = values[row_idx] if row_idx < values.size else np.nan
+                row.append(float(t_val) if np.isfinite(t_val) else None)
+                row.append(float(v_val) if np.isfinite(v_val) else None)
+            else:
+                row.append(None)
+                row.append(None)
+        rows.append(row)
+    return {
+        "columns": columns,
+        "rows": rows,
+        "rowCount": int(max_available),
+        "shownRows": int(shown_rows),
+    }
+
+
 def _inspect_text_file_structure(target):
     with open(target, "r", encoding="utf-8") as handle:
         content = handle.read()
@@ -254,6 +486,7 @@ def _inspect_text_file_structure(target):
         "timeSummary": _time_summary(t),
         "channelCount": int(y_arr.shape[1]),
         "channels": channel_summaries,
+        "preview": _build_preview_payload(t, y_arr, names, max_rows=50),
         "notes": [
             "Each channel uses the same parsed time vector for this file.",
             "No interpolation is applied in this structure report.",
@@ -278,15 +511,23 @@ def _inspect_tpc5_file_structure(target):
         return None, "TPC5 file has no readable numeric channels."
 
     ref = channels[0]
-    sample_count = int(len(ref.get("values") or []))
+    ref_values = ref.get("values")
+    if ref_values is None:
+        ref_values = []
+    sample_count = int(np.asarray(ref_values).size)
     sample_idx = np.arange(sample_count, dtype=np.int64)
     t_ref = (
         sample_idx.astype(float) - float(ref.get("trigger_sample") or 0.0)
     ) / float(ref.get("sample_rate") or 1.0) + float(ref.get("trigger_time") or 0.0)
 
     channel_summaries = []
+    preview_vectors = []
     for idx, channel in enumerate(channels):
-        values = np.asarray(channel.get("values") or [], dtype=float).reshape(-1)
+        raw_values = channel.get("values")
+        if raw_values is None:
+            raw_values = []
+        values = np.asarray(raw_values, dtype=float).reshape(-1)
+        preview_vectors.append(values)
         channel_summaries.append(
             {
                 "index": int(idx),
@@ -299,14 +540,34 @@ def _inspect_tpc5_file_structure(target):
             }
         )
 
+    native_pairs = []
+    for idx, channel in enumerate(channels):
+        values = preview_vectors[idx] if idx < len(preview_vectors) else np.array([], dtype=float)
+        sr = float(channel.get("sample_rate") or 1.0)
+        ts = float(channel.get("trigger_sample") or 0.0)
+        tt = float(channel.get("trigger_time") or 0.0)
+        if not np.isfinite(sr) or sr == 0.0:
+            sr = 1.0
+        channel_idx = np.arange(values.size, dtype=float)
+        t_native = (channel_idx - ts) / sr + tt
+        native_pairs.append(
+            {
+                "label": str(channel.get("name") or f"Channel {idx + 1}"),
+                "time": t_native,
+                "values": values,
+                "count": int(values.size),
+            }
+        )
+
     return {
         "parser": "tpc5 parser",
         "timeSummary": _time_summary(t_ref),
         "channelCount": int(len(channel_summaries)),
         "channels": channel_summaries,
+        "preview": _build_native_channel_preview_payload(native_pairs, max_rows=50),
         "notes": [
             "TPC5 may contain channels with different per-channel timing metadata.",
-            "Parsing for screening uses per-series native time vectors.",
+            "Preview uses native per-channel timing/values from file metadata.",
         ],
     }, None
 
@@ -321,6 +582,7 @@ def _inspect_mf4_file_structure(target):
     try:
         mdf = mf4_parser.MDF(target)
         df = mdf.to_dataframe(time_from_zero=True)
+        raw_preview = _build_mf4_raw_preview_payload(mdf, max_rows=50)
     except Exception as exc:
         return None, f"Failed to inspect MF4 file: {exc}"
     finally:
@@ -340,10 +602,11 @@ def _inspect_mf4_file_structure(target):
         t = numeric_df.index.to_numpy(dtype=float)
     except Exception:
         t = np.arange(len(numeric_df), dtype=float)
+    y_arr = numeric_df.to_numpy(dtype=float, copy=False)
 
     channel_summaries = []
     for idx, col_name in enumerate(numeric_df.columns):
-        values = numeric_df.iloc[:, idx].to_numpy(dtype=float, copy=False)
+        values = y_arr[:, idx] if y_arr.ndim == 2 and idx < y_arr.shape[1] else numeric_df.iloc[:, idx].to_numpy(dtype=float, copy=False)
         channel_summaries.append(
             {
                 "index": int(idx),
@@ -361,8 +624,16 @@ def _inspect_mf4_file_structure(target):
         "timeSummary": _time_summary(t),
         "channelCount": int(len(channel_summaries)),
         "channels": channel_summaries,
+        "preview": raw_preview,
+        "normalizedPreview": _build_preview_payload(
+            t,
+            y_arr,
+            [entry.get("name") for entry in channel_summaries],
+            max_rows=50,
+        ),
         "notes": [
-            "MF4 channels are represented with a numeric dataframe time index.",
+            "Preview table shows native per-channel MF4 data (group/channel timestamps + samples).",
+            "Normalized statistics still use a numeric dataframe time index.",
             "No interpolation is applied in this structure report.",
         ],
     }, None
@@ -477,25 +748,38 @@ def _build_plan_export_rows(experiments, plan_meta=None):
             "group": group,
             "group_description": str(group_objectives.get(group) or ""),
             "done": "Yes" if bool((exp or {}).get("done")) else "No",
+            "run_status": "error" if bool(meta.get("hasError")) else ("canceled" if bool(meta.get("isCanceled")) else ("done" if bool((exp or {}).get("done")) else "planned")),
             "preparation": "Yes" if bool(meta.get("isPreparation")) else "No",
             "schedule": _row_schedule(meta),
+            "planned_date": str(meta.get("plannedDate") or ""),
+            "planned_day": str(meta.get("plannedDay") or ""),
             "h2": str(meta.get("h2") or ""),
+            "h2_injected_grams": str(meta.get("h2InjectedGrams") or ""),
+            "mfc_flow_slpm": str(meta.get("mfcFlowSlpm") or ""),
             "ignition": str(meta.get("ignition") or ""),
             "vent": str(meta.get("vent") or ""),
             "p0": str(meta.get("p0") or ""),
             "t0": str(meta.get("t0") or ""),
+            "recirc_stop_to_ignition_sec": str(meta.get("recircStopToIgnitionSec") or ""),
+            "cfd_hash": str(meta.get("cfdHash") or ""),
             "data_files_count": str(len(data_files)),
             "data_files": " | ".join(str(item) for item in data_files),
             "short_description": str(meta.get("shortDescription") or ""),
+            "notes": str((exp or {}).get("notes") or ""),
+            "error": "Yes" if bool(meta.get("hasError")) else "No",
+            "error_note": str(meta.get("errorNote") or ""),
+            "canceled": "Yes" if bool(meta.get("isCanceled")) else "No",
+            "canceled_note": str(meta.get("canceledNote") or ""),
         })
     return rows
 
 
 def _write_plan_csv(rows, target_path, plan_name=None, plan_meta=None):
     headers = [
-        "Run Name", "Group", "Group Description", "Done", "Schedule",
-        "H2 (%)", "Ignition", "Vent", "Pressure P0 (Pa)", "Temperature T0 (K)",
-        "Data Files Count", "File Path (Raw_Data Folder)",
+        "Run Name", "Group", "Group Description", "Status", "Done", "Preparation", "Schedule", "Planned Date", "Planned Day",
+        "H2 (%)", "H2 Injected (g)", "MFC Flow (SLPM)", "Ignition", "Vent", "Pressure P0 (Pa)", "Temperature T0 (K)",
+        "Recirc Stop To Ignition (s)", "Case ID / CFD Hash", "Data Files Count", "File Path (Raw_Data Folder)",
+        "Short Description", "Run Notes", "Error", "Error Note", "Canceled", "Canceled Note",
     ]
     with open(target_path, "w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.writer(handle)
@@ -510,9 +794,10 @@ def _write_plan_csv(rows, target_path, plan_name=None, plan_meta=None):
         writer.writerow(headers)
         for row in rows:
             writer.writerow([
-                row["run_name"], row["group"], row["group_description"], row["done"], row["schedule"],
-                row["h2"], row["ignition"], row["vent"], row["p0"], row["t0"],
-                row["data_files_count"], row["data_files"],
+                row["run_name"], row["group"], row["group_description"], row["run_status"], row["done"], row["preparation"], row["schedule"], row["planned_date"], row["planned_day"],
+                row["h2"], row["h2_injected_grams"], row["mfc_flow_slpm"], row["ignition"], row["vent"], row["p0"], row["t0"],
+                row["recirc_stop_to_ignition_sec"], row["cfd_hash"], row["data_files_count"], row["data_files"],
+                row["short_description"], row["notes"], row["error"], row["error_note"], row["canceled"], row["canceled_note"],
             ])
 
 
@@ -521,14 +806,6 @@ def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
         import fitz  # PyMuPDF
     except Exception as exc:
         return False, f"PyMuPDF unavailable: {exc}"
-
-    def _clip(value, width):
-        text = str(value or "")
-        if len(text) <= width:
-            return text.ljust(width)
-        if width <= 1:
-            return text[:width]
-        return (text[: width - 1] + "…")
 
     doc = fitz.open()
     page = doc.new_page(width=842, height=595)  # A4 landscape
@@ -580,11 +857,6 @@ def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
     _write_line(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     _write_line("")
 
-    file_path_width = 50
-    columns = [
-        ("Run", 16), ("Done", 4), ("Schedule", 10),
-        ("H2 (%)", 6), ("Ignition", 10), ("Vent", 10), ("P0 (Pa)", 8), ("T0 (K)", 6), ("Files", 5), ("File Path (Raw_Data Folder)", file_path_width),
-    ]
     grouped_rows = {}
     group_order = []
     for row in rows:
@@ -605,54 +877,57 @@ def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
         _write_line("")
         _write_line(f"Group: {group_name}", bold=True)
         _write_line(f"Group Objective: {group_description or '-'}")
-        divider = "-+-".join("-" * width for _, width in columns)
-        header = " | ".join(_clip(name, width) for name, width in columns)
-        _write_line(header, bold=True)
-        _write_line(divider)
+        _write_line("-" * 112)
 
-        for row in entries:
+        for idx, row in enumerate(entries, start=1):
+            _write_line(f"[{idx}/{len(entries)}] Run: {row.get('run_name') or '-'}", bold=True)
+            _write_line(
+                f"Status: {str(row.get('run_status') or 'planned').upper()} | Done: {row.get('done') or 'No'} | "
+                f"Preparation: {row.get('preparation') or 'No'} | Schedule: {row.get('schedule') or '-'}"
+            )
+            _write_line(
+                f"H2: {row.get('h2') or '-'} %vol | H2 Injected: {row.get('h2_injected_grams') or '-'} g | "
+                f"MFC Flow: {row.get('mfc_flow_slpm') or '-'} SLPM"
+            )
+            _write_line(
+                f"Ignition: {row.get('ignition') or '-'} | Vent: {row.get('vent') or '-'} | "
+                f"P0: {row.get('p0') or '-'} Pa | T0: {row.get('t0') or '-'} K"
+            )
+            _write_line(
+                f"Recirc Stop -> Ignition: {row.get('recirc_stop_to_ignition_sec') or '-'} s | "
+                f"Case ID / CFD Hash: {row.get('cfd_hash') or '-'}"
+            )
+            _write_line(
+                f"Error: {row.get('error') or 'No'} | Canceled: {row.get('canceled') or 'No'} | "
+                f"Data Files: {row.get('data_files_count') or '0'}"
+            )
+
+            short_description = str(row.get("short_description") or "").strip() or "-"
+            notes = str(row.get("notes") or "").strip() or "-"
+            error_note = str(row.get("error_note") or "").strip() or "-"
+            canceled_note = str(row.get("canceled_note") or "").strip() or "-"
+
+            for line in textwrap.wrap(f"Short Description: {short_description}", width=112, break_long_words=True, break_on_hyphens=False) or ["Short Description: -"]:
+                _write_line(line)
+            for line in textwrap.wrap(f"Run Notes: {notes}", width=112, break_long_words=True, break_on_hyphens=False) or ["Run Notes: -"]:
+                _write_line(line)
+            for line in textwrap.wrap(f"Error Note: {error_note}", width=112, break_long_words=True, break_on_hyphens=False) or ["Error Note: -"]:
+                _write_line(line)
+            for line in textwrap.wrap(f"Canceled Note: {canceled_note}", width=112, break_long_words=True, break_on_hyphens=False) or ["Canceled Note: -"]:
+                _write_line(line)
+
             data_files_raw = str(row.get("data_files") or "").strip()
             file_chunks = [chunk.strip() for chunk in data_files_raw.split("|") if chunk.strip()]
             if not file_chunks:
-                file_chunks = ["-"]
-            wrapped_file_paths = []
-            for file_path in file_chunks:
-                wraps = textwrap.wrap(
-                    file_path,
-                    width=file_path_width,
-                    break_long_words=True,
-                    break_on_hyphens=False,
-                ) or ["-"]
-                wrapped_file_paths.extend(wraps)
-
-            first_line = " | ".join([
-                _clip(row["run_name"], 16),
-                _clip(row["done"], 4),
-                _clip(row["schedule"], 10),
-                _clip(row["h2"], 6),
-                _clip(row["ignition"], 10),
-                _clip(row["vent"], 10),
-                _clip(row["p0"], 8),
-                _clip(row["t0"], 6),
-                _clip(row["data_files_count"], 5),
-                _clip(wrapped_file_paths[0], file_path_width),
-            ])
-            _write_line(first_line)
-
-            for extra_path in wrapped_file_paths[1:]:
-                continuation_line = " | ".join([
-                    _clip("", 16),
-                    _clip("", 4),
-                    _clip("", 10),
-                    _clip("", 6),
-                    _clip("", 10),
-                    _clip("", 10),
-                    _clip("", 8),
-                    _clip("", 6),
-                    _clip("", 5),
-                    _clip(extra_path, file_path_width),
-                ])
-                _write_line(continuation_line)
+                _write_line("Data Files: -")
+            else:
+                _write_line("Data Files:")
+                for file_path in file_chunks:
+                    wrapped = textwrap.wrap(file_path, width=108, break_long_words=True, break_on_hyphens=False) or ["-"]
+                    for wrapped_idx, wrapped_line in enumerate(wrapped):
+                        prefix = "  - " if wrapped_idx == 0 else "    "
+                        _write_line(f"{prefix}{wrapped_line}")
+            _write_line("-" * 112)
 
     total_pages = len(doc)
     for page_index, page_obj in enumerate(doc, start=1):
@@ -1811,8 +2086,27 @@ def read_project_file():
     project_path = request.args.get('projectPath')
     file_path = request.args.get('path')
     full_resolution = str(request.args.get('fullResolution', '')).strip().lower() in ("1", "true", "yes", "on")
+    requested_max_points = request.args.get('maxPoints')
     window_start = _to_float(request.args.get('windowStart'))
     window_end = _to_float(request.args.get('windowEnd'))
+    try:
+        requested_max_points = int(float(requested_max_points)) if requested_max_points is not None else None
+    except (TypeError, ValueError):
+        requested_max_points = None
+    if requested_max_points is not None:
+        requested_max_points = max(100, min(2_000_000, requested_max_points))
+
+    # One-step downsampling target:
+    # - Full-resolution: disabled (0 => no cap)
+    # - Fast preview: downsample once at read stage to maxPoints
+    # Hidden hard cap remains as an emergency guard for malformed/huge requests.
+    safety_cap = 2_000_000
+    if full_resolution:
+        max_samples = 0
+    else:
+        effective_target = requested_max_points if requested_max_points is not None else 200000
+        max_samples = max(100, min(safety_cap, int(effective_target)))
+
     project_root, err = project_manager.resolve_project_path(project_path)
     if err:
         return jsonify({"success": False, "error": err}), 400
@@ -1826,7 +2120,6 @@ def read_project_file():
     try:
         lower_target = target.lower()
         if lower_target.endswith(".mf4"):
-            max_samples = 0 if full_resolution else 200000
             content, parse_err = mf4_parser.mf4_to_content(
                 target,
                 max_samples=max_samples,
@@ -1837,7 +2130,6 @@ def read_project_file():
                 return jsonify({"success": False, "error": parse_err}), 400
             return jsonify({"success": True, "content": content})
         if lower_target.endswith(".tpc5"):
-            max_samples = 0 if full_resolution else 200000
             content, parse_err = tpc5_parser.tpc5_to_content(
                 target,
                 max_samples=max_samples,
@@ -1849,7 +2141,6 @@ def read_project_file():
             return jsonify({"success": True, "content": content})
         with open(target, 'r', encoding='utf-8') as f:
             content = f.read()
-        max_samples = 0 if full_resolution else 200000
         content_windowed, parse_err = _apply_time_window_to_text_content(
             content,
             time_start=window_start,
@@ -3092,3 +3383,305 @@ def sync_run_data_folders():
         "count": len(ensured),
         "skipped": skipped
     })
+
+
+@state_bp.route('/rename_run_data_folders', methods=['POST'])
+def rename_run_data_folders():
+    """Rename existing run folders across Raw_Data/Clean_Data/CFD_Data from old->new names."""
+    data = request.json or {}
+    project_path = data.get('projectPath')
+    rename_pairs = data.get('renamePairs') or []
+
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    if not isinstance(rename_pairs, list):
+        return jsonify({"success": False, "error": "renamePairs must be a list"}), 400
+
+    roots = {
+        "Raw_Data": os.path.join(project_root, "Raw_Data"),
+        "Clean_Data": os.path.join(project_root, "Clean_Data"),
+        "CFD_Data": os.path.join(project_root, "CFD_Data"),
+    }
+    for root_path in roots.values():
+        os.makedirs(root_path, exist_ok=True)
+
+    moved = []
+    created = []
+    conflicts = []
+    skipped = []
+
+    def _sanitize_run_name(value):
+        raw = str(value or "").strip()
+        if not raw:
+            return ""
+        return raw.replace("/", "-").replace("\\", "-").strip().strip(".")
+
+    for pair in rename_pairs:
+        if not isinstance(pair, dict):
+            skipped.append({"pair": pair, "reason": "invalid_pair"})
+            continue
+
+        old_original = str(pair.get("oldName") or "").strip()
+        new_original = str(pair.get("newName") or "").strip()
+        old_name = _sanitize_run_name(old_original)
+        new_name = _sanitize_run_name(new_original)
+
+        if not old_name or not new_name:
+            skipped.append({"oldName": old_original, "newName": new_original, "reason": "invalid_name"})
+            continue
+        if old_name == new_name:
+            skipped.append({"oldName": old_name, "newName": new_name, "reason": "same_name"})
+            continue
+
+        run_conflict = False
+        for root_key, root_path in roots.items():
+            old_path = os.path.realpath(os.path.join(root_path, old_name))
+            new_path = os.path.realpath(os.path.join(root_path, new_name))
+            if (
+                not project_manager.is_path_within(project_root, old_path)
+                or not project_manager.is_path_within(project_root, new_path)
+            ):
+                skipped.append({
+                    "oldName": old_name,
+                    "newName": new_name,
+                    "root": root_key,
+                    "reason": "unsafe_path",
+                })
+                run_conflict = True
+                continue
+
+            old_exists = os.path.exists(old_path)
+            new_exists = os.path.exists(new_path)
+
+            if old_exists and new_exists and old_path != new_path:
+                conflicts.append({
+                    "oldName": old_name,
+                    "newName": new_name,
+                    "root": root_key,
+                    "reason": "target_exists",
+                })
+                run_conflict = True
+                continue
+
+            if old_exists and not new_exists:
+                try:
+                    shutil.move(old_path, new_path)
+                    moved.append({"root": root_key, "from": old_name, "to": new_name})
+                except Exception as exc:
+                    conflicts.append({
+                        "oldName": old_name,
+                        "newName": new_name,
+                        "root": root_key,
+                        "reason": f"move_failed: {exc}",
+                    })
+                    run_conflict = True
+                continue
+
+            if (not old_exists) and (not new_exists):
+                # Keep workflow resilient: create destination folder if source did not exist yet.
+                try:
+                    os.makedirs(new_path, exist_ok=True)
+                    created.append({"root": root_key, "run": new_name})
+                except Exception as exc:
+                    conflicts.append({
+                        "oldName": old_name,
+                        "newName": new_name,
+                        "root": root_key,
+                        "reason": f"create_failed: {exc}",
+                    })
+                    run_conflict = True
+                continue
+
+        if run_conflict:
+            # Keep per-root detail in conflicts/skipped; no extra action needed here.
+            pass
+
+    return jsonify({
+        "success": True,
+        "moved": moved,
+        "created": created,
+        "conflicts": conflicts,
+        "skipped": skipped,
+    })
+
+
+@state_bp.route('/rename_run_metadata_references', methods=['POST'])
+def rename_run_metadata_references():
+    """Rename run/group references inside metadata artifacts (gas mixing + sensors mapping)."""
+    data = request.json or {}
+    project_path = data.get('projectPath')
+    rename_pairs = data.get('renamePairs') or []
+    old_group = str(data.get('oldGroup') or '').strip()
+    new_group = str(data.get('newGroup') or '').strip()
+
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    if not isinstance(rename_pairs, list):
+        return jsonify({"success": False, "error": "renamePairs must be a list"}), 400
+
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+
+    def _clean(value):
+        return str(value or "").strip()
+
+    def _fold(value):
+        return _clean(value).casefold()
+
+    # Lower-cased lookup for case-insensitive renames.
+    run_rename_lookup = {}
+    for pair in rename_pairs:
+        if not isinstance(pair, dict):
+            continue
+        old_name = _clean(pair.get("oldName"))
+        new_name = _clean(pair.get("newName"))
+        if not old_name or not new_name:
+            continue
+        if old_name == new_name:
+            continue
+        run_rename_lookup[_fold(old_name)] = new_name
+
+    def _find_case_key(mapping_obj, wanted_key):
+        if not isinstance(mapping_obj, dict) or not wanted_key:
+            return None
+        target = _fold(wanted_key)
+        for key in mapping_obj.keys():
+            if _fold(key) == target:
+                return key
+        return None
+
+    def _load_json_dict(path):
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+            return payload if isinstance(payload, dict) else {}
+        except Exception:
+            return {}
+
+    def _write_json(path, payload):
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+
+    result = {
+        "success": True,
+        "gasMixingUpdated": False,
+        "gasMixingRecordsRenamed": 0,
+        "gasMixingGroupRenamed": False,
+        "sensorsMappingUpdated": False,
+        "sensorsGroupsRenamed": 0,
+    }
+
+    # --- Gas Mixing remap (group + runName + selected pointers) ---
+    gas_path = os.path.join(reports_dir, GAS_MIXING_FILENAME)
+    gas_payload = _load_json_dict(gas_path)
+    if gas_payload is not None:
+        records = gas_payload.get("records")
+        if not isinstance(records, list):
+            records = []
+        touched = False
+        renamed_records_count = 0
+        old_group_fold = _fold(old_group) if old_group and new_group else ""
+
+        for item in records:
+            if not isinstance(item, dict):
+                continue
+            run_name = _clean(item.get("runName"))
+            mapped_name = run_rename_lookup.get(_fold(run_name), run_name)
+            if mapped_name != run_name:
+                item["runName"] = mapped_name
+                touched = True
+                renamed_records_count += 1
+
+            if old_group_fold:
+                group_name = _clean(item.get("group"))
+                if _fold(group_name) == old_group_fold:
+                    item["group"] = new_group
+                    touched = True
+
+        selected_group = _clean(gas_payload.get("selectedGroup"))
+        if old_group_fold and _fold(selected_group) == old_group_fold:
+            gas_payload["selectedGroup"] = new_group
+            touched = True
+            result["gasMixingGroupRenamed"] = True
+
+        selected_run = _clean(gas_payload.get("selectedRunName"))
+        mapped_selected_run = run_rename_lookup.get(_fold(selected_run), selected_run)
+        if mapped_selected_run != selected_run:
+            gas_payload["selectedRunName"] = mapped_selected_run
+            touched = True
+
+        if touched:
+            gas_payload["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            gas_payload["records"] = records
+            _write_json(gas_path, gas_payload)
+            result["gasMixingUpdated"] = True
+            result["gasMixingRecordsRenamed"] = renamed_records_count
+
+    # --- Sensors Mapping remap (group keys + selectedGroup + notes keys) ---
+    sensors_path = os.path.join(reports_dir, SENSORS_MAPPING_FILENAME)
+    sensors_payload = _load_json_dict(sensors_path)
+    if sensors_payload is not None and old_group and new_group and _fold(old_group) != _fold(new_group):
+        mappings_by_group = sensors_payload.get("mappingsByGroup")
+        group_notes = sensors_payload.get("groupNotes")
+        if not isinstance(mappings_by_group, dict):
+            mappings_by_group = {}
+        if not isinstance(group_notes, dict):
+            group_notes = {}
+
+        touched = False
+        renamed_group_count = 0
+
+        old_key = _find_case_key(mappings_by_group, old_group)
+        if old_key is not None:
+            source_sensors = mappings_by_group.pop(old_key)
+            target_key = _find_case_key(mappings_by_group, new_group) or new_group
+            target_sensors = mappings_by_group.get(target_key)
+            if not isinstance(target_sensors, list):
+                target_sensors = []
+            if not isinstance(source_sensors, list):
+                source_sensors = []
+            merged = []
+            seen = set()
+            for sensor in target_sensors + source_sensors:
+                if not isinstance(sensor, dict):
+                    continue
+                fingerprint = json.dumps(sensor, sort_keys=True, ensure_ascii=False)
+                if fingerprint in seen:
+                    continue
+                seen.add(fingerprint)
+                merged.append(sensor)
+            mappings_by_group[target_key] = merged
+            touched = True
+            renamed_group_count += 1
+
+        old_note_key = _find_case_key(group_notes, old_group)
+        if old_note_key is not None:
+            source_note = _clean(group_notes.pop(old_note_key))
+            target_note_key = _find_case_key(group_notes, new_group) or new_group
+            existing_note = _clean(group_notes.get(target_note_key))
+            if source_note and existing_note and source_note != existing_note:
+                group_notes[target_note_key] = f"{existing_note}\n\n{source_note}"
+            elif source_note and not existing_note:
+                group_notes[target_note_key] = source_note
+            elif existing_note:
+                group_notes[target_note_key] = existing_note
+            touched = True
+
+        selected_group = _clean(sensors_payload.get("selectedGroup"))
+        if _fold(selected_group) == _fold(old_group):
+            sensors_payload["selectedGroup"] = new_group
+            touched = True
+
+        if touched:
+            sensors_payload["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            sensors_payload["mappingsByGroup"] = mappings_by_group
+            sensors_payload["groupNotes"] = group_notes
+            _write_json(sensors_path, sensors_payload)
+            result["sensorsMappingUpdated"] = True
+            result["sensorsGroupsRenamed"] = renamed_group_count
+
+    return jsonify(result)

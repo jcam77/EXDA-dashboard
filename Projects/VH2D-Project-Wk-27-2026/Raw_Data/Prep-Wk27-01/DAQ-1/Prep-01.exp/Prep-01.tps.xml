@@ -1,0 +1,481 @@
+<?xml version="1.0"?>
+<TpcSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="1.0" xmlns="http://www.elsys.ch/schema/transas/tpcsettings-1.x.xsd">
+  <Devices>
+    <Device Url="169.254.61.1:10010">
+      <SyncClockOut>true</SyncClockOut>
+      <Boards>
+        <Board Address="0">
+          <ClusterNumber>0</ClusterNumber>
+          <Timebase>
+            <Parameters>
+              <Parameter Name="OperationMode">0</Parameter>
+              <Parameter Name="MultiplexerMode">8</Parameter>
+              <Parameter Name="TimebaseSource">0</Parameter>
+              <Parameter Name="SamplingFrequency">1000000</Parameter>
+              <Parameter Name="ExternalClockDivisor">1</Parameter>
+              <Parameter Name="ExternalTriggerMode">0</Parameter>
+              <Parameter Name="BlkNumberOfBlocks">1</Parameter>
+              <Parameter Name="BlkBlockLength">2097152</Parameter>
+              <Parameter Name="BlkTriggerDelay">-10</Parameter>
+              <Parameter Name="ContMaximumDataLength">10000000</Parameter>
+              <Parameter Name="ContStopTrailer">1000</Parameter>
+              <Parameter Name="EcrMinimumBlockLength">0</Parameter>
+              <Parameter Name="EcrTriggerDelay">0</Parameter>
+              <Parameter Name="EcrMaximumNumberOfBlocks">1</Parameter>
+              <Parameter Name="EcrHoldOffTime">0</Parameter>
+              <Parameter Name="EcrMaximumBlockLength">100000</Parameter>
+              <Parameter Name="EcrRetriggerTime">5620</Parameter>
+              <Parameter Name="EcrTrailer">1000</Parameter>
+              <Parameter Name="EcrClockDivisor">1000</Parameter>
+              <Parameter Name="ScopeAutoTrigger">0</Parameter>
+              <Parameter Name="ScopeSingleShot">1</Parameter>
+              <Parameter Name="ExternalClockSamplingFrequency">250000</Parameter>
+              <Parameter Name="ContEnableStopTrigger">0</Parameter>
+              <Parameter Name="ContEnableRecLengthLimit">0</Parameter>
+              <Parameter Name="ScopeBlockLength">2097152</Parameter>
+              <Parameter Name="ScopeTriggerDelay">-10</Parameter>
+              <Parameter Name="EcrEnableHoldOff">0</Parameter>
+              <Parameter Name="EcrDualEnableTrailer">1</Parameter>
+              <Parameter Name="EcrDualTrailer">1000</Parameter>
+              <Parameter Name="EcrDualEnableRecLengthLimit">0</Parameter>
+              <Parameter Name="EcrDualMaxRecLength">20000000</Parameter>
+              <Parameter Name="EcrPreTrigger">4380</Parameter>
+              <Parameter Name="EcrPostTrigger">5620</Parameter>
+              <Parameter Name="EcrEnableStopTrigger">0</Parameter>
+              <Parameter Name="EcrEnableRetrigger">0</Parameter>
+              <Parameter Name="EcrDualMode">1</Parameter>
+              <Parameter Name="ExternalTimebaseOutFrequency">1000</Parameter>
+            </Parameters>
+          </Timebase>
+          <Inputs>
+            <Input Number="0">
+              <Parameters>
+                <Parameter Name="InputMode">1</Parameter>
+                <Parameter Name="TriggerOnly">0</Parameter>
+                <Parameter Name="InputCoupling">0</Parameter>
+                <Parameter Name="Range">10</Parameter>
+                <Parameter Name="Offset">50</Parameter>
+                <Parameter Name="Invert">0</Parameter>
+                <Parameter Name="FilterMode">0</Parameter>
+                <Parameter Name="FilterFreq">5000000</Parameter>
+                <Parameter Name="AveragingMode">2</Parameter>
+                <Parameter Name="PhysFactor">0.25</Parameter>
+                <Parameter Name="PhysConstant">0</Parameter>
+                <Parameter Name="TrgMode">32768</Parameter>
+                <Parameter Name="TrgComparatorMode">1</Parameter>
+                <Parameter Name="TrgLevelA">-1</Parameter>
+                <Parameter Name="TrgLevelB">0</Parameter>
+                <Parameter Name="TrgTimerTSamples">10</Parameter>
+                <Parameter Name="TrgSlewRateDTSamples">5</Parameter>
+                <Parameter Name="TrgComparator2Mode">0</Parameter>
+                <Parameter Name="TrgLevel2A">10</Parameter>
+                <Parameter Name="TrgLevel2B">5</Parameter>
+                <Parameter Name="DualModeStopTrgComparatorMode">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelA">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelB">0</Parameter>
+                <Parameter Name="TrgSlewRateHysteresis">1</Parameter>
+                <Parameter Name="TrgSlewRateComparatorMode">1</Parameter>
+                <Parameter Name="TrgShowProduct">0</Parameter>
+                <Parameter Name="TrgANDMask">0</Parameter>
+                <Parameter Name="TrgTimerT1Samples">5</Parameter>
+                <Parameter Name="ResetOverload">0</Parameter>
+                <Parameter Name="EnableGPSSync">0</Parameter>
+                <Parameter Name="LXIMsgConfig">0</Parameter>
+                <Parameter Name="TrgDigPosSlope">0</Parameter>
+                <Parameter Name="TrgDigNegSlope">0</Parameter>
+                <Parameter Name="TrgDigPls">0</Parameter>
+                <Parameter Name="GPSMode">0</Parameter>
+                <Parameter Name="GPSTimer">0</Parameter>
+                <Parameter Name="SyncPingMode">0</Parameter>
+                <Parameter Name="SyncDelay">0</Parameter>
+                <Parameter Name="ICPCurrent">0</Parameter>
+              </Parameters>
+              <Associations />
+              <Parameters3P />
+            </Input>
+            <Input Number="1">
+              <Parameters>
+                <Parameter Name="InputMode">0</Parameter>
+                <Parameter Name="TriggerOnly">0</Parameter>
+                <Parameter Name="InputCoupling">0</Parameter>
+                <Parameter Name="Range">10</Parameter>
+                <Parameter Name="Offset">50</Parameter>
+                <Parameter Name="Invert">0</Parameter>
+                <Parameter Name="FilterMode">0</Parameter>
+                <Parameter Name="FilterFreq">5000000</Parameter>
+                <Parameter Name="AveragingMode">2</Parameter>
+                <Parameter Name="PhysFactor">1</Parameter>
+                <Parameter Name="PhysConstant">0</Parameter>
+                <Parameter Name="TrgMode">0</Parameter>
+                <Parameter Name="TrgComparatorMode">1</Parameter>
+                <Parameter Name="TrgLevelA">-1</Parameter>
+                <Parameter Name="TrgLevelB">0</Parameter>
+                <Parameter Name="TrgTimerTSamples">10</Parameter>
+                <Parameter Name="TrgSlewRateDTSamples">5</Parameter>
+                <Parameter Name="TrgComparator2Mode">0</Parameter>
+                <Parameter Name="TrgLevel2A">10</Parameter>
+                <Parameter Name="TrgLevel2B">5</Parameter>
+                <Parameter Name="DualModeStopTrgComparatorMode">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelA">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelB">0</Parameter>
+                <Parameter Name="TrgSlewRateHysteresis">1</Parameter>
+                <Parameter Name="TrgSlewRateComparatorMode">1</Parameter>
+                <Parameter Name="TrgShowProduct">0</Parameter>
+                <Parameter Name="TrgANDMask">0</Parameter>
+                <Parameter Name="TrgTimerT1Samples">5</Parameter>
+                <Parameter Name="ResetOverload">0</Parameter>
+                <Parameter Name="EnableGPSSync">0</Parameter>
+                <Parameter Name="LXIMsgConfig">0</Parameter>
+                <Parameter Name="TrgDigPosSlope">0</Parameter>
+                <Parameter Name="TrgDigNegSlope">0</Parameter>
+                <Parameter Name="TrgDigPls">0</Parameter>
+                <Parameter Name="GPSMode">0</Parameter>
+                <Parameter Name="GPSTimer">0</Parameter>
+                <Parameter Name="SyncPingMode">0</Parameter>
+                <Parameter Name="SyncDelay">0</Parameter>
+                <Parameter Name="ICPCurrent">0</Parameter>
+              </Parameters>
+              <Associations />
+              <Parameters3P />
+            </Input>
+            <Input Number="2">
+              <Parameters>
+                <Parameter Name="InputMode">0</Parameter>
+                <Parameter Name="TriggerOnly">0</Parameter>
+                <Parameter Name="InputCoupling">0</Parameter>
+                <Parameter Name="Range">10</Parameter>
+                <Parameter Name="Offset">50</Parameter>
+                <Parameter Name="Invert">0</Parameter>
+                <Parameter Name="FilterMode">0</Parameter>
+                <Parameter Name="FilterFreq">5000000</Parameter>
+                <Parameter Name="AveragingMode">2</Parameter>
+                <Parameter Name="PhysFactor">1</Parameter>
+                <Parameter Name="PhysConstant">0</Parameter>
+                <Parameter Name="TrgMode">0</Parameter>
+                <Parameter Name="TrgComparatorMode">1</Parameter>
+                <Parameter Name="TrgLevelA">-1</Parameter>
+                <Parameter Name="TrgLevelB">0</Parameter>
+                <Parameter Name="TrgTimerTSamples">10</Parameter>
+                <Parameter Name="TrgSlewRateDTSamples">5</Parameter>
+                <Parameter Name="TrgComparator2Mode">0</Parameter>
+                <Parameter Name="TrgLevel2A">10</Parameter>
+                <Parameter Name="TrgLevel2B">5</Parameter>
+                <Parameter Name="DualModeStopTrgComparatorMode">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelA">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelB">0</Parameter>
+                <Parameter Name="TrgSlewRateHysteresis">1</Parameter>
+                <Parameter Name="TrgSlewRateComparatorMode">1</Parameter>
+                <Parameter Name="TrgShowProduct">0</Parameter>
+                <Parameter Name="TrgANDMask">0</Parameter>
+                <Parameter Name="TrgTimerT1Samples">5</Parameter>
+                <Parameter Name="ResetOverload">0</Parameter>
+                <Parameter Name="EnableGPSSync">0</Parameter>
+                <Parameter Name="LXIMsgConfig">0</Parameter>
+                <Parameter Name="TrgDigPosSlope">0</Parameter>
+                <Parameter Name="TrgDigNegSlope">0</Parameter>
+                <Parameter Name="TrgDigPls">0</Parameter>
+                <Parameter Name="GPSMode">0</Parameter>
+                <Parameter Name="GPSTimer">0</Parameter>
+                <Parameter Name="SyncPingMode">0</Parameter>
+                <Parameter Name="SyncDelay">0</Parameter>
+                <Parameter Name="ICPCurrent">0</Parameter>
+              </Parameters>
+              <Associations />
+              <Parameters3P />
+            </Input>
+            <Input Number="3">
+              <Parameters>
+                <Parameter Name="InputMode">0</Parameter>
+                <Parameter Name="TriggerOnly">0</Parameter>
+                <Parameter Name="InputCoupling">0</Parameter>
+                <Parameter Name="Range">10</Parameter>
+                <Parameter Name="Offset">50</Parameter>
+                <Parameter Name="Invert">0</Parameter>
+                <Parameter Name="FilterMode">0</Parameter>
+                <Parameter Name="FilterFreq">5000000</Parameter>
+                <Parameter Name="AveragingMode">2</Parameter>
+                <Parameter Name="PhysFactor">1</Parameter>
+                <Parameter Name="PhysConstant">0</Parameter>
+                <Parameter Name="TrgMode">0</Parameter>
+                <Parameter Name="TrgComparatorMode">1</Parameter>
+                <Parameter Name="TrgLevelA">-1</Parameter>
+                <Parameter Name="TrgLevelB">0</Parameter>
+                <Parameter Name="TrgTimerTSamples">10</Parameter>
+                <Parameter Name="TrgSlewRateDTSamples">5</Parameter>
+                <Parameter Name="TrgComparator2Mode">0</Parameter>
+                <Parameter Name="TrgLevel2A">10</Parameter>
+                <Parameter Name="TrgLevel2B">5</Parameter>
+                <Parameter Name="DualModeStopTrgComparatorMode">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelA">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelB">0</Parameter>
+                <Parameter Name="TrgSlewRateHysteresis">1</Parameter>
+                <Parameter Name="TrgSlewRateComparatorMode">1</Parameter>
+                <Parameter Name="TrgShowProduct">0</Parameter>
+                <Parameter Name="TrgANDMask">0</Parameter>
+                <Parameter Name="TrgTimerT1Samples">5</Parameter>
+                <Parameter Name="ResetOverload">0</Parameter>
+                <Parameter Name="EnableGPSSync">0</Parameter>
+                <Parameter Name="LXIMsgConfig">0</Parameter>
+                <Parameter Name="TrgDigPosSlope">0</Parameter>
+                <Parameter Name="TrgDigNegSlope">0</Parameter>
+                <Parameter Name="TrgDigPls">0</Parameter>
+                <Parameter Name="GPSMode">0</Parameter>
+                <Parameter Name="GPSTimer">0</Parameter>
+                <Parameter Name="SyncPingMode">0</Parameter>
+                <Parameter Name="SyncDelay">0</Parameter>
+                <Parameter Name="ICPCurrent">0</Parameter>
+              </Parameters>
+              <Associations />
+              <Parameters3P />
+            </Input>
+            <Input Number="4">
+              <Parameters>
+                <Parameter Name="InputMode">1</Parameter>
+                <Parameter Name="TriggerOnly">0</Parameter>
+                <Parameter Name="InputCoupling">0</Parameter>
+                <Parameter Name="Range">10</Parameter>
+                <Parameter Name="Offset">50</Parameter>
+                <Parameter Name="Invert">0</Parameter>
+                <Parameter Name="FilterMode">0</Parameter>
+                <Parameter Name="FilterFreq">5000000</Parameter>
+                <Parameter Name="AveragingMode">2</Parameter>
+                <Parameter Name="PhysFactor">1</Parameter>
+                <Parameter Name="PhysConstant">0</Parameter>
+                <Parameter Name="TrgMode">0</Parameter>
+                <Parameter Name="TrgComparatorMode">1</Parameter>
+                <Parameter Name="TrgLevelA">35</Parameter>
+                <Parameter Name="TrgLevelB">40</Parameter>
+                <Parameter Name="TrgTimerTSamples">10</Parameter>
+                <Parameter Name="TrgSlewRateDTSamples">5</Parameter>
+                <Parameter Name="TrgComparator2Mode">0</Parameter>
+                <Parameter Name="TrgLevel2A">10</Parameter>
+                <Parameter Name="TrgLevel2B">5</Parameter>
+                <Parameter Name="DualModeStopTrgComparatorMode">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelA">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelB">0</Parameter>
+                <Parameter Name="TrgSlewRateHysteresis">1</Parameter>
+                <Parameter Name="TrgSlewRateComparatorMode">1</Parameter>
+                <Parameter Name="TrgShowProduct">0</Parameter>
+                <Parameter Name="TrgANDMask">0</Parameter>
+                <Parameter Name="TrgTimerT1Samples">5</Parameter>
+                <Parameter Name="ResetOverload">0</Parameter>
+                <Parameter Name="EnableGPSSync">0</Parameter>
+                <Parameter Name="LXIMsgConfig">0</Parameter>
+                <Parameter Name="TrgDigPosSlope">0</Parameter>
+                <Parameter Name="TrgDigNegSlope">0</Parameter>
+                <Parameter Name="TrgDigPls">0</Parameter>
+                <Parameter Name="GPSMode">0</Parameter>
+                <Parameter Name="GPSTimer">0</Parameter>
+                <Parameter Name="SyncPingMode">0</Parameter>
+                <Parameter Name="SyncDelay">0</Parameter>
+                <Parameter Name="ICPCurrent">0</Parameter>
+              </Parameters>
+              <Associations />
+              <Parameters3P />
+            </Input>
+            <Input Number="5">
+              <Parameters>
+                <Parameter Name="InputMode">0</Parameter>
+                <Parameter Name="TriggerOnly">0</Parameter>
+                <Parameter Name="InputCoupling">0</Parameter>
+                <Parameter Name="Range">10</Parameter>
+                <Parameter Name="Offset">50</Parameter>
+                <Parameter Name="Invert">0</Parameter>
+                <Parameter Name="FilterMode">0</Parameter>
+                <Parameter Name="FilterFreq">5000000</Parameter>
+                <Parameter Name="AveragingMode">2</Parameter>
+                <Parameter Name="PhysFactor">1</Parameter>
+                <Parameter Name="PhysConstant">0</Parameter>
+                <Parameter Name="TrgMode">0</Parameter>
+                <Parameter Name="TrgComparatorMode">1</Parameter>
+                <Parameter Name="TrgLevelA">10</Parameter>
+                <Parameter Name="TrgLevelB">5</Parameter>
+                <Parameter Name="TrgTimerTSamples">10</Parameter>
+                <Parameter Name="TrgSlewRateDTSamples">5</Parameter>
+                <Parameter Name="TrgComparator2Mode">0</Parameter>
+                <Parameter Name="TrgLevel2A">10</Parameter>
+                <Parameter Name="TrgLevel2B">5</Parameter>
+                <Parameter Name="DualModeStopTrgComparatorMode">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelA">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelB">0</Parameter>
+                <Parameter Name="TrgSlewRateHysteresis">1</Parameter>
+                <Parameter Name="TrgSlewRateComparatorMode">1</Parameter>
+                <Parameter Name="TrgShowProduct">0</Parameter>
+                <Parameter Name="TrgANDMask">0</Parameter>
+                <Parameter Name="TrgTimerT1Samples">5</Parameter>
+                <Parameter Name="ResetOverload">0</Parameter>
+                <Parameter Name="EnableGPSSync">0</Parameter>
+                <Parameter Name="LXIMsgConfig">0</Parameter>
+                <Parameter Name="TrgDigPosSlope">0</Parameter>
+                <Parameter Name="TrgDigNegSlope">0</Parameter>
+                <Parameter Name="TrgDigPls">0</Parameter>
+                <Parameter Name="GPSMode">0</Parameter>
+                <Parameter Name="GPSTimer">0</Parameter>
+                <Parameter Name="SyncPingMode">0</Parameter>
+                <Parameter Name="SyncDelay">0</Parameter>
+                <Parameter Name="ICPCurrent">0</Parameter>
+              </Parameters>
+              <Associations />
+              <Parameters3P />
+            </Input>
+            <Input Number="6">
+              <Parameters>
+                <Parameter Name="InputMode">0</Parameter>
+                <Parameter Name="TriggerOnly">0</Parameter>
+                <Parameter Name="InputCoupling">0</Parameter>
+                <Parameter Name="Range">10</Parameter>
+                <Parameter Name="Offset">50</Parameter>
+                <Parameter Name="Invert">0</Parameter>
+                <Parameter Name="FilterMode">0</Parameter>
+                <Parameter Name="FilterFreq">5000000</Parameter>
+                <Parameter Name="AveragingMode">2</Parameter>
+                <Parameter Name="PhysFactor">1</Parameter>
+                <Parameter Name="PhysConstant">0</Parameter>
+                <Parameter Name="TrgMode">0</Parameter>
+                <Parameter Name="TrgComparatorMode">1</Parameter>
+                <Parameter Name="TrgLevelA">10</Parameter>
+                <Parameter Name="TrgLevelB">5</Parameter>
+                <Parameter Name="TrgTimerTSamples">10</Parameter>
+                <Parameter Name="TrgSlewRateDTSamples">5</Parameter>
+                <Parameter Name="TrgComparator2Mode">0</Parameter>
+                <Parameter Name="TrgLevel2A">10</Parameter>
+                <Parameter Name="TrgLevel2B">5</Parameter>
+                <Parameter Name="DualModeStopTrgComparatorMode">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelA">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelB">0</Parameter>
+                <Parameter Name="TrgSlewRateHysteresis">1</Parameter>
+                <Parameter Name="TrgSlewRateComparatorMode">1</Parameter>
+                <Parameter Name="TrgShowProduct">0</Parameter>
+                <Parameter Name="TrgANDMask">0</Parameter>
+                <Parameter Name="TrgTimerT1Samples">5</Parameter>
+                <Parameter Name="ResetOverload">0</Parameter>
+                <Parameter Name="EnableGPSSync">0</Parameter>
+                <Parameter Name="LXIMsgConfig">0</Parameter>
+                <Parameter Name="TrgDigPosSlope">0</Parameter>
+                <Parameter Name="TrgDigNegSlope">0</Parameter>
+                <Parameter Name="TrgDigPls">0</Parameter>
+                <Parameter Name="GPSMode">0</Parameter>
+                <Parameter Name="GPSTimer">0</Parameter>
+                <Parameter Name="SyncPingMode">0</Parameter>
+                <Parameter Name="SyncDelay">0</Parameter>
+                <Parameter Name="ICPCurrent">0</Parameter>
+              </Parameters>
+              <Associations />
+              <Parameters3P />
+            </Input>
+            <Input Number="7">
+              <Parameters>
+                <Parameter Name="InputMode">0</Parameter>
+                <Parameter Name="TriggerOnly">0</Parameter>
+                <Parameter Name="InputCoupling">0</Parameter>
+                <Parameter Name="Range">10</Parameter>
+                <Parameter Name="Offset">50</Parameter>
+                <Parameter Name="Invert">0</Parameter>
+                <Parameter Name="FilterMode">0</Parameter>
+                <Parameter Name="FilterFreq">5000000</Parameter>
+                <Parameter Name="AveragingMode">2</Parameter>
+                <Parameter Name="PhysFactor">1</Parameter>
+                <Parameter Name="PhysConstant">0</Parameter>
+                <Parameter Name="TrgMode">0</Parameter>
+                <Parameter Name="TrgComparatorMode">1</Parameter>
+                <Parameter Name="TrgLevelA">10</Parameter>
+                <Parameter Name="TrgLevelB">5</Parameter>
+                <Parameter Name="TrgTimerTSamples">10</Parameter>
+                <Parameter Name="TrgSlewRateDTSamples">5</Parameter>
+                <Parameter Name="TrgComparator2Mode">0</Parameter>
+                <Parameter Name="TrgLevel2A">10</Parameter>
+                <Parameter Name="TrgLevel2B">5</Parameter>
+                <Parameter Name="DualModeStopTrgComparatorMode">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelA">0</Parameter>
+                <Parameter Name="DualModeStopTrgLevelB">0</Parameter>
+                <Parameter Name="TrgSlewRateHysteresis">1</Parameter>
+                <Parameter Name="TrgSlewRateComparatorMode">1</Parameter>
+                <Parameter Name="TrgShowProduct">0</Parameter>
+                <Parameter Name="TrgANDMask">0</Parameter>
+                <Parameter Name="TrgTimerT1Samples">5</Parameter>
+                <Parameter Name="ResetOverload">0</Parameter>
+                <Parameter Name="EnableGPSSync">0</Parameter>
+                <Parameter Name="LXIMsgConfig">0</Parameter>
+                <Parameter Name="TrgDigPosSlope">0</Parameter>
+                <Parameter Name="TrgDigNegSlope">0</Parameter>
+                <Parameter Name="TrgDigPls">0</Parameter>
+                <Parameter Name="GPSMode">0</Parameter>
+                <Parameter Name="GPSTimer">0</Parameter>
+                <Parameter Name="SyncPingMode">0</Parameter>
+                <Parameter Name="SyncDelay">0</Parameter>
+                <Parameter Name="ICPCurrent">0</Parameter>
+              </Parameters>
+              <Associations />
+              <Parameters3P />
+            </Input>
+          </Inputs>
+          <HasRealDifferentialInputs>false</HasRealDifferentialInputs>
+          <Parameters3P />
+        </Board>
+      </Boards>
+      <Attributes>
+        <Attribute BoardAddress="0" InputNumber="0" Name="ChName">A1</Attribute>
+        <Attribute BoardAddress="0" InputNumber="0" Name="ChPhysUnit">bar</Attribute>
+        <Attribute BoardAddress="0" InputNumber="0" Name="ChPhysUnitExt">bar</Attribute>
+        <Attribute BoardAddress="0" InputNumber="0" Name="MrkName1">D0</Attribute>
+        <Attribute BoardAddress="0" InputNumber="0" Name="MrkName2">D1</Attribute>
+        <Attribute BoardAddress="0" InputNumber="0" Name="refPhys1">-5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="0" Name="refPhys2">5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="0" Name="refVolt1">-5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="0" Name="refVolt2">5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="1" Name="ChName">A2</Attribute>
+        <Attribute BoardAddress="0" InputNumber="1" Name="ChPhysUnit">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="1" Name="ChPhysUnitExt">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="1" Name="MrkName1">D2</Attribute>
+        <Attribute BoardAddress="0" InputNumber="1" Name="MrkName2">D3</Attribute>
+        <Attribute BoardAddress="0" InputNumber="1" Name="refPhys1">-5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="1" Name="refPhys2">5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="1" Name="refVolt1">-5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="1" Name="refVolt2">5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="2" Name="ChName">A3</Attribute>
+        <Attribute BoardAddress="0" InputNumber="2" Name="ChPhysUnit">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="2" Name="ChPhysUnitExt">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="2" Name="MrkName1">D4</Attribute>
+        <Attribute BoardAddress="0" InputNumber="2" Name="MrkName2">D5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="2" Name="refPhys1">-5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="2" Name="refPhys2">5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="2" Name="refVolt1">-5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="2" Name="refVolt2">5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="3" Name="ChName">A4</Attribute>
+        <Attribute BoardAddress="0" InputNumber="3" Name="ChPhysUnit">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="3" Name="ChPhysUnitExt">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="3" Name="MrkName1">D6</Attribute>
+        <Attribute BoardAddress="0" InputNumber="3" Name="MrkName2">D7</Attribute>
+        <Attribute BoardAddress="0" InputNumber="3" Name="refPhys1">-5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="3" Name="refPhys2">5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="3" Name="refVolt1">-5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="3" Name="refVolt2">5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="4" Name="ChName">A5</Attribute>
+        <Attribute BoardAddress="0" InputNumber="4" Name="ChPhysUnit">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="4" Name="ChPhysUnitExt">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="4" Name="MrkName1">M1</Attribute>
+        <Attribute BoardAddress="0" InputNumber="4" Name="MrkName2">M2</Attribute>
+        <Attribute BoardAddress="0" InputNumber="5" Name="ChName">A6</Attribute>
+        <Attribute BoardAddress="0" InputNumber="5" Name="ChPhysUnit">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="5" Name="ChPhysUnitExt">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="5" Name="MrkName1">M1</Attribute>
+        <Attribute BoardAddress="0" InputNumber="5" Name="MrkName2">M2</Attribute>
+        <Attribute BoardAddress="0" InputNumber="6" Name="ChName">A7</Attribute>
+        <Attribute BoardAddress="0" InputNumber="6" Name="ChPhysUnit">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="6" Name="ChPhysUnitExt">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="6" Name="MrkName1">M1</Attribute>
+        <Attribute BoardAddress="0" InputNumber="6" Name="MrkName2">M2</Attribute>
+        <Attribute BoardAddress="0" InputNumber="7" Name="ChName">A8</Attribute>
+        <Attribute BoardAddress="0" InputNumber="7" Name="ChPhysUnit">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="7" Name="ChPhysUnitExt">V</Attribute>
+        <Attribute BoardAddress="0" InputNumber="7" Name="MrkName1">M1</Attribute>
+        <Attribute BoardAddress="0" InputNumber="7" Name="MrkName2">M2</Attribute>
+      </Attributes>
+      <Parameters3P />
+    </Device>
+  </Devices>
+  <AdditionalSettings>
+    <AdditionalSetting Key="TriggerLevelsPhysicalUnit" Value="True" />
+    <AdditionalSetting Key="PhysUnitSettings" Value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&#xD;&#xA;&lt;PhysUnitSettings xmlns:xsd=&quot;http://www.w3.org/2001/XMLSchema&quot; xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;&gt;&#xD;&#xA;  &lt;Channels&gt;&#xD;&#xA;    &lt;PhysUnitChannel&gt;&#xD;&#xA;      &lt;Name&gt;0A1&lt;/Name&gt;&#xD;&#xA;      &lt;UseFactor&gt;true&lt;/UseFactor&gt;&#xD;&#xA;      &lt;SensitivityUnit&gt;mV&lt;/SensitivityUnit&gt;&#xD;&#xA;    &lt;/PhysUnitChannel&gt;&#xD;&#xA;  &lt;/Channels&gt;&#xD;&#xA;&lt;/PhysUnitSettings&gt;" />
+  </AdditionalSettings>
+</TpcSettings>

@@ -1,0 +1,95 @@
+﻿Plan Name,Experiment_Plan_v000
+Responsible Researcher,PhD Student Javier I. Camacho
+Objective,LU / DBI / Kistler pressure DAQ systems characterisation.
+Start Date,2026-05-25
+Deadline,2026-05-29
+Total Experiments,27
+Generated At,2026-06-01 15:34:34
+
+Run Name,Group,Group Description,Status,Done,Preparation,Schedule,Planned Date,Planned Day,H2 (%),H2 Injected (g),MFC Flow (SLPM),Ignition,Vent,Pressure P0 (Pa),Temperature T0 (K),Recirc Stop To Ignition (s),Case ID / CFD Hash,Data Files Count,File Path (Raw_Data Folder),Short Description,Run Notes,Error,Error Note,Canceled,Canceled Note
+Prep-Wk22-01,Prep-Wk22,Preparation,done,Yes,Yes,2026-05-25,2026-05-25,,13.5,8.276,20,Back Wall,Thin Film with Hotwire NOT Activated,101325,292.15,,,2,Prep-Wk22-01/DAQ-2/Prep-01-DAQ-2.mf4 | Prep-Wk22-01/H2CM/Prep-01-H2CM-U.csv,Preliminar Test,Recirc stop → ignition time (s): No Recorded,No,,No,
+Verif-Wk22-01,Verif-Wk22,Performance Verification,done,Yes,Yes,2026-05-26,2026-05-26,,13.5,,,Back Wall,Thin Film with Hotwire Activated,101325,293,312,,5,Verif-Wk22-01/DAQ-1-Verif-01.tpc5 | Verif-Wk22-01/DAQ-2-Verif-01/DAQ-2-Verif_01.mf4 | Verif-Wk22-01/H2CM-L-Verif-01-260526-120036.csv | Verif-Wk22-01/H2CM-M-Verif-01-260526-115955.csv | Verif-Wk22-01/H2CM-U-Verif-01-260526-115817.csv,,"Physical Range -1,1 bar",No,,No,
+Verif-Wk22-02,Verif-Wk22,Performance Verification,done,Yes,Yes,2026-05-26,2026-05-26,,14,,,Back Wall,Thin Film with Hotwire Activated,101325,293,321,,3,Verif-Wk22-02/DAQ-1/DAQ-1-Verif-02.tpc5 | Verif-Wk22-02/DAQ-2/DAQ-2-Verif_02/DAQ-2-Verif_02.mf4 | Verif-Wk22-02/H2CM/H2CM-U-M-L-Verif-02-260526-144155.csv,,"Physical Range -1,1 bar",No,,No,
+Verif-Wk22-03,Verif-Wk22,Performance Verification,done,Yes,Yes,2026-05-26,2026-05-26,,16,,,Back Wall,Thin Film with Hotwire Activated,101325,293,263,,3,Verif-Wk22-03/DAQ-1/DAQ-1-Verif-03.tpc5 | Verif-Wk22-03/DAQ-2/DAQ-2-Verif-03/DAQ-2-Verif-03.mf4 | Verif-Wk22-03/H2CM/H2CM-U-M-L-Verif-03-260526-160316.csv,,"
+Channel 2 Physical Range -1, ,1 bar
+Channel 2 Physical Range -0.5, ,0.5 bar
+Leak on Blind Sensor Flange Connection 3L & 5L 
+
+Volume Correction +0.06708 
+
+",No,,No,
+Verif-Wk22-04,Verif-Wk22,Performance Verification,done,Yes,Yes,2026-05-26,2026-05-26,,18,,,Back Wall,Thin Film with Hotwire Activated,101325,293,233,,3,Verif-Wk22-04/DAQ-1/DAQ-1-Verif-04.tpc5 | Verif-Wk22-04/DAQ-2/DAQ-2-Verif-04/DAQ-2-Verif-04.mf4 | Verif-Wk22-04/H2CM/H2CM-U-M-L-Verif-04-260526-174304.csv,,P1 swapped for P5,No,,No,
+VH2D-Wk22-01-01,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,16,,20,Back Wall,Thin Film with Hotwire Activated,101325,293,,,3,VH2D-Wk22-01-01/DAQ-1/DAQ-1-VH2D-01-01.tpc5 | VH2D-Wk22-01-01/H2CM/H2CM-U-M-L-VH2D-01-01-260527-140320.csv | VH2D-Wk22-01-01/DAQ-2-3/DAQ-2-3-VH2D-01-01.mf4,,,No,,No,
+VH2D-Wk22-01-02,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,16,,20,Back,Thin Plastic,101325,293,228,,3,VH2D-Wk22-01-02/DAQ-1/DAQ-1-VH2D-01-02.tpc5 | VH2D-Wk22-01-02/H2CM/H2CM-U-M-L-VH2D-01-02-260527-150043.csv | VH2D-Wk22-01-02/DAQ-2-3/DAQ-2-3-VH2D-01-02.mf4,,,No,,No,
+VH2D-Wk22-01-03,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,18,,20,Back Wall,Thin Film with Hotwire Activated,101325,293,201,,2,VH2D-Wk22-01-03/DAQ-1/DAQ-1-VH2D-01-03.tpc5 | VH2D-Wk22-01-03/DAQ-2-3/DAQ-2-3-VH2D-01-03.mf4,,,No,,No,
+VH2D-Wk22-01-04,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,18,,20,back,thin film,101325,293,168,,3,VH2D-Wk22-01-04/DAQ-1/DAQ-1-VH2D-01-04.tpc5 | VH2D-Wk22-01-04/DAQ-2-3/DAQ-2-3-VH2D-01-04.mf4 | VH2D-Wk22-01-04/H2CM/H2CM-U-M-L-VH2D-01-04-260527-164423.csv,,"PP1 and PP3 swapped
+
+DAQ-3 sampling rate 62.5kHz changed to 200kHz",No,,No,
+VH2D-Wk22-01-05,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),canceled,No,Yes,2026-05-27,2026-05-27,,19,,20,back,Thin Plastic,101325,293,,,0,,,DAQ-3 sampling rate 62.5kHz changed to 200kHz,No,,Yes,Time restriction
+VH2D-Wk22-01-06,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),canceled,No,Yes,2026-05-27,2026-05-27,,19,,,,,101325,293,,,0,,,,No,,Yes,Time restriction
+VH2D-Wk22-01-07,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,20,,,Back Wall,Thin Film,101325,293,,,3,VH2D-Wk22-01-07/DAQ-1/DAQ-1-VH2D-01-07.tpc5 | VH2D-Wk22-01-07/DAQ-2-3/VH2D-01-07.mf4 | VH2D-Wk22-01-07/H2CM/H2CM-U-M-L-VH2D-01-07-260527-180934.csv,,PP1 and PP3 swapped,No,,No,
+VH2D-Wk22-01-08,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),canceled,No,Yes,2026-05-27,2026-05-27,,20,,,,,101325,293,,,0,,,,No,,Yes,Time restriction
+VH2D-Wk22-02-01,VH2D-Wk22-02,Vented deflagration concentration series (NO Hotwire),done,Yes,No,2026-05-28,2026-05-28,,18,,,back wall,thin film,101325,293,243,,3,VH2D-Wk22-02-01/DAQ-1/DAQ-1-VH2D-02-01.tpc5 | VH2D-Wk22-02-01/DAQ-4/DAQ-4-VH2D-02-01.mf4 | VH2D-Wk22-02-01/H2CM/H2CM-U-M-L-VH2D-02-01-260528-105051.csv,,"Added 12.278 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-02-02,VH2D-Wk22-02,Vented deflagration concentration series (NO Hotwire),done,Yes,No,2026-05-28,2026-05-28,,18,,,back wall,thin film,101325,293,231,,4,VH2D-Wk22-02-02/DAQ-1/DAQ-1-VH2D-02-02.tpc5 | VH2D-Wk22-02-02/DAQ-2-3/DAQ-2-3-VH2D-02-02.mf4 | VH2D-Wk22-02-02/H2CM/H2CM-U-M-L-VH2D-02-02-260528-115959.csv | VH2D-Wk22-02-02/DAQ-4/DAQ-4-VH2D-02-02.mf4,,"P3 and P7 swapped
+
+Added 12.278 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-02-03,VH2D-Wk22-02,Vented deflagration concentration series (NO Hotwire),done,Yes,No,2026-05-28,2026-05-28,,20,,,Back,thin film,101325,293,232,,4,VH2D-Wk22-02-03/DAQ-1/DAQ-1-VH2D-02-03.tpc5 | VH2D-Wk22-02-03/DAQ-2-3/DAQ-2-3-VH2D-02-03.mf4 | VH2D-Wk22-02-03/DAQ-4/DAQ-4-VH2D-02-03.mf4 | VH2D-Wk22-02-03/H2CM/H2CM-U-M-L-VH2D-02-03-260528-134340.csv,,"P3 and P7 swapped
+
+Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-02-04,VH2D-Wk22-02,Vented deflagration concentration series (NO Hotwire),done,Yes,No,2026-05-28,2026-05-28,,20,,,back,thin film,101325,293,221,,4,VH2D-Wk22-02-04/DAQ-1/DAQ-1-VH2D-02-04.tpc5 | VH2D-Wk22-02-04/DAQ-2-3/DAQ-2-3-VH2D-02-04.mf4 | VH2D-Wk22-02-04/DAQ-4/DAQ-4-VH2D-02-04.mf4 | VH2D-Wk22-02-04/H2CM/H2CM-U-M-L-VH2D-02-04-260528-144105.csv,,"P3 and P7 swapped
+
+Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-03-01,VH2D-Wk22-03,,done,Yes,No,2026-05-28,2026-05-28,,18,,,back,thin film,101325,293,230,,3,VH2D-Wk22-03-01/DAQ-1/DAQ-1-VH2D-03-01.tpc5 | VH2D-Wk22-03-01/DAQ-2-3/DAQ-2-3-VH2D-03.mf4 | VH2D-Wk22-03-01/H2CM/H2CM-U-M-L-VH2D-03-01-260528-160918.csv,,"Added 12.278 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-03-02,VH2D-Wk22-03,,done,Yes,No,2026-05-28,2026-05-28,,18,,,Back Wall,Thin Film,101325,293,232,,3,VH2D-Wk22-03-02/DAQ-2-3/DAQ-2-3-VH2D-03-02.mf4 | VH2D-Wk22-03-02/H2CM/H2CM-U-M-L-VH2D-03-02-260528-164833.csv | VH2D-Wk22-03-02/DAQ-1/DAQ-1-VH2D-03-02.tpc5,,"PP3 moved to 5m radius
+
+Added 12.278 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-03-03,VH2D-Wk22-03,,error,No,No,2026-05-28,2026-05-28,,20,,,Back Wall,Thin Film,101325,293,,,3,VH2D-Wk22-03-03/DAQ-1/DAQ-1-VH2D-03-03.tpc5 | VH2D-Wk22-03-03/DAQ-2-3/DAQ-2-3-VH2D-03-03.mf4 | VH2D-Wk22-03-03/H2CM/H2CM-U-M-L-VH2D-03-03-260528-173139.csv,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,"Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568
+
+Attention!!! Hot-wire short circuit. Check carefully data could compromised.",Yes,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,No,
+VH2D-Wk22-03-04,VH2D-Wk22-03,,done,Yes,No,2026-05-28,2026-05-28,,20,,,vack,thin,101325,293,221,,3,VH2D-Wk22-03-04/DAQ-1/DAQ-1-VH2D-03-04.tpc5 | VH2D-Wk22-03-04/DAQ-2-3/DAQ-2-3-VH2D-03-04.mf4 | VH2D-Wk22-03-04/H2CM/H2CM-U-M-L-VH2D-03-04-260528-181435.csv,,"Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-03-05,VH2D-Wk22-03,,done,Yes,No,2026-05-28,2026-05-28,,20,,,Back  Wall,Thin Film,101325,293,321,,3,VH2D-Wk22-03-05/DAQ-1/DAQ-1-VH2D-03-05.tpc5 | VH2D-Wk22-03-05/DAQ-2-3/DAQ-2-3-VH2D-03-05.mf4 | VH2D-Wk22-03-05/H2CM/H2CM-U-M-L-VH2D-03-05-260528-184939.csv,,"Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-04-01,VH2D-Wk22-04,,done,Yes,No,2026-05-29,2026-05-29,,16,10.885,20,back wall,thin film with hotwire activated,101325,291.75,245,,3,VH2D-Wk22-04-01/DAQ-1/DAQ-1-VH2D-04-01.tpc5 | VH2D-Wk22-04-01/DAQ-2-3/DAQ-2-3-VH2D-04-01_Rec_01.mf4 | VH2D-Wk22-04-01/H2CM/H2CM-U-M-L-VH2D-04-01-260529-104759.csv,,"Added 10.885 gr
+Correlation>
+M= 69.638 C - 0.2568
+
+
+Missing data from H2CM. !!! Mean Value: 16.1 Vol.%",No,,No,
+VH2D-Wk22-04-02,VH2D-Wk22-04,,done,Yes,No,2026-05-29,2026-05-29,,16,,,Back Wall,Thin Film,101325,293,502,,3,VH2D-Wk22-04-02/DAQ-1/DAQ-1-VH2D-04-02.tpc5 | VH2D-Wk22-04-02/DAQ-2-3/DAQ-2-3-VH2D-04-02_Rec_01.mf4 | VH2D-Wk22-04-02/H2CM/H2CM-U-M-L-VH2D-04-02-260529-115753.csv,,"Added 10.885 gr
+Correlation>
+M= 69.638 C - 0.2568
+1024 hPa
+HR 53%
+",No,,No,
+VH2D-Wk22-04-03,VH2D-Wk22-04,,done,Yes,No,2026-05-29,2026-05-29,,21,,,Back,thin plastic,101325,293,261,,3,VH2D-Wk22-04-03/DAQ-1/DAQ-1-VH2D-04-03.tpc5 | VH2D-Wk22-04-03/DAQ-2-3/DAQ-2-3-VH2D-04-03_Rec_01.mf4 | VH2D-Wk22-04-03/H2CM/H2CM-U-M-L-VH2D-04-03-260529-125215.csv,,"Added 14.367 gr
+Correlation>
+M= 69.638 C - 0.2568
+1023 hPa
+HR 57%",No,,No,
+VH2D-Wk22-04-04,VH2D-Wk22-04,,done,Yes,No,2026-05-29,2026-05-29,,21,,,back wall,thin film,101325,293,252,,3,VH2D-Wk22-04-04/DAQ-1/DAQ-1-VH2D-04-04.tpc5 | VH2D-Wk22-04-04/DAQ-2-3/DAQ-2-3-VH2D-04-04_Rec_01.mf4 | VH2D-Wk22-04-04/H2CM/H2CM-U-M-L-VH2D-04-04-260529-135315.csv,,"Added 14.367 gr
+Correlation>
+M= 69.638 C - 0.2568
+1023 hPa
+HR 44%",No,,No,
+VH2D-Wk22-04-05,VH2D-Wk22-04,,done,Yes,No,2026-05-29,2026-05-29,,12,,,back wall,thin film,101325,293,,,3,VH2D-Wk22-04-05/DAQ-1/DAQ-1-VH2D-04-05.tpc5 | VH2D-Wk22-04-05/DAQ-2-3/DAQ-2-3-VH2D-04-05_Rec_01.mf4 | VH2D-Wk22-04-05/H2CM/H2CM-M-U-L-M-VH2D-04-05-260529-150229.csv,,"Added xxxx gr for a 12vol.%
+1020 hPa
+HR 41%
+Non HOmogeneous
+",No,,No,

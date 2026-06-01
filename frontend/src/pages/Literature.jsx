@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Upload, FileText, CheckCircle, Trash2, Loader2, ExternalLink, Search, Folder } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+import UnifiedModal from '../components/UnifiedModal';
+import { useAppDialog } from '../hooks/useAppDialog';
 
 const LiteraturePage = ({ projectPath }) => {
     const apiBaseUrl = getBackendBaseUrl();
@@ -8,6 +10,7 @@ const LiteraturePage = ({ projectPath }) => {
     const [papers, setPapers] = useState([]); 
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const { dialogModal, setDialogModal, showConfirm } = useAppDialog();
 
     useEffect(() => {
         const fetchPapers = async () => {
@@ -50,7 +53,14 @@ const LiteraturePage = ({ projectPath }) => {
     };
 
     const handleDelete = async (fullPath, fileName) => {
-        if (!window.confirm(`Delete ${fileName}?`)) return;
+        const shouldDelete = await showConfirm({
+            title: 'Delete PDF?',
+            content: `Delete ${fileName}?`,
+            type: 'error',
+            confirmLabel: 'Delete',
+            confirmVariant: 'destructive',
+        });
+        if (!shouldDelete) return;
         try {
             const res = await fetch(`${apiBaseUrl}/delete_research_pdf`, {
                 method: 'POST',
@@ -141,6 +151,7 @@ const LiteraturePage = ({ projectPath }) => {
                     ))}
                 </div>
             )}
+            <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
         </div>
     );
 };

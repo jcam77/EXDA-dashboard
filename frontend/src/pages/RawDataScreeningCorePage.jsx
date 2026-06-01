@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Shield } from 'lucide-react';
 import HighResMultiChannelPlot from '../components/HighResMultiChannelPlot';
 import { DEFAULT_INPUT_UNIT, UNIT_OPTIONS, convertValueByUnit, getChannelDisplayUnit, normalizeUnitToken } from '../utils/units';
@@ -51,8 +51,41 @@ const getPreviewSamplingRate = (preview, preferredChannelIndex = 0) => {
   return Number.isFinite(channelRate) && channelRate > 0 ? channelRate : null;
 };
 
+const buildScreeningStateStorageKey = (projectPath, analysisMode) => {
+  const base = String(projectPath || '__no_project__').trim() || '__no_project__';
+  const mode = String(analysisMode || 'pressure').trim() || 'pressure';
+  return `exda:raw-screening-state:${base}:${mode}`;
+};
+
+const readPersistedScreeningState = (storageKey) => {
+  if (typeof window === 'undefined' || !storageKey) return null;
+  try {
+    const raw = window.sessionStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const writePersistedScreeningState = (storageKey, payload) => {
+  if (typeof window === 'undefined' || !storageKey) return;
+  try {
+    window.sessionStorage.setItem(storageKey, JSON.stringify(payload));
+  } catch {
+    // Ignore persistence failures (quota/private mode/etc.) and keep UI functional.
+  }
+};
+
 const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [], analysisMode = 'pressure' }) => {
   const isConcentrationMode = analysisMode === 'concentration';
+  const stateStorageKey = useMemo(
+    () => buildScreeningStateStorageKey(projectPath, analysisMode),
+    [projectPath, analysisMode]
+  );
+  const [stateRestored, setStateRestored] = useState(false);
+  const restoredSelectedChannelKeysRef = useRef(false);
   const [selectedPath, setSelectedPath] = useState('');
   const [viewMode, setViewMode] = useState('single');
   const [comparePaths, setComparePaths] = useState([]);
@@ -72,6 +105,71 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
   const [comparePreviews, setComparePreviews] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const persisted = readPersistedScreeningState(stateStorageKey);
+    restoredSelectedChannelKeysRef.current = false;
+    if (persisted) {
+      if (persisted.selectedPath != null) setSelectedPath(String(persisted.selectedPath || ''));
+      if (persisted.viewMode === 'single' || persisted.viewMode === 'compare') setViewMode(persisted.viewMode);
+      if (Array.isArray(persisted.comparePaths)) setComparePaths(persisted.comparePaths.map((v) => String(v || '')).filter(Boolean));
+      if (persisted.compareChannelByPath && typeof persisted.compareChannelByPath === 'object') setCompareChannelByPath(persisted.compareChannelByPath);
+      if (persisted.compareUnitOverrides && typeof persisted.compareUnitOverrides === 'object') setCompareUnitOverrides(persisted.compareUnitOverrides);
+      if (Number.isFinite(Number(persisted.maxPoints))) setMaxPoints(Math.max(100, Math.min(2_000_000, Number(persisted.maxPoints))));
+      if (typeof persisted.fullResolution === 'boolean') setFullResolution(persisted.fullResolution);
+      if (typeof persisted.limitTimeWindow === 'boolean') setLimitTimeWindow(persisted.limitTimeWindow);
+      if (persisted.timeWindowStart != null) setTimeWindowStart(String(persisted.timeWindowStart));
+      if (persisted.timeWindowEnd != null) setTimeWindowEnd(String(persisted.timeWindowEnd));
+      if (persisted.plotLayout === 'stacked' || persisted.plotLayout === 'overlay') setPlotLayout(persisted.plotLayout);
+      if (typeof persisted.convertToKpa === 'boolean') setConvertToKpa(persisted.convertToKpa);
+      if (typeof persisted.convertPpmToVolPercent === 'boolean') setConvertPpmToVolPercent(persisted.convertPpmToVolPercent);
+      if (Array.isArray(persisted.selectedChannelKeys)) {
+        setSelectedChannelKeys(persisted.selectedChannelKeys.map((v) => String(v || '')).filter(Boolean));
+        restoredSelectedChannelKeysRef.current = true;
+      }
+      if (persisted.channelUnitOverrides && typeof persisted.channelUnitOverrides === 'object') setChannelUnitOverrides(persisted.channelUnitOverrides);
+    }
+    setStateRestored(true);
+  }, [stateStorageKey]);
+
+  useEffect(() => {
+    if (!stateRestored) return;
+    writePersistedScreeningState(stateStorageKey, {
+      selectedPath,
+      viewMode,
+      comparePaths,
+      compareChannelByPath,
+      compareUnitOverrides,
+      maxPoints,
+      fullResolution,
+      limitTimeWindow,
+      timeWindowStart,
+      timeWindowEnd,
+      plotLayout,
+      convertToKpa,
+      convertPpmToVolPercent,
+      selectedChannelKeys,
+      channelUnitOverrides,
+    });
+  }, [
+    stateRestored,
+    stateStorageKey,
+    selectedPath,
+    viewMode,
+    comparePaths,
+    compareChannelByPath,
+    compareUnitOverrides,
+    maxPoints,
+    fullResolution,
+    limitTimeWindow,
+    timeWindowStart,
+    timeWindowEnd,
+    plotLayout,
+    convertToKpa,
+    convertPpmToVolPercent,
+    selectedChannelKeys,
+    channelUnitOverrides,
+  ]);
 
   useEffect(() => {
     if (isConcentrationMode) {
@@ -105,19 +203,25 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
   }, [isConcentrationMode, selectedCases]);
 
   useEffect(() => {
+    if (!stateRestored) return;
     if (!dataFiles.length) {
-      setSelectedPath('');
-      setComparePaths([]);
       setPreview(null);
       return;
     }
-    const exists = dataFiles.some((fileObj) => (fileObj.path || fileObj.webkitRelativePath) === selectedPath);
-    if (!selectedPath || !exists) {
-      setSelectedPath(dataFiles[0].path || dataFiles[0].webkitRelativePath);
+    const normalizePath = (value) => String(value || '').replace(/\\/g, '/');
+    const selectedNormalized = normalizePath(selectedPath);
+    let matched = dataFiles.find((fileObj) => normalizePath(fileObj.path || fileObj.webkitRelativePath) === selectedNormalized);
+    if (!matched && selectedPath) {
+      const selectedName = formatFileName(selectedPath).toLowerCase();
+      matched = dataFiles.find((fileObj) => formatFileName(fileObj.path || fileObj.webkitRelativePath).toLowerCase() === selectedName);
     }
-  }, [dataFiles, selectedPath]);
+    if (!selectedPath || !matched) {
+      setSelectedPath((matched || dataFiles[0]).path || (matched || dataFiles[0]).webkitRelativePath);
+    }
+  }, [dataFiles, selectedPath, stateRestored]);
 
   useEffect(() => {
+    if (!stateRestored) return;
     if (!dataFiles.length) return;
     setComparePaths((prev) => {
       const allowed = new Set(dataFiles.map((item) => item.path));
@@ -125,7 +229,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
       if (kept.length) return kept;
       return dataFiles.slice(0, Math.min(3, dataFiles.length)).map((item) => item.path);
     });
-  }, [dataFiles]);
+  }, [dataFiles, stateRestored]);
 
   useEffect(() => {
     const allowed = new Set(comparePaths);
@@ -152,6 +256,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
         path: pathValue,
         projectPath: projectPath || '',
         fullResolution: fullResValue ? '1' : '0',
+        maxPoints: String(Number.isFinite(Number(pointsValue)) ? Number(pointsValue) : 2000),
       });
       if (limitWindowValue) {
         const startNumeric = Number(startValue);
@@ -321,14 +426,13 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
   const allChannelKeys = useMemo(() => channels.map((channel) => channel.key), [channels]);
 
   useEffect(() => {
-    if (!allChannelKeys.length) {
-      setSelectedChannelKeys([]);
-      return;
-    }
+    if (!allChannelKeys.length) return;
     setSelectedChannelKeys((prev) => {
       const prevSet = new Set(prev);
       const keep = allChannelKeys.filter((key) => prevSet.has(key));
-      return keep.length ? keep : [...allChannelKeys];
+      if (keep.length) return keep;
+      if (prev.length === 0 && restoredSelectedChannelKeysRef.current) return [];
+      return [...allChannelKeys];
     });
   }, [allChannelKeys]);
 
@@ -864,8 +968,13 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
           </p>
         )}
         <p className="mt-1 text-xs text-muted-foreground">
-          Downsampling flow: parser first loads up to 200,000 samples when Full Resolution is off, then chart rendering applies the Display limit.
+          Downsampling flow: when Full Resolution is off, rows are decimated once at read stage to the Display limit target using uniform index picking (no filtering/interpolation). A hidden hard cap remains only as an emergency safety guard.
         </p>
+        {!fullResolution && (
+          <p className="mt-1 text-xs text-amber-300">
+            Warning: fast downsampling can miss narrow peaks and shift apparent transient timing. Use Full Resolution (or a tight time window) for final timing/amplitude checks.
+          </p>
+        )}
       </div>
 
       {error && (

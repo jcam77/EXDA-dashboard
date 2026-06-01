@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FlaskConical, Beaker, Gauge, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock, formatExdaDateTime } from '../utils/timezone';
+import UnifiedModal from '../components/UnifiedModal';
+import ExportFormatButtons from '../components/ExportFormatButtons';
+import { useAppDialog } from '../hooks/useAppDialog';
 
 const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
 
@@ -113,7 +116,9 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
   const [results, setResults] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [busyFormat, setBusyFormat] = useState('');
   const [status, setStatus] = useState('');
+  const { dialogModal, setDialogModal, showAlert, showConfirm } = useAppDialog();
 
   const groupedRuns = useMemo(() => {
     const sorted = [...(Array.isArray(experiments) ? experiments : [])].sort((a, b) =>
@@ -373,7 +378,13 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
 
   const deleteSavedRecord = async (groupName, runName) => {
     const label = `${groupName || '-'} / ${runName || '-'}`;
-    const shouldDelete = window.confirm(`Delete saved gas mixing record for ${label}?`);
+    const shouldDelete = await showConfirm({
+      title: 'Delete Saved Record?',
+      content: `Delete saved gas mixing record for ${label}?`,
+      type: 'error',
+      confirmLabel: 'Delete',
+      confirmVariant: 'destructive',
+    });
     if (!shouldDelete) return;
 
     const targetKey = recordKey(groupName, runName);
@@ -391,10 +402,15 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
 
   const exportGasArtifact = async (format) => {
     if (!projectPath) {
-      window.alert('Open a project first. Export files are saved to the project Reports folder.');
+      await showAlert({
+        title: 'Project Required',
+        content: 'Open a project first. Export files are saved to the project Reports folder.',
+        type: 'error',
+      });
       return;
     }
     try {
+      setBusyFormat(format);
       const response = await fetch(`${apiBaseUrl}/export_gas_mixing_artifact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -409,9 +425,20 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || `Failed to export ${format.toUpperCase()}`);
       }
-      window.alert(`${format.toUpperCase()} exported to:\n${payload.path}`);
+      await showAlert({
+        title: `${format.toUpperCase()} Exported`,
+        content: payload.path,
+        type: 'success',
+        closeLabel: 'OK',
+      });
     } catch (exportError) {
-      window.alert(`Could not export ${format.toUpperCase()}.\n${exportError?.message || 'Unknown error'}`);
+      await showAlert({
+        title: `${format.toUpperCase()} Export Failed`,
+        content: exportError?.message || 'Unknown error',
+        type: 'error',
+      });
+    } finally {
+      setBusyFormat('');
     }
   };
 
@@ -731,22 +758,12 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       <div className="rounded-xl border border-sidebar-border bg-card/60 p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-foreground">Saved Gas Mixing Records</h3>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => exportGasArtifact('csv')}
-              className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/60"
-            >
-              Export CSV
-            </button>
-            <button
-              type="button"
-              onClick={() => exportGasArtifact('pdf')}
-              className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/60"
-            >
-              Export PDF
-            </button>
-          </div>
+          <ExportFormatButtons
+            onExportCsv={() => exportGasArtifact('csv')}
+            onExportPdf={() => exportGasArtifact('pdf')}
+            busyFormat={busyFormat}
+            size="sm"
+          />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-xs">
@@ -819,6 +836,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
           </table>
         </div>
       </div>
+      <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
     </div>
   );
 };

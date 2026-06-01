@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { getPublicUrl } from '../utils/assetUrl';
-import { getRecentProjects } from '../utils/recentProjects';
+import { getRecentProjects, replaceRecentProjects } from '../utils/recentProjects';
 import { formatExdaDate } from '../utils/timezone';
 
 const HomePage = ({
@@ -144,17 +144,17 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
         return Number.isFinite(parsed) ? parsed : 0;
       };
       const normalizePath = (value) => String(value || '').trim().replace(/\\/g, '/');
-      const dedupeByNameKeepingNewest = (items) => {
-        const byName = new Map();
+      const dedupeByPathKeepingNewest = (items) => {
+        const byPath = new Map();
         items.forEach((item) => {
-          const nameKey = String(item?.name || '').trim().toLowerCase();
-          if (!nameKey) return;
-          const current = byName.get(nameKey);
+          const pathKey = normalizePath(item?.path);
+          if (!pathKey) return;
+          const current = byPath.get(pathKey);
           if (!current || parseTs(item.lastOpened) > parseTs(current.lastOpened)) {
-            byName.set(nameKey, item);
+            byPath.set(pathKey, item);
           }
         });
-        return Array.from(byName.values());
+        return Array.from(byPath.values());
       };
 
       const storedRecents = getRecentProjects();
@@ -169,102 +169,106 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
           lastOpened: item.lastOpened || '',
         };
       }).filter((item) => item.path);
-      if (mounted && storedMapped.length > 0) {
-        const fallback = dedupeByNameKeepingNewest(storedMapped)
-          .sort((a, b) => parseTs(b.lastOpened) - parseTs(a.lastOpened))
-          .slice(0, 6);
-        setRecentProjects(fallback);
-      }
+
       try {
-        let basePath = '';
+        const rootCandidates = new Set();
         const defaultRes = await fetch(`${apiBaseUrl}/list_directories`);
         const defaultData = await defaultRes.json();
-        if (defaultData.success && Array.isArray(defaultData.directories) && defaultData.directories.length > 0) {
-          basePath = defaultData.path || '';
+        if (defaultData.success && defaultData.path) {
+          rootCandidates.add(normalizePath(defaultData.path));
         }
+
         const savedFoldersRaw = window.localStorage.getItem('projectsFoldersList');
         const savedFolders = savedFoldersRaw ? JSON.parse(savedFoldersRaw) : [];
-        const savedRoot = Array.isArray(savedFolders)
-          ? savedFolders.find((item) => typeof item === 'string' || item?.mode !== 'project')
-          : null;
-        if (!basePath && savedRoot) {
-          const candidatePath = typeof savedRoot === 'string' ? savedRoot : savedRoot.path || '';
-          if (candidatePath) {
-            const savedRes = await fetch(
-              `${apiBaseUrl}/list_directories?path=${encodeURIComponent(candidatePath)}`
-            );
-            const savedData = await savedRes.json();
-            if (savedData.success && Array.isArray(savedData.directories) && savedData.directories.length > 0) {
-              basePath = savedData.path;
+        if (Array.isArray(savedFolders)) {
+          savedFolders.forEach((item) => {
+            const candidatePath = typeof item === 'string' ? item : item?.path;
+            const normalized = normalizePath(candidatePath);
+            if (normalized) rootCandidates.add(normalized);
+          });
+        }
+
+        const resolvedRoots = [];
+        for (const candidate of rootCandidates) {
+          let resolved = candidate;
+          if (demoMode) {
+            try {
+              const demoRes = await fetch(
+                `${apiBaseUrl}/list_directories?path=${encodeURIComponent(candidate)}`
+              );
+              const demoData = await demoRes.json();
+              const demoFolder = (demoData.directories || []).find((dir) => dir.name === 'Demo Projects');
+              if (demoFolder?.path) {
+                const demoProjectsRes = await fetch(
+                  `${apiBaseUrl}/list_directories?path=${encodeURIComponent(demoFolder.path)}`
+                );
+                const demoProjectsData = await demoProjectsRes.json();
+                const vh2dProject = (demoProjectsData.directories || []).find((dir) => dir.name === 'VH2D-Project');
+                resolved = normalizePath(vh2dProject?.path || demoFolder.path || candidate);
+              }
+            } catch {
+              // Ignore demo root discovery errors per root.
             }
           }
+          if (resolved) resolvedRoots.push(resolved);
         }
-        if (!basePath) return;
-        if (demoMode) {
-          const demoRes = await fetch(
-            `${apiBaseUrl}/list_directories?path=${encodeURIComponent(basePath)}`
-          );
-          const demoData = await demoRes.json();
-          const demoFolder = (demoData.directories || []).find((dir) => dir.name === 'Demo Projects');
-          if (demoFolder?.path) {
-            const demoProjectsRes = await fetch(
-              `${apiBaseUrl}/list_directories?path=${encodeURIComponent(demoFolder.path)}`
+
+        const uniqueRoots = Array.from(new Set(resolvedRoots));
+        const backendProjects = [];
+        for (const rootPath of uniqueRoots) {
+          try {
+            const listRes = await fetch(
+              `${apiBaseUrl}/list_directories?path=${encodeURIComponent(rootPath)}&includeStatus=1`
             );
-            const demoProjectsData = await demoProjectsRes.json();
-            const vh2dProject = (demoProjectsData.directories || []).find((dir) => dir.name === 'VH2D-Project');
-            basePath = vh2dProject?.path || demoFolder.path;
+            const listData = await listRes.json();
+            if (!listData.success) continue;
+            (listData.directories || []).forEach((project) => {
+              const status = project.status || {};
+              const lastOpened = status.last_opened_at || status.updated_at || status.created_at || '';
+              backendProjects.push({
+                name: project.name,
+                path: normalizePath(project.path),
+                status: status.status || 'planning',
+                lastOpened,
+              });
+            });
+          } catch {
+            // Ignore one root failure and continue with others.
           }
         }
-        const listRes = await fetch(
-          `${apiBaseUrl}/list_directories?path=${encodeURIComponent(
-            basePath
-          )}&includeStatus=1`
-        );
-        const listData = await listRes.json();
-        if (!listData.success) return;
-        const backendProjects = (listData.directories || [])
-          .map((project) => {
-            const status = project.status || {};
-            const lastOpened = status.last_opened_at || status.updated_at || status.created_at || '';
-            return {
-              name: project.name,
-              path: normalizePath(project.path),
-              status: status.status || 'planning',
-              lastOpened,
-            };
-          });
 
-        // Merge by path first, prefer backend status metadata but keep newest timestamp.
+        const existingPaths = new Set(backendProjects.map((item) => normalizePath(item.path)).filter(Boolean));
+        const validStored = storedMapped.filter((item) => existingPaths.has(normalizePath(item.path)));
+
+        // Keep backend metadata as source of truth; use stored timestamps as fallback/enrichment.
         const mergedByPath = new Map();
-        [...backendProjects, ...storedMapped].forEach((project) => {
-          if (!project?.path) return;
+        backendProjects.forEach((project) => {
+          mergedByPath.set(normalizePath(project.path), { ...project });
+        });
+        validStored.forEach((project) => {
           const key = normalizePath(project.path);
           const existing = mergedByPath.get(key);
-          if (!existing) {
-            mergedByPath.set(key, project);
-            return;
+          if (!existing) return;
+          if (!existing.lastOpened || parseTs(project.lastOpened) > parseTs(existing.lastOpened)) {
+            existing.lastOpened = project.lastOpened;
           }
-          const keepNewer = parseTs(project.lastOpened) >= parseTs(existing.lastOpened);
-          mergedByPath.set(key, {
-            ...existing,
-            ...project,
-            status: existing.status && existing.status !== 'recent' ? existing.status : project.status,
-            lastOpened: keepNewer ? project.lastOpened : existing.lastOpened,
-          });
+          mergedByPath.set(key, existing);
         });
 
-        // Avoid duplicate-looking cards (same project name from different folders).
-        const mergedByName = dedupeByNameKeepingNewest(Array.from(mergedByPath.values()))
+        const visibleRecents = dedupeByPathKeepingNewest(Array.from(mergedByPath.values()))
           .sort((a, b) => parseTs(b.lastOpened) - parseTs(a.lastOpened))
           .slice(0, 6);
 
-        if (mounted) setRecentProjects(mergedByName);
+        const cleanedStored = dedupeByPathKeepingNewest(validStored)
+          .sort((a, b) => parseTs(b.lastOpened) - parseTs(a.lastOpened))
+          .slice(0, 12)
+          .map((item) => ({ path: normalizePath(item.path), lastOpened: item.lastOpened || '' }));
+        replaceRecentProjects(cleanedStored);
+
+        if (mounted) setRecentProjects(visibleRecents);
       } catch {
         if (mounted) {
-          const fallback = dedupeByNameKeepingNewest(storedMapped)
-            .sort((a, b) => parseTs(b.lastOpened) - parseTs(a.lastOpened))
-            .slice(0, 6);
-          setRecentProjects(fallback);
+          setRecentProjects([]);
         }
       }
     };

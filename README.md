@@ -317,10 +317,10 @@ This project uses git tags for releases instead of versioned folders.
 Quick release helper:
 
 ```bash
-./release.sh
+./versioning.sh
 ```
 
-`release.sh` asks only for the new release tag (for example `my-release-v2.9.0`), then auto-detects the app version from the tag suffix.
+`versioning.sh` asks only for the new release tag (for example `my-release-v2.9.0`), then auto-detects the app version from the tag suffix.
 
 See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 

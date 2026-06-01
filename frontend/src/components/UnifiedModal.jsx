@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { X, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 const UnifiedModal = ({ modal, setModal }) => {
+    const inputRef = useRef(null);
+
     if (!modal?.show) return null;
     const actions = Array.isArray(modal.actions) ? modal.actions : null;
     const closeModal = () => {
@@ -33,6 +35,30 @@ const UnifiedModal = ({ modal, setModal }) => {
                     <div className="flex-1">
                         <h3 className="text-lg font-bold">{modal.title}</h3>
                         <div className="mt-2 text-sm text-muted-foreground">{modal.content}</div>
+                        {modal?.input ? (
+                            <div className="mt-3">
+                                {modal.input.label ? (
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                        {modal.input.label}
+                                    </label>
+                                ) : null}
+                                <input
+                                    key={`${modal?.title || 'prompt'}::${modal?.input?.defaultValue || ''}`}
+                                    autoFocus
+                                    defaultValue={modal?.input?.defaultValue == null ? '' : String(modal.input.defaultValue)}
+                                    placeholder={modal.input.placeholder || ''}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                            const primaryAction = actions?.[actions.length - 1];
+                                            const value = inputRef.current?.value ?? '';
+                                            if (primaryAction?.onClick) primaryAction.onClick(value);
+                                        }
+                                    }}
+                                    ref={inputRef}
+                                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-ring"
+                                />
+                            </div>
+                        ) : null}
                     </div>
                 </div>
                 <div className="flex justify-end mt-2 gap-2">
@@ -40,7 +66,7 @@ const UnifiedModal = ({ modal, setModal }) => {
                         actions.map((action, index) => (
                             <button
                                 key={index}
-                                onClick={action.onClick}
+                                onClick={() => action.onClick?.(inputRef.current?.value ?? '')}
                                 className={`px-4 py-2 rounded-md text-sm font-bold transition ${getActionClasses(action.variant)}`}
                             >
                                 {action.label}

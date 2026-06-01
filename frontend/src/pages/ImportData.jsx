@@ -1,10 +1,11 @@
-import React from 'react';
-import { Trash2, FileText, Database, FlaskConical, FolderOpen, Activity, Flame, Upload, Layers, Import, Droplets } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Trash2, FileText, Database, FlaskConical, Activity, Flame, Layers, Import, Droplets, ChevronRight, ChevronDown } from 'lucide-react';
 import { isSimulationCaseFile } from '../features/workspace/dataImportRules';
 
 const ImportDataPage = (props) => {
     const { 
-        projectPath: _projectPath,
+        apiBaseUrl = '',
+        projectPath = '',
         onSimFolderSelect: _onSimFolderSelect, 
         onExpFolderSelect: _onExpFolderSelect, 
         sessionFiles = [], 
@@ -65,6 +66,163 @@ const ImportDataPage = (props) => {
 
     const getQueueDisplayName = (item) => getFullBaseName(item?.path || item?.name);
     const getQueuePath = (item) => String(item?.path || item?.name || "");
+    const getPathKey = (item) => String(item?.path || item?.name || "");
+    const getExtension = (item) => {
+        const raw = getPathKey(item);
+        const ext = raw.includes('.') ? raw.split('.').pop() : '';
+        return String(ext || '').toLowerCase();
+    };
+
+    const inspectorCandidates = (() => {
+        const supported = new Set(['csv', 'txt', 'dat', 'asc', 'ascii', 'mf4', 'tpc5']);
+        const candidateMap = new Map();
+        const addCandidate = (item, source) => {
+            const key = getPathKey(item);
+            if (!key) return;
+            const ext = getExtension(item);
+            if (!supported.has(ext)) return;
+            if (!candidateMap.has(key)) {
+                candidateMap.set(key, {
+                    path: key,
+                    name: getQueueDisplayName(item),
+                    source,
+                    type: String(item?.type || source),
+                });
+            }
+        };
+
+        expQueue.forEach((item) => addCandidate(item, 'experiment'));
+        simulationData.forEach((item) => addCandidate(item, 'simulation'));
+
+        return Array.from(candidateMap.values()).sort((a, b) => a.path.localeCompare(b.path));
+    })();
+
+    const [inspectorPath, setInspectorPath] = useState('');
+    const [inspectionBusy, setInspectionBusy] = useState(false);
+    const [inspectionError, setInspectionError] = useState('');
+    const [batchResults, setBatchResults] = useState({});
+    const [collapsedInspectors, setCollapsedInspectors] = useState({});
+
+    useEffect(() => {
+        if (!inspectorCandidates.length) {
+            setInspectorPath('');
+            setInspectionError('');
+            setBatchResults({});
+            setCollapsedInspectors({});
+            return;
+        }
+        if (!inspectorPath || !inspectorCandidates.some((entry) => entry.path === inspectorPath)) {
+            setInspectorPath(inspectorCandidates[0].path);
+        }
+    }, [inspectorCandidates, inspectorPath]);
+
+    const readStructureForPath = useCallback(
+        async (path) => {
+            const query = new URLSearchParams({
+                projectPath: projectPath || '',
+                path,
+            });
+            const res = await fetch(`${apiBaseUrl}/inspect_project_file_structure?${query.toString()}`);
+            const payload = await res.json();
+            if (!res.ok || !payload?.success) {
+                throw new Error(payload?.error || `Inspection failed (${res.status})`);
+            }
+            return payload.inspection;
+        },
+        [apiBaseUrl, projectPath]
+    );
+
+    const summarizeTimeVectorState = (summary) => {
+        const hasVector = Number(summary?.samples) > 1;
+        const strict = summary?.strictlyIncreasing === true;
+        const noDuplicates = Number(summary?.duplicates || 0) === 0;
+        if (hasVector && strict && noDuplicates) return 'PASS';
+        if (!hasVector) return 'N/A';
+        return 'CHECK';
+    };
+
+    const formatPreviewCell = (value) => {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return 'N/A';
+        if (num === 0) return '0';
+        const abs = Math.abs(num);
+        if (abs >= 1000 || abs < 1e-3) return num.toExponential(6);
+        return num.toFixed(6);
+    };
+
+    const inspectSelectedFile = useCallback(async () => {
+        if (!inspectorPath) return;
+        if (!apiBaseUrl || !projectPath) {
+            setInspectionError('Inspector requires an active project and backend connection.');
+            return;
+        }
+        setInspectionBusy(true);
+        setInspectionError('');
+        try {
+            const inspection = await readStructureForPath(inspectorPath);
+            setBatchResults((prev) => ({
+                ...prev,
+                [inspectorPath]: {
+                    ok: true,
+                    inspection,
+                    checkedAt: new Date().toISOString(),
+                },
+            }));
+            setCollapsedInspectors((prev) => ({ ...prev, [inspectorPath]: false }));
+        } catch (error) {
+            const message = error?.message || 'Failed to inspect selected file.';
+            setInspectionError(message);
+            setBatchResults((prev) => ({
+                ...prev,
+                [inspectorPath]: {
+                    ok: false,
+                    error: message,
+                    checkedAt: new Date().toISOString(),
+                },
+            }));
+            setCollapsedInspectors((prev) => ({ ...prev, [inspectorPath]: false }));
+        } finally {
+            setInspectionBusy(false);
+        }
+    }, [apiBaseUrl, inspectorPath, projectPath, readStructureForPath]);
+
+    const inspectAllQueuedFiles = useCallback(async () => {
+        if (!inspectorCandidates.length) return;
+        if (!apiBaseUrl || !projectPath) {
+            setInspectionError('Inspector requires an active project and backend connection.');
+            return;
+        }
+        setInspectionBusy(true);
+        setInspectionError('');
+        const nextResults = {};
+        for (const entry of inspectorCandidates) {
+            try {
+                const inspection = await readStructureForPath(entry.path);
+                nextResults[entry.path] = {
+                    ok: true,
+                    inspection,
+                    checkedAt: new Date().toISOString(),
+                };
+            } catch (error) {
+                nextResults[entry.path] = {
+                    ok: false,
+                    error: error?.message || 'Inspection failed',
+                    checkedAt: new Date().toISOString(),
+                };
+            }
+        }
+        setBatchResults(nextResults);
+        setCollapsedInspectors((prev) => {
+            const next = {};
+            inspectorCandidates.forEach((entry) => {
+                next[entry.path] = Object.prototype.hasOwnProperty.call(prev, entry.path)
+                    ? !!prev[entry.path]
+                    : false;
+            });
+            return next;
+        });
+        setInspectionBusy(false);
+    }, [apiBaseUrl, inspectorCandidates, inspectorPath, projectPath, readStructureForPath]);
 
     const runSelectAll = (files, type, e) => {
         files.forEach((f) => {
@@ -75,6 +233,22 @@ const ImportDataPage = (props) => {
         if (e?.target) {
             e.target.value = "";
         }
+    };
+
+    const inspectedEntries = inspectorCandidates.filter((entry) => !!batchResults[entry.path]);
+    const allInspectedExpanded = inspectedEntries.length > 0 && inspectedEntries.every((entry) => collapsedInspectors[entry.path] === false);
+    const allInspectedCollapsed = inspectedEntries.length > 0 && inspectedEntries.every((entry) => collapsedInspectors[entry.path] === true);
+
+    const setAllInspectorsCollapsed = (collapsed) => {
+        const next = {};
+        inspectedEntries.forEach((entry) => {
+            next[entry.path] = collapsed;
+        });
+        setCollapsedInspectors((prev) => ({ ...prev, ...next }));
+    };
+
+    const toggleInspectorCollapse = (path) => {
+        setCollapsedInspectors((prev) => ({ ...prev, [path]: !prev[path] }));
     };
 
         return (
@@ -401,6 +575,273 @@ const ImportDataPage = (props) => {
                                 )}
                             </div>
                         </div>
+                    )}
+                </div>
+                <div className="mt-6 rounded-xl border border-border bg-card/50 p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <FileText size={18} className="text-primary" />
+                            <h3 className="text-base font-semibold text-foreground">Data Structure Inspector</h3>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            Verifies parser structure and time vectors per queued file.
+                        </div>
+                    </div>
+
+                    {inspectorCandidates.length === 0 ? (
+                        <div className="mt-3 text-xs text-muted-foreground">
+                            No compatible files in queue yet. Add `csv/txt/dat/asc/mf4/tpc5` files to inspect.
+                        </div>
+                    ) : (
+                        <>
+                            <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-end">
+                                <div className="lg:col-span-8">
+                                    <div className="mb-1 text-xs font-semibold text-muted-foreground">Queued File</div>
+                                    <select
+                                        value={inspectorPath}
+                                        onChange={(e) => {
+                                            setInspectorPath(e.target.value);
+                                            setInspectionError('');
+                                        }}
+                                        className="w-full rounded-md border border-border bg-background p-2.5 text-xs text-foreground outline-none"
+                                    >
+                                        {inspectorCandidates.map((entry) => (
+                                            <option key={entry.path} value={entry.path}>
+                                                {entry.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="lg:col-span-2">
+                                    <button
+                                        type="button"
+                                        onClick={inspectSelectedFile}
+                                        disabled={inspectionBusy}
+                                        className="w-full rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition hover:border-primary/60 hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {inspectionBusy ? 'Inspecting…' : 'Inspect File'}
+                                    </button>
+                                </div>
+                                <div className="lg:col-span-2">
+                                    <button
+                                        type="button"
+                                        onClick={inspectAllQueuedFiles}
+                                        disabled={inspectionBusy}
+                                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        Verify All
+                                    </button>
+                                </div>
+                            </div>
+
+                            {inspectionError ? (
+                                <div className="mt-3 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                                    {inspectionError}
+                                </div>
+                            ) : null}
+
+                            {Object.keys(batchResults).length > 0 ? (
+                                <div className="mt-3 rounded-lg border border-border/80 bg-background/30 p-3">
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                        <div className="text-xs font-semibold text-muted-foreground">Time Vector Verification Summary</div>
+                                        {inspectedEntries.length > 0 ? (
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAllInspectorsCollapsed(false)}
+                                                    disabled={allInspectedExpanded}
+                                                    className="rounded border border-border px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted/40 disabled:opacity-50"
+                                                >
+                                                    Expand all
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAllInspectorsCollapsed(true)}
+                                                    disabled={allInspectedCollapsed}
+                                                    className="rounded border border-border px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted/40 disabled:opacity-50"
+                                                >
+                                                    Collapse all
+                                                </button>
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div className="max-h-40 overflow-y-auto space-y-1 pr-1 text-xs">
+                                        {inspectorCandidates.map((entry) => {
+                                            const result = batchResults[entry.path];
+                                            const status = result?.ok
+                                                ? summarizeTimeVectorState(result.inspection?.timeSummary)
+                                                : (result ? 'ERROR' : 'PENDING');
+                                            const statusClass = status === 'PASS'
+                                                ? 'text-emerald-400'
+                                                : status === 'CHECK' || status === 'ERROR'
+                                                    ? 'text-amber-300'
+                                                    : 'text-muted-foreground';
+                                            return (
+                                                <div key={`status-${entry.path}`} className="flex items-center justify-between gap-3 rounded border border-border/60 px-2.5 py-1.5">
+                                                    <div className="truncate text-foreground/90 font-mono" title={entry.path}>
+                                                        {entry.name}
+                                                    </div>
+                                                    <div className={`font-semibold ${statusClass}`}>{status}</div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {inspectedEntries.length > 0 ? (
+                                <div className="mt-3 space-y-2">
+                                    {inspectedEntries.map((entry) => {
+                                        const result = batchResults[entry.path];
+                                        const inspection = result?.ok ? result.inspection : null;
+                                        const isCollapsed = !!collapsedInspectors[entry.path];
+                                        const status = result?.ok
+                                            ? summarizeTimeVectorState(inspection?.timeSummary)
+                                            : 'ERROR';
+                                        const statusClass = status === 'PASS'
+                                            ? 'text-emerald-400'
+                                            : status === 'CHECK' || status === 'ERROR'
+                                                ? 'text-amber-300'
+                                                : 'text-muted-foreground';
+
+                                        return (
+                                            <div key={`inspection-card-${entry.path}`} className="rounded-lg border border-border/80 bg-background/35 p-3 text-xs">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleInspectorCollapse(entry.path)}
+                                                    className="w-full flex items-center justify-between gap-2 text-left"
+                                                >
+                                                    <div className="min-w-0 flex items-center gap-2">
+                                                        {isCollapsed ? <ChevronRight size={13} className="text-muted-foreground shrink-0" /> : <ChevronDown size={13} className="text-muted-foreground shrink-0" />}
+                                                        <span className="font-semibold text-foreground truncate" title={entry.path}>{entry.name}</span>
+                                                    </div>
+                                                    <span className={`shrink-0 font-semibold ${statusClass}`}>{status}</span>
+                                                </button>
+                                                {!isCollapsed ? (
+                                                    result?.ok && inspection ? (
+                                                        <>
+                                                            <div className="mt-2 flex flex-wrap items-center gap-2 text-muted-foreground">
+                                                                <span>{inspection.parser}</span>
+                                                                <span>•</span>
+                                                                <span>{inspection.channelCount} channels</span>
+                                                                <span>•</span>
+                                                                <span>{inspection.timeSummary?.samples || 0} samples</span>
+                                                            </div>
+                                                            <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+                                                                <div className="rounded border border-border/70 bg-background px-2 py-1.5">
+                                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Time Vector</div>
+                                                                    <div className="mt-0.5 font-semibold text-foreground">{summarizeTimeVectorState(inspection.timeSummary)}</div>
+                                                                </div>
+                                                                <div className="rounded border border-border/70 bg-background px-2 py-1.5">
+                                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Sample Rate (Hz)</div>
+                                                                    <div className="mt-0.5 font-semibold text-foreground">
+                                                                        {Number.isFinite(Number(inspection.timeSummary?.estimatedSampleRateHz))
+                                                                            ? Number(inspection.timeSummary.estimatedSampleRateHz).toFixed(3)
+                                                                            : 'N/A'}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="rounded border border-border/70 bg-background px-2 py-1.5">
+                                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Duration (s)</div>
+                                                                    <div className="mt-0.5 font-semibold text-foreground">
+                                                                        {Number.isFinite(Number(inspection.timeSummary?.durationSeconds))
+                                                                            ? Number(inspection.timeSummary.durationSeconds).toFixed(6)
+                                                                            : 'N/A'}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="rounded border border-border/70 bg-background px-2 py-1.5">
+                                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Duplicates</div>
+                                                                    <div className="mt-0.5 font-semibold text-foreground">
+                                                                        {Number(inspection.timeSummary?.duplicates || 0)}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {inspection.preview && Array.isArray(inspection.preview.columns) && Array.isArray(inspection.preview.rows) ? (
+                                                                <div className="mt-3">
+                                                                    <div className="mb-1.5 text-xs font-semibold text-muted-foreground">
+                                                                        Sample Preview (first {Number(inspection.preview.shownRows || inspection.preview.rows.length || 0)} / {Number(inspection.preview.rowCount || inspection.preview.rows.length || 0)} rows)
+                                                                    </div>
+                                                                    <div className="max-h-44 overflow-auto rounded border border-border/70">
+                                                                        <table className="w-full border-collapse text-xs">
+                                                                            <thead className="bg-background/80 text-muted-foreground">
+                                                                                <tr>
+                                                                                    {inspection.preview.columns.map((columnName, colIdx) => (
+                                                                                        <th key={`preview-col-${entry.path}-${colIdx}`} className="border-b border-border px-2 py-1 text-left font-mono">
+                                                                                            {columnName}
+                                                                                        </th>
+                                                                                    ))}
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                {inspection.preview.rows.map((row, rowIdx) => (
+                                                                                    <tr key={`preview-row-${entry.path}-${rowIdx}`} className="odd:bg-background/25">
+                                                                                        {row.map((cell, cellIdx) => (
+                                                                                            <td key={`preview-cell-${entry.path}-${rowIdx}-${cellIdx}`} className="border-b border-border/60 px-2 py-1 font-mono">
+                                                                                                {formatPreviewCell(cell)}
+                                                                                            </td>
+                                                                                        ))}
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            ) : null}
+                                                            {Array.isArray(inspection.channels) && inspection.channels.length > 0 ? (
+                                                                <div className="mt-3">
+                                                                    <div className="mb-1.5 text-xs font-semibold text-muted-foreground">Channels</div>
+                                                                    <div className="max-h-48 overflow-y-auto rounded border border-border/70">
+                                                                        <table className="w-full border-collapse text-xs">
+                                                                            <thead className="bg-background/80 text-muted-foreground">
+                                                                                <tr>
+                                                                                    <th className="border-b border-border px-2 py-1 text-left">#</th>
+                                                                                    <th className="border-b border-border px-2 py-1 text-left">Name</th>
+                                                                                    <th className="border-b border-border px-2 py-1 text-left">Samples</th>
+                                                                                    <th className="border-b border-border px-2 py-1 text-left">Rate (Hz)</th>
+                                                                                    <th className="border-b border-border px-2 py-1 text-left">Min</th>
+                                                                                    <th className="border-b border-border px-2 py-1 text-left">Max</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                {inspection.channels.map((channel) => (
+                                                                                    <tr key={`channel-${inspection.fileName}-${channel.index}`} className="odd:bg-background/25">
+                                                                                        <td className="border-b border-border/60 px-2 py-1">{Number(channel.index) + 1}</td>
+                                                                                        <td className="border-b border-border/60 px-2 py-1 font-mono">{channel.name}</td>
+                                                                                        <td className="border-b border-border/60 px-2 py-1">{channel.samples}</td>
+                                                                                        <td className="border-b border-border/60 px-2 py-1">
+                                                                                            {Number.isFinite(Number(channel.sampleRateHz))
+                                                                                                ? Number(channel.sampleRateHz).toFixed(3)
+                                                                                                : 'N/A'}
+                                                                                        </td>
+                                                                                        <td className="border-b border-border/60 px-2 py-1">
+                                                                                            {Number.isFinite(Number(channel?.stats?.min))
+                                                                                                ? Number(channel.stats.min).toFixed(4)
+                                                                                                : 'N/A'}
+                                                                                        </td>
+                                                                                        <td className="border-b border-border/60 px-2 py-1">
+                                                                                            {Number.isFinite(Number(channel?.stats?.max))
+                                                                                                ? Number(channel.stats.max).toFixed(4)
+                                                                                                : 'N/A'}
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            ) : null}
+                                                        </>
+                                                    ) : (
+                                                        <div className="mt-2 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                                                            {result?.error || 'Inspection failed for this file.'}
+                                                        </div>
+                                                    )
+                                                ) : null}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : null}
+                        </>
                     )}
                 </div>
             </>

@@ -1627,6 +1627,7 @@ const WorkspacePage = () => {
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
                                             <ImportDataPage 
+                                                    apiBaseUrl={apiBaseUrl}
                                                     projectPath={projectPath}
                                                     onSimFolderSelect={onSimFolder} 
                                                     onExpFolderSelect={onExpFolder} 

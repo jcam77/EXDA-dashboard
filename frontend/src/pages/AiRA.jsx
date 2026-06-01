@@ -3,6 +3,8 @@ import { StopCircle, Send, Trash2, Save, Bot, BrainCircuit, User, ShieldAlert, C
 import { marked } from 'marked';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { formatExdaTime } from '../utils/timezone';
+import UnifiedModal from '../components/UnifiedModal';
+import { useAppDialog } from '../hooks/useAppDialog';
 
 marked.setOptions({
     gfm: true,
@@ -115,6 +117,7 @@ const getRoleLabel = (role) => ROLE_LABELS[role] || role.replace(/_/g, " ");
  */
 const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}, checklistState = {} }) => {
     const apiBaseUrl = getBackendBaseUrl();
+    const { dialogModal, setDialogModal, showAlert } = useAppDialog();
     const [query, setQuery] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [models, setModels] = useState(['deepseek-v3.1:671b-cloud']);
@@ -483,7 +486,11 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
             setCopiedIndex(index);
             setTimeout(() => setCopiedIndex(null), 1500);
         } catch {
-            alert('Copy failed');
+            await showAlert({
+                title: 'Copy Failed',
+                content: 'Could not copy the response.',
+                type: 'error',
+            });
         }
     };
 
@@ -563,8 +570,21 @@ const handleAsk = () => {
                 body: JSON.stringify({ projectPath, history: chatHistory })
             });
             const d = await res.json();
-            if (d.success) alert("EXDA Session saved to aiChat folder.");
-        } catch { alert("Save failed: Backend error"); }
+            if (d.success) {
+                await showAlert({
+                    title: 'Session Saved',
+                    content: 'EXDA session saved to aiChat folder.',
+                    type: 'success',
+                    closeLabel: 'OK',
+                });
+            }
+        } catch {
+            await showAlert({
+                title: 'Save Failed',
+                content: 'Backend error while saving chat session.',
+                type: 'error',
+            });
+        }
     };
 
     return (
@@ -770,6 +790,7 @@ const handleAsk = () => {
                     AiRA can make mistakes. Check important info.
                 </div>
             </div>
+            <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
         </div>
     );
 };

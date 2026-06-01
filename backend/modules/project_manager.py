@@ -376,6 +376,82 @@ def create_project_structure(parent_path, project_name):
     success, msg = initialize_project_structure(project_path)
     return success, msg, project_path
 
+def rename_project(project_path, new_project_name):
+    """Rename an existing project folder within the same parent directory."""
+    resolved_path, err = resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return False, err, None
+
+    safe_name = sanitize_filename(new_project_name)
+    if not safe_name:
+        return False, "Invalid new project name", None
+
+    current_name = os.path.basename(resolved_path.rstrip(os.sep))
+    if safe_name == current_name:
+        return False, "New project name is the same as current name", resolved_path
+
+    parent_dir = os.path.dirname(resolved_path)
+    target_path = os.path.join(parent_dir, safe_name)
+    if os.path.exists(target_path):
+        return False, "A project with that name already exists", target_path
+
+    try:
+        os.rename(resolved_path, target_path)
+    except Exception as e:
+        return False, str(e), None
+
+    status = read_project_status(target_path) or ensure_project_status(target_path)
+    if isinstance(status, dict):
+        status["project_name"] = safe_name
+        status["project_path"] = target_path
+        status["updated_at"] = _now_iso()
+        try:
+            with open(_status_path(target_path), "w", encoding="utf-8") as f:
+                json.dump(status, f, indent=2)
+        except Exception:
+            pass
+
+    return True, "Project renamed successfully", target_path
+
+def copy_project(project_path, new_project_name):
+    """Create a full copy of a project folder as a sibling directory."""
+    resolved_path, err = resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return False, err, None
+
+    safe_name = sanitize_filename(new_project_name)
+    if not safe_name:
+        return False, "Invalid project copy name", None
+
+    source_name = os.path.basename(resolved_path.rstrip(os.sep))
+    if safe_name == source_name:
+        return False, "Copy name must be different from source project", None
+
+    parent_dir = os.path.dirname(resolved_path)
+    target_path = os.path.join(parent_dir, safe_name)
+    if os.path.exists(target_path):
+        return False, "A project with that name already exists", target_path
+
+    try:
+        shutil.copytree(resolved_path, target_path)
+    except Exception as e:
+        return False, str(e), None
+
+    status = read_project_status(target_path) or ensure_project_status(target_path)
+    if isinstance(status, dict):
+        status["project_name"] = safe_name
+        status["project_path"] = target_path
+        status["created_at"] = _now_iso()
+        status["updated_at"] = status["created_at"]
+        status["last_opened_at"] = status["created_at"]
+        try:
+            with open(_status_path(target_path), "w", encoding="utf-8") as f:
+                json.dump(status, f, indent=2)
+        except Exception:
+            pass
+
+    return True, "Project copied successfully", target_path
+
 def save_plan_to_project(project_path, filename, content):
     """Write plan content into the project's Plan directory."""
     resolved_path, err = resolve_project_path(project_path)

@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { HardDrive, Plus, Pencil, Trash2, Save, X } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../utils/timezone';
+import UnifiedModal from '../components/UnifiedModal';
+import ExportFormatButtons from '../components/ExportFormatButtons';
+import { useAppDialog } from '../hooks/useAppDialog';
 
 const createDefaultDaq = () => ({
   id: `daq-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -40,6 +43,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
   const [daqSystems, setDaqSystems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [busyFormat, setBusyFormat] = useState('');
   const [saveInfo, setSaveInfo] = useState('');
   const [error, setError] = useState('');
 
@@ -47,6 +51,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState(createDefaultDaq());
   const [openPreviews, setOpenPreviews] = useState({});
+  const { dialogModal, setDialogModal, showAlert } = useAppDialog();
 
   const validation = useMemo(() => {
     const messages = [];
@@ -168,10 +173,15 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
 
   const exportDaqArtifact = async (format) => {
     if (!projectPath) {
-      window.alert('Open a project first. Export files are saved to the project Reports folder.');
+      await showAlert({
+        title: 'Project Required',
+        content: 'Open a project first. Export files are saved to the project Reports folder.',
+        type: 'error',
+      });
       return;
     }
     try {
+      setBusyFormat(format);
       const response = await fetch(`${apiBaseUrl}/export_daq_artifact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -185,9 +195,20 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || `Failed to export ${format.toUpperCase()}`);
       }
-      window.alert(`${format.toUpperCase()} exported to:\n${payload.path}`);
+      await showAlert({
+        title: `${format.toUpperCase()} Exported`,
+        content: payload.path,
+        type: 'success',
+        closeLabel: 'OK',
+      });
     } catch (exportError) {
-      window.alert(`Could not export ${format.toUpperCase()}.\n${exportError?.message || 'Unknown error'}`);
+      await showAlert({
+        title: `${format.toUpperCase()} Export Failed`,
+        content: exportError?.message || 'Unknown error',
+        type: 'error',
+      });
+    } finally {
+      setBusyFormat('');
     }
   };
 
@@ -289,18 +310,12 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Systems List</h3>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => exportDaqArtifact('csv')}
-              className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/60"
-            >
-              Export CSV
-            </button>
-            <button
-              onClick={() => exportDaqArtifact('pdf')}
-              className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/60"
-            >
-              Export PDF
-            </button>
+            <ExportFormatButtons
+              onExportCsv={() => exportDaqArtifact('csv')}
+              onExportPdf={() => exportDaqArtifact('pdf')}
+              busyFormat={busyFormat}
+              size="sm"
+            />
             <button
               onClick={() => persistDaqSystems(daqSystems, 'DAQ systems saved.')}
               className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/60"
@@ -447,6 +462,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
           </div>
         </div>
       )}
+      <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
     </div>
   );
 };

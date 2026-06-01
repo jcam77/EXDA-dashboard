@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FileText, Download, Construction, Database } from 'lucide-react';
+import { FileText, Construction, Database } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../utils/timezone';
 import UnifiedModal from '../components/UnifiedModal';
+import ExportFormatButtons from '../components/ExportFormatButtons';
 
 const ReportPage = ({
   projectPath = '',
@@ -157,24 +158,12 @@ const ReportPage = ({
             CSV is exported as sectioned blocks (one labeled section per module), and PDF is exported as one merged file.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => exportMetadataReport('csv')}
-              disabled={busyFormat !== ''}
-              className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Download size={14} />
-              {busyFormat === 'csv' ? 'Exporting CSV...' : 'Export Metadata CSV'}
-            </button>
-            <button
-              type="button"
-              onClick={() => exportMetadataReport('pdf')}
-              disabled={busyFormat !== ''}
-              className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-muted/30 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Download size={14} />
-              {busyFormat === 'pdf' ? 'Exporting PDF...' : 'Export Metadata PDF'}
-            </button>
+            <ExportFormatButtons
+              onExportCsv={() => exportMetadataReport('csv')}
+              onExportPdf={() => exportMetadataReport('pdf')}
+              busyFormat={busyFormat}
+              size="md"
+            />
           </div>
           <div className="mt-3 rounded-lg border border-sidebar-border bg-background/40 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

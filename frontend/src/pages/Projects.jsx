@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FolderPlus, Folder, FolderOpen, Trash2, Search, RefreshCw, Home } from 'lucide-react';
+import { FolderPlus, Folder, FolderOpen, Trash2, Search, RefreshCw, Home, Pencil, Copy } from 'lucide-react';
 import ProjectPickerModal from '../components/ProjectPickerModal';
+import UnifiedModal from '../components/UnifiedModal';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { formatExdaDate } from '../utils/timezone';
+import { useAppDialog } from '../hooks/useAppDialog';
 
 const ProjectsPage = ({
   onOpenProject,
@@ -21,6 +23,7 @@ const ProjectsPage = ({
   const [basePickerMode, setBasePickerMode] = useState('root');
   const [projectFolders, setProjectFolders] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState('all');
+  const { dialogModal, setDialogModal, showAlert, showConfirm, showPrompt } = useAppDialog();
 
   const buildSummaryFromPlan = (data) => {
     if (!data || typeof data !== 'object') return null;
@@ -404,12 +407,20 @@ const ProjectsPage = ({
 
   const handleDeleteProject = async (project) => {
     if (activeProjectPath && project.path === activeProjectPath) {
-      alert('Close the current project before archiving it.');
+      await showAlert({
+        title: 'Project Is Open',
+        content: 'Close the current project before archiving it.',
+        type: 'error',
+      });
       return;
     }
-    const confirmed = window.confirm(
-      `Archive project "${project.name}"? It will be moved to a .trash folder.`
-    );
+    const confirmed = await showConfirm({
+      title: 'Archive Project?',
+      content: `Archive project "${project.name}"? It will be moved to a .trash folder.`,
+      type: 'error',
+      confirmLabel: 'Archive',
+      confirmVariant: 'destructive',
+    });
     if (!confirmed) return;
     try {
       const res = await fetch(`${apiBaseUrl}/delete_project`, {
@@ -419,12 +430,118 @@ const ProjectsPage = ({
       });
       const data = await res.json();
       if (!data.success) {
-        alert(data.error || 'Failed to archive project');
+        await showAlert({
+          title: 'Archive Failed',
+          content: data.error || 'Failed to archive project',
+          type: 'error',
+        });
         return;
       }
       reloadProjects();
     } catch {
-      alert('Failed to archive project');
+      await showAlert({
+        title: 'Archive Failed',
+        content: 'Failed to archive project',
+        type: 'error',
+      });
+    }
+  };
+
+  const handleRenameProject = async (project) => {
+    if (!project?.path) return;
+    if (activeProjectPath && project.path === activeProjectPath) {
+      await showAlert({
+        title: 'Project Is Open',
+        content: 'Close the current project before renaming it.',
+        type: 'error',
+      });
+      return;
+    }
+    const nextName = await showPrompt({
+      title: 'Rename Project',
+      content: 'Enter the new project name.',
+      label: 'Project Name',
+      defaultValue: project.name || '',
+      placeholder: 'My-Renamed-Project',
+      confirmLabel: 'Rename',
+      type: 'success',
+      confirmVariant: 'primary',
+    });
+    if (nextName == null) return;
+    const trimmed = nextName.trim();
+    if (!trimmed) return;
+    if (trimmed === project.name) return;
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/rename_project`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectPath: project.path,
+          newProjectName: trimmed,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        await showAlert({
+          title: 'Rename Failed',
+          content: data?.error || 'Failed to rename project',
+          type: 'error',
+        });
+        return;
+      }
+      reloadProjects();
+    } catch {
+      await showAlert({
+        title: 'Rename Failed',
+        content: 'Failed to rename project',
+        type: 'error',
+      });
+    }
+  };
+
+  const handleCopyProject = async (project) => {
+    if (!project?.path) return;
+    const suggestedName = `${project.name || 'Project'}-Copy`;
+    const nextName = await showPrompt({
+      title: 'Copy Project',
+      content: 'Enter a name for the copied project.',
+      label: 'Copy Name',
+      defaultValue: suggestedName,
+      placeholder: 'Project-Copy',
+      confirmLabel: 'Create Copy',
+      type: 'success',
+      confirmVariant: 'primary',
+    });
+    if (nextName == null) return;
+    const trimmed = nextName.trim();
+    if (!trimmed) return;
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/copy_project`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectPath: project.path,
+          newProjectName: trimmed,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        await showAlert({
+          title: 'Copy Failed',
+          content: data?.error || 'Failed to copy project',
+          type: 'error',
+        });
+        return;
+      }
+      reloadProjects();
+    } catch {
+      await showAlert({
+        title: 'Copy Failed',
+        content: 'Failed to copy project',
+        type: 'error',
+      });
     }
   };
 
@@ -441,7 +558,11 @@ const ProjectsPage = ({
       }
       const data = await res.json();
       if (!data.success) {
-        alert(data.error || 'Failed to update status');
+        await showAlert({
+          title: 'Status Update Failed',
+          content: data.error || 'Failed to update status',
+          type: 'error',
+        });
         return;
       }
       setProjects((prev) =>
@@ -453,7 +574,11 @@ const ProjectsPage = ({
       );
       reloadProjects();
     } catch (e) {
-      alert(`Failed to update status: ${e?.message || 'Unknown error'}`);
+      await showAlert({
+        title: 'Status Update Failed',
+        content: `Failed to update status: ${e?.message || 'Unknown error'}`,
+        type: 'error',
+      });
     }
   };
 
@@ -705,6 +830,20 @@ const ProjectsPage = ({
                       <FolderOpen size={14} /> Open
                     </button>
                     <button
+                      onClick={() => handleRenameProject(project)}
+                      className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+                      title="Rename project"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleCopyProject(project)}
+                      className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+                      title="Copy project"
+                    >
+                      <Copy size={14} />
+                    </button>
+                    <button
                       onClick={() => handleDeleteProject(project)}
                       className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
                     >
@@ -744,6 +883,7 @@ const ProjectsPage = ({
         onClose={() => setBasePickerOpen(false)}
         onPick={handlePickBasePath}
       />
+      <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
     </div>
   );
 };

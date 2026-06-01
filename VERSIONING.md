@@ -168,7 +168,7 @@ git push origin browser-v1.18.0
 
 ## Full Release Example
 
-If you run the commands manually (without `./release.sh`), update `## Current Release` in this file before committing on `main`.
+If you run the commands manually (without `./versioning.sh`), update `## Current Release` in this file before committing on `main`.
 
 ```bash
 git switch CODEX-Updates
@@ -200,8 +200,32 @@ git push origin CODEX-Updates
 If you do not want to copy/paste all release commands every time, use:
 
 ```bash
-./release.sh
+./versioning.sh
 ```
+
+### How to use `versioning.sh`
+
+Use one of these two methods:
+
+1. Interactive mode (script prompts for tag):
+
+```bash
+./versioning.sh
+```
+
+2. Non-interactive mode (recommended in automated/remote terminals):
+
+```bash
+./versioning.sh browser-MVP-v2.30.1
+```
+
+Important:
+
+- tag must end with `vMAJOR.MINOR.PATCH`
+- the script extracts app version from that tag
+- example: `browser-MVP-v2.30.1` -> app version `2.30.1`
+- if no tag is provided and no prompt is available, the script exits early
+- run from the repository root (same folder as `versioning.sh`)
 
 The script will:
 

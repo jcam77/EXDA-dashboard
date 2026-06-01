@@ -1,0 +1,23 @@
+{
+  "updatedAt": "2026-06-01 15:56:06",
+  "checklistState": {
+    "batteries": true,
+    "blocks": true,
+    "cranes": true,
+    "cylinder": true,
+    "emergency": true,
+    "fan": true,
+    "firstaid": true,
+    "gate": true,
+    "hatches": true,
+    "leak": true,
+    "neighbors": true,
+    "phones": true,
+    "ppe": true,
+    "pretest": true,
+    "sensors": true,
+    "stop": true,
+    "v7": true,
+    "vent": true
+  }
+}

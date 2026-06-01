@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapPinned, Plus, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, GripVertical, X, ChevronRight, ChevronDown } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+import UnifiedModal from '../components/UnifiedModal';
+import ExportFormatButtons from '../components/ExportFormatButtons';
+import { useAppDialog } from '../hooks/useAppDialog';
 
 const QUANTITY_OPTIONS = [
   'pressure',
@@ -189,7 +192,9 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
   const [editorError, setEditorError] = useState('');
   const [editorOffset, setEditorOffset] = useState({ x: 0, y: 40 });
   const [editorDragging, setEditorDragging] = useState(false);
+  const [busyFormat, setBusyFormat] = useState('');
   const [showMountingPreview, setShowMountingPreview] = useState(false);
+  const { dialogModal, setDialogModal, showAlert, showConfirm, showPrompt } = useAppDialog();
   const editorDragRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 });
 
   useEffect(() => {
@@ -352,16 +357,22 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     return `${base}-${Date.now()}`;
   }, [availableGroups]);
 
-  const duplicateGroup = (sourceGroup) => {
+  const duplicateGroup = async (sourceGroup) => {
     const source = String(sourceGroup || '').trim();
     if (!source) return;
     const sourceGroupName = availableGroups.find((group) => normalize(group) === normalize(source)) || source;
     const sourceSensors = mappingsByGroup[sourceGroupName] || [];
     const defaultTarget = makeUniqueGroupName(`${sourceGroupName}-Copy`);
-    const targetRaw = window.prompt(
-      `Copy sensors configuration from "${sourceGroupName}" to which group? (existing or new)`,
-      defaultTarget,
-    );
+    const targetRaw = await showPrompt({
+      title: 'Copy Group Configuration',
+      content: `Copy sensors configuration from "${sourceGroupName}" to which group? (existing or new)`,
+      label: 'Target Group',
+      defaultValue: defaultTarget,
+      placeholder: 'VH2D-Group-Copy',
+      confirmLabel: 'Copy',
+      type: 'success',
+      confirmVariant: 'primary',
+    });
     if (targetRaw == null) return;
     const targetGroupName = String(targetRaw || '').trim().replace(/[/\\]/g, '-');
     if (!targetGroupName) {
@@ -374,9 +385,13 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     }
     const targetExists = availableGroups.some((group) => normalize(group) === normalize(targetGroupName));
     if (targetExists) {
-      const confirmedOverwrite = window.confirm(
-        `Group "${targetGroupName}" already exists. Replace its sensors configuration with "${sourceGroupName}"?`,
-      );
+      const confirmedOverwrite = await showConfirm({
+        title: 'Overwrite Existing Group?',
+        content: `Group "${targetGroupName}" already exists. Replace its sensors configuration with "${sourceGroupName}"?`,
+        type: 'error',
+        confirmLabel: 'Overwrite',
+        confirmVariant: 'destructive',
+      });
       if (!confirmedOverwrite) return;
     }
     const clonedSensors = sourceSensors.map((sensor) => ({
@@ -396,12 +411,18 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     setGroupError('');
   };
 
-  const deleteGroup = (groupName) => {
+  const deleteGroup = async (groupName) => {
     const target = String(groupName || '').trim();
     if (!target) return;
     const knownGroups = availableGroups.filter(Boolean);
     if (!knownGroups.includes(target)) return;
-    const confirmed = window.confirm(`Delete sensors group "${target}"?`);
+    const confirmed = await showConfirm({
+      title: 'Delete Group?',
+      content: `Delete sensors group "${target}"?`,
+      type: 'error',
+      confirmLabel: 'Delete',
+      confirmVariant: 'destructive',
+    });
     if (!confirmed) return;
 
     if (knownGroups.length <= 1) {
@@ -426,10 +447,19 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     setGroupError('');
   };
 
-  const renameGroup = (sourceGroup) => {
+  const renameGroup = async (sourceGroup) => {
     const source = String(sourceGroup || '').trim();
     if (!source) return;
-    const proposedRaw = window.prompt(`Rename group "${source}" to:`, source);
+    const proposedRaw = await showPrompt({
+      title: 'Rename Group',
+      content: `Rename group "${source}" to:`,
+      label: 'New Group Name',
+      defaultValue: source,
+      placeholder: 'Group-Name',
+      confirmLabel: 'Rename',
+      type: 'success',
+      confirmVariant: 'primary',
+    });
     if (proposedRaw == null) return;
     const proposed = String(proposedRaw || '').trim().replace(/[/\\]/g, '-');
     if (!proposed) {
@@ -622,10 +652,15 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
 
   const exportSensorsArtifact = async (format) => {
     if (!projectPath) {
-      window.alert('Open a project first. Export files are saved to the project Reports folder.');
+      await showAlert({
+        title: 'Project Required',
+        content: 'Open a project first. Export files are saved to the project Reports folder.',
+        type: 'error',
+      });
       return;
     }
     try {
+      setBusyFormat(format);
       const response = await fetch(`${apiBaseUrl}/export_sensors_mapping_artifact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -641,9 +676,20 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || `Failed to export ${format.toUpperCase()}`);
       }
-      window.alert(`${format.toUpperCase()} exported to:\n${payload.path}`);
+      await showAlert({
+        title: `${format.toUpperCase()} Exported`,
+        content: payload.path,
+        type: 'success',
+        closeLabel: 'OK',
+      });
     } catch (exportError) {
-      window.alert(`Could not export ${format.toUpperCase()}.\n${exportError?.message || 'Unknown error'}`);
+      await showAlert({
+        title: `${format.toUpperCase()} Export Failed`,
+        content: exportError?.message || 'Unknown error',
+        type: 'error',
+      });
+    } finally {
+      setBusyFormat('');
     }
   };
 
@@ -931,20 +977,12 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
           >
             Collapse All
           </button>
-          <button
-            type="button"
-            onClick={() => exportSensorsArtifact('csv')}
-            className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => exportSensorsArtifact('pdf')}
-            className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
-          >
-            Export PDF
-          </button>
+          <ExportFormatButtons
+            onExportCsv={() => exportSensorsArtifact('csv')}
+            onExportPdf={() => exportSensorsArtifact('pdf')}
+            busyFormat={busyFormat}
+            size="sm"
+          />
           {groupError && (
             <span className="text-[11px] text-destructive">{groupError}</span>
           )}
@@ -1108,6 +1146,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
           </div>
         </div>
       )}
+      <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
     </div>
   );
 };

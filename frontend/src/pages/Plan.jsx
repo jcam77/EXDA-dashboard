@@ -2,12 +2,30 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { 
     Save, Upload, Plus, CheckSquare, Square, PenTool, Trash2, Calendar, 
     Clock, Target, GripVertical, Layers, FlaskConical, X, 
-    AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge, ChevronRight, ChevronDown, Wrench, Undo2, Download
+    AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge, ChevronRight, ChevronDown, Wrench, Undo2
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Cell, LabelList } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, LabelList } from 'recharts';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+import UnifiedModal from '../components/UnifiedModal';
+import ExportFormatButtons from '../components/ExportFormatButtons';
+import { useAppDialog } from '../hooks/useAppDialog';
 
 const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
+const RUN_STATUS_COLORS = {
+    error: '#dc2626',
+    canceled: '#f97316',
+    done: 'hsl(var(--primary))',
+    planned: '#3f3f46',
+};
+const IGNITION_PRESET_OPTIONS = [
+    'Back Wall',
+    'Center',
+];
+const VENT_PRESET_OPTIONS = [
+    'Thin Film with Hotwire Activated',
+    'Thin Film with Hotwire NOT Activated',
+];
+const CUSTOM_OPTION_VALUE = '__custom__';
 
 const parseRunNameOrder = (runName) => {
     const cleanName = String(runName || '').trim();
@@ -58,6 +76,7 @@ const PlanPage = ({
     projectPath = ""
 }) => {
     const apiBaseUrl = getBackendBaseUrl();
+    const { dialogModal, setDialogModal, showAlert } = useAppDialog();
     const [input, setInput] = useState({ group: "", run: "", h2: "", plannedDate: "", name: "", isPreparation: false });
     const [editingExp, setEditingExp] = useState(null);
     const [createError, setCreateError] = useState("");
@@ -65,14 +84,20 @@ const PlanPage = ({
     const [groupRenameDrafts, setGroupRenameDrafts] = useState({});
     const [groupRenameErrors, setGroupRenameErrors] = useState({});
     const [draggedId, setDraggedId] = useState(null);
+    const [draggingScheduleRun, setDraggingScheduleRun] = useState(null);
+    const [ignitionEditorMode, setIgnitionEditorMode] = useState('');
+    const [ventEditorMode, setVentEditorMode] = useState('');
     const [modalOffset, setModalOffset] = useState({ x: 0, y: 40 });
     const [isModalDragging, setIsModalDragging] = useState(false);
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    const [busyFormat, setBusyFormat] = useState('');
     const [rawDataFiles, setRawDataFiles] = useState([]);
     const [collapsedGroups, setCollapsedGroups] = useState({});
     const [lastDeletedRun, setLastDeletedRun] = useState(null);
     const [folderCheck, setFolderCheck] = useState({ status: 'idle', message: '' });
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 });
+    const scheduleChartAreaRef = useRef(null);
+    const scheduleDragRef = useRef({ runName: '', startDay: 1, startX: 0, currentX: 0, moved: false });
     const deleteUndoTimeoutRef = useRef(null);
 
     // --- ANALYTICS & GATING ---
@@ -87,7 +112,9 @@ const PlanPage = ({
         const total = experiments.length;
         const done = experiments.filter(e => e.done).length;
         const remaining = total - done;
-        const ready = experiments.filter(e => isReady(e)).length;
+        const canceled = experiments.filter((e) => !!e?.meta?.isCanceled).length;
+        const errors = experiments.filter((e) => !!e?.meta?.hasError).length;
+        const preparation = experiments.filter((e) => !!e?.meta?.isPreparation).length;
 
         const today = new Date();
         const deadlineDate = planMeta.deadline ? new Date(planMeta.deadline) : null;
@@ -103,7 +130,7 @@ const PlanPage = ({
             }
         }
         const completionPercent = total ? Math.round((done / total) * 100) : 0;
-        return { total, done, remaining, ready, daysLeft: daysLeft > 0 ? daysLeft : 0, pace, completionPercent };
+        return { total, done, remaining, canceled, errors, preparation, daysLeft: daysLeft > 0 ? daysLeft : 0, pace, completionPercent };
     };
     
     const stats = getStats();
@@ -117,6 +144,13 @@ const PlanPage = ({
         if (!Array.isArray(exp.meta?.dataFiles) || exp.meta.dataFiles.length === 0) missing.push('Data');
         return missing;
     };
+
+    const getRunVisualStatus = useCallback((exp) => {
+        if (exp?.meta?.hasError) return 'error';
+        if (exp?.meta?.isCanceled) return 'canceled';
+        if (exp?.done) return 'done';
+        return 'planned';
+    }, []);
 
     // --- CRUD ---
     const syncRunFolders = useCallback(async (runNames = []) => {
@@ -134,6 +168,47 @@ const PlanPage = ({
             return payload;
         } catch {
             // Keep UI flow non-blocking even if sync fails.
+            return null;
+        }
+    }, [apiBaseUrl, projectPath]);
+
+    const renameRunFolders = useCallback(async (renamePairs = []) => {
+        if (!projectPath || !Array.isArray(renamePairs) || renamePairs.length === 0) return null;
+        try {
+            const response = await fetch(`${apiBaseUrl}/rename_run_data_folders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectPath, renamePairs }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.error || 'Could not rename run data folders');
+            }
+            return payload;
+        } catch {
+            return null;
+        }
+    }, [apiBaseUrl, projectPath]);
+
+    const renameRunMetadataReferences = useCallback(async ({ renamePairs = [], oldGroup = "", newGroup = "" } = {}) => {
+        if (!projectPath || !Array.isArray(renamePairs) || renamePairs.length === 0) return null;
+        try {
+            const response = await fetch(`${apiBaseUrl}/rename_run_metadata_references`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectPath,
+                    renamePairs,
+                    oldGroup: String(oldGroup || '').trim(),
+                    newGroup: String(newGroup || '').trim(),
+                }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.error || 'Could not rename metadata references');
+            }
+            return payload;
+        } catch {
             return null;
         }
     }, [apiBaseUrl, projectPath]);
@@ -324,9 +399,36 @@ const PlanPage = ({
             renameMap.set(exp.id, generatedNames[index]);
         });
 
+        const renamePairs = affected.map((exp, index) => ({
+            oldName: String(exp?.name || '').trim(),
+            newName: String(generatedNames[index] || '').trim(),
+        }));
+
+        const remapRunFilePath = (filePath, oldRunName, newRunName) => {
+            const file = String(filePath || '');
+            const oldPrefix = `${String(oldRunName || '').trim()}/`;
+            const newPrefix = `${String(newRunName || '').trim()}/`;
+            if (!oldPrefix.trim() || !newPrefix.trim()) return file;
+            if (file === String(oldRunName || '').trim()) return String(newRunName || '').trim();
+            return file.startsWith(oldPrefix) ? `${newPrefix}${file.slice(oldPrefix.length)}` : file;
+        };
+
         setExperiments((prev) => prev.map((exp) => (
             renameMap.has(exp.id)
-                ? { ...exp, name: renameMap.get(exp.id) }
+                ? (() => {
+                    const oldName = String(exp?.name || '').trim();
+                    const newName = String(renameMap.get(exp.id) || '').trim();
+                    const currentFiles = Array.isArray(exp?.meta?.dataFiles) ? exp.meta.dataFiles : [];
+                    const remappedFiles = currentFiles.map((filePath) => remapRunFilePath(filePath, oldName, newName));
+                    return {
+                        ...exp,
+                        name: newName,
+                        meta: {
+                            ...(exp.meta || {}),
+                            dataFiles: remappedFiles,
+                        },
+                    };
+                })()
                 : exp
         )));
 
@@ -350,8 +452,26 @@ const PlanPage = ({
             return next;
         });
 
+        const renameResult = await renameRunFolders(renamePairs);
+        if (renameResult && Array.isArray(renameResult.conflicts) && renameResult.conflicts.length > 0) {
+            setFolderCheck({
+                status: 'warning',
+                message: `Some run folder renames conflicted (${renameResult.conflicts.length}). Review folder names and retry.`,
+            });
+        }
+        const metadataResult = await renameRunMetadataReferences({
+            renamePairs,
+            oldGroup: groupName,
+            newGroup: requestedName,
+        });
+        if (!metadataResult) {
+            setFolderCheck({
+                status: 'warning',
+                message: 'Run names were updated, but metadata references (Gas Mixing/Sensors Mapping) could not be auto-renamed. Please reopen those tabs to verify.',
+            });
+        }
         await syncRunFolders(generatedNames);
-    }, [experiments, getRunGroupKey, groupRenameDrafts, normalizeRunName, setExperiments, setPlanMeta, syncRunFolders]);
+    }, [experiments, getRunGroupKey, groupRenameDrafts, normalizeRunName, renameRunFolders, renameRunMetadataReferences, setExperiments, setPlanMeta, syncRunFolders]);
 
     const addExp = async () => {
         const manualRunName = String(input.name || '').trim();
@@ -374,6 +494,10 @@ const PlanPage = ({
                 h2: String(input.h2 || "").trim(),
                 plannedDate: String(input.plannedDate || "").trim(),
                 isPreparation: !!input.isPreparation,
+                hasError: false,
+                errorNote: "",
+                isCanceled: false,
+                canceledNote: "",
                 shortDescription: "",
                 p0: "101325",
                 t0: "293",
@@ -476,10 +600,15 @@ const PlanPage = ({
 
     const exportPlanArtifact = useCallback(async (format) => {
         if (!projectPath) {
-            window.alert('Open a project first. Export files are saved to the project Plan folder.');
+            await showAlert({
+                title: 'Project Required',
+                content: 'Open a project first. Export files are saved to the project Plan folder.',
+                type: 'error',
+            });
             return;
         }
         try {
+            setBusyFormat(format);
             const response = await fetch(`${apiBaseUrl}/export_plan_artifact`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -495,11 +624,22 @@ const PlanPage = ({
             if (!response.ok || !payload?.success) {
                 throw new Error(payload?.error || `Failed to export ${format.toUpperCase()}`);
             }
-            window.alert(`${format.toUpperCase()} exported to:\n${payload.path}`);
+            await showAlert({
+                title: `${format.toUpperCase()} Exported`,
+                content: payload.path,
+                type: 'success',
+                closeLabel: 'OK',
+            });
         } catch (error) {
-            window.alert(`Could not export ${format.toUpperCase()}.\n${error?.message || 'Unknown error'}`);
+            await showAlert({
+                title: `${format.toUpperCase()} Export Failed`,
+                content: error?.message || 'Unknown error',
+                type: 'error',
+            });
+        } finally {
+            setBusyFormat('');
         }
-    }, [apiBaseUrl, experiments, planMeta, planName, projectPath]);
+    }, [apiBaseUrl, experiments, planMeta, planName, projectPath, showAlert]);
 
     const exportPlanAsCsv = useCallback(() => {
         exportPlanArtifact('csv');
@@ -606,20 +746,47 @@ const PlanPage = ({
     const scheduleBarOffset = (1 - scheduleBarSpan) / 2;
     const scheduleSource = [...experiments]
         .sort((a, b) => compareRunNames(a?.name, b?.name));
-    const scheduleData = scheduleSource
-        .map((exp, index) => {
-            const day = getPlannedDay(exp, index);
-            return {
-                name: exp.name,
-                day,
-                offset: Math.max(0, day - 1) + scheduleBarOffset,
-                duration: scheduleBarSpan,
-                status: !!exp.done,
-                runSortKey: String(exp?.name || ''),
-            };
-        })
-        .sort((a, b) => (a.day - b.day) || compareRunNames(a.runSortKey, b.runSortKey));
-    const scheduleMaxDay = scheduleData.reduce((maxValue, item) => Math.max(maxValue, item.day), 1);
+    const scheduleRunsByDay = new Map();
+    scheduleSource.forEach((exp, index) => {
+        const day = getPlannedDay(exp, index);
+        if (!scheduleRunsByDay.has(day)) scheduleRunsByDay.set(day, []);
+        scheduleRunsByDay.get(day).push({
+            name: exp.name,
+            day,
+            visualStatus: getRunVisualStatus(exp),
+            runSortKey: String(exp?.name || ''),
+        });
+    });
+    const scheduleDays = Array.from(scheduleRunsByDay.keys()).sort((a, b) => a - b);
+    scheduleDays.forEach((day) => {
+        const dayRuns = scheduleRunsByDay.get(day) || [];
+        dayRuns.sort((a, b) => compareRunNames(a.runSortKey, b.runSortKey));
+    });
+    const scheduleMaxLane = Math.max(1, ...Array.from(scheduleRunsByDay.values()).map((runs) => runs.length));
+    const scheduleDayKeys = scheduleDays.map((day) => `d${day}`);
+    const scheduleData = Array.from({ length: scheduleMaxLane }, (_, laneIndex) => {
+        const row = { laneLabel: `L${laneIndex + 1}` };
+        let laneCursor = 0;
+        scheduleDays.forEach((day) => {
+            const dayKey = `d${day}`;
+            const run = (scheduleRunsByDay.get(day) || [])[laneIndex];
+            if (run) {
+                const start = Math.max(0, day - 1) + scheduleBarOffset;
+                const gap = Math.max(0, start - laneCursor);
+                row[`${dayKey}Gap`] = gap;
+                row[`${dayKey}Duration`] = scheduleBarSpan;
+                laneCursor = start + scheduleBarSpan;
+            } else {
+                row[`${dayKey}Gap`] = 0;
+                row[`${dayKey}Duration`] = 0;
+            }
+            row[`${dayKey}Name`] = run?.name || '';
+            row[`${dayKey}Status`] = run?.visualStatus || 'planned';
+            row[`${dayKey}Day`] = day;
+        });
+        return row;
+    });
+    const scheduleMaxDay = scheduleDays.length ? Math.max(...scheduleDays) : 1;
     const scheduleTickStep = scheduleMaxDay > 14 ? Math.ceil(scheduleMaxDay / 7) : 1;
     const scheduleTicks = [];
     for (let dayNumber = 1; dayNumber <= scheduleMaxDay; dayNumber += scheduleTickStep) {
@@ -628,6 +795,8 @@ const PlanPage = ({
     if (!scheduleTicks.includes(scheduleMaxDay - 0.5)) {
         scheduleTicks.push(scheduleMaxDay - 0.5);
     }
+    const scheduleLaneCount = Math.max(1, scheduleData.length);
+    const scheduleChartHeightPx = Math.max(520, (scheduleLaneCount * 40) + 130);
     const getCalendarDateForDay = useCallback((dayNumber) => {
         const startRaw = getScheduleBaseDateRaw();
         const parsedDay = Number.parseInt(String(dayNumber || ''), 10);
@@ -643,32 +812,158 @@ const PlanPage = ({
         const dateLabel = getCalendarDateForDay(dayNumber);
         return dateLabel || `D${dayNumber}`;
     }, [getCalendarDateForDay]);
-    const renderScheduleLabel = useCallback((props) => {
-        const { x, y, width, height, value, payload, index } = props || {};
+    const openRunMetadataFromChart = useCallback((runName) => {
+        const target = String(runName || '').trim();
+        if (!target) return;
+        const found = experiments.find((exp) => String(exp?.name || '').trim() === target);
+        if (!found) return;
+        setModalOffset({ x: 0, y: 40 });
+        setEditError("");
+        setEditingExp({ ...found });
+    }, [experiments]);
+
+    const updateRunPlannedDayFromChart = useCallback((runName, nextDay) => {
+        const cleanRunName = String(runName || '').trim();
+        const boundedDay = Math.max(1, Number.parseInt(String(nextDay || ''), 10) || 1);
+        if (!cleanRunName) return;
+
+        const baseDateRaw = getScheduleBaseDateRaw();
+        const baseOrdinal = ymdToOrdinal(baseDateRaw);
+        const nextDate = Number.isFinite(baseOrdinal)
+            ? ordinalToYmd(baseOrdinal + boundedDay - 1)
+            : null;
+
+        setExperiments((previous) => previous.map((exp) => {
+            if (String(exp?.name || '').trim() !== cleanRunName) return exp;
+            return {
+                ...exp,
+                meta: {
+                    ...(exp.meta || {}),
+                    plannedDay: String(boundedDay),
+                    plannedDate: nextDate || String(exp?.meta?.plannedDate || ''),
+                },
+            };
+        }));
+    }, [getScheduleBaseDateRaw, ordinalToYmd, setExperiments, ymdToOrdinal]);
+
+    const beginScheduleRunDrag = useCallback((event, runName, startDay) => {
+        if (event?.button !== undefined && event.button !== 0) return;
+        const cleanRunName = String(runName || '').trim();
+        const cleanStartDay = Math.max(1, Number.parseInt(String(startDay || ''), 10) || 1);
+        if (!cleanRunName) return;
+        if (event?.preventDefault) event.preventDefault();
+        if (event?.stopPropagation) event.stopPropagation();
+        scheduleDragRef.current = {
+            runName: cleanRunName,
+            startDay: cleanStartDay,
+            startX: Number(event?.clientX || 0),
+            currentX: Number(event?.clientX || 0),
+            moved: false,
+        };
+        setDraggingScheduleRun(cleanRunName);
+    }, []);
+
+    useEffect(() => {
+        if (!draggingScheduleRun) return undefined;
+
+        const onMouseMove = (event) => {
+            const nextX = Number(event?.clientX || 0);
+            const delta = Math.abs(nextX - scheduleDragRef.current.startX);
+            scheduleDragRef.current.currentX = nextX;
+            if (delta >= 4) scheduleDragRef.current.moved = true;
+        };
+
+        const onMouseUp = () => {
+            const drag = scheduleDragRef.current;
+            const chartRect = scheduleChartAreaRef.current?.getBoundingClientRect?.();
+            const chartWidth = Math.max(1, Number(chartRect?.width || 1));
+            const chartInnerWidth = Math.max(1, chartWidth - 32);
+            const pxPerDay = chartInnerWidth / Math.max(1, scheduleMaxDay);
+            const deltaX = drag.currentX - drag.startX;
+            const deltaDays = Math.round(deltaX / pxPerDay);
+            const targetDay = Math.max(1, drag.startDay + deltaDays);
+
+            if (drag.moved && deltaDays !== 0) {
+                updateRunPlannedDayFromChart(drag.runName, targetDay);
+            } else {
+                openRunMetadataFromChart(drag.runName);
+            }
+            setDraggingScheduleRun(null);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        return () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+    }, [draggingScheduleRun, openRunMetadataFromChart, scheduleMaxDay, updateRunPlannedDayFromChart]);
+
+    const renderScheduleBarShape = useCallback((props, dayKey) => {
+        const { x, y, width, height, payload } = props || {};
         if (typeof x !== 'number' || typeof y !== 'number' || typeof width !== 'number' || typeof height !== 'number') {
             return null;
         }
-        if (!value) return null;
-        const row = Number.isInteger(index) ? scheduleData[index] : null;
-        const isDone = !!(row?.status ?? payload?.status);
-        const fill = isDone ? '#000000' : '#f4f4f5';
+        const runName = String(payload?.[`${dayKey}Name`] || '').trim();
+        const dayNumber = Number.parseInt(String(payload?.[`${dayKey}Day`] || ''), 10) || 1;
+        const visualStatus = String(payload?.[`${dayKey}Status`] || 'planned');
+        const hasRun = width > 0 && runName.length > 0;
+        if (!hasRun) {
+            return <rect x={x} y={y} width={width} height={height} fill="transparent" />;
+        }
+        const fill = RUN_STATUS_COLORS[visualStatus] || RUN_STATUS_COLORS.planned;
+        const isDragging = draggingScheduleRun === runName;
+        return (
+            <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                rx={4}
+                ry={4}
+                fill={fill}
+                opacity={isDragging ? 0.88 : 1}
+                stroke={isDragging ? 'rgba(255,255,255,0.55)' : 'none'}
+                strokeWidth={isDragging ? 1 : 0}
+                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                onMouseDown={(event) => beginScheduleRunDrag(event, runName, dayNumber)}
+            />
+        );
+    }, [beginScheduleRunDrag, draggingScheduleRun]);
+
+    const renderScheduleLabel = useCallback((props, dayKey) => {
+        const { x, y, width, height, value, payload } = props || {};
+        if (typeof x !== 'number' || typeof y !== 'number' || typeof width !== 'number' || typeof height !== 'number') {
+            return null;
+        }
+        const runName = String(payload?.[`${dayKey}Name`] || value || '').trim();
+        if (!runName || width <= 0) return null;
+        const runFromList = experiments.find((exp) => String(exp?.name || '').trim() === runName);
+        const visualStatus = runFromList
+            ? getRunVisualStatus(runFromList)
+            : String(payload?.[`${dayKey}Status`] || 'planned');
+        const dayNumber = Number.parseInt(String(payload?.[`${dayKey}Day`] || ''), 10) || 1;
+        const fill = visualStatus === 'done' ? '#020617' : '#f8fafc';
+        const stroke = visualStatus === 'done' ? 'rgba(2,6,23,0.35)' : 'rgba(2,6,23,0.25)';
         return (
             <text
                 x={x + width / 2}
                 y={y + height / 2}
                 fill={fill}
-                fontSize={11}
+                fontSize={10}
                 fontWeight={700}
                 dominantBaseline="middle"
                 textAnchor="middle"
                 paintOrder="stroke"
-                stroke={isDone ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)'}
+                stroke={stroke}
                 strokeWidth={0.35}
+                style={{ cursor: draggingScheduleRun === runName ? 'grabbing' : 'grab' }}
+                onMouseDown={(event) => beginScheduleRunDrag(event, runName, dayNumber)}
             >
-                {String(value)}
+                {runName}
             </text>
         );
-    }, [scheduleData]);
+    }, [beginScheduleRunDrag, draggingScheduleRun, experiments, getRunVisualStatus]);
     const isGroupCollapsed = useCallback((groupName) => collapsedGroups[groupName] === true, [collapsedGroups]);
     const toggleGroupCollapse = useCallback((groupName) => {
         setCollapsedGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }));
@@ -724,6 +1019,22 @@ const PlanPage = ({
 
     useEffect(() => () => clearDeleteUndoTimeout(), [clearDeleteUndoTimeout]);
 
+    useEffect(() => {
+        if (!editingExp) {
+            setIgnitionEditorMode('');
+            setVentEditorMode('');
+            return;
+        }
+        const ignitionValue = String(editingExp?.meta?.ignition || '').trim();
+        const ventValue = String(editingExp?.meta?.vent || '').trim();
+        setIgnitionEditorMode(
+            !ignitionValue ? '' : (IGNITION_PRESET_OPTIONS.includes(ignitionValue) ? ignitionValue : CUSTOM_OPTION_VALUE)
+        );
+        setVentEditorMode(
+            !ventValue ? '' : (VENT_PRESET_OPTIONS.includes(ventValue) ? ventValue : CUSTOM_OPTION_VALUE)
+        );
+    }, [editingExp?.id]);
+
     const beginModalDrag = (event) => {
         if (event.button !== 0) return;
         dragStartRef.current = {
@@ -738,6 +1049,10 @@ const PlanPage = ({
     const editingSelectedFiles = Array.isArray(editingExp?.meta?.dataFiles) ? editingExp.meta.dataFiles : [];
     const editingRunScopedFiles = editingExp ? filesForRunName(editingExp.name) : [];
     const editingStaleLinkedFiles = editingSelectedFiles.filter((pathValue) => !editingRunScopedFiles.includes(pathValue));
+    const editingIgnitionValue = String(editingExp?.meta?.ignition || '');
+    const editingVentValue = String(editingExp?.meta?.vent || '');
+    const editingIgnitionSelection = ignitionEditorMode;
+    const editingVentSelection = ventEditorMode;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
@@ -751,8 +1066,12 @@ const PlanPage = ({
                    <div className="flex gap-1">
                        <button onClick={handleSavePlan} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Save size={18}/></button>
                        <button onClick={onImport} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Upload size={18}/></button>
-                       <button onClick={exportPlanAsCsv} title="Export plan as CSV" className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Download size={18}/></button>
-                       <button onClick={exportPlanAsPdf} title="Export plan as PDF" className="px-2 text-[10px] font-bold text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors">PDF</button>
+                       <ExportFormatButtons
+                           onExportCsv={exportPlanAsCsv}
+                           onExportPdf={exportPlanAsPdf}
+                           busyFormat={busyFormat}
+                           size="sm"
+                       />
                    </div>
                 </div>
                 
@@ -911,7 +1230,14 @@ const PlanPage = ({
                                         >
                                             {e.done ? <CheckSquare size={16} className="text-[hsl(var(--primary))]"/> : <Square size={16}/>}
                                         </button>
-                                        <span className={`text-sm flex-1 truncate font-mono ${e.done ? 'line-through text-zinc-600' : 'text-zinc-300'}`}>{e.name}</span>
+                                        <span
+                                            title={String(e.name || '')}
+                                            className={`text-[13px] leading-snug flex-1 min-w-0 pr-2 font-mono font-semibold break-all ${
+                                                e.done ? 'line-through text-zinc-600' : 'text-zinc-300'
+                                            }`}
+                                        >
+                                            {e.name}
+                                        </span>
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                                             <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} className="text-zinc-600 hover:text-white p-1 hover:bg-zinc-800 rounded transition-colors"><PenTool size={12}/></button>
                                             <button onClick={() => removeRunWithUndo(e.id)} className="text-zinc-600 hover:text-red-500 p-1 hover:bg-zinc-800 rounded transition-colors"><Trash2 size={12}/></button>
@@ -932,6 +1258,16 @@ const PlanPage = ({
                                         {isPreparationRun(e) && (
                                             <div className="flex items-center gap-1 border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 rounded text-[9px] text-amber-300 font-semibold">
                                                 <Wrench size={8}/> Preparation
+                                            </div>
+                                        )}
+                                        {e.meta?.hasError && (
+                                            <div className="flex items-center gap-1 border border-red-500/40 bg-red-500/10 px-1.5 py-0.5 rounded text-[9px] text-red-300 font-semibold">
+                                                <AlertCircle size={8}/> Error
+                                            </div>
+                                        )}
+                                        {!e.meta?.hasError && e.meta?.isCanceled && (
+                                            <div className="flex items-center gap-1 border border-orange-500/40 bg-orange-500/10 px-1.5 py-0.5 rounded text-[9px] text-orange-300 font-semibold">
+                                                <X size={8}/> Canceled
                                             </div>
                                         )}
                                         {isReady(e) ? (
@@ -1025,14 +1361,6 @@ const PlanPage = ({
                     {/* KPI GRID */}
                     <div className="grid grid-cols-2 gap-2">
                         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                            <div className="text-xl font-bold text-white leading-none mb-1">{stats.done}/{stats.total}</div>
-                            <div className="text-[9px] text-zinc-500 font-bold">Performed</div>
-                        </div>
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                            <div className="text-xl font-bold text-primary leading-none mb-1">{stats.ready}</div>
-                            <div className="text-[9px] text-zinc-500 font-bold">Ready Runs</div>
-                        </div>
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
                             <div className="text-xl font-bold text-zinc-300 leading-none mb-1">{stats.daysLeft}</div>
                             <div className="text-[9px] text-zinc-500 font-bold">Days until Deadline</div>
                         </div>
@@ -1040,9 +1368,23 @@ const PlanPage = ({
                             <div className="text-xl font-bold text-primary leading-none mb-1">{stats.pace || '--'}</div>
                             <div className="text-[9px] text-zinc-500 font-bold">Pace (Runs/Day)</div>
                         </div>
+                        <div className="col-span-2 grid grid-cols-3 gap-2">
+                            <div className="bg-zinc-900/50 border border-orange-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                                <div className="text-xl font-bold text-orange-400 leading-none mb-1">{stats.canceled}</div>
+                                <div className="text-[9px] text-zinc-500 font-bold">Canceled Runs</div>
+                            </div>
+                            <div className="bg-zinc-900/50 border border-red-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                                <div className="text-xl font-bold text-red-400 leading-none mb-1">{stats.errors}</div>
+                                <div className="text-[9px] text-zinc-500 font-bold">Error Runs</div>
+                            </div>
+                            <div className="bg-zinc-900/50 border border-yellow-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                                <div className="text-xl font-bold text-yellow-300 leading-none mb-1">{stats.preparation}</div>
+                                <div className="text-[9px] text-zinc-500 font-bold">Preparation Runs</div>
+                            </div>
+                        </div>
                         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center col-span-2">
                             <div className="text-xl font-bold text-white leading-none mb-1">{stats.completionPercent}%</div>
-                            <div className="text-[9px] text-zinc-500 font-bold">Completion</div>
+                            <div className="text-[9px] text-zinc-500 font-bold">Completion ({stats.done}/{stats.total})</div>
                             <div className="mt-2 h-1 w-full max-w-[120px] rounded-full bg-zinc-800 overflow-hidden">
                                 <div className="h-full bg-primary" style={{ width: `${stats.completionPercent}%` }} />
                             </div>
@@ -1051,42 +1393,78 @@ const PlanPage = ({
                 </div>
 
                 {/* TIMELINE */}
-                <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl h-[450px] shrink-0 flex flex-col">
+                <div
+                    className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl shrink-0 flex flex-col"
+                    style={{ height: `${scheduleChartHeightPx}px` }}
+                >
                     <h3 className="text-[10px] font-bold text-zinc-500 mb-4 flex items-center gap-2 tracking-wide"><Clock size={12}/> Campaign Schedule</h3>
-                    <div className="flex-1 bg-black/40 rounded-lg border border-zinc-800/50 overflow-hidden">
+                    <div
+                        ref={scheduleChartAreaRef}
+                        className="flex-1 bg-black/40 rounded-lg border border-zinc-800/50 overflow-hidden"
+                        style={{ cursor: draggingScheduleRun ? 'grabbing' : 'default' }}
+                    >
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart layout="vertical" data={scheduleData} barSize={18} margin={{left: 16, right: 16, top: 10, bottom: 20}}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#222" />
+                            <BarChart
+                                layout="vertical"
+                                data={scheduleData}
+                                barSize={22}
+                                margin={{left: 16, right: 16, top: 16, bottom: 22}}
+                            >
+                                <CartesianGrid strokeDasharray="2 4" horizontal={false} stroke="#334155" />
                                 <XAxis
                                     type="number"
-                                    stroke="#52525b"
+                                    stroke="#a1a1aa"
                                     fontSize={9}
                                     tickFormatter={formatScheduleTick}
                                     domain={[0, scheduleMaxDay]}
                                     ticks={scheduleTicks}
                                     allowDecimals={false}
                                 />
-                                <YAxis type="category" dataKey="name" width={0} tick={false} axisLine={false} tickLine={false} />
-                                <Tooltip
-                                    cursor={{fill: 'rgba(255,255,255,0.05)'}}
-                                    contentStyle={{backgroundColor: '#18181b', border: '1px solid #3f3f46', fontSize: '10px'}}
-                                    formatter={(value, key, payload) => {
-                                        if (key === 'duration') {
-                                            const dayValue = payload?.payload?.day;
-                                            const dateLabel = getCalendarDateForDay(dayValue);
-                                            return [dateLabel ? `${dateLabel} (D${dayValue})` : `D${dayValue ?? '-'}`, 'Scheduled'];
-                                        }
-                                        return [value, key];
-                                    }}
-                                    labelFormatter={(label, payload) => payload?.[0]?.payload?.name || label}
+                                <YAxis
+                                    type="category"
+                                    dataKey="laneLabel"
+                                    width={0}
+                                    tick={false}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    padding={{ top: 10, bottom: 10 }}
                                 />
-                                <Bar dataKey="offset" stackId="a" fill="transparent" />
-                                <Bar dataKey="duration" stackId="a" radius={4}>
-                                    {scheduleData.map((e, index) => <Cell key={`cell-${index}`} fill={e.status ? 'hsl(var(--primary))' : '#3f3f46'} />)}
-                                    <LabelList dataKey="name" content={renderScheduleLabel} />
-                                </Bar>
+                                {scheduleDayKeys.map((dayKey) => (
+                                    <React.Fragment key={dayKey}>
+                                        <Bar dataKey={`${dayKey}Gap`} stackId="scheduleLane" fill="transparent" isAnimationActive={false} barSize={22} />
+                                        <Bar
+                                            dataKey={`${dayKey}Duration`}
+                                            stackId="scheduleLane"
+                                            isAnimationActive={false}
+                                            barSize={22}
+                                            shape={(props) => renderScheduleBarShape(props, dayKey)}
+                                        >
+                                            <LabelList
+                                                dataKey={`${dayKey}Name`}
+                                                content={(props) => renderScheduleLabel(props, dayKey)}
+                                            />
+                                        </Bar>
+                                    </React.Fragment>
+                                ))}
                             </BarChart>
                         </ResponsiveContainer>
+                    </div>
+                    <div className="mt-2 text-[10px] text-zinc-500 text-center">
+                        Drag a run block left/right to move its planned day. Click opens Run Metadata Card.
+                    </div>
+                    <div className="mt-3 flex items-center justify-center gap-4 text-[10px] text-zinc-400">
+                        <div className="flex items-center gap-1.5">
+                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-cyan-400" />
+                            <span>Done</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-500" />
+                            <span>Canceled</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500" />
+                            <span>Error</span>
+                        </div>
                     </div>
                 </div>
 
@@ -1161,8 +1539,76 @@ const PlanPage = ({
                                             />
                                             Preparation run (skip required metadata gate)
                                         </label>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Ignition Configuration</label><input value={editingExp.meta?.ignition} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, ignition:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., Center spark, 100 mJ"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Venting Configuration</label><input value={editingExp.meta?.vent} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, vent:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., Mylar 20 um"/></div>
+                                        <div>
+                                            <label className="text-[9px] text-zinc-500 font-bold mb-1 block">Ignition Configuration</label>
+                                            <select
+                                                value={editingIgnitionSelection}
+                                                onChange={(e) => {
+                                                    const selected = e.target.value;
+                                                    setIgnitionEditorMode(selected);
+                                                    if (selected === '') {
+                                                        setEditingExp({ ...editingExp, meta: { ...editingExp.meta, ignition: '' } });
+                                                        return;
+                                                    }
+                                                    if (selected === CUSTOM_OPTION_VALUE) {
+                                                        const keepCustom = !IGNITION_PRESET_OPTIONS.includes(editingIgnitionValue);
+                                                        setEditingExp({ ...editingExp, meta: { ...editingExp.meta, ignition: keepCustom ? editingIgnitionValue : '' } });
+                                                        return;
+                                                    }
+                                                    setEditingExp({ ...editingExp, meta: { ...editingExp.meta, ignition: selected } });
+                                                }}
+                                                className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 outline-none focus:ring-1 focus:ring-primary"
+                                            >
+                                                <option value="">Select ignition setup...</option>
+                                                {IGNITION_PRESET_OPTIONS.map((option) => (
+                                                    <option key={option} value={option}>{option}</option>
+                                                ))}
+                                                <option value={CUSTOM_OPTION_VALUE}>Other (custom)</option>
+                                            </select>
+                                            {editingIgnitionSelection === CUSTOM_OPTION_VALUE && (
+                                                <input
+                                                    value={editingIgnitionValue}
+                                                    onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, ignition:e.target.value}})}
+                                                    className="mt-2 w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                                    placeholder="Type custom ignition setup..."
+                                                />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] text-zinc-500 font-bold mb-1 block">Venting Configuration</label>
+                                            <select
+                                                value={editingVentSelection}
+                                                onChange={(e) => {
+                                                    const selected = e.target.value;
+                                                    setVentEditorMode(selected);
+                                                    if (selected === '') {
+                                                        setEditingExp({ ...editingExp, meta: { ...editingExp.meta, vent: '' } });
+                                                        return;
+                                                    }
+                                                    if (selected === CUSTOM_OPTION_VALUE) {
+                                                        const keepCustom = !VENT_PRESET_OPTIONS.includes(editingVentValue);
+                                                        setEditingExp({ ...editingExp, meta: { ...editingExp.meta, vent: keepCustom ? editingVentValue : '' } });
+                                                        return;
+                                                    }
+                                                    setEditingExp({ ...editingExp, meta: { ...editingExp.meta, vent: selected } });
+                                                }}
+                                                className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 outline-none focus:ring-1 focus:ring-primary"
+                                            >
+                                                <option value="">Select vent setup...</option>
+                                                {VENT_PRESET_OPTIONS.map((option) => (
+                                                    <option key={option} value={option}>{option}</option>
+                                                ))}
+                                                <option value={CUSTOM_OPTION_VALUE}>Other (custom)</option>
+                                            </select>
+                                            {editingVentSelection === CUSTOM_OPTION_VALUE && (
+                                                <input
+                                                    value={editingVentValue}
+                                                    onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, vent:e.target.value}})}
+                                                    className="mt-2 w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                                    placeholder="Type custom vent setup..."
+                                                />
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1238,6 +1684,42 @@ const PlanPage = ({
                                     <div className="flex items-center gap-2 text-zinc-300 font-semibold text-xs tracking-wide mb-3 border-b border-zinc-900 pb-1">
                                         <PenTool size={12}/> Operator Notes
                                     </div>
+                                    <div className="mb-3 rounded border border-zinc-800 bg-black/30 p-3 space-y-3">
+                                        <div className="text-[10px] font-semibold tracking-wide text-zinc-400">Run Status Flags</div>
+                                        <label className="inline-flex items-center gap-2 text-[10px] text-zinc-300">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!editingExp.meta?.hasError}
+                                                onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, hasError:e.target.checked}})}
+                                                className="h-3.5 w-3.5 accent-red-500"
+                                            />
+                                            Error (plot color turns red)
+                                        </label>
+                                        <textarea
+                                            value={editingExp.meta?.errorNote || ''}
+                                            onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, errorNote:e.target.value}})}
+                                            className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic h-16 outline-none focus:ring-1 focus:ring-red-500 resize-none font-sans"
+                                            placeholder="Error note (anomaly, root cause, traceback, etc.)"
+                                        />
+                                        <label className="inline-flex items-center gap-2 text-[10px] text-zinc-300">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!editingExp.meta?.isCanceled}
+                                                onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, isCanceled:e.target.checked}})}
+                                                className="h-3.5 w-3.5 accent-orange-500"
+                                            />
+                                            Canceled (plot color turns orange)
+                                        </label>
+                                        <textarea
+                                            value={editingExp.meta?.canceledNote || ''}
+                                            onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, canceledNote:e.target.value}})}
+                                            className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic h-16 outline-none focus:ring-1 focus:ring-orange-500 resize-none font-sans"
+                                            placeholder="Canceled note (reason and next action)"
+                                        />
+                                        <div className="text-[10px] text-zinc-500">
+                                            If both are checked, chart color priority is: Error (red) over Canceled (orange).
+                                        </div>
+                                    </div>
                                     <div className="mb-3">
                                         <label className="text-[9px] text-zinc-500 font-bold mb-1 block">Short Description</label>
                                         <input
@@ -1260,6 +1742,7 @@ const PlanPage = ({
                     </div>
                 </div>
             )}
+            <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
         </div>
     );
 };

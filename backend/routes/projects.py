@@ -94,6 +94,40 @@ def create_project_at_path():
     return jsonify({"success": False, "error": msg})
 
 
+@projects_bp.route('/rename_project', methods=['POST'])
+def rename_project():
+    """Rename an existing project folder."""
+    data = request.json or {}
+    project_path = (data.get('projectPath') or '').strip()
+    new_name = (data.get('newProjectName') or '').strip()
+    if not project_path:
+        return jsonify({"success": False, "error": "Project path is required"}), 400
+    if not new_name:
+        return jsonify({"success": False, "error": "New project name is required"}), 400
+
+    success, msg, new_path = project_manager.rename_project(project_path, new_name)
+    if success:
+        return jsonify({"success": True, "path": new_path, "message": msg})
+    return jsonify({"success": False, "error": msg}), 400
+
+
+@projects_bp.route('/copy_project', methods=['POST'])
+def copy_project():
+    """Create a full copy of an existing project folder."""
+    data = request.json or {}
+    project_path = (data.get('projectPath') or '').strip()
+    new_name = (data.get('newProjectName') or '').strip()
+    if not project_path:
+        return jsonify({"success": False, "error": "Project path is required"}), 400
+    if not new_name:
+        return jsonify({"success": False, "error": "Copy project name is required"}), 400
+
+    success, msg, new_path = project_manager.copy_project(project_path, new_name)
+    if success:
+        return jsonify({"success": True, "path": new_path, "message": msg})
+    return jsonify({"success": False, "error": msg}), 400
+
+
 @projects_bp.route('/delete_project', methods=['POST'])
 def delete_project():
     """Archive (soft-delete) a project into the local trash folder."""
