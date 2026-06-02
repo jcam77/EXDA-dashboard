@@ -92,6 +92,8 @@ const PlanPage = ({
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const [busyFormat, setBusyFormat] = useState('');
     const [rawDataFiles, setRawDataFiles] = useState([]);
+    const [gasMixingByRun, setGasMixingByRun] = useState({});
+    const [loadingGasMixingMirror, setLoadingGasMixingMirror] = useState(false);
     const [collapsedGroups, setCollapsedGroups] = useState({});
     const [lastDeletedRun, setLastDeletedRun] = useState(null);
     const [folderCheck, setFolderCheck] = useState({ status: 'idle', message: '' });
@@ -99,6 +101,53 @@ const PlanPage = ({
     const scheduleChartAreaRef = useRef(null);
     const scheduleDragRef = useRef({ runName: '', startDay: 1, startX: 0, currentX: 0, moved: false });
     const deleteUndoTimeoutRef = useRef(null);
+
+    const normalizeRunKey = useCallback((value) => String(value || '').trim(), []);
+    const buildGasMirrorByRun = useCallback((records) => {
+        const map = {};
+        (Array.isArray(records) ? records : []).forEach((item) => {
+            const runName = normalizeRunKey(item?.runName);
+            if (!runName) return;
+            const next = {
+                h2InjectedGrams: String(item?.mH2InjectedG ?? '').trim(),
+                mfcFlowSlpm: String(item?.mfcFlowSlpm ?? '').trim(),
+                pChamberPa: String(item?.pChamberPa ?? '').trim(),
+                tChamberK: String(item?.tChamberK ?? '').trim(),
+                updatedAt: String(item?.updatedAt ?? '').trim(),
+            };
+            const prev = map[runName];
+            if (!prev) {
+                map[runName] = next;
+                return;
+            }
+            const prevMs = Date.parse(prev.updatedAt || '');
+            const nextMs = Date.parse(next.updatedAt || '');
+            if (Number.isFinite(nextMs) && (!Number.isFinite(prevMs) || nextMs >= prevMs)) {
+                map[runName] = next;
+            }
+        });
+        return map;
+    }, [normalizeRunKey]);
+
+    const refreshGasMixingMirror = useCallback(async () => {
+        if (!projectPath) {
+            setGasMixingByRun({});
+            return;
+        }
+        setLoadingGasMixingMirror(true);
+        try {
+            const response = await fetch(`${apiBaseUrl}/get_gas_mixing?projectPath=${encodeURIComponent(projectPath)}`);
+            const payload = await response.json();
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.error || 'Could not load gas mixing mirror');
+            }
+            setGasMixingByRun(buildGasMirrorByRun(payload?.records));
+        } catch {
+            setGasMixingByRun({});
+        } finally {
+            setLoadingGasMixingMirror(false);
+        }
+    }, [apiBaseUrl, buildGasMirrorByRun, projectPath]);
 
     // --- ANALYTICS & GATING ---
     const isPreparationRun = useCallback((exp) => !!exp?.meta?.isPreparation, []);
@@ -532,6 +581,10 @@ const PlanPage = ({
                 ...editingExp,
                 meta: {
                     ...(editingExp.meta || {}),
+                    h2InjectedGrams: String(gasMixingByRun[editedRunName]?.h2InjectedGrams || ''),
+                    mfcFlowSlpm: String(gasMixingByRun[editedRunName]?.mfcFlowSlpm || ''),
+                    p0: String(gasMixingByRun[editedRunName]?.pChamberPa || ''),
+                    t0: String(gasMixingByRun[editedRunName]?.tChamberK || ''),
                     dataFiles: selected
                 }
             };
@@ -1020,6 +1073,15 @@ const PlanPage = ({
     useEffect(() => () => clearDeleteUndoTimeout(), [clearDeleteUndoTimeout]);
 
     useEffect(() => {
+        refreshGasMixingMirror();
+    }, [refreshGasMixingMirror]);
+
+    useEffect(() => {
+        if (!editingExp) return;
+        refreshGasMixingMirror();
+    }, [editingExp?.id, refreshGasMixingMirror]);
+
+    useEffect(() => {
         if (!editingExp) {
             setIgnitionEditorMode('');
             setVentEditorMode('');
@@ -1053,6 +1115,15 @@ const PlanPage = ({
     const editingVentValue = String(editingExp?.meta?.vent || '');
     const editingIgnitionSelection = ignitionEditorMode;
     const editingVentSelection = ventEditorMode;
+    const editingGasMirror = editingExp ? gasMixingByRun[normalizeRunKey(editingExp.name)] : null;
+    const rawMirroredH2Injected = String(editingGasMirror?.h2InjectedGrams || '').trim();
+    const mirroredH2InjectedNumeric = Number.parseFloat(rawMirroredH2Injected);
+    const editingMirroredH2Injected = Number.isFinite(mirroredH2InjectedNumeric)
+        ? mirroredH2InjectedNumeric.toFixed(3)
+        : rawMirroredH2Injected;
+    const editingMirroredMfcFlow = String(editingGasMirror?.mfcFlowSlpm || '');
+    const editingMirroredPchamber = String(editingGasMirror?.pChamberPa || '');
+    const editingMirroredTchamberK = String(editingGasMirror?.tChamberK || '');
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
@@ -1517,11 +1588,23 @@ const PlanPage = ({
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 pl-1 md:pl-2">
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Target H2%V</label><input value={editingExp.meta?.h2} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 10.5"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Injected hydrogen mass">H2 injected (g)</label><input value={editingExp.meta?.h2InjectedGrams || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2InjectedGrams:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 8"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Mass flow controller flow">MFC flow (SLPM)</label><input value={editingExp.meta?.mfcFlowSlpm || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, mfcFlowSlpm:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 12.5"/></div>
+                                        <div>
+                                            <label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Injected hydrogen mass">H2 injected (g) • mirrored from Gas Mixing</label>
+                                            <input value={editingMirroredH2Injected} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Not calculated yet'} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Mass flow controller flow">MFC flow (SLPM) • mirrored from Gas Mixing</label>
+                                            <input value={editingMirroredMfcFlow} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Not calculated yet'} />
+                                        </div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Schedule Date</label><input type="date" value={editingExp.meta?.plannedDate || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDate:e.target.value, plannedDay: ''}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Init. P (Pa)</label><input value={editingExp.meta?.p0} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, p0:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 101325"/></div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Init. T (K)</label><input value={editingExp.meta?.t0} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, t0:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 293"/></div>
+                                        <div>
+                                            <label className="text-[9px] text-zinc-500 font-bold mb-1 block">Init. P (Pa) • mirrored from Gas Mixing</label>
+                                            <input value={editingMirroredPchamber} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Set in Gas Mixing'} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] text-zinc-500 font-bold mb-1 block">Init. T (K) • mirrored from Gas Mixing</label>
+                                            <input value={editingMirroredTchamberK} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Set in Gas Mixing'} />
+                                        </div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block whitespace-nowrap">Recirc stop → ignition time (s)</label><input value={editingExp.meta?.recircStopToIgnitionSec || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, recircStopToIgnitionSec:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 120"/></div>
                                     </div>
                                 </div>

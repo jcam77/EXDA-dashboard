@@ -350,7 +350,8 @@ const ProjectsPage = ({
         status: statusValue,
         objective: objectiveText,
         description,
-        createdDate: plan.created_date || plan.start_date || '',
+        startDate: plan.start_date || plan.created_date || '',
+        finishDate: plan.deadline || '',
         experiments: plan.experiments_total || 0,
         progress: Number.isFinite(plan.progress) ? plan.progress : 0,
       };
@@ -809,15 +810,21 @@ const ProjectsPage = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
+                  <div className="grid grid-cols-3 gap-3 border-t border-border pt-4">
                     <div>
                       <p className="mb-1 text-xs text-muted-foreground">Experiments</p>
                       <p className="text-lg font-bold text-primary">{project.experiments}</p>
                     </div>
                     <div>
-                      <p className="mb-1 text-xs text-muted-foreground">Created</p>
+                      <p className="mb-1 text-xs text-muted-foreground">Start</p>
                       <p className="text-sm font-medium text-foreground">
-                        {formatDate(project.createdDate)}
+                        {formatDate(project.startDate)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs text-muted-foreground">Finish</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {formatDate(project.finishDate)}
                       </p>
                     </div>
                   </div>

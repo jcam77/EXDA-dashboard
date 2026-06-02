@@ -103,14 +103,14 @@
           "VH2D-Wk22-02-01/H2CM/H2CM-U-M-L-VH2D-02-01-260528-105051.csv"
         ],
         "h2": "18",
-        "ignition": "back wall",
+        "ignition": "Back Wall",
         "isPreparation": false,
         "p0": "101325",
         "plannedDate": "2026-05-28",
         "plannedDay": "",
         "recircStopToIgnitionSec": "243",
         "t0": "293",
-        "vent": "thin film"
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk22-02-01",
       "notes": "Added 12.278 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -126,7 +126,7 @@
           "VH2D-Wk22-03-01/H2CM/H2CM-U-M-L-VH2D-03-01-260528-160918.csv"
         ],
         "h2": "18",
-        "ignition": "back",
+        "ignition": "Back Wall",
         "isPreparation": false,
         "p0": "101325",
         "plannedDate": "2026-05-28",
@@ -134,7 +134,7 @@
         "recircStopToIgnitionSec": "230",
         "shortDescription": "",
         "t0": "293",
-        "vent": "thin film"
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk22-03-01",
       "notes": "Added 12.278 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -162,7 +162,7 @@
         "vent": "Thin Film with Hotwire NOT Activated"
       },
       "name": "Prep-Wk22-01",
-      "notes": "Recirc stop → ignition time (s): No Recorded"
+      "notes": "Recirc stop → ignition time (s): No Recorded\n\ninjected 8.276 gr temp 292.15 K"
     },
     {
       "done": true,
@@ -176,7 +176,7 @@
           "VH2D-Wk22-02-02/DAQ-4/DAQ-4-VH2D-02-02.mf4"
         ],
         "h2": "18",
-        "ignition": "back wall",
+        "ignition": "Back Wall",
         "isPreparation": false,
         "p0": "101325",
         "plannedDate": "2026-05-28",
@@ -184,7 +184,7 @@
         "recircStopToIgnitionSec": "231",
         "shortDescription": "",
         "t0": "293",
-        "vent": "thin film"
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk22-02-02",
       "notes": "P3 and P7 swapped\n\nAdded 12.278 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -201,7 +201,7 @@
           "VH2D-Wk22-02-03/H2CM/H2CM-U-M-L-VH2D-02-03-260528-134340.csv"
         ],
         "h2": "20",
-        "ignition": "Back",
+        "ignition": "Back Wall",
         "isPreparation": false,
         "p0": "101325",
         "plannedDate": "2026-05-28",
@@ -209,7 +209,7 @@
         "recircStopToIgnitionSec": "232",
         "shortDescription": "",
         "t0": "293",
-        "vent": "thin film"
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk22-02-03",
       "notes": "P3 and P7 swapped\n\nAdded 13.671 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -258,7 +258,7 @@
         "recircStopToIgnitionSec": "232",
         "shortDescription": "",
         "t0": "293",
-        "vent": "Thin Film"
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk22-03-02",
       "notes": "PP3 moved to 5m radius\n\nAdded 12.278 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -500,7 +500,7 @@
         ],
         "h2": "16",
         "h2InjectedGrams": "10.885",
-        "ignition": "back wall",
+        "ignition": "Back Wall",
         "isPreparation": false,
         "mfcFlowSlpm": "20",
         "p0": "101325",
@@ -509,7 +509,7 @@
         "recircStopToIgnitionSec": "245",
         "shortDescription": "",
         "t0": "291.75",
-        "vent": "thin film with hotwire activated"
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk22-04-01",
       "notes": "Added 10.885 gr\nCorrelation>\nM= 69.638 C - 0.2568\n\n\nMissing data from H2CM. !!! Mean Value: 16.1 Vol.%"
@@ -556,7 +556,7 @@
         "recircStopToIgnitionSec": "502",
         "shortDescription": "",
         "t0": "293",
-        "vent": "Thin Film"
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk22-04-02",
       "notes": "Added 10.885 gr\nCorrelation>\nM= 69.638 C - 0.2568\n1024 hPa\nHR 53%\n"
@@ -595,14 +595,14 @@
           "VH2D-Wk22-04-04/H2CM/H2CM-U-M-L-VH2D-04-04-260529-135315.csv"
         ],
         "h2": "21",
-        "ignition": "back wall",
+        "ignition": "Back Wall",
         "isPreparation": false,
         "p0": "101325",
         "plannedDate": "2026-05-29",
         "recircStopToIgnitionSec": "252",
         "shortDescription": "",
         "t0": "293",
-        "vent": "thin film"
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk22-04-04",
       "notes": "Added 14.367 gr\nCorrelation>\nM= 69.638 C - 0.2568\n1023 hPa\nHR 44%"
@@ -618,13 +618,13 @@
           "VH2D-Wk22-04-05/H2CM/H2CM-M-U-L-M-VH2D-04-05-260529-150229.csv"
         ],
         "h2": "12",
-        "ignition": "back wall",
+        "ignition": "Back Wall",
         "isPreparation": false,
         "p0": "101325",
         "plannedDate": "2026-05-29",
-        "shortDescription": "",
+        "shortDescription": "Non Homogenous Flammable Mixture",
         "t0": "293",
-        "vent": "thin film"
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk22-04-05",
       "notes": "Added xxxx gr for a 12vol.%\n1020 hPa\nHR 41%\nNon HOmogeneous\n"

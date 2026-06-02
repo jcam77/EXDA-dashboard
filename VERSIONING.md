@@ -7,8 +7,7 @@ This is the EXDA versioning workflow.
 - Latest release version: `2.31.0`
 - Latest release tag: `browser-MVP-v2.31.0`
 - Updated on: `2026-06-01`
-The safe rule is:
-
+  The safe rule is:
 - develop on `CODEX-Updates`
 - release from `main`
 - create the release tag from `main`
@@ -216,7 +215,7 @@ Use one of these two methods:
 2. Non-interactive mode (recommended in automated/remote terminals):
 
 ```bash
-./versioning.sh browser-MVP-v2.30.1
+./versioning.sh browser-MVP-v2.31.1
 ```
 
 Important:

@@ -36,12 +36,27 @@ const normalizeTriggerMethodValue = (value) => {
   return text;
 };
 
+const normalizeSensitivityUnitValue = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return 'pC/bar';
+  const lower = text.toLowerCase();
+  if (lower === 'pc/bar' || lower === 'pc per bar') return 'pC/bar';
+  if (lower === 'pc/kpa' || lower === 'pc per kpa') return 'pC/kPa';
+  if (lower === 'mv/bar' || lower === 'mv per bar') return 'mV/bar';
+  if (lower === 'mv/kpa' || lower === 'mv per kpa') return 'mV/kPa';
+  if (lower === 'v/bar' || lower === 'v per bar') return 'V/bar';
+  if (lower === 'v/kpa' || lower === 'v per kpa') return 'V/kPa';
+  if (lower === 'other') return 'other';
+  return text;
+};
+
 const normalizeSensorRecord = (sensor) => {
   const record = sensor && typeof sensor === 'object' ? sensor : {};
   return {
     ...record,
     mountingMethod: normalizeMountingMethodValue(record.mountingMethod),
     triggerMethod: normalizeTriggerMethodValue(record.triggerMethod),
+    sensitivityUnit: normalizeSensitivityUnitValue(record.sensitivityUnit),
   };
 };
 

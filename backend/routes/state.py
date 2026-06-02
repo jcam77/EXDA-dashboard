@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, request, send_file
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
 import re
 import csv
@@ -112,6 +112,19 @@ def _normalize_gas_verification_meta(raw_meta):
         "isMatlabVerified": bool(source.get("isMatlabVerified")),
         "verificationRefFileA": str(source.get("verificationRefFileA") or source.get("verificationRefFile") or DEFAULT_GAS_VERIFY_FILE_A).strip(),
         "verificationRefFileB": str(source.get("verificationRefFileB") or DEFAULT_GAS_VERIFY_FILE_B).strip(),
+    }
+
+
+def _normalize_gas_dosage_model(raw_model):
+    source = raw_model if isinstance(raw_model, dict) else {}
+    model_type = "linear_targetVol_to_mass"
+    return {
+        "enabled": bool(source.get("enabled")),
+        "modelType": model_type,
+        "targetBasis": str(source.get("targetBasis") or "percent").strip() or "percent",
+        "a": str(source.get("a") or "").strip(),
+        "b": str(source.get("b") or "0").strip(),
+        "notes": str(source.get("notes") or "").strip(),
     }
 
 
@@ -801,6 +814,216 @@ def _write_plan_csv(rows, target_path, plan_name=None, plan_meta=None):
             ])
 
 
+def _parse_plan_date(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    candidates = [raw, raw[:10]]
+    for candidate in candidates:
+        for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(candidate, fmt).date()
+            except Exception:
+                continue
+    return None
+
+
+def _format_plan_date(value):
+    parsed = _parse_plan_date(value)
+    if parsed is not None:
+        return parsed.strftime("%Y-%m-%d")
+    raw = str(value or "").strip()
+    return raw or "-"
+
+
+def _is_yes(value):
+    return str(value or "").strip().lower() in {"yes", "true", "1", "y"}
+
+
+def _build_plan_overview_stats(plan_meta, rows):
+    safe_rows = rows if isinstance(rows, list) else []
+    total = len(safe_rows)
+    done = sum(1 for row in safe_rows if _is_yes((row or {}).get("done")))
+    canceled = sum(1 for row in safe_rows if _is_yes((row or {}).get("canceled")))
+    errors = sum(1 for row in safe_rows if _is_yes((row or {}).get("error")))
+    preparation = sum(1 for row in safe_rows if _is_yes((row or {}).get("preparation")))
+    completion = round((done / total) * 100) if total else 0
+
+    deadline = _parse_plan_date((plan_meta or {}).get("deadline"))
+    today_tz = _get_display_tz()
+    today = datetime.now(today_tz).date() if today_tz is not None else datetime.now().date()
+    days_left = None
+    if deadline is not None:
+        days_left = max((deadline - today).days, 0)
+    remaining = max(total - done, 0)
+    pace = "--"
+    if days_left and days_left > 0:
+        pace = f"{remaining / days_left:.1f}"
+
+    return {
+        "total": total,
+        "done": done,
+        "canceled": canceled,
+        "errors": errors,
+        "preparation": preparation,
+        "completion": completion,
+        "days_left": days_left,
+        "pace": pace,
+    }
+
+
+def _draw_plan_overview_page(fitz, doc, plan_name, plan_meta, rows, draw_logo):
+    page = doc.new_page(width=842, height=595)
+    draw_logo(page)
+
+    def _textbox(rect, text, fontname="courier", fontsize=8.5, color=(0, 0, 0), align=0):
+        page.insert_textbox(rect, str(text or ""), fontname=fontname, fontsize=fontsize, color=color, align=align)
+
+    def _center_line(rect, y_pos, text, fontname="courier-bold", fontsize=14, color=(0, 0, 0)):
+        text_value = str(text or "")
+        try:
+            text_width = fitz.get_text_length(text_value, fontname=fontname, fontsize=fontsize)
+        except Exception:
+            text_width = len(text_value) * fontsize * 0.55
+        x_pos = rect.x0 + max((rect.width - text_width) / 2, 0)
+        page.insert_text((x_pos, y_pos), text_value, fontname=fontname, fontsize=fontsize, color=color)
+
+    def _clip_text(value, max_chars):
+        text = str(value or "").strip()
+        if len(text) <= max_chars:
+            return text
+        return text[: max(0, max_chars - 3)] + "..."
+
+    def _status(row):
+        if _is_yes((row or {}).get("error")):
+            return "error"
+        if _is_yes((row or {}).get("canceled")):
+            return "canceled"
+        if _is_yes((row or {}).get("done")):
+            return "done"
+        return "planned"
+
+    stats = _build_plan_overview_stats(plan_meta, rows)
+    primary = (0.10, 0.62, 0.72)
+    cyan = (0.35, 0.78, 0.88)
+    orange = (0.97, 0.44, 0.08)
+    red = (0.88, 0.14, 0.14)
+    yellow = (0.88, 0.72, 0.10)
+    border = (0.72, 0.76, 0.82)
+    muted = (0.35, 0.38, 0.43)
+    light = (0.96, 0.98, 0.99)
+
+    page.insert_text((36, 54), f"Campaign Overview - {plan_name or 'Experiment Plan'}", fontname="courier-bold", fontsize=18, color=(0, 0, 0))
+    page.insert_text((36, 76), f"Generated: {_now_display_str(include_seconds=True)}", fontname="courier", fontsize=8.5, color=muted)
+
+    dates_rect = fitz.Rect(36, 94, 806, 128)
+    page.draw_rect(dates_rect, color=border, fill=light, width=0.7)
+    page.insert_text((50, 116), f"Start: {_format_plan_date((plan_meta or {}).get('startDate'))}", fontname="courier", fontsize=8.5, color=(0, 0, 0))
+    page.insert_text((220, 116), f"Deadline: {_format_plan_date((plan_meta or {}).get('deadline'))}", fontname="courier", fontsize=8.5, color=(0, 0, 0))
+
+    # KPI cards
+    kpi_y = 150
+    kpi_h = 58
+    kpi_gap = 12
+    kpi_w = (770 - (3 * kpi_gap)) / 4
+    kpis = [
+        ("Canceled Runs", stats["canceled"], orange),
+        ("Error Runs", stats["errors"], red),
+        ("Preparation Runs", stats["preparation"], yellow),
+        ("Completion", f"{stats['completion']}%", primary),
+    ]
+    for idx, (label, value, accent) in enumerate(kpis):
+        x = 36 + idx * (kpi_w + kpi_gap)
+        rect = fitz.Rect(x, kpi_y, x + kpi_w, kpi_y + kpi_h)
+        page.draw_rect(rect, color=accent, fill=(0.985, 0.99, 0.995), width=0.8)
+        _center_line(rect, kpi_y + 28, value, fontname="courier-bold", fontsize=17, color=accent)
+        label_text = label
+        if label == "Completion":
+            label_text = f"Completion ({stats['done']}/{stats['total']})"
+        _textbox(fitz.Rect(x + 4, kpi_y + 37, x + kpi_w - 4, kpi_y + 52), label_text, fontname="courier", fontsize=7.4, color=muted, align=1)
+
+    plot_rect = fitz.Rect(36, 246, 806, 518)
+    page.insert_text((36, 234), "Campaign Schedule", fontname="courier-bold", fontsize=10, color=(0, 0, 0))
+    page.draw_rect(plot_rect, color=border, fill=(0.99, 0.995, 1.0), width=0.8)
+
+    safe_rows = rows if isinstance(rows, list) else []
+    start_date = _parse_plan_date((plan_meta or {}).get("startDate"))
+    deadline = _parse_plan_date((plan_meta or {}).get("deadline"))
+    dated_rows = []
+    for row in safe_rows:
+        row_date = _parse_plan_date((row or {}).get("planned_date"))
+        key = row_date.strftime("%Y-%m-%d") if row_date is not None else str((row or {}).get("schedule") or "Unscheduled").strip() or "Unscheduled"
+        dated_rows.append((key, row))
+
+    day_keys = []
+    if start_date is not None and deadline is not None and start_date <= deadline and (deadline - start_date).days <= 14:
+        day_count = (deadline - start_date).days + 1
+        day_keys = [
+            (start_date + timedelta(days=offset)).strftime("%Y-%m-%d")
+            for offset in range(day_count)
+        ]
+    else:
+        day_keys = sorted({key for key, _ in dated_rows}, key=lambda value: (_parse_plan_date(value) is None, value))
+    if not day_keys:
+        day_keys = ["Unscheduled"]
+
+    rows_by_day = {key: [] for key in day_keys}
+    for key, row in dated_rows:
+        rows_by_day.setdefault(key, []).append(row)
+        if key not in day_keys:
+            day_keys.append(key)
+    for key in rows_by_day:
+        rows_by_day[key].sort(key=lambda row: _parse_run_name_order((row or {}).get("run_name")))
+
+    inner_left = plot_rect.x0 + 18
+    inner_right = plot_rect.x1 - 18
+    inner_top = plot_rect.y0 + 30
+    inner_bottom = plot_rect.y1 - 34
+    axis_y = inner_bottom + 8
+    n_days = max(len(day_keys), 1)
+    col_w = (inner_right - inner_left) / n_days
+    max_lane_count = max((len(rows_by_day.get(key, [])) for key in day_keys), default=1)
+    lane_h = max(11, min(21, (inner_bottom - inner_top) / max(max_lane_count, 1)))
+    bar_h = max(8, min(16, lane_h - 3))
+    bar_w = max(62, min(112, col_w * 0.68))
+
+    page.draw_line((inner_left, axis_y), (inner_right, axis_y), color=(0.35, 0.38, 0.43), width=0.8)
+    for idx, day_key in enumerate(day_keys):
+        col_x = inner_left + idx * col_w
+        center_x = col_x + col_w / 2
+        # Dotted day separator.
+        y_cursor = plot_rect.y0 + 18
+        while y_cursor < axis_y:
+            page.draw_line((center_x, y_cursor), (center_x, min(y_cursor + 2, axis_y)), color=(0.78, 0.84, 0.90), width=0.5)
+            y_cursor += 6
+        _textbox(fitz.Rect(col_x + 2, axis_y + 5, col_x + col_w - 2, axis_y + 18), day_key, fontname="courier", fontsize=6.8, color=muted, align=1)
+
+        for lane_idx, row in enumerate(rows_by_day.get(day_key, [])):
+            x0 = center_x - bar_w / 2
+            y0 = inner_top + lane_idx * lane_h
+            x1 = center_x + bar_w / 2
+            y1 = y0 + bar_h
+            status = _status(row)
+            fill = {
+                "done": cyan,
+                "canceled": orange,
+                "error": red,
+                "planned": (0.80, 0.84, 0.88),
+            }.get(status, cyan)
+            text_color = (0, 0, 0) if status in {"done", "planned"} else (1, 1, 1)
+            page.draw_rect(fitz.Rect(x0, y0, x1, y1), color=fill, fill=fill, width=0.6)
+            label = _clip_text((row or {}).get("run_name") or "-", 22)
+            _textbox(fitz.Rect(x0 + 2, y0 + 1.5, x1 - 2, y1 + 1.5), label, fontname="courier-bold", fontsize=6.5, color=text_color, align=1)
+
+    legend_y = 548
+    legend_items = [("Done", cyan), ("Canceled", orange), ("Error", red)]
+    legend_x = 320
+    for label, fill in legend_items:
+        page.draw_rect(fitz.Rect(legend_x, legend_y - 7, legend_x + 8, legend_y + 1), color=fill, fill=fill, width=0.5)
+        page.insert_text((legend_x + 13, legend_y), label, fontname="courier", fontsize=7.5, color=muted)
+        legend_x += 82
+
+
 def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
     try:
         import fitz  # PyMuPDF
@@ -808,7 +1031,7 @@ def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
         return False, f"PyMuPDF unavailable: {exc}"
 
     doc = fitz.open()
-    page = doc.new_page(width=842, height=595)  # A4 landscape
+    page = None
     x0 = 24
     top_content_y = 92
     y = top_content_y
@@ -837,6 +1060,9 @@ def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
             # Keep export robust even if image parsing fails.
             return
 
+    _draw_plan_overview_page(fitz, doc, plan_name, plan_meta, rows, _draw_logo)
+    page = doc.new_page(width=842, height=595)  # A4 landscape
+    y = top_content_y
     _draw_logo(page)
 
     def _write_line(text, bold=False):
@@ -1623,6 +1849,9 @@ def _build_gas_mixing_export_rows(records):
             return f"{numeric}"
         return f"{numeric:.{decimals}f}"
 
+    def _is_yes(value):
+        return str(value or "").strip().lower() in {"yes", "true", "1", "y"}
+
     def _chamber_l(record):
         v_l = _to_float(record.get("vChamberL"))
         if v_l is not None:
@@ -1639,6 +1868,28 @@ def _build_gas_mixing_export_rows(records):
         results = record.get("results") if isinstance(record.get("results"), dict) else {}
         return _to_float(results.get("V_H2_injected_L"))
 
+    def _h2_mass_est_g(record):
+        direct = _to_float(record.get("mH2EstimatedG"))
+        if direct is not None:
+            return direct
+        results = record.get("results") if isinstance(record.get("results"), dict) else {}
+        return _to_float(results.get("m_H2_injected_g"))
+
+    def _h2_mass_corr_g(record):
+        direct = _to_float(record.get("mH2CorrectedG"))
+        if direct is not None:
+            return direct
+        correction = record.get("correction") if isinstance(record.get("correction"), dict) else None
+        if isinstance(correction, dict):
+            corr_val = _to_float(correction.get("correctedMassG"))
+            if corr_val is not None:
+                return corr_val
+        # Backward compatibility: old field stored corrected mass when applied.
+        legacy = _to_float(record.get("mH2InjectedG") or record.get("h2MassG"))
+        if legacy is not None:
+            return legacy
+        return _h2_mass_est_g(record)
+
     safe_records = records if isinstance(records, list) else []
     rows = []
     for item in safe_records:
@@ -1648,11 +1899,15 @@ def _build_gas_mixing_export_rows(records):
         run_name = str(item.get("runName") or "").strip()
         raw_updated = str(item.get("updatedAt") or "").strip()
         updated_short = _iso_to_display_str(raw_updated, include_seconds=True)
+        calibration_applied = str(item.get("calibrationApplied") or "")
+        correction_applied = _is_yes(calibration_applied)
+        h2_mass_corr = _fmt(_h2_mass_corr_g(item), 3)
         rows.append({
             "group": group,
             "run_name": run_name,
             "run_short": _short_run_name(group, run_name),
             "target_vol": _fmt(item.get("targetVol"), 2),
+            "relative_humidity_pct": _fmt(item.get("relativeHumidityPct"), 1),
             "p_chamber_pa": _fmt(item.get("pChamberPa") or item.get("P_chamber_Pa") or item.get("ambPressure"), 0),
             "t_chamber_k": _fmt(item.get("tChamberK"), 2),
             "l_m": _fmt(item.get("lM"), 3),
@@ -1663,11 +1918,20 @@ def _build_gas_mixing_export_rows(records):
             "welded_parts_m3": _fmt(item.get("weldedPartsM3"), 3),
             "bolts_m3": _fmt(item.get("boltsM3"), 3),
             "v_chamber_corr_l": _fmt(_chamber_l(item), 2),
-            "h2_mass_g": _fmt(item.get("mH2InjectedG") or item.get("h2MassG"), 3),
+            "h2_mass_est_g": _fmt(_h2_mass_est_g(item), 3),
+            "h2_mass_corr_g": h2_mass_corr,
+            "h2_mass_corr_display": h2_mass_corr if correction_applied else "Not corrected by model",
             "v_h2_inj_l": _fmt(_h2_inj_l(item), 2),
             "mfc_flow_slpm": _fmt(item.get("mfcFlowSlpm"), 2),
             "injection_time_s": _fmt(item.get("injectionTimeS"), 1),
             "injection_time_min": _fmt(item.get("injectionTimeMin"), 1),
+            "calibration_model_type": str(item.get("calibrationModelType") or ""),
+            "calibration_target_basis": str(item.get("calibrationTargetBasis") or ""),
+            "calibration_enabled": str(item.get("calibrationEnabled") or ""),
+            "calibration_applied": calibration_applied,
+            "calibration_a": str(item.get("calibrationA") or ""),
+            "calibration_b": str(item.get("calibrationB") or ""),
+            "calibration_notes": str(item.get("calibrationNotes") or ""),
             "notes": str(item.get("notes") or "").strip(),
             "updated_at": updated_short,
         })
@@ -1722,13 +1986,22 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
         "Group",
         "Run/Test",
         "Target H2 (%vol)",
+        "Relative Humidity (%RH)",
         "Pchamber (Pa)",
         "Tchamber (K)",
-        "H2 Injected (g)",
+        "H2 Injected Estimated (g)",
+        "H2 Injected Corrected (g)",
         "H2 Injected Volume (L)",
         "MFC Flow (SLPM)",
         "Fill Time (s)",
         "Fill Time (min)",
+        "Calibration Model Type",
+        "Calibration Target Basis",
+        "Calibration Enabled",
+        "Calibration Applied",
+        "Calibration a",
+        "Calibration b",
+        "Calibration Notes",
         "Notes",
         "Updated At",
     ]
@@ -1737,6 +2010,7 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
             "Group",
             "Run/Test",
             "Target H2 (%vol)",
+            "Relative Humidity (%RH)",
             "Pchamber (Pa)",
             "Tchamber (K)",
             "L (m)",
@@ -1747,11 +2021,19 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
             "Welded - (m^3)",
             "Bolts - (m^3)",
             "Vchamber Corrected (L)",
-            "H2 Injected (g)",
+            "H2 Injected Estimated (g)",
+            "H2 Injected Corrected (g)",
             "H2 Injected Volume (L)",
             "MFC Flow (SLPM)",
             "Fill Time (s)",
             "Fill Time (min)",
+            "Calibration Model Type",
+            "Calibration Target Basis",
+            "Calibration Enabled",
+            "Calibration Applied",
+            "Calibration a",
+            "Calibration b",
+            "Calibration Notes",
             "Notes",
             "Updated At",
         ]
@@ -1779,6 +2061,7 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
                     row["group"],
                     row["run_short"] or row["run_name"],
                     row["target_vol"],
+                    row["relative_humidity_pct"],
                     row["p_chamber_pa"],
                     row["t_chamber_k"],
                     row["l_m"],
@@ -1789,11 +2072,19 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
                     row["welded_parts_m3"],
                     row["bolts_m3"],
                     row["v_chamber_corr_l"],
-                    row["h2_mass_g"],
+                    row["h2_mass_est_g"],
+                    row["h2_mass_corr_display"],
                     row["v_h2_inj_l"],
                     row["mfc_flow_slpm"],
                     row["injection_time_s"],
                     row["injection_time_min"],
+                    row["calibration_model_type"],
+                    row["calibration_target_basis"],
+                    row["calibration_enabled"],
+                    row["calibration_applied"],
+                    row["calibration_a"],
+                    row["calibration_b"],
+                    row["calibration_notes"],
                     row["notes"],
                     row["updated_at"],
                 ])
@@ -1802,13 +2093,22 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
                     row["group"],
                     row["run_short"] or row["run_name"],
                     row["target_vol"],
+                    row["relative_humidity_pct"],
                     row["p_chamber_pa"],
                     row["t_chamber_k"],
-                    row["h2_mass_g"],
+                    row["h2_mass_est_g"],
+                    row["h2_mass_corr_display"],
                     row["v_h2_inj_l"],
                     row["mfc_flow_slpm"],
                     row["injection_time_s"],
                     row["injection_time_min"],
+                    row["calibration_model_type"],
+                    row["calibration_target_basis"],
+                    row["calibration_enabled"],
+                    row["calibration_applied"],
+                    row["calibration_a"],
+                    row["calibration_b"],
+                    row["calibration_notes"],
                     row["notes"],
                     row["updated_at"],
                 ])
@@ -1908,13 +2208,19 @@ def _write_gas_mixing_pdf(project_name, rows, target_path, verification_meta=Non
         ("Group", 14),
         ("Run/Test", 18),
         ("H2%", 5),
+        ("RH%", 5),
         ("Pch(Pa)", 8),
         ("Tch(K)", 7),
-        ("H2(g)", 7),
+        ("H2est(g)", 8),
+        ("H2corr(g)", 9),
         ("H2inj(L)", 8),
         ("MFC", 6),
         ("t(s)", 6),
         ("t(min)", 6),
+        ("Model", 8),
+        ("Basis", 8),
+        ("a", 6),
+        ("b", 6),
         ("Updated", 19),
     ]
     setup_columns = [
@@ -1956,13 +2262,19 @@ def _write_gas_mixing_pdf(project_name, rows, target_path, verification_meta=Non
             row.get("group"),
             row.get("run_name"),
             row.get("target_vol"),
+            row.get("relative_humidity_pct"),
             row.get("p_chamber_pa"),
             row.get("t_chamber_k"),
-            row.get("h2_mass_g"),
+            row.get("h2_mass_est_g"),
+            row.get("h2_mass_corr_display"),
             row.get("v_h2_inj_l"),
             row.get("mfc_flow_slpm"),
             row.get("injection_time_s"),
             row.get("injection_time_min"),
+            row.get("calibration_model_type"),
+            row.get("calibration_target_basis"),
+            row.get("calibration_a"),
+            row.get("calibration_b"),
             row.get("updated_at"),
         ],
     )
@@ -2622,6 +2934,7 @@ def get_gas_mixing():
             "success": True,
             "path": reports_path,
             "verificationMeta": _normalize_gas_verification_meta({}),
+            "dosageModel": _normalize_gas_dosage_model({}),
             "selectedGroup": "",
             "selectedRunName": "",
             "records": [],
@@ -2634,6 +2947,7 @@ def get_gas_mixing():
         if not isinstance(records, list):
             records = []
         verification_meta = _normalize_gas_verification_meta((payload or {}).get("verificationMeta"))
+        dosage_model = _normalize_gas_dosage_model((payload or {}).get("dosageModel"))
         selected_group = str((payload or {}).get("selectedGroup") or "").strip() if isinstance(payload, dict) else ""
         selected_run_name = str((payload or {}).get("selectedRunName") or "").strip() if isinstance(payload, dict) else ""
 
@@ -2645,6 +2959,7 @@ def get_gas_mixing():
                     json.dump({
                         "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "verificationMeta": verification_meta,
+                        "dosageModel": dosage_model,
                         "selectedGroup": selected_group,
                         "selectedRunName": selected_run_name,
                         "records": records,
@@ -2658,6 +2973,7 @@ def get_gas_mixing():
             "success": True,
             "path": file_path,
             "verificationMeta": verification_meta,
+            "dosageModel": dosage_model,
             "selectedGroup": selected_group,
             "selectedRunName": selected_run_name,
             "records": records,
@@ -2705,6 +3021,21 @@ def save_gas_mixing():
                 existing_meta = {}
         verification_meta = _normalize_gas_verification_meta(existing_meta)
 
+    raw_dosage_model = payload.get("dosageModel", None)
+    if raw_dosage_model is not None:
+        dosage_model = _normalize_gas_dosage_model(raw_dosage_model)
+    else:
+        existing_model = {}
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as existing_handle:
+                    existing_payload = json.load(existing_handle)
+                if isinstance(existing_payload, dict):
+                    existing_model = existing_payload.get("dosageModel") or {}
+            except Exception:
+                existing_model = {}
+        dosage_model = _normalize_gas_dosage_model(existing_model)
+
     safe_records = []
     for item in records:
         if not isinstance(item, dict):
@@ -2713,7 +3044,9 @@ def save_gas_mixing():
             "group": str(item.get("group") or "").strip(),
             "runName": str(item.get("runName") or "").strip(),
             "targetVol": str(item.get("targetVol") or "").strip(),
+            "relativeHumidityPct": str(item.get("relativeHumidityPct") or "").strip(),
             "pChamberPa": str(item.get("pChamberPa") or item.get("P_chamber_Pa") or item.get("ambPressure") or "").strip(),
+            "tChamberC": str(item.get("tChamberC") or "").strip(),
             "tChamberK": str(item.get("tChamberK") or "").strip(),
             "mfcFlowSlpm": str(item.get("mfcFlowSlpm") or "").strip(),
             "lM": str(item.get("lM") or "").strip(),
@@ -2723,15 +3056,25 @@ def save_gas_mixing():
             "hotwireAssemblyM3": str(item.get("hotwireAssemblyM3") or "").strip(),
             "weldedPartsM3": str(item.get("weldedPartsM3") or "").strip(),
             "boltsM3": str(item.get("boltsM3") or "").strip(),
+            "tStdC": str(item.get("tStdC") or "").strip(),
             "tStdK": str(item.get("tStdK") or "").strip(),
             "pStdPa": str(item.get("pStdPa") or "").strip(),
             "ru": str(item.get("ru") or "").strip(),
             "mH2": str(item.get("mH2") or "").strip(),
+            "mH2EstimatedG": str(item.get("mH2EstimatedG") or "").strip(),
+            "mH2CorrectedG": str(item.get("mH2CorrectedG") or "").strip(),
             "mH2InjectedG": str(item.get("mH2InjectedG") or item.get("h2MassG") or "").strip(),
             "vH2StdL": str(item.get("vH2StdL") or "").strip(),
             "vChamberCorrectedM3": str(item.get("vChamberCorrectedM3") or "").strip(),
             "injectionTimeS": str(item.get("injectionTimeS") or "").strip(),
             "injectionTimeMin": str(item.get("injectionTimeMin") or "").strip(),
+            "calibrationModelType": str(item.get("calibrationModelType") or "").strip(),
+            "calibrationTargetBasis": str(item.get("calibrationTargetBasis") or "").strip(),
+            "calibrationEnabled": str(item.get("calibrationEnabled") or "").strip(),
+            "calibrationApplied": str(item.get("calibrationApplied") or "").strip(),
+            "calibrationA": str(item.get("calibrationA") or "").strip(),
+            "calibrationB": str(item.get("calibrationB") or "").strip(),
+            "calibrationNotes": str(item.get("calibrationNotes") or "").strip(),
             "results": item.get("results") if isinstance(item.get("results"), dict) else None,
             "notes": str(item.get("notes") or "").strip(),
             "updatedAt": str(item.get("updatedAt") or "").strip(),
@@ -2741,6 +3084,7 @@ def save_gas_mixing():
         data = {
             "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "verificationMeta": verification_meta,
+            "dosageModel": dosage_model,
             "selectedGroup": selected_group,
             "selectedRunName": selected_run_name,
             "records": safe_records,
@@ -2889,6 +3233,8 @@ def _load_gas_mixing_payload(project_root):
 
 def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_payload, sensors_payload, gas_payload):
     plan_rows = _build_plan_export_rows(plan_payload.get("experiments"), plan_payload.get("meta"))
+    plan_meta = plan_payload.get("meta") if isinstance(plan_payload.get("meta"), dict) else {}
+    group_objectives = plan_meta.get("groupObjectives") if isinstance(plan_meta.get("groupObjectives"), dict) else {}
     daq_rows = _build_daq_export_rows(daq_payload.get("daqSystems"))
     sensor_rows = _build_sensors_export_rows(
         sensors_payload.get("mappingsByGroup"),
@@ -2907,22 +3253,75 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
         writer.writerow([])
 
         writer.writerow(["[TAB] Plan"])
-        writer.writerow(["Run Name", "Group", "Group Description", "Done", "Schedule", "H2 (%)", "Ignition", "Vent", "P0 (Pa)", "T0 (K)", "Data Files Count", "File Path (Raw_Data Folder)"])
+        writer.writerow([
+            "Run Name",
+            "Group",
+            "Group Description",
+            "Status",
+            "Done",
+            "Preparation",
+            "Schedule",
+            "Planned Date",
+            "Planned Day",
+            "H2 (%)",
+            "H2 Injected (g)",
+            "MFC Flow (SLPM)",
+            "Ignition",
+            "Vent",
+            "P0 (Pa)",
+            "T0 (K)",
+            "Recirc Stop To Ignition (s)",
+            "Case ID / CFD Hash",
+            "Data Files Count",
+            "File Path (Raw_Data Folder)",
+            "Short Description",
+            "Run Notes",
+            "Error",
+            "Error Note",
+            "Canceled",
+            "Canceled Note",
+        ])
         for row in plan_rows:
             writer.writerow([
                 row.get("run_name", ""),
                 row.get("group", ""),
                 row.get("group_description", ""),
+                row.get("run_status", ""),
                 row.get("done", ""),
+                row.get("preparation", ""),
                 row.get("schedule", ""),
+                row.get("planned_date", ""),
+                row.get("planned_day", ""),
                 row.get("h2", ""),
+                row.get("h2_injected_grams", ""),
+                row.get("mfc_flow_slpm", ""),
                 row.get("ignition", ""),
                 row.get("vent", ""),
                 row.get("p0", ""),
                 row.get("t0", ""),
+                row.get("recirc_stop_to_ignition_sec", ""),
+                row.get("cfd_hash", ""),
                 row.get("data_files_count", ""),
                 row.get("data_files", ""),
+                row.get("short_description", ""),
+                row.get("notes", ""),
+                row.get("error", ""),
+                row.get("error_note", ""),
+                row.get("canceled", ""),
+                row.get("canceled_note", ""),
             ])
+        writer.writerow([])
+
+        writer.writerow(["[TAB] Plan Group Objectives"])
+        writer.writerow(["Group", "Objective"])
+        if group_objectives:
+            for group_name in sorted(group_objectives.keys(), key=lambda v: str(v or "").lower()):
+                writer.writerow([
+                    str(group_name or ""),
+                    str(group_objectives.get(group_name) or ""),
+                ])
+        else:
+            writer.writerow(["-", "-"])
         writer.writerow([])
 
         writer.writerow(["[TAB] DAQ Systems"])
@@ -2981,19 +3380,28 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
         writer.writerow([])
 
         writer.writerow(["[TAB] Gas Mixing"])
-        writer.writerow(["Group", "Run/Test", "Target H2 (%vol)", "Pchamber (Pa)", "Tchamber (K)", "H2 Injected (g)", "H2 Injected Volume (L)", "MFC Flow (SLPM)", "Fill Time (s)", "Fill Time (min)", "Notes", "Updated At"])
+        writer.writerow(["Group", "Run/Test", "Target H2 (%vol)", "Relative Humidity (%RH)", "Pchamber (Pa)", "Tchamber (K)", "H2 Injected Estimated (g)", "H2 Injected Corrected (g)", "H2 Injected Volume (L)", "MFC Flow (SLPM)", "Fill Time (s)", "Fill Time (min)", "Calibration Model Type", "Calibration Target Basis", "Calibration Enabled", "Calibration Applied", "Calibration a", "Calibration b", "Calibration Notes", "Notes", "Updated At"])
         for row in gas_rows:
             writer.writerow([
                 row.get("group", ""),
                 row.get("run_short", "") or row.get("run_name", ""),
                 row.get("target_vol", ""),
+                row.get("relative_humidity_pct", ""),
                 row.get("p_chamber_pa", ""),
                 row.get("t_chamber_k", ""),
-                row.get("h2_mass_g", ""),
+                row.get("h2_mass_est_g", ""),
+                row.get("h2_mass_corr_display", ""),
                 row.get("v_h2_inj_l", ""),
                 row.get("mfc_flow_slpm", ""),
                 row.get("injection_time_s", ""),
                 row.get("injection_time_min", ""),
+                row.get("calibration_model_type", ""),
+                row.get("calibration_target_basis", ""),
+                row.get("calibration_enabled", ""),
+                row.get("calibration_applied", ""),
+                row.get("calibration_a", ""),
+                row.get("calibration_b", ""),
+                row.get("calibration_notes", ""),
                 row.get("notes", ""),
                 row.get("updated_at", ""),
             ])
