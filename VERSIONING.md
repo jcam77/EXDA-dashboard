@@ -4,6 +4,12 @@ This is the EXDA versioning workflow.
 
 ## Current Release
 
+- Latest release version: `2.34.0`
+- Latest release tag: `browser-MVP-v2.34.0`
+- Updated on: `2026-06-03`
+
+## Current Release
+
 - Latest release version: `2.33.0`
 - Latest release tag: `browser-MVP-v2.33.0`
 - Updated on: `2026-06-02`
