@@ -1873,7 +1873,14 @@ def _build_gas_mixing_export_rows(records):
         if direct is not None:
             return direct
         results = record.get("results") if isinstance(record.get("results"), dict) else {}
-        return _to_float(results.get("m_H2_injected_g"))
+        from_results = _to_float(results.get("m_H2_injected_g"))
+        if from_results is not None:
+            return from_results
+        # Backward compatibility: before calibration support, mH2InjectedG stored
+        # the uncorrected ideal-gas estimate.
+        if not _is_yes(record.get("calibrationApplied")):
+            return _to_float(record.get("mH2InjectedG") or record.get("h2MassG"))
+        return None
 
     def _h2_mass_corr_g(record):
         direct = _to_float(record.get("mH2CorrectedG"))
@@ -3040,6 +3047,14 @@ def save_gas_mixing():
     for item in records:
         if not isinstance(item, dict):
             continue
+        item_results = item.get("results") if isinstance(item.get("results"), dict) else None
+        item_calibration_applied = str(item.get("calibrationApplied") or "").strip().lower() in {"yes", "true", "1", "y"}
+        item_estimated_h2 = (
+            item.get("mH2EstimatedG")
+            or (item_results or {}).get("m_H2_injected_g")
+            or ((item.get("mH2InjectedG") or item.get("h2MassG")) if not item_calibration_applied else "")
+            or ""
+        )
         safe_records.append({
             "group": str(item.get("group") or "").strip(),
             "runName": str(item.get("runName") or "").strip(),
@@ -3061,7 +3076,7 @@ def save_gas_mixing():
             "pStdPa": str(item.get("pStdPa") or "").strip(),
             "ru": str(item.get("ru") or "").strip(),
             "mH2": str(item.get("mH2") or "").strip(),
-            "mH2EstimatedG": str(item.get("mH2EstimatedG") or "").strip(),
+            "mH2EstimatedG": str(item_estimated_h2).strip(),
             "mH2CorrectedG": str(item.get("mH2CorrectedG") or "").strip(),
             "mH2InjectedG": str(item.get("mH2InjectedG") or item.get("h2MassG") or "").strip(),
             "vH2StdL": str(item.get("vH2StdL") or "").strip(),
@@ -3075,7 +3090,7 @@ def save_gas_mixing():
             "calibrationA": str(item.get("calibrationA") or "").strip(),
             "calibrationB": str(item.get("calibrationB") or "").strip(),
             "calibrationNotes": str(item.get("calibrationNotes") or "").strip(),
-            "results": item.get("results") if isinstance(item.get("results"), dict) else None,
+            "results": item_results,
             "notes": str(item.get("notes") or "").strip(),
             "updatedAt": str(item.get("updatedAt") or "").strip(),
         })

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-01 17:26:29",
+  "updatedAt": "2026-06-06 10:26:28",
   "daqSystems": [
     {
       "calibrationCertificateId": "",
@@ -67,14 +67,14 @@
     },
     {
       "calibrationCertificateId": "",
-      "channelCount": "",
+      "channelCount": "1",
       "id": "daq-1779562448359-8bffa5",
       "isActive": true,
       "lastCalibrationDate": "2025-07-21",
       "measuredQuantity": "concentration",
       "model": "JTCD-300",
-      "name": "H2CM",
-      "notes": "",
+      "name": "H2BGA",
+      "notes": "H2BGA-Hydrogen Binary Gas Analyser",
       "owner": "LU",
       "samplingRateHz": "1",
       "serialNumber": "14362",

@@ -145,11 +145,12 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [
+          "Prep-Wk22-01/H2BGA/Prep-01-H2CM-U.csv",
           "Prep-Wk22-01/DAQ-2/Prep-01-DAQ-2.mf4",
-          "Prep-Wk22-01/H2CM/Prep-01-H2CM-U.csv"
+          "Prep-Wk22-01/DAQ-1/Prep-01.exp/data/Prep-01-DAQ-1.tpc5"
         ],
         "h2": "13.5",
-        "h2InjectedGrams": "8.276",
+        "h2InjectedGrams": "8.275657522940918",
         "ignition": "Back Wall",
         "isPreparation": true,
         "mfcFlowSlpm": "20",

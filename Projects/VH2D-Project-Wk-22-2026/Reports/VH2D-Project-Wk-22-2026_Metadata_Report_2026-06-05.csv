@@ -1,0 +1,244 @@
+﻿Export Type,Metadata Report
+Project,VH2D-Project-Wk-22-2026
+Responsible Researcher,PhD Student Javier I. Camacho
+Generated At,2026-06-05 09:36:39
+Sections,"Plan, DAQ Systems, Sensors Mapping, Gas Mixing"
+
+[TAB] Plan
+Run Name,Group,Group Description,Status,Done,Preparation,Schedule,Planned Date,Planned Day,H2 (%),H2 Injected (g),MFC Flow (SLPM),Ignition,Vent,P0 (Pa),T0 (K),Recirc Stop To Ignition (s),Case ID / CFD Hash,Data Files Count,File Path (Raw_Data Folder),Short Description,Run Notes,Error,Error Note,Canceled,Canceled Note
+Prep-Wk22-01,Prep-Wk22,Preparation,done,Yes,Yes,2026-05-25,2026-05-25,,13.5,8.276,20,Back Wall,Thin Film with Hotwire NOT Activated,101325,292.15,,,2,Prep-Wk22-01/DAQ-2/Prep-01-DAQ-2.mf4 | Prep-Wk22-01/H2CM/Prep-01-H2CM-U.csv,Preliminar Test,"Recirc stop → ignition time (s): No Recorded
+
+injected 8.276 gr temp 292.15 K",No,,No,
+Verif-Wk22-01,Verif-Wk22,Performance Verification,done,Yes,Yes,2026-05-26,2026-05-26,,13.5,,,Back Wall,Thin Film with Hotwire Activated,101325,293,312,,5,Verif-Wk22-01/DAQ-1-Verif-01.tpc5 | Verif-Wk22-01/DAQ-2-Verif-01/DAQ-2-Verif_01.mf4 | Verif-Wk22-01/H2CM-L-Verif-01-260526-120036.csv | Verif-Wk22-01/H2CM-M-Verif-01-260526-115955.csv | Verif-Wk22-01/H2CM-U-Verif-01-260526-115817.csv,,"Physical Range -1,1 bar",No,,No,
+Verif-Wk22-02,Verif-Wk22,Performance Verification,done,Yes,Yes,2026-05-26,2026-05-26,,14,,,Back Wall,Thin Film with Hotwire Activated,101325,293,321,,3,Verif-Wk22-02/DAQ-1/DAQ-1-Verif-02.tpc5 | Verif-Wk22-02/DAQ-2/DAQ-2-Verif_02/DAQ-2-Verif_02.mf4 | Verif-Wk22-02/H2CM/H2CM-U-M-L-Verif-02-260526-144155.csv,,"Physical Range -1,1 bar",No,,No,
+Verif-Wk22-03,Verif-Wk22,Performance Verification,done,Yes,Yes,2026-05-26,2026-05-26,,16,,,Back Wall,Thin Film with Hotwire Activated,101325,293,263,,3,Verif-Wk22-03/DAQ-1/DAQ-1-Verif-03.tpc5 | Verif-Wk22-03/DAQ-2/DAQ-2-Verif-03/DAQ-2-Verif-03.mf4 | Verif-Wk22-03/H2CM/H2CM-U-M-L-Verif-03-260526-160316.csv,,"
+Channel 2 Physical Range -1, ,1 bar
+Channel 2 Physical Range -0.5, ,0.5 bar
+Leak on Blind Sensor Flange Connection 3L & 5L 
+
+Volume Correction +0.06708 
+
+",No,,No,
+Verif-Wk22-04,Verif-Wk22,Performance Verification,done,Yes,Yes,2026-05-26,2026-05-26,,18,,,Back Wall,Thin Film with Hotwire Activated,101325,293,233,,3,Verif-Wk22-04/DAQ-1/DAQ-1-Verif-04.tpc5 | Verif-Wk22-04/DAQ-2/DAQ-2-Verif-04/DAQ-2-Verif-04.mf4 | Verif-Wk22-04/H2CM/H2CM-U-M-L-Verif-04-260526-174304.csv,,P1 swapped for P5,No,,No,
+VH2D-Wk22-01-01,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,16,,20,Back Wall,Thin Film with Hotwire Activated,101325,293,,,3,VH2D-Wk22-01-01/DAQ-1/DAQ-1-VH2D-01-01.tpc5 | VH2D-Wk22-01-01/H2CM/H2CM-U-M-L-VH2D-01-01-260527-140320.csv | VH2D-Wk22-01-01/DAQ-2-3/DAQ-2-3-VH2D-01-01.mf4,,,No,,No,
+VH2D-Wk22-01-02,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,16,,20,Back Wall,Thin Film with Hotwire Activated,101325,293,228,,3,VH2D-Wk22-01-02/DAQ-1/DAQ-1-VH2D-01-02.tpc5 | VH2D-Wk22-01-02/H2CM/H2CM-U-M-L-VH2D-01-02-260527-150043.csv | VH2D-Wk22-01-02/DAQ-2-3/DAQ-2-3-VH2D-01-02.mf4,,,No,,No,
+VH2D-Wk22-01-03,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,18,,20,Back Wall,Thin Film with Hotwire Activated,101325,293,201,,2,VH2D-Wk22-01-03/DAQ-1/DAQ-1-VH2D-01-03.tpc5 | VH2D-Wk22-01-03/DAQ-2-3/DAQ-2-3-VH2D-01-03.mf4,,,No,,No,
+VH2D-Wk22-01-04,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,18,,20,Back Wall,Thin Film with Hotwire Activated,101325,293,168,,3,VH2D-Wk22-01-04/DAQ-1/DAQ-1-VH2D-01-04.tpc5 | VH2D-Wk22-01-04/DAQ-2-3/DAQ-2-3-VH2D-01-04.mf4 | VH2D-Wk22-01-04/H2CM/H2CM-U-M-L-VH2D-01-04-260527-164423.csv,,"PP1 and PP3 swapped
+
+DAQ-3 sampling rate 62.5kHz changed to 200kHz",No,,No,
+VH2D-Wk22-01-05,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),canceled,No,Yes,2026-05-27,2026-05-27,3,19,,20,Back Wall,Thin Film with Hotwire Activated,101325,293,,,0,,,DAQ-3 sampling rate 62.5kHz changed to 200kHz,No,,Yes,Time restriction
+VH2D-Wk22-01-06,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),canceled,No,Yes,2026-05-27,2026-05-27,,19,,,Back Wall,Thin Film with Hotwire Activated,101325,293,,,0,,,,No,,Yes,Time restriction
+VH2D-Wk22-01-07,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),done,Yes,Yes,2026-05-27,2026-05-27,,20,,,Back Wall,Thin Film with Hotwire Activated,101325,293,,,3,VH2D-Wk22-01-07/DAQ-1/DAQ-1-VH2D-01-07.tpc5 | VH2D-Wk22-01-07/DAQ-2-3/VH2D-01-07.mf4 | VH2D-Wk22-01-07/H2CM/H2CM-U-M-L-VH2D-01-07-260527-180934.csv,,PP1 and PP3 swapped,No,,No,
+VH2D-Wk22-01-08,VH2D-Wk22-01,Vented deflagration concentration series (Hotwire),canceled,No,Yes,2026-05-27,2026-05-27,,20,,,Back Wall,Thin Film with Hotwire Activated,101325,293,,,0,,,,No,,Yes,Time restriction
+VH2D-Wk22-02-01,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kistler),done,Yes,No,2026-05-28,2026-05-28,,18,,,Back Wall,Thin Film with Hotwire Activated,101325,293,243,,3,VH2D-Wk22-02-01/DAQ-1/DAQ-1-VH2D-02-01.tpc5 | VH2D-Wk22-02-01/DAQ-4/DAQ-4-VH2D-02-01.mf4 | VH2D-Wk22-02-01/H2CM/H2CM-U-M-L-VH2D-02-01-260528-105051.csv,,"Added 12.278 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-02-02,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kistler),done,Yes,No,2026-05-28,2026-05-28,,18,,,Back Wall,Thin Film with Hotwire Activated,101325,293,231,,4,VH2D-Wk22-02-02/DAQ-1/DAQ-1-VH2D-02-02.tpc5 | VH2D-Wk22-02-02/DAQ-2-3/DAQ-2-3-VH2D-02-02.mf4 | VH2D-Wk22-02-02/H2CM/H2CM-U-M-L-VH2D-02-02-260528-115959.csv | VH2D-Wk22-02-02/DAQ-4/DAQ-4-VH2D-02-02.mf4,,"P3 and P7 swapped
+
+Added 12.278 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-02-03,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kistler),done,Yes,No,2026-05-28,2026-05-28,,20,,,Back Wall,Thin Film with Hotwire Activated,101325,293,232,,4,VH2D-Wk22-02-03/DAQ-1/DAQ-1-VH2D-02-03.tpc5 | VH2D-Wk22-02-03/DAQ-2-3/DAQ-2-3-VH2D-02-03.mf4 | VH2D-Wk22-02-03/DAQ-4/DAQ-4-VH2D-02-03.mf4 | VH2D-Wk22-02-03/H2CM/H2CM-U-M-L-VH2D-02-03-260528-134340.csv,,"P3 and P7 swapped
+
+Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-02-04,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kistler),done,Yes,No,2026-05-28,2026-05-28,,20,,,back,thin film,101325,293,221,,4,VH2D-Wk22-02-04/DAQ-1/DAQ-1-VH2D-02-04.tpc5 | VH2D-Wk22-02-04/DAQ-2-3/DAQ-2-3-VH2D-02-04.mf4 | VH2D-Wk22-02-04/DAQ-4/DAQ-4-VH2D-02-04.mf4 | VH2D-Wk22-02-04/H2CM/H2CM-U-M-L-VH2D-02-04-260528-144105.csv,,"P3 and P7 swapped
+
+Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-03-01,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,18,,,Back Wall,Thin Film with Hotwire Activated,101325,293,230,,3,VH2D-Wk22-03-01/DAQ-1/DAQ-1-VH2D-03-01.tpc5 | VH2D-Wk22-03-01/DAQ-2-3/DAQ-2-3-VH2D-03.mf4 | VH2D-Wk22-03-01/H2CM/H2CM-U-M-L-VH2D-03-01-260528-160918.csv,,"Added 12.278 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-03-02,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,18,,,Back Wall,Thin Film with Hotwire Activated,101325,293,232,,3,VH2D-Wk22-03-02/DAQ-2-3/DAQ-2-3-VH2D-03-02.mf4 | VH2D-Wk22-03-02/H2CM/H2CM-U-M-L-VH2D-03-02-260528-164833.csv | VH2D-Wk22-03-02/DAQ-1/DAQ-1-VH2D-03-02.tpc5,,"PP3 moved to 5m radius
+
+Added 12.278 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-03-03,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),error,Yes,No,2026-05-28,2026-05-28,,20,,,Back Wall,Thin Film,101325,293,,,3,VH2D-Wk22-03-03/DAQ-1/DAQ-1-VH2D-03-03.tpc5 | VH2D-Wk22-03-03/DAQ-2-3/DAQ-2-3-VH2D-03-03.mf4 | VH2D-Wk22-03-03/H2CM/H2CM-U-M-L-VH2D-03-03-260528-173139.csv,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,"Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568
+
+Attention!!! Hot-wire short circuit. Check carefully data could compromised.",Yes,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,No,
+VH2D-Wk22-03-04,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,,,vack,thin,101325,293,221,,3,VH2D-Wk22-03-04/DAQ-1/DAQ-1-VH2D-03-04.tpc5 | VH2D-Wk22-03-04/DAQ-2-3/DAQ-2-3-VH2D-03-04.mf4 | VH2D-Wk22-03-04/H2CM/H2CM-U-M-L-VH2D-03-04-260528-181435.csv,,"Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-03-05,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,,,Back  Wall,Thin Film,101325,293,321,,3,VH2D-Wk22-03-05/DAQ-1/DAQ-1-VH2D-03-05.tpc5 | VH2D-Wk22-03-05/DAQ-2-3/DAQ-2-3-VH2D-03-05.mf4 | VH2D-Wk22-03-05/H2CM/H2CM-U-M-L-VH2D-03-05-260528-184939.csv,,"Added 13.671 gr
+Correlation>
+M= 69.638 C - 0.2568",No,,No,
+VH2D-Wk22-04-01,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,16,10.885,20,Back Wall,Thin Film with Hotwire Activated,101325,291.75,245,,3,VH2D-Wk22-04-01/DAQ-1/DAQ-1-VH2D-04-01.tpc5 | VH2D-Wk22-04-01/DAQ-2-3/DAQ-2-3-VH2D-04-01_Rec_01.mf4 | VH2D-Wk22-04-01/H2CM/H2CM-U-M-L-VH2D-04-01-260529-104759.csv,,"Added 10.885 gr
+Correlation>
+M= 69.638 C - 0.2568
+
+
+Missing data from H2CM. !!! Mean Value: 16.1 Vol.%",No,,No,
+VH2D-Wk22-04-02,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,16,,,Back Wall,Thin Film with Hotwire Activated,101325,293,502,,3,VH2D-Wk22-04-02/DAQ-1/DAQ-1-VH2D-04-02.tpc5 | VH2D-Wk22-04-02/DAQ-2-3/DAQ-2-3-VH2D-04-02_Rec_01.mf4 | VH2D-Wk22-04-02/H2CM/H2CM-U-M-L-VH2D-04-02-260529-115753.csv,,"Added 10.885 gr
+Correlation>
+M= 69.638 C - 0.2568
+1024 hPa
+HR 53%
+",No,,No,
+VH2D-Wk22-04-03,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,21,,,Back,thin plastic,101325,293,261,,3,VH2D-Wk22-04-03/DAQ-1/DAQ-1-VH2D-04-03.tpc5 | VH2D-Wk22-04-03/DAQ-2-3/DAQ-2-3-VH2D-04-03_Rec_01.mf4 | VH2D-Wk22-04-03/H2CM/H2CM-U-M-L-VH2D-04-03-260529-125215.csv,,"Added 14.367 gr
+Correlation>
+M= 69.638 C - 0.2568
+1023 hPa
+HR 57%",No,,No,
+VH2D-Wk22-04-04,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,21,,,Back Wall,Thin Film with Hotwire Activated,101325,293,252,,3,VH2D-Wk22-04-04/DAQ-1/DAQ-1-VH2D-04-04.tpc5 | VH2D-Wk22-04-04/DAQ-2-3/DAQ-2-3-VH2D-04-04_Rec_01.mf4 | VH2D-Wk22-04-04/H2CM/H2CM-U-M-L-VH2D-04-04-260529-135315.csv,,"Added 14.367 gr
+Correlation>
+M= 69.638 C - 0.2568
+1023 hPa
+HR 44%",No,,No,
+VH2D-Wk22-04-05,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,12,,,Back Wall,Thin Film with Hotwire Activated,101325,293,,,3,VH2D-Wk22-04-05/DAQ-1/DAQ-1-VH2D-04-05.tpc5 | VH2D-Wk22-04-05/DAQ-2-3/DAQ-2-3-VH2D-04-05_Rec_01.mf4 | VH2D-Wk22-04-05/H2CM/H2CM-M-U-L-M-VH2D-04-05-260529-150229.csv,Non Homogenous Flammable Mixture,"Added xxxx gr for a 12vol.%
+1020 hPa
+HR 41%
+Non HOmogeneous
+",No,,No,
+
+[TAB] Plan Group Objectives
+Group,Objective
+Prep-Wk22,Preparation
+Verif-Wk22,Performance Verification
+VH2D-Wk22-01,Vented deflagration concentration series (Hotwire)
+VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kistler)
+VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI)
+VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI)
+
+[TAB] DAQ Systems
+DAQ System Name,Measured Quantity,Vendor,Model,Serial Number,Sampling Rate (Hz),Channel Count,Owner,Last Calibration Date,Calibration Certificate ID,Active,Notes
+DAQ-1,pressure,Elsys - Kistler,TraNET 204S8,441309,1000000,8,LU,2024-10-21,,Yes,2 equipement
+DAQ-2,pressure,Kistler,5165A4,6306100,200000,4,DBI,,,Yes,200 kHz from VH2D-02
+DAQ-3,pressure,Kistler,5165A4,5358310,200000,4,Kistler,,,Yes,200 kHz from VH2D-02
+DAQ-4,pressure,Kistler,,,2500000,8,Kistler,,,Yes,
+H2CM,concentration,JCT,JTCD-300,14362,1,,LU,2025-07-21,,Yes,
+
+[TAB] Sensors Mapping
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Sensitivity,Location,"Coord.(x,y,z)m",Mounting,Active,Blind,Trigger Method,Status,Notes
+Prep-Wk22,P1,pressure,DAQ-1,CH1,1254024,-80.88 pC/bar,5L,"(-0.45,0.399,0.593)",flush,Yes,No,,Complete,
+Prep-Wk22,P2,pressure,DAQ-2,CH2,6266801,-37.02 pC/bar,6L,"(-0.450,0.403,0.290)",flush,Yes,No,,Complete,
+Prep-Wk22,Trig-1,voltage,DAQ-1,CH5,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+Prep-Wk22,Trig-2,voltage,DAQ-2,CH4,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Sensitivity,Location,"Coord.(x,y,z)m",Mounting,Active,Blind,Trigger Method,Status,Notes
+Verif-Wk22,P1,pressure,DAQ-1,CH1,1254024,-80.88 pC/bar,5L swaped to 3L on Verif-04,"(0.45,0.593,0.396)",flush,No,No,,Complete,
+Verif-Wk22,P2,pressure,DAQ-2,CH1,6266801,-37.02 pC/bar,6L,"(0.450,0.290,0.403)",flush,Yes,No,,Complete,
+Verif-Wk22,P3,pressure,DAQ-1,CH2,1008977,-81.58 pC/bar,3L swaped to 5L on Verif-04,"(-0.45,0.396,0.427)",other,Yes,Yes,,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+Verif-Wk22,P4,pressure,DAQ-2,CH2,6266802,-37.39 pC/bar,4L,"(-0.45,0.416,0.447)",flush,Yes,No,,Complete,
+Verif-Wk22,P5,pressure,DAQ-1,CH3,1946319,-79.12 pC/bar,3L,"(-0.45,0.416,0.447)",flush,Yes,No,,Complete,
+Verif-Wk22,P6,pressure,DAQ-2,CH3,,- pC/bar,,"(-,-,-)",flush,Yes,No,,Incomplete,
+Verif-Wk22,P7,pressure,DAQ-2,CH3,,- pC/bar,,"(-,-,-)",flush,Yes,No,,Incomplete,
+Verif-Wk22,P8,pressure,DAQ-3,CH1,,- pC/bar,,"(-,-,-)",flush,Yes,No,,Incomplete,
+Verif-Wk22,PP0,pressure,Kistler LabAmp,CH6,,- pC/bar,,"(0,2,0.68)",flush,Yes,No,,Incomplete,
+Verif-Wk22,PP15,pressure,Kistler LabAmp,CH7,,- pC/bar,,"(0,2,0.68)",flush,No,No,,Incomplete,Left Side 15 deg
+Verif-Wk22,PP30,pressure,Kistler LabAmp,CH8,,- pC/bar,,"(0,2,0.68)",flush,No,No,,Incomplete,Right Side 30 deg
+Verif-Wk22,Trig-1,voltage,DAQ-1,CH5,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+Verif-Wk22,Trig-2,voltage,DAQ-2,CH4,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+Verif-Wk22,Trig-3,voltage,DAQ-3,CH2,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (Verif-Wk22),Verification
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Sensitivity,Location,"Coord.(x,y,z)m",Mounting,Active,Blind,Trigger Method,Status,Notes
+VH2D-Wk22-01,P1,pressure,DAQ-1,CH1,1254024,-80.88 pC/bar,5L swaped to 3L on Verif-04,"(0.45,0.593,0.396)",flush,No,No,,Complete,not used today maybe damaged
+VH2D-Wk22-01,P2,pressure,DAQ-2,CH1,6266801,-37.02 pC/bar,6L,"(0.450,0.290,0.403)",flush,Yes,No,,Complete,
+VH2D-Wk22-01,P3,pressure,DAQ-1,CH2,1008977,-81.58 pC/bar,3L swaped to 5L on Verif-04,"(-0.45,0.396,0.427)",flush,Yes,No,,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-01,P4,pressure,DAQ-2,CH2,6266802,-37.39 pC/bar,4L,"(-0.45,0.416,0.447)",recessed,Yes,Yes,,Complete,
+VH2D-Wk22-01,P5,pressure,DAQ-1,CH3,1946319,-79.12 pC/bar,3L,"(-0.45,0.416,0.447)",recessed,Yes,Yes,,Complete,
+VH2D-Wk22-01,P6,pressure,DAQ-2,CH3,6266803,-37.66 pC/bar,2L,"(-0.450,0.376,0.447)",recessed,Yes,No,,Complete,
+VH2D-Wk22-01,P7,pressure,DAQ-2,CH4,931538,-80.73 pC/bar,1R,"(0.45,0.381,0.447)",recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-01,P8,pressure,DAQ-3,CH1,6266804,-37.55 pC/bar,4R,"(0.450,0.361,0.433)",recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-01,P9,pressure,DAQ-1,CH1,1008976,-78.79 pC/bar,1L,"(-0.45,0.396,0.467)",recessed,Yes,No,,Complete,
+VH2D-Wk22-01,PP1,pressure,Kistler LabAmp,CH6,,3264 mV/bar,,"(0,2,0.68)",other,Yes,No,,Incomplete,"Angle 0 deg
+radius 3m
+sensitivity 3264 mV/bar"
+VH2D-Wk22-01,PP2,pressure,Kistler LabAmp,CH7,,3478 mV/bar,,"(0,2,0.68)",other,No,No,,Incomplete,"right Side 30 deg
+radius 3m
+sensitivity 3478  mV/bar"
+VH2D-Wk22-01,PP3,pressure,Kistler LabAmp,CH8,,- mV/bar,3461,"(0,2,0.68)",other,No,No,M-Duino,Incomplete,"Right Side 60 deg
+radius 3m
+sensitivity 3461 mV/bar"
+VH2D-Wk22-01,Trig-1,voltage,DAQ-1,CH5,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-01,Trig-2,voltage,DAQ-2,CH4,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-01,Trig-3,voltage,DAQ-3,CH2,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (VH2D-Wk22-01),Vented deflagration concentration series (Hotwire)
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Sensitivity,Location,"Coord.(x,y,z)m",Mounting,Active,Blind,Trigger Method,Status,Notes
+VH2D-Wk22-02,P3,pressure,DAQ-1,CH2,1008977,-81.58 pC/bar,5L,"(-0.45,0.396,0.427)",flush,Yes,No,M-Duino,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-02,P3-Swapped DAQ,pressure,DAQ-4,CH1,1008977,-81.58 pC/bar,5L,"(-0.45,0.396,0.427)",flush,Yes,No,M-Duino,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-02,P7,pressure,DAQ-4,CH1,931538,-80.73 pC/bar,5R,"(0.45,0.381,0.447)",flush,Yes,No,M-Duino,Complete,added hight vacuum greaese
+VH2D-Wk22-02,P7-Swapped DAQ,pressure,DAQ-1,CH2,931538,-80.73 pC/bar,5R,"(0.45,0.381,0.447)",flush,Yes,No,M-Duino,Complete,added hight vacuum greaese
+VH2D-Wk22-02,Trig-1,voltage,DAQ-1,CH5,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-02,Trig-4,voltage,DAQ-4,CH8,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (VH2D-Wk22-02),LU vs Kistler
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Sensitivity,Location,"Coord.(x,y,z)m",Mounting,Active,Blind,Trigger Method,Status,Notes
+VH2D-Wk22-03,P2,pressure,DAQ-2,CH1,6266801,-37.02 pC/bar,6L,"(0.450,0.290,0.403)",flush,Yes,No,,Complete,
+VH2D-Wk22-03,P3,pressure,DAQ-1,CH2,1008977,-81.58 pC/bar,5L,"(-0.45,0.396,0.427)",flush,Yes,No,,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-03,P4,pressure,DAQ-2,CH2,6266802,-37.39 pC/bar,4L,"(-0.45,0.416,0.447)",recessed,Yes,Yes,,Complete,
+VH2D-Wk22-03,P5,pressure,DAQ-1,CH3,1946319,-79.12 pC/bar,3L,"(-0.45,0.416,0.447)",recessed,Yes,Yes,,Complete,
+VH2D-Wk22-03,P6,pressure,DAQ-2,CH3,6266803,-37.66 pC/bar,2L,"(-0.450,0.376,0.447)",recessed,Yes,No,,Complete,
+VH2D-Wk22-03,P7,pressure,DAQ-1,CH4,931538,-80.73 pC/bar,1R,"(0.45,0.381,0.447)",recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-03,P8,pressure,DAQ-3,CH1,6266804,-37.55 pC/bar,4R,"(0.450,0.361,0.433)",recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-03,P9,pressure,DAQ-1,CH1,1008976,-78.79 pC/bar,1L,"(-0.45,0.396,0.467)",recessed,Yes,No,,Complete,
+VH2D-Wk22-03,PP1,pressure,Kistler LabAmp,CH6,6652959,3264 mV/bar,,"(0,2,0.68)",other,Yes,No,,Complete,"Angle 60 deg
+radius 3m
+sensitivity 3264 mV/bar"
+VH2D-Wk22-03,PP2,pressure,Kistler LabAmp,CH7,6652961,- pC/bar,,"(0,2,0.68)",other,No,No,,Incomplete,"right Side 30 deg
+radius 3m
+sensitivity 3478  mV/bar"
+VH2D-Wk22-03,PP3,pressure,Kistler LabAmp,CH8,6652960,- pC/bar,,"(0,2,0.68)",other,No,No,,Incomplete,"Center 0 deg
+radius 3m
+sensitivity 3461 mV/bar"
+VH2D-Wk22-03,Trig-1,voltage,DAQ-1,CH5,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-03,Trig-2,voltage,DAQ-2,CH4,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-03,Trig-3,voltage,DAQ-3,CH2,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (VH2D-Wk22-03),Vented deflagration concentration series (Hotwire) LU vs DBI
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Sensitivity,Location,"Coord.(x,y,z)m",Mounting,Active,Blind,Trigger Method,Status,Notes
+VH2D-Wk22-04,P2,pressure,DAQ-2,CH1,6266801,-37.02 pC/bar,6L,"(0.450,0.290,0.403)",flush,Yes,No,,Complete,
+VH2D-Wk22-04,P3,pressure,DAQ-1,CH2,1008977,-81.58 pC/bar,5L,"(-0.45,0.396,0.427)",flush,Yes,No,,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-04,P4,pressure,DAQ-2,CH2,6266802,-37.39 pC/bar,4L,"(-0.45,0.416,0.447)",recessed,Yes,Yes,,Complete,
+VH2D-Wk22-04,P5,pressure,DAQ-1,CH3,1946319,-79.12 pC/bar,3L,"(-0.45,0.416,0.447)",recessed,Yes,Yes,,Complete,
+VH2D-Wk22-04,P6,pressure,DAQ-2,CH3,6266803,-37.66 pC/bar,2L,"(-0.450,0.376,0.447)",recessed,Yes,No,,Complete,
+VH2D-Wk22-04,P7,pressure,DAQ-1,CH4,931538,-80.73 pC/bar,1R,"(0.45,0.381,0.447)",recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-04,P8,pressure,DAQ-3,CH1,6266804,-37.55 pC/bar,4R,"(0.450,0.361,0.433)",recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-04,P9,pressure,DAQ-1,CH1,1008976,-78.79 pC/bar,1L,"(-0.45,0.396,0.467)",recessed,Yes,No,,Complete,
+VH2D-Wk22-04,PP1,pressure,Kistler LabAmp,CH6,6652959,3264 mV/bar,3m,"(0,2,0.68)",other,Yes,No,,Complete,"Angle 0 deg
+radius 3m
+sensitivity 3264 mV/bar"
+VH2D-Wk22-04,PP2,pressure,Kistler LabAmp,CH7,6652961,3478 mV/bar,5m,"(0,2,0.68)",other,No,No,,Complete,"0 deg
+radius 5m
+sensitivity 3478  mV/bar"
+VH2D-Wk22-04,PP3,pressure,Kistler LabAmp,CH8,6652960,3461 mV/bar,7m,"(0,2,0.68)",other,No,No,,Complete,"Center 0 deg
+radius 7m
+sensitivity 3461 mV/bar"
+VH2D-Wk22-04,Trig-1,voltage,DAQ-1,CH5,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-04,Trig-2,voltage,DAQ-2,CH4,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-04,Trig-3,voltage,DAQ-3,CH2,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (VH2D-Wk22-04),Vented deflagration concentration series (Hotwire) LU vs DBI
+
+[TAB] Gas Mixing
+Group,Run/Test,Target H2 (%vol),Relative Humidity (%RH),Pchamber (Pa),Tchamber (K),H2 Injected Estimated (g),H2 Injected Corrected (g),H2 Injected Volume (L),MFC Flow (SLPM),Fill Time (s),Fill Time (min),Calibration Model Type,Calibration Target Basis,Calibration Enabled,Calibration Applied,Calibration a,Calibration b,Calibration Notes,Notes,Updated At
+Prep-Wk22,01,13.50,,101325,292.15,8.276,Not corrected by model,98.41,20.00,301.3,5.0,,,,,,,,,2026-05-25 17:27:49
+Verif-Wk22,01,13.50,,101325,294.25,8.217,Not corrected by model,98.42,20.00,299.2,5.0,,,,,,,,,2026-05-26 11:46:08
+Verif-Wk22,02,14.00,,101325,293.15,9.384,Not corrected by model,111.97,20.00,334.8,5.6,,,,,,,,,2026-05-26 14:03:57
+Verif-Wk22,03,16.00,,101325,294.15,10.638,Not corrected by model,127.37,20.00,387.3,6.5,,,,,,,,,2026-05-26 15:53:24
+Verif-Wk22,04,18.00,,101325,291.65,12.070,Not corrected by model,143.29,20.00,439.5,7.3,,,,,,,,,2026-05-26 17:31:49
+VH2D-Wk22-01,01,16.00,,101325,293.15,10.674,Not corrected by model,127.37,20.00,388.6,6.5,,,,,,,,,2026-05-27 13:51:19
+VH2D-Wk22-01,02,16.00,,101325,292.05,10.714,Not corrected by model,127.37,20.00,390.1,6.5,,,,,,,,,2026-05-27 14:47:32
+VH2D-Wk22-01,03,18.00,,101325,291.35,12.083,Not corrected by model,143.29,20.00,439.9,7.3,,,,,,,,,2026-05-27 15:24:55
+VH2D-Wk22-01,04,18.00,,101325,290.85,12.103,Not corrected by model,143.29,20.00,440.7,7.3,,,,,,,,,2026-05-27 16:30:34
+VH2D-Wk22-01,05,19.00,,101325,290.55,12.789,Not corrected by model,151.26,20.00,465.6,7.8,,,,,,,,,2026-05-27 17:50:04
+VH2D-Wk22-01,07,20.00,,101325,290.56,13.462,Not corrected by model,159.22,20.00,490.1,8.2,,,,,,,,,2026-05-27 17:57:37
+VH2D-Wk22-02,01,18.00,,101325,289.95,12.141,Not corrected by model,143.29,20.00,442.0,7.4,,,,,,,,,2026-05-28 11:41:03
+VH2D-Wk22-02,02,18.00,,101325,291.15,12.091,Not corrected by model,143.29,20.00,440.2,7.3,,,,,,,,,2026-05-28 11:43:19
+VH2D-Wk22-02,03,20.00,,101325,293.15,13.343,Not corrected by model,159.22,20.00,485.8,8.1,,,,,,,,,2026-05-28 13:22:48
+VH2D-Wk22-02,04,20.00,,101325,292.15,13.388,Not corrected by model,159.22,20.00,487.5,8.1,,,,,,,,,2026-05-28 14:16:19
+VH2D-Wk22-03,01,18.00,,101325,292.45,12.037,Not corrected by model,143.29,20.00,438.3,7.3,,,,,,,,,2026-05-28 15:53:21
+VH2D-Wk22-03,02,18.00,,101325,292.25,12.045,Not corrected by model,143.29,20.00,438.6,7.3,,,,,,,,,2026-05-28 16:35:43
+VH2D-Wk22-03,03,20.00,,101325,292.15,13.388,Not corrected by model,159.22,20.00,487.5,8.1,,,,,,,,,2026-05-28 17:13:08
+VH2D-Wk22-03,04,20.00,,101325,291.65,13.411,Not corrected by model,159.22,20.00,488.3,8.1,,,,,,,,,2026-05-28 17:59:31
+VH2D-Wk22-03,05,20.00,,101325,291.45,13.421,Not corrected by model,159.22,20.00,488.6,8.1,,,,,,,,,2026-05-28 18:37:23
+VH2D-Wk22-04,01,16.00,,101325,291.75,10.725,Not corrected by model,127.37,20.00,390.5,6.5,,,,,,,,,2026-05-29 10:32:56
+VH2D-Wk22-04,02,16.00,,101325,292.75,10.689,Not corrected by model,127.37,20.00,389.2,6.5,,,,,,,,,2026-05-29 11:36:38
+VH2D-Wk22-04,03,21.00,,101325,293.05,14.015,Not corrected by model,167.18,20.00,510.3,8.5,,,,,,,,,2026-05-29 12:40:04
+VH2D-Wk22-04,04,21.00,,101325,293.75,13.981,Not corrected by model,167.18,20.00,509.0,8.5,,,,,,,,,2026-05-29 13:31:18
+VH2D-Wk22-04,05,12.00,,101325,295.05,7.954,Not corrected by model,95.53,10.00,579.2,9.7,,,,,,,,"MFC set to 7.954 g (12 vol.%) but stopped at vol. 8% at location measured by H2CM. This was the initial plan, but the total hydrogen mass was injected.",2026-05-29 14:59:44

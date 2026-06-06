@@ -16,10 +16,21 @@ DEFAULT_W_M = 0.9
 DEFAULT_H_M = 0.9
 
 
+def _is_blank(value) -> bool:
+    return value is None or (isinstance(value, str) and value.strip() == "")
+
+
 def _as_1d_numeric(value, var_name: str) -> np.ndarray:
-    arr = np.asarray(value if isinstance(value, (list, tuple, np.ndarray)) else [value], dtype=float).reshape(-1)
+    if _is_blank(value):
+        raise ValueError(f"{var_name} is required")
+    try:
+        arr = np.asarray(value if isinstance(value, (list, tuple, np.ndarray)) else [value], dtype=float).reshape(-1)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{var_name} must be numeric") from exc
     if arr.size == 0:
         raise ValueError(f"{var_name} must not be empty")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{var_name} must be finite")
     return arr
 
 
@@ -40,9 +51,19 @@ def _json_scalar_or_list(values):
 
 def _pick_value(payload: dict, *keys, default=None):
     for key in keys:
-        if key in payload and payload.get(key) is not None:
+        if key in payload and not _is_blank(payload.get(key)):
             return payload.get(key)
     return default
+
+
+def _as_float(value, var_name: str) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{var_name} must be numeric") from exc
+    if not np.isfinite(numeric):
+        raise ValueError(f"{var_name} must be finite")
+    return numeric
 
 
 def calculate_h2_mfc_fill(payload: dict) -> dict:
@@ -51,16 +72,16 @@ def calculate_h2_mfc_fill(payload: dict) -> dict:
     if h2_raw is None:
         raise ValueError("H2_volPct (or targetVol) is required")
 
-    H2_volPct = _as_1d_numeric(h2_raw, "H2_volPct")
+    H2_volPct = _as_1d_numeric(h2_raw, "Target H2 Vol %")
     n_cases = H2_volPct.size
 
-    L_m = float(_pick_value(payload, "L_m", "lengthM", default=DEFAULT_L_M))
-    W_m = float(_pick_value(payload, "W_m", "widthM", default=DEFAULT_W_M))
-    H_m = float(_pick_value(payload, "H_m", "heightM", default=DEFAULT_H_M))
-    Vol_Pipes_m3 = float(_pick_value(payload, "Vol_Pipes_m3", "volPipesM3", default=0.0))
-    HotwireAssembly_m3 = float(_pick_value(payload, "HotwireAssembly_m3", "hotwireAssemblyM3", default=0.0))
-    WeldedParts_m3 = float(_pick_value(payload, "WeldedParts_m3", "weldedPartsM3", default=0.0))
-    Bolts_m3 = float(_pick_value(payload, "Bolts_m3", "boltsM3", default=0.0))
+    L_m = _as_float(_pick_value(payload, "L_m", "lengthM", default=DEFAULT_L_M), "Length L (m)")
+    W_m = _as_float(_pick_value(payload, "W_m", "widthM", default=DEFAULT_W_M), "Width W (m)")
+    H_m = _as_float(_pick_value(payload, "H_m", "heightM", default=DEFAULT_H_M), "Height H (m)")
+    Vol_Pipes_m3 = _as_float(_pick_value(payload, "Vol_Pipes_m3", "volPipesM3", default=0.0), "Pipes volume (m^3)")
+    HotwireAssembly_m3 = _as_float(_pick_value(payload, "HotwireAssembly_m3", "hotwireAssemblyM3", default=0.0), "Hotwire assembly volume (m^3)")
+    WeldedParts_m3 = _as_float(_pick_value(payload, "WeldedParts_m3", "weldedPartsM3", default=0.0), "Welded parts volume (m^3)")
+    Bolts_m3 = _as_float(_pick_value(payload, "Bolts_m3", "boltsM3", default=0.0), "Bolts volume (m^3)")
 
     V_chamber_geom_m3 = L_m * W_m * H_m
     V_chamber_corrected_m3 = (
@@ -88,22 +109,21 @@ def calculate_h2_mfc_fill(payload: dict) -> dict:
         "T_chamber_K",
     )
 
-    if payload.get("P_chamber_Pa") is not None:
+    if not _is_blank(payload.get("P_chamber_Pa")):
         P_chamber_Pa = _expand_to_cases(payload.get("P_chamber_Pa"), n_cases, "P_chamber_Pa")
     else:
         amb_pressure_bar = _pick_value(payload, "ambPressure", default=DEFAULT_AMB_PRESSURE_BAR)
         P_chamber_Pa = _expand_to_cases(np.asarray(amb_pressure_bar, dtype=float) * 1e5, n_cases, "P_chamber_Pa")
 
-    T_std_K = float(_pick_value(payload, "T_std_K", "stdTempK", default=DEFAULT_T_STD_K))
-    P_std_Pa = float(_pick_value(payload, "P_std_Pa", "stdPressurePa", default=DEFAULT_P_STD_PA))
-    MFC_setpoint_SLPM = _expand_to_cases(
-        _pick_value(payload, "MFC_setpoint_SLPM", "mfcSetpointSLPM", "mfcFlowSlpm", default=np.nan),
-        n_cases,
-        "MFC_setpoint_SLPM",
-    )
+    T_std_K = _as_float(_pick_value(payload, "T_std_K", "stdTempK", default=DEFAULT_T_STD_K), "Standard temperature Tstd (K)")
+    P_std_Pa = _as_float(_pick_value(payload, "P_std_Pa", "stdPressurePa", default=DEFAULT_P_STD_PA), "Standard pressure Pstd (Pa)")
+    mfc_raw = _pick_value(payload, "MFC_setpoint_SLPM", "mfcSetpointSLPM", "mfcFlowSlpm")
+    if mfc_raw is None:
+        raise ValueError("MFC setpoint (SLPM) is required")
+    MFC_setpoint_SLPM = _expand_to_cases(mfc_raw, n_cases, "MFC setpoint (SLPM)")
     makePlot = bool(_pick_value(payload, "makePlot", default=False))
-    Ru = float(_pick_value(payload, "Ru", "ru", default=DEFAULT_RU))
-    M_H2 = float(_pick_value(payload, "M_H2", "mH2", default=DEFAULT_M_H2))
+    Ru = _as_float(_pick_value(payload, "Ru", "ru", default=DEFAULT_RU), "Ru")
+    M_H2 = _as_float(_pick_value(payload, "M_H2", "mH2", default=DEFAULT_M_H2), "M_H2")
 
     x_H2 = H2_volPct / 100.0
     if L_m <= 0 or W_m <= 0 or H_m <= 0:
@@ -120,6 +140,8 @@ def calculate_h2_mfc_fill(payload: dict) -> dict:
         raise ValueError("P_std_Pa must be greater than zero")
     if not np.all((x_H2 > 0) & (x_H2 < 1)):
         raise ValueError("All hydrogen concentrations must be between 0 and 100 vol%")
+    if not np.all(MFC_setpoint_SLPM > 0):
+        raise ValueError("MFC setpoint (SLPM) must be greater than zero")
     if Ru <= 0:
         raise ValueError("Ru must be a positive scalar")
     if M_H2 <= 0:

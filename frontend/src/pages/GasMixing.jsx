@@ -61,6 +61,14 @@ const kelvinToCelsiusString = (kelvinValue, fallback = '') => {
   if (kelvin === null) return fallback;
   return (kelvin - KELVIN_OFFSET).toFixed(2);
 };
+const firstNonBlank = (...values) => {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return value;
+    }
+  }
+  return '';
+};
 const formatKelvinPreview = (kelvinValue) => {
   if (!Number.isFinite(kelvinValue)) return '-';
   return `${kelvinValue.toFixed(2)} K`;
@@ -180,6 +188,24 @@ const getRecordChamberVolumeL = (item) => {
   return Number.NaN;
 };
 
+const isRecordCorrectionApplied = (item) =>
+  String(item?.calibrationApplied || '').trim().toLowerCase() === 'yes';
+
+const getRecordEstimatedH2MassG = (item) => {
+  const direct = parseFiniteNumber(item?.mH2EstimatedG);
+  if (direct !== null) return direct;
+  const fromResults = parseFiniteNumber(item?.results?.m_H2_injected_g);
+  if (fromResults !== null) return fromResults;
+  // Legacy records stored the uncorrected estimate in mH2InjectedG before calibration existed.
+  if (!isRecordCorrectionApplied(item)) return parseFiniteNumber(item?.mH2InjectedG);
+  return null;
+};
+
+const hasNonZeroValue = (value) => {
+  const numeric = parseFiniteNumber(value);
+  return numeric !== null && Math.abs(numeric) > 1e-12;
+};
+
 const GasMixingPage = ({ projectPath, experiments = [] }) => {
   const apiBaseUrl = getBackendBaseUrl();
   const projectName = String(projectPath || '').split(/[/\\]/).filter(Boolean).pop() || 'No project selected';
@@ -224,6 +250,15 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
     () => applyDosageModel(baseResults, draft.targetVol, dosageModel),
     [baseResults, draft.targetVol, dosageModel],
   );
+  const visibleCorrectionColumns = useMemo(() => ({
+    hotwire: records.some((item) => hasNonZeroValue(item?.hotwireAssemblyM3)),
+    welded: records.some((item) => hasNonZeroValue(item?.weldedPartsM3)),
+    bolts: records.some((item) => hasNonZeroValue(item?.boltsM3)),
+  }), [records]);
+  const savedRecordsColumnCount = 18
+    + Number(visibleCorrectionColumns.hotwire)
+    + Number(visibleCorrectionColumns.welded)
+    + Number(visibleCorrectionColumns.bolts);
 
   const groupedRuns = useMemo(() => {
     const sorted = [...(Array.isArray(experiments) ? experiments : [])].sort((a, b) =>
@@ -337,10 +372,10 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       targetVol: String(fromRecord?.targetVol ?? fallbackTarget ?? ''),
       relativeHumidityPct: String(fromRecord?.relativeHumidityPct ?? ''),
       pChamberPa: String(fromRecord?.pChamberPa ?? fallbackPressurePa ?? ''),
-      tChamberC: String(
-        fromRecord?.tChamberC
-        ?? kelvinToCelsiusString(fromRecord?.tChamberK, '20.00'),
-      ),
+      tChamberC: String(firstNonBlank(
+        fromRecord?.tChamberC,
+        kelvinToCelsiusString(fromRecord?.tChamberK, '20.00'),
+      )),
       mfcFlowSlpm: String(fromRecord?.mfcFlowSlpm ?? ''),
       lM: String(fromRecord?.lM ?? '0.9'),
       wM: String(fromRecord?.wM ?? '0.9'),
@@ -349,10 +384,10 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       hotwireAssemblyM3: String(fromRecord?.hotwireAssemblyM3 ?? '0'),
       weldedPartsM3: String(fromRecord?.weldedPartsM3 ?? '0'),
       boltsM3: String(fromRecord?.boltsM3 ?? '0'),
-      tStdC: String(
-        fromRecord?.tStdC
-        ?? kelvinToCelsiusString(fromRecord?.tStdK, '25.00'),
-      ),
+      tStdC: String(firstNonBlank(
+        fromRecord?.tStdC,
+        kelvinToCelsiusString(fromRecord?.tStdK, '25.00'),
+      )),
       pStdPa: String(fromRecord?.pStdPa ?? '101325'),
       ru: String(fromRecord?.ru ?? '8.314462618'),
       mH2: String(fromRecord?.mH2 ?? '2.01588e-3'),
@@ -365,6 +400,27 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
   const calculateInBackend = async () => {
     if (!selectedGroup || !selectedRunName) {
       setStatus('Select a group and run first.');
+      return;
+    }
+    const requiredInputs = [
+      ['Target H2 Vol %', draft.targetVol],
+      ['MFC Setpoint (SLPM)', draft.mfcFlowSlpm],
+      ['Chamber Pressure Pchamber (Pa)', draft.pChamberPa],
+      ['Chamber Temperature Tchamber (°C)', draft.tChamberC],
+    ];
+    for (const [label, value] of requiredInputs) {
+      if (String(value ?? '').trim() === '') {
+        setStatus(`Calculation failed: ${label} is required.`);
+        return;
+      }
+      const numeric = parseFiniteNumber(value);
+      if (numeric === null) {
+        setStatus(`Calculation failed: ${label} must be numeric.`);
+        return;
+      }
+    }
+    if ((parseFiniteNumber(draft.mfcFlowSlpm) ?? 0) <= 0) {
+      setStatus('Calculation failed: MFC Setpoint (SLPM) must be greater than zero.');
       return;
     }
     setIsCalculating(true);
@@ -459,6 +515,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
     const tStdKValue = celsiusToKelvin(draft.tStdC);
     const keepExistingTChamberK = !temperatureEdited.tChamber && String(currentSavedRecord?.tChamberK || '').trim() !== '';
     const keepExistingTStdK = !temperatureEdited.tStd && String(currentSavedRecord?.tStdK || '').trim() !== '';
+    const estimatedH2MassG = results?.m_H2_injected_g ?? getRecordEstimatedH2MassG(currentSavedRecord);
     const nextRecord = {
       group: selectedGroup,
       runName: selectedRunName,
@@ -484,7 +541,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       pStdPa: String(draft.pStdPa || '').trim(),
       ru: String(draft.ru || '').trim(),
       mH2: String(draft.mH2 || '').trim(),
-      mH2EstimatedG: String(results?.m_H2_injected_g ?? ''),
+      mH2EstimatedG: String(estimatedH2MassG ?? ''),
       mH2CorrectedG: String(results?.correction?.applied ? results?.correction?.correctedMassG : (results?.m_H2_injected_g ?? '')),
       mH2InjectedG: String(results?.correction?.applied ? results?.correction?.correctedMassG : results?.m_H2_injected_g ?? ''),
       vH2InjectedL: String(results?.V_H2_injected_L ?? ''),
@@ -1073,9 +1130,9 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                 <th className="py-2 pr-3">W (m)</th>
                 <th className="py-2 pr-3">H (m)</th>
                 <th className="py-2 pr-3">Pipes + (m³)</th>
-                <th className="py-2 pr-3">Hotwire + (m³)</th>
-                <th className="py-2 pr-3">Welded - (m³)</th>
-                <th className="py-2 pr-3">Bolts - (m³)</th>
+                {visibleCorrectionColumns.hotwire && <th className="py-2 pr-3">Hotwire + (m³)</th>}
+                {visibleCorrectionColumns.welded && <th className="py-2 pr-3">Welded - (m³)</th>}
+                {visibleCorrectionColumns.bolts && <th className="py-2 pr-3">Bolts - (m³)</th>}
                 <th className="py-2 pr-3">Vchamber corr. (L)</th>
                 <th className="py-2 pr-3">H2 est. (g)</th>
                 <th className="py-2 pr-3">H2 corr. (g)</th>
@@ -1089,7 +1146,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
             <tbody>
               {!records.length ? (
                 <tr>
-                  <td colSpan={21} className="py-3 text-center text-muted-foreground">No saved gas mixing records yet.</td>
+                  <td colSpan={savedRecordsColumnCount} className="py-3 text-center text-muted-foreground">No saved gas mixing records yet.</td>
                 </tr>
               ) : (
                 [...records]
@@ -1097,7 +1154,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                   .map((item) => (
                     <tr key={recordKey(item?.group, item?.runName)} className="border-b border-sidebar-border/40">
                       {(() => {
-                        const correctionApplied = String(item?.calibrationApplied || '').trim().toLowerCase() === 'yes';
+                        const correctionApplied = isRecordCorrectionApplied(item);
                         return (
                           <>
                       <td className="py-2 pr-3">{item.group || '-'}</td>
@@ -1110,11 +1167,11 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                       <td className="py-2 pr-3">{formatResultFixed(item.wM, 3)}</td>
                       <td className="py-2 pr-3">{formatResultFixed(item.hM, 3)}</td>
                       <td className="py-2 pr-3">{formatResultFixed(item.volPipesM3, 4)}</td>
-                      <td className="py-2 pr-3">{formatResultFixed(item.hotwireAssemblyM3, 4)}</td>
-                      <td className="py-2 pr-3">{formatResultFixed(item.weldedPartsM3, 4)}</td>
-                      <td className="py-2 pr-3">{formatResultFixed(item.boltsM3, 4)}</td>
+                      {visibleCorrectionColumns.hotwire && <td className="py-2 pr-3">{formatResultFixed(item.hotwireAssemblyM3, 4)}</td>}
+                      {visibleCorrectionColumns.welded && <td className="py-2 pr-3">{formatResultFixed(item.weldedPartsM3, 4)}</td>}
+                      {visibleCorrectionColumns.bolts && <td className="py-2 pr-3">{formatResultFixed(item.boltsM3, 4)}</td>}
                       <td className="py-2 pr-3">{formatResultFixed(getRecordChamberVolumeL(item), 2)}</td>
-                      <td className="py-2 pr-3">{formatResultFixed(item.mH2EstimatedG ?? item?.results?.m_H2_injected_g, 3)}</td>
+                      <td className="py-2 pr-3">{formatResultFixed(getRecordEstimatedH2MassG(item), 3)}</td>
                       <td className="py-2 pr-3">
                         {correctionApplied
                           ? formatResultFixed(item.mH2CorrectedG ?? item.mH2InjectedG, 3)

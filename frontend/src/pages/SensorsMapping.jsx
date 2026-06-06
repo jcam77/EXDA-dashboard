@@ -17,6 +17,8 @@ const QUANTITY_OPTIONS = [
 ];
 const SENSITIVITY_UNIT_OPTIONS = ['pC/bar', 'pC/kPa', 'mV/bar', 'mV/kPa', 'V/bar', 'V/kPa', 'other'];
 const COORDINATE_UNIT_OPTIONS = ['m', 'mm'];
+const DEFAULT_COORDINATE_ORIGIN = '((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.';
+const CUSTOM_COORDINATE_ORIGIN = '__custom_coordinate_origin__';
 const MOUNTING_OPTIONS = ['flush', 'recessed', 'tube-mounted', 'surface-mounted', 'N/A', 'other'];
 const TRIGGER_METHOD_OPTIONS = ['', 'Camera', 'M-Duino', 'Other'];
 const RUN_GROUP_RE = /^(.*)-(\d+)(?:-[Rr]\d+)?$/;
@@ -76,7 +78,7 @@ const createDefaultSensor = (id = '') => ({
   y: '',
   z: '',
   coordinateUnit: 'm',
-  coordinateOrigin: 'internal lower-front-left corner of chamber',
+  coordinateOrigin: DEFAULT_COORDINATE_ORIGIN,
   mountingMethod: 'flush',
   isActive: true,
   isBlindSensor: false,
@@ -207,6 +209,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
   const [editorError, setEditorError] = useState('');
   const [editorOffset, setEditorOffset] = useState({ x: 0, y: 40 });
   const [editorDragging, setEditorDragging] = useState(false);
+  const [coordinateOriginMode, setCoordinateOriginMode] = useState(DEFAULT_COORDINATE_ORIGIN);
   const [busyFormat, setBusyFormat] = useState('');
   const [showMountingPreview, setShowMountingPreview] = useState(false);
   const { dialogModal, setDialogModal, showAlert, showConfirm, showPrompt } = useAppDialog();
@@ -617,6 +620,20 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     editingSensor,
   ]);
 
+  const resolveCoordinateOriginMode = useCallback((originValue) => {
+    const origin = String(originValue || '').trim();
+    if (!origin) return CUSTOM_COORDINATE_ORIGIN;
+    if (origin === DEFAULT_COORDINATE_ORIGIN) return DEFAULT_COORDINATE_ORIGIN;
+    return CUSTOM_COORDINATE_ORIGIN;
+  }, []);
+
+  const coordinateOriginSelection = useMemo(() => {
+    const origin = String(editingSensor.coordinateOrigin || '').trim();
+    if (coordinateOriginMode === CUSTOM_COORDINATE_ORIGIN) return CUSTOM_COORDINATE_ORIGIN;
+    if (origin === DEFAULT_COORDINATE_ORIGIN) return DEFAULT_COORDINATE_ORIGIN;
+    return CUSTOM_COORDINATE_ORIGIN;
+  }, [coordinateOriginMode, editingSensor.coordinateOrigin]);
+
   const openAdd = (groupName = selectedGroup) => {
     setSelectedGroup(groupName);
     setCollapsedGroups((prev) => ({ ...prev, [groupName]: false }));
@@ -624,6 +641,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     setEditorError('');
     setEditingExistingId(null);
     setEditingSensor(createDefaultSensor(''));
+    setCoordinateOriginMode(DEFAULT_COORDINATE_ORIGIN);
     setEditorOffset({ x: 0, y: 40 });
     setEditorOpen(true);
   };
@@ -634,7 +652,9 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     setEditingGroup(groupName);
     setEditorError('');
     setEditingExistingId(sensor.id);
-    setEditingSensor(normalizeSensorRecord(sensor));
+    const normalizedSensor = normalizeSensorRecord(sensor);
+    setEditingSensor(normalizedSensor);
+    setCoordinateOriginMode(resolveCoordinateOriginMode(normalizedSensor.coordinateOrigin));
     setEditorOffset({ x: 0, y: 40 });
     setEditorOpen(true);
   };
@@ -1144,7 +1164,35 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
               <label className="text-xs">Y<input value={editingSensor.y} onChange={(e) => setEditingSensor((prev) => ({ ...prev, y: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Z<input value={editingSensor.z} onChange={(e) => setEditingSensor((prev) => ({ ...prev, z: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Coordinate Unit<select value={editingSensor.coordinateUnit} onChange={(e) => setEditingSensor((prev) => ({ ...prev, coordinateUnit: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{COORDINATE_UNIT_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
-              <label className="text-xs md:col-span-2">Coordinate Origin<input value={editingSensor.coordinateOrigin} onChange={(e) => setEditingSensor((prev) => ({ ...prev, coordinateOrigin: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <div className="text-xs md:col-span-2">
+                <label className="block">Coordinate Origin</label>
+                <select
+                  value={coordinateOriginSelection}
+                  onChange={(e) => {
+                    const selected = e.target.value;
+                    setCoordinateOriginMode(selected || CUSTOM_COORDINATE_ORIGIN);
+                    setEditingSensor((prev) => ({
+                      ...prev,
+                      coordinateOrigin: selected === CUSTOM_COORDINATE_ORIGIN
+                        ? (String(prev.coordinateOrigin || '').trim() === DEFAULT_COORDINATE_ORIGIN ? '' : prev.coordinateOrigin)
+                        : selected,
+                    }));
+                  }}
+                  className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5"
+                >
+                  <option value="">Select coordinate origin...</option>
+                  <option value={DEFAULT_COORDINATE_ORIGIN}>{DEFAULT_COORDINATE_ORIGIN}</option>
+                  <option value={CUSTOM_COORDINATE_ORIGIN}>Custom</option>
+                </select>
+                {coordinateOriginSelection === CUSTOM_COORDINATE_ORIGIN && (
+                  <textarea
+                    value={editingSensor.coordinateOrigin}
+                    onChange={(e) => setEditingSensor((prev) => ({ ...prev, coordinateOrigin: e.target.value }))}
+                    className="mt-2 min-h-20 w-full rounded border border-sidebar-border bg-background px-2 py-1.5"
+                    placeholder="Describe the coordinate origin used for this group or sensor..."
+                  />
+                )}
+              </div>
               <label className="text-xs">Mounting Method<select value={editingSensor.mountingMethod} onChange={(e) => setEditingSensor((prev) => ({ ...prev, mountingMethod: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{MOUNTING_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
               <label className="inline-flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={!!editingSensor.isActive} onChange={(e) => setEditingSensor((prev) => ({ ...prev, isActive: e.target.checked }))} /> Active Sensor</label>
               <label className="inline-flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={!!editingSensor.isBlindSensor} onChange={(e) => setEditingSensor((prev) => ({ ...prev, isBlindSensor: e.target.checked }))} /> Blind / Control Sensor</label>
