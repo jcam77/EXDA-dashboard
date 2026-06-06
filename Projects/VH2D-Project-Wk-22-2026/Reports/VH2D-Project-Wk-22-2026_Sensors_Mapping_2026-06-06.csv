@@ -1,0 +1,110 @@
+﻿Export Type,Sensors Mapping
+Project,VH2D-Project-Wk-22-2026
+Responsible Researcher,PhD Student Javier I. Camacho
+Total Groups,6
+Total Sensor IDs,21
+Total Sensor Mappings,67
+Sensor Mounting Reference File,frontend/public/SensorMountingLocation-000.pdf
+Generated At,2026-06-06 10:47:25
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Manufacturer,Model,Sensitivity,Location Label,"Coord.(x,y,z)m",Coordinate Origin,Mounting Method,Active,Blind/Control,Trigger Method,Status,Notes
+Prep-Wk22,P1,pressure,DAQ-1,CH1,1254024,Kistler,m,-80.88 pC/bar,5L,"(-0.45,0.399,0.593)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,,Complete,
+Prep-Wk22,P2,pressure,DAQ-2,CH2,6266801,Kistler,6266801,-37.02 pC/bar,6L,"(-0.450,0.403,0.290)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,M-Duino,Complete,
+Prep-Wk22,Trig-1,voltage,DAQ-1,CH5,,Kistler,,- pC/bar,,"(-,-,-)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",N/A,Yes,No,M-Duino,Complete,
+Prep-Wk22,Trig-2,voltage,DAQ-2,CH4,,Kistler,,- pC/bar,,"(-,-,-)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",N/A,Yes,No,M-Duino,Complete,
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Manufacturer,Model,Sensitivity,Location Label,"Coord.(x,y,z)m",Coordinate Origin,Mounting Method,Active,Blind/Control,Trigger Method,Status,Notes
+Verif-Wk22,P1,pressure,DAQ-1,CH1,1254024,Kistler,m,-80.88 pC/bar,5L swaped to 3L on Verif-04,"(0.45,0.593,0.396)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,No,No,,Complete,
+Verif-Wk22,P2,pressure,DAQ-2,CH1,6266801,Kistler,6266801,-37.02 pC/bar,6L,"(0.450,0.290,0.403)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,,Complete,
+Verif-Wk22,P3,pressure,DAQ-1,CH2,1008977,Kistler,7061B,-81.58 pC/bar,3L swaped to 5L on Verif-04,"(-0.45,0.396,0.427)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",other,Yes,Yes,,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+Verif-Wk22,P4,pressure,DAQ-2,CH2,6266802,Kistler,,-37.39 pC/bar,4L,"(-0.45,0.416,0.447)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,,Complete,
+Verif-Wk22,P5,pressure,DAQ-1,CH3,1946319,Kistler,7061B,-79.12 pC/bar,3L,"(-0.45,0.416,0.447)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,,Complete,
+Verif-Wk22,P6,pressure,DAQ-2,CH3,,Kistler,,- pC/bar,,"(-,-,-)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,,Incomplete,
+Verif-Wk22,P7,pressure,DAQ-2,CH3,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,flush,Yes,No,,Incomplete,
+Verif-Wk22,P8,pressure,DAQ-3,CH1,,Kistler,,- pC/bar,,"(-,-,-)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,,Incomplete,
+Verif-Wk22,PP0,pressure,Kistler LabAmp,CH6,,Kistler,,- pC/bar,,"(0,2,0.68)",center front of chamber,flush,Yes,No,,Incomplete,
+Verif-Wk22,PP15,pressure,Kistler LabAmp,CH7,,Kistler,,- pC/bar,,"(0,2,0.68)",center front of chamber,flush,No,No,,Incomplete,Left Side 15 deg
+Verif-Wk22,PP30,pressure,Kistler LabAmp,CH8,,Kistler,,- pC/bar,,"(0,2,0.68)",center front of chamber,flush,No,No,,Incomplete,Right Side 30 deg
+Verif-Wk22,Trig-1,voltage,DAQ-1,CH5,,Kistler,,- pC/bar,,"(-,-,-)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",N/A,Yes,No,M-Duino,Complete,
+Verif-Wk22,Trig-2,voltage,DAQ-2,CH4,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+Verif-Wk22,Trig-3,voltage,DAQ-3,CH2,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (Verif-Wk22),Verification
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Manufacturer,Model,Sensitivity,Location Label,"Coord.(x,y,z)m",Coordinate Origin,Mounting Method,Active,Blind/Control,Trigger Method,Status,Notes
+VH2D-Wk22-01,P1,pressure,DAQ-1,CH1,1254024,Kistler,m,-80.88 pC/bar,5L swaped to 3L on Verif-04,"(0.45,0.593,0.396)",1 left,flush,No,No,,Complete,not used today maybe damaged
+VH2D-Wk22-01,P2,pressure,DAQ-2,CH1,6266801,Kistler,6266801,-37.02 pC/bar,6L,"(0.450,0.290,0.403)",internal lower-front-left corner of chamber,flush,Yes,No,,Complete,
+VH2D-Wk22-01,P3,pressure,DAQ-1,CH2,1008977,Kistler,7061B,-81.58 pC/bar,3L swaped to 5L on Verif-04,"(-0.45,0.396,0.427)",internal lower-front-left corner of chamber,flush,Yes,No,,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-01,P4,pressure,DAQ-2,CH2,6266802,Kistler,,-37.39 pC/bar,4L,"(-0.45,0.416,0.447)",internal lower-front-left corner of chamber,recessed,Yes,Yes,,Complete,
+VH2D-Wk22-01,P5,pressure,DAQ-1,CH3,1946319,Kistler,7061B,-79.12 pC/bar,3L,"(-0.45,0.416,0.447)",internal lower-front-left corner of chamber,recessed,Yes,Yes,,Complete,
+VH2D-Wk22-01,P6,pressure,DAQ-2,CH3,6266803,Kistler,601CAA,-37.66 pC/bar,2L,"(-0.450,0.376,0.447)",internal lower-front-left corner of chamber,recessed,Yes,No,,Complete,
+VH2D-Wk22-01,P7,pressure,DAQ-2,CH4,931538,Kistler,931538,-80.73 pC/bar,1R,"(0.45,0.381,0.447)",internal lower-front-left corner of chamber,recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-01,P8,pressure,DAQ-3,CH1,6266804,Kistler,601CAA,-37.55 pC/bar,4R,"(0.450,0.361,0.433)",internal lower-front-left corner of chamber,recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-01,P9,pressure,DAQ-1,CH1,1008976,Kistler,,-78.79 pC/bar,1L,"(-0.45,0.396,0.467)",internal lower-front-left corner of chamber,recessed,Yes,No,,Complete,
+VH2D-Wk22-01,PP1,pressure,Kistler LabAmp,CH6,,Kistler,,3264 mV/bar,,"(0,2,0.68)",internal lower-front-left corner of chamber,other,Yes,No,,Incomplete,"Angle 0 deg
+radius 3m
+sensitivity 3264 mV/bar"
+VH2D-Wk22-01,PP2,pressure,Kistler LabAmp,CH7,,Kistler,,3478 mV/bar,,"(0,2,0.68)",internal lower-front-left corner of chamber,other,No,No,,Incomplete,"right Side 30 deg
+radius 3m
+sensitivity 3478  mV/bar"
+VH2D-Wk22-01,PP3,pressure,Kistler LabAmp,CH8,,Kistler,,- mV/bar,3461,"(0,2,0.68)",,other,No,No,M-Duino,Incomplete,"Right Side 60 deg
+radius 3m
+sensitivity 3461 mV/bar"
+VH2D-Wk22-01,Trig-1,voltage,DAQ-1,CH5,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-01,Trig-2,voltage,DAQ-2,CH4,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-01,Trig-3,voltage,DAQ-3,CH2,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (VH2D-Wk22-01),Vented deflagration concentration series (Hotwire)
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Manufacturer,Model,Sensitivity,Location Label,"Coord.(x,y,z)m",Coordinate Origin,Mounting Method,Active,Blind/Control,Trigger Method,Status,Notes
+VH2D-Wk22-02,P3,pressure,DAQ-1,CH2,1008977,Kistler,7061B,-81.58 pC/bar,5L,"(-0.45,0.396,0.427)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,M-Duino,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-02,P3-Swapped DAQ,pressure,DAQ-4,CH1,1008977,Kistler,7061B,-81.58 pC/bar,5L,"(-0.45,0.396,0.427)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,M-Duino,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-02,P7,pressure,DAQ-4,CH1,931538,Kistler,931538,-80.73 pC/bar,5R,"(0.45,0.381,0.447)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,M-Duino,Complete,added hight vacuum greaese
+VH2D-Wk22-02,P7-Swapped DAQ,pressure,DAQ-1,CH2,931538,Kistler,931538,-80.73 pC/bar,5R,"(0.45,0.381,0.447)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,M-Duino,Complete,added hight vacuum greaese
+VH2D-Wk22-02,Trig-1,voltage,DAQ-1,CH5,,Kistler,,- pC/bar,,"(-,-,-)",,N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-02,Trig-4,voltage,DAQ-4,CH8,,Kistler,,- pC/bar,,"(-,-,-)",,N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (VH2D-Wk22-02),LU vs Kistler
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Manufacturer,Model,Sensitivity,Location Label,"Coord.(x,y,z)m",Coordinate Origin,Mounting Method,Active,Blind/Control,Trigger Method,Status,Notes
+VH2D-Wk22-03,P2,pressure,DAQ-2,CH1,6266801,Kistler,6266801,-37.02 pC/bar,6L,"(0.450,0.290,0.403)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,M-Duino,Complete,
+VH2D-Wk22-03,P3,pressure,DAQ-1,CH2,1008977,Kistler,7061B,-81.58 pC/bar,5L,"(-0.45,0.396,0.427)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",flush,Yes,No,M-Duino,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-03,P4,pressure,DAQ-2,CH2,6266802,Kistler,,-37.39 pC/bar,4L,"(-0.45,0.416,0.447)",internal lower-front-left corner of chamber,recessed,Yes,Yes,M-Duino,Complete,
+VH2D-Wk22-03,P5,pressure,DAQ-1,CH3,1946319,Kistler,7061B,-79.12 pC/bar,3L,"(-0.45,0.416,0.447)",internal lower-front-left corner of chamber,recessed,Yes,Yes,M-Duino,Complete,
+VH2D-Wk22-03,P6,pressure,DAQ-2,CH3,6266803,Kistler,601CAA,-37.66 pC/bar,2L,"(-0.450,0.376,0.447)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",recessed,Yes,No,M-Duino,Complete,
+VH2D-Wk22-03,P7,pressure,DAQ-1,CH4,931538,Kistler,931538,-80.73 pC/bar,1R,"(0.45,0.381,0.447)",internal lower-front-left corner of chamber,recessed,Yes,No,M-Duino,Complete,added hight vacuum greaese
+VH2D-Wk22-03,P8,pressure,DAQ-3,CH1,6266804,Kistler,601CAA,-37.55 pC/bar,4R,"(0.450,0.361,0.433)",internal lower-front-left corner of chamber,recessed,Yes,No,M-Duino,Complete,added hight vacuum greaese
+VH2D-Wk22-03,P9,pressure,DAQ-1,CH1,1008976,Kistler,,-78.79 pC/bar,1L,"(-0.45,0.396,0.467)","((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.",recessed,Yes,No,M-Duino,Complete,
+VH2D-Wk22-03,PP1,pressure,Kistler LabAmp,CH6,6652959,Kistler,,3264 mV/bar,3m60deg,"(0,2,0.68)",center front of chamber,other,Yes,No,M-Duino,Complete,"Angle 60 deg
+radius 3m
+sensitivity 3264 mV/bar"
+VH2D-Wk22-03,PP2,pressure,Kistler LabAmp,CH7,6652961,Kistler,,3478 mV/bar,3m30deg,"(0,2,0.68)",center front of chamber,other,No,No,M-Duino,Complete,"right Side 30 deg
+radius 3m
+sensitivity 3478  mV/bar"
+VH2D-Wk22-03,PP3,pressure,Kistler LabAmp,CH8,6652960,Kistler,,3461 mV/bar,3m0deg,"(0,2,0.68)",center front of chamber,other,No,No,M-Duino,Complete,"Center 0 deg
+radius 3m
+sensitivity 3461 mV/bar"
+VH2D-Wk22-03,Trig-1,voltage,DAQ-1,CH5,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-03,Trig-2,voltage,DAQ-2,CH4,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-03,Trig-3,voltage,DAQ-3,CH2,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (VH2D-Wk22-03),Vented deflagration concentration series (Hotwire) LU vs DBI
+
+Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Manufacturer,Model,Sensitivity,Location Label,"Coord.(x,y,z)m",Coordinate Origin,Mounting Method,Active,Blind/Control,Trigger Method,Status,Notes
+VH2D-Wk22-04,P2,pressure,DAQ-2,CH1,6266801,Kistler,6266801,-37.02 pC/bar,6L,"(0.450,0.290,0.403)",internal lower-front-left corner of chamber,flush,Yes,No,,Complete,
+VH2D-Wk22-04,P3,pressure,DAQ-1,CH2,1008977,Kistler,7061B,-81.58 pC/bar,5L,"(-0.45,0.396,0.427)",internal lower-front-left corner of chamber,flush,Yes,No,,Complete,Used to detect electrical/mechanical contamination and ignition-related EMI.
+VH2D-Wk22-04,P4,pressure,DAQ-2,CH2,6266802,Kistler,,-37.39 pC/bar,4L,"(-0.45,0.416,0.447)",internal lower-front-left corner of chamber,recessed,Yes,Yes,,Complete,
+VH2D-Wk22-04,P5,pressure,DAQ-1,CH3,1946319,Kistler,7061B,-79.12 pC/bar,3L,"(-0.45,0.416,0.447)",internal lower-front-left corner of chamber,recessed,Yes,Yes,,Complete,
+VH2D-Wk22-04,P6,pressure,DAQ-2,CH3,6266803,Kistler,601CAA,-37.66 pC/bar,2L,"(-0.450,0.376,0.447)",internal lower-front-left corner of chamber,recessed,Yes,No,,Complete,
+VH2D-Wk22-04,P7,pressure,DAQ-1,CH4,931538,Kistler,931538,-80.73 pC/bar,1R,"(0.45,0.381,0.447)",internal lower-front-left corner of chamber,recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-04,P8,pressure,DAQ-3,CH1,6266804,Kistler,601CAA,-37.55 pC/bar,4R,"(0.450,0.361,0.433)",internal lower-front-left corner of chamber,recessed,Yes,No,,Complete,added hight vacuum greaese
+VH2D-Wk22-04,P9,pressure,DAQ-1,CH1,1008976,Kistler,,-78.79 pC/bar,1L,"(-0.45,0.396,0.467)",internal lower-front-left corner of chamber,recessed,Yes,No,,Complete,
+VH2D-Wk22-04,PP1,pressure,Kistler LabAmp,CH6,6652959,Kistler,,3264 mV/bar,3m,"(0,2,0.68)",internal lower-front-left corner of chamber,other,Yes,No,,Complete,"Angle 0 deg
+radius 3m
+sensitivity 3264 mV/bar"
+VH2D-Wk22-04,PP2,pressure,Kistler LabAmp,CH7,6652961,Kistler,,3478 mV/bar,5m,"(0,2,0.68)",internal lower-front-left corner of chamber,other,No,No,,Complete,"0 deg
+radius 5m
+sensitivity 3478  mV/bar"
+VH2D-Wk22-04,PP3,pressure,Kistler LabAmp,CH8,6652960,Kistler,,3461 mV/bar,7m,"(0,2,0.68)",internal lower-front-left corner of chamber,other,No,No,,Complete,"Center 0 deg
+radius 7m
+sensitivity 3461 mV/bar"
+VH2D-Wk22-04,Trig-1,voltage,DAQ-1,CH5,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-04,Trig-2,voltage,DAQ-2,CH4,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+VH2D-Wk22-04,Trig-3,voltage,DAQ-3,CH2,,Kistler,,- pC/bar,,"(-,-,-)",internal lower-front-left corner of chamber,N/A,Yes,No,M-Duino,Complete,
+Group Reference Note (VH2D-Wk22-04),Vented deflagration concentration series (Hotwire) LU vs DBI

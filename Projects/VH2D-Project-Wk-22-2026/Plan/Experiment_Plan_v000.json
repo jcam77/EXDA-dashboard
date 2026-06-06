@@ -7,9 +7,9 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [
-          "VH2D-Wk22-01-01/DAQ-1/DAQ-1-VH2D-01-01.tpc5",
-          "VH2D-Wk22-01-01/H2CM/H2CM-U-M-L-VH2D-01-01-260527-140320.csv",
-          "VH2D-Wk22-01-01/DAQ-2-3/DAQ-2-3-VH2D-01-01.mf4"
+          "VH2D-Wk22-01-01/H2BGA/H2BGA-U-M-L-VH2D-01-01-260527-140320.csv",
+          "VH2D-Wk22-01-01/DAQ-2-3/DAQ-2-3-VH2D-01-01.mf4",
+          "VH2D-Wk22-01-01/DAQ-1/DAQ-1-VH2D-01-01.tpc5"
         ],
         "h2": "16",
         "ignition": "Back Wall",
@@ -18,8 +18,9 @@
         "p0": "101325",
         "plannedDate": "2026-05-27",
         "plannedDay": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "293.15",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "10.674164731450286"
       },
       "name": "VH2D-Wk22-01-01"
     },
@@ -30,7 +31,7 @@
         "cfdHash": "",
         "dataFiles": [
           "VH2D-Wk22-01-02/DAQ-1/DAQ-1-VH2D-01-02.tpc5",
-          "VH2D-Wk22-01-02/H2CM/H2CM-U-M-L-VH2D-01-02-260527-150043.csv",
+          "VH2D-Wk22-01-02/H2BGA/H2BGA-U-M-L-VH2D-01-02-260527-150043.csv",
           "VH2D-Wk22-01-02/DAQ-2-3/DAQ-2-3-VH2D-01-02.mf4"
         ],
         "h2": "16",
@@ -41,8 +42,9 @@
         "plannedDate": "2026-05-27",
         "plannedDay": "",
         "recircStopToIgnitionSec": "228",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "292.05",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "10.714368741738232"
       },
       "name": "VH2D-Wk22-01-02"
     },
@@ -76,7 +78,7 @@
         "dataFiles": [
           "VH2D-Wk22-01-04/DAQ-1/DAQ-1-VH2D-01-04.tpc5",
           "VH2D-Wk22-01-04/DAQ-2-3/DAQ-2-3-VH2D-01-04.mf4",
-          "VH2D-Wk22-01-04/H2CM/H2CM-U-M-L-VH2D-01-04-260527-164423.csv"
+          "VH2D-Wk22-01-04/H2BGA/H2BGA-U-M-L-VH2D-01-04-260527-164423.csv"
         ],
         "h2": "18",
         "ignition": "Back Wall",
@@ -86,8 +88,9 @@
         "plannedDate": "2026-05-27",
         "plannedDay": "",
         "recircStopToIgnitionSec": "168",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "290.85",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "12.103396303602311"
       },
       "name": "VH2D-Wk22-01-04",
       "notes": "PP1 and PP3 swapped\n\nDAQ-3 sampling rate 62.5kHz changed to 200kHz"
@@ -99,8 +102,9 @@
         "cfdHash": "",
         "dataFiles": [
           "VH2D-Wk22-02-01/DAQ-1/DAQ-1-VH2D-02-01.tpc5",
+          "VH2D-Wk22-02-01/DAQ-2-3/DAQ-2-3-VH2D-02-01.mf4",
           "VH2D-Wk22-02-01/DAQ-4/DAQ-4-VH2D-02-01.mf4",
-          "VH2D-Wk22-02-01/H2CM/H2CM-U-M-L-VH2D-02-01-260528-105051.csv"
+          "VH2D-Wk22-02-01/H2BGA/H2BGA-U-M-L-VH2D-02-01-260528-105051.csv"
         ],
         "h2": "18",
         "ignition": "Back Wall",
@@ -109,8 +113,10 @@
         "plannedDate": "2026-05-28",
         "plannedDay": "",
         "recircStopToIgnitionSec": "243",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "289.95",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "12.27804",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-02-01",
       "notes": "Added 12.278 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -123,7 +129,7 @@
         "dataFiles": [
           "VH2D-Wk22-03-01/DAQ-1/DAQ-1-VH2D-03-01.tpc5",
           "VH2D-Wk22-03-01/DAQ-2-3/DAQ-2-3-VH2D-03.mf4",
-          "VH2D-Wk22-03-01/H2CM/H2CM-U-M-L-VH2D-03-01-260528-160918.csv"
+          "VH2D-Wk22-03-01/H2BGA/H2BGA-U-M-L-VH2D-03-01-260528-160918.csv"
         ],
         "h2": "18",
         "ignition": "Back Wall",
@@ -133,8 +139,10 @@
         "plannedDay": "",
         "recircStopToIgnitionSec": "230",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "292.45",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "12.27804",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-03-01",
       "notes": "Added 12.278 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -145,9 +153,9 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [
-          "Prep-Wk22-01/H2BGA/Prep-01-H2CM-U.csv",
-          "Prep-Wk22-01/DAQ-2/Prep-01-DAQ-2.mf4",
-          "Prep-Wk22-01/DAQ-1/Prep-01.exp/data/Prep-01-DAQ-1.tpc5"
+          "Prep-Wk22-01/H2BGA/Prep-01-H2BGA-U.csv",
+          "Prep-Wk22-01/DAQ-1/Prep-01.exp/data/Prep-01-DAQ-1.tpc5",
+          "Prep-Wk22-01/DAQ-2/Prep-01-DAQ-2.mf4"
         ],
         "h2": "13.5",
         "h2InjectedGrams": "8.275657522940918",
@@ -173,8 +181,8 @@
         "dataFiles": [
           "VH2D-Wk22-02-02/DAQ-1/DAQ-1-VH2D-02-02.tpc5",
           "VH2D-Wk22-02-02/DAQ-2-3/DAQ-2-3-VH2D-02-02.mf4",
-          "VH2D-Wk22-02-02/H2CM/H2CM-U-M-L-VH2D-02-02-260528-115959.csv",
-          "VH2D-Wk22-02-02/DAQ-4/DAQ-4-VH2D-02-02.mf4"
+          "VH2D-Wk22-02-02/DAQ-4/DAQ-4-VH2D-02-02.mf4",
+          "VH2D-Wk22-02-02/H2BGA/H2BGA-U-M-L-VH2D-02-02-260528-115959.csv"
         ],
         "h2": "18",
         "ignition": "Back Wall",
@@ -184,8 +192,10 @@
         "plannedDay": "",
         "recircStopToIgnitionSec": "231",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "291.15",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "12.27804",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-02-02",
       "notes": "P3 and P7 swapped\n\nAdded 12.278 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -199,7 +209,7 @@
           "VH2D-Wk22-02-03/DAQ-1/DAQ-1-VH2D-02-03.tpc5",
           "VH2D-Wk22-02-03/DAQ-2-3/DAQ-2-3-VH2D-02-03.mf4",
           "VH2D-Wk22-02-03/DAQ-4/DAQ-4-VH2D-02-03.mf4",
-          "VH2D-Wk22-02-03/H2CM/H2CM-U-M-L-VH2D-02-03-260528-134340.csv"
+          "VH2D-Wk22-02-03/H2BGA/H2BGA-U-M-L-VH2D-02-03-260528-134340.csv"
         ],
         "h2": "20",
         "ignition": "Back Wall",
@@ -209,8 +219,10 @@
         "plannedDay": "",
         "recircStopToIgnitionSec": "232",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "293.15",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "13.670800000000002",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-02-03",
       "notes": "P3 and P7 swapped\n\nAdded 13.671 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -224,7 +236,7 @@
           "VH2D-Wk22-02-04/DAQ-1/DAQ-1-VH2D-02-04.tpc5",
           "VH2D-Wk22-02-04/DAQ-2-3/DAQ-2-3-VH2D-02-04.mf4",
           "VH2D-Wk22-02-04/DAQ-4/DAQ-4-VH2D-02-04.mf4",
-          "VH2D-Wk22-02-04/H2CM/H2CM-U-M-L-VH2D-02-04-260528-144105.csv"
+          "VH2D-Wk22-02-04/H2BGA/H2BGA-U-M-L-VH2D-02-04-260528-144105.csv"
         ],
         "h2": "20",
         "ignition": "back",
@@ -234,8 +246,10 @@
         "plannedDay": "",
         "recircStopToIgnitionSec": "221",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "thin film"
+        "t0": "292.15",
+        "vent": "thin film",
+        "h2InjectedGrams": "13.670800000000002",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-02-04",
       "notes": "P3 and P7 swapped\n\nAdded 13.671 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -246,9 +260,9 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [
+          "VH2D-Wk22-03-02/DAQ-1/DAQ-1-VH2D-03-02.tpc5",
           "VH2D-Wk22-03-02/DAQ-2-3/DAQ-2-3-VH2D-03-02.mf4",
-          "VH2D-Wk22-03-02/H2CM/H2CM-U-M-L-VH2D-03-02-260528-164833.csv",
-          "VH2D-Wk22-03-02/DAQ-1/DAQ-1-VH2D-03-02.tpc5"
+          "VH2D-Wk22-03-02/H2BGA/H2BGA-U-M-L-VH2D-03-02-260528-164833.csv"
         ],
         "h2": "18",
         "ignition": "Back Wall",
@@ -258,8 +272,10 @@
         "plannedDay": "",
         "recircStopToIgnitionSec": "232",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "292.25",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "12.27804",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-03-02",
       "notes": "PP3 moved to 5m radius\n\nAdded 12.278 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -272,7 +288,7 @@
         "dataFiles": [
           "VH2D-Wk22-03-03/DAQ-1/DAQ-1-VH2D-03-03.tpc5",
           "VH2D-Wk22-03-03/DAQ-2-3/DAQ-2-3-VH2D-03-03.mf4",
-          "VH2D-Wk22-03-03/H2CM/H2CM-U-M-L-VH2D-03-03-260528-173139.csv"
+          "VH2D-Wk22-03-03/H2BGA/H2BGA-U-M-L-VH2D-03-03-260528-173139.csv"
         ],
         "errorNote": "Attention!!! Hot-wire short circuit. Check carefully data could compromised.",
         "h2": "20",
@@ -283,8 +299,10 @@
         "plannedDate": "2026-05-28",
         "plannedDay": "",
         "shortDescription": "Attention!!! Hot-wire short circuit. Check carefully data could compromised.",
-        "t0": "293",
-        "vent": "Thin Film"
+        "t0": "292.15",
+        "vent": "Thin Film",
+        "h2InjectedGrams": "13.670800000000002",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-03-03",
       "notes": "Added 13.671 gr\nCorrelation>\nM= 69.638 C - 0.2568\n\nAttention!!! Hot-wire short circuit. Check carefully data could compromised."
@@ -297,7 +315,7 @@
         "dataFiles": [
           "VH2D-Wk22-03-04/DAQ-1/DAQ-1-VH2D-03-04.tpc5",
           "VH2D-Wk22-03-04/DAQ-2-3/DAQ-2-3-VH2D-03-04.mf4",
-          "VH2D-Wk22-03-04/H2CM/H2CM-U-M-L-VH2D-03-04-260528-181435.csv"
+          "VH2D-Wk22-03-04/H2BGA/H2BGA-U-M-L-VH2D-03-04-260528-181435.csv"
         ],
         "h2": "20",
         "ignition": "vack",
@@ -307,8 +325,10 @@
         "plannedDay": "",
         "recircStopToIgnitionSec": "221",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "thin"
+        "t0": "291.65",
+        "vent": "thin",
+        "h2InjectedGrams": "13.670800000000002",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-03-04",
       "notes": "Added 13.671 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -319,11 +339,11 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [
-          "Verif-Wk22-01/DAQ-1-Verif-01.tpc5",
-          "Verif-Wk22-01/DAQ-2-Verif-01/DAQ-2-Verif_01.mf4",
-          "Verif-Wk22-01/H2CM-L-Verif-01-260526-120036.csv",
-          "Verif-Wk22-01/H2CM-M-Verif-01-260526-115955.csv",
-          "Verif-Wk22-01/H2CM-U-Verif-01-260526-115817.csv"
+          "Verif-Wk22-01/DAQ-1/DAQ-1-Verif-01.tpc5",
+          "Verif-Wk22-01/DAQ-2/DAQ-2-Verif_01.mf4",
+          "Verif-Wk22-01/H2BGA/H2BGA-L-Verif-01-260526-120036.csv",
+          "Verif-Wk22-01/H2BGA/H2BGA-M-Verif-01-260526-115955.csv",
+          "Verif-Wk22-01/H2BGA/H2BGA-U-Verif-01-260526-115817.csv"
         ],
         "h2": "13.5",
         "ignition": "Back Wall",
@@ -332,8 +352,10 @@
         "plannedDate": "2026-05-26",
         "recircStopToIgnitionSec": "312",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "294.25",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "8.216595905954765",
+        "mfcFlowSlpm": "20"
       },
       "name": "Verif-Wk22-01",
       "notes": "Physical Range -1,1 bar"
@@ -344,9 +366,9 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [
+          "Verif-Wk22-02/H2BGA/H2BGA-U-M-L-Verif-02-260526-144155.csv",
           "Verif-Wk22-02/DAQ-1/DAQ-1-Verif-02.tpc5",
-          "Verif-Wk22-02/DAQ-2/DAQ-2-Verif_02/DAQ-2-Verif_02.mf4",
-          "Verif-Wk22-02/H2CM/H2CM-U-M-L-Verif-02-260526-144155.csv"
+          "Verif-Wk22-02/DAQ-2/DAQ-2-Verif_02/DAQ-2-Verif_02.mf4"
         ],
         "h2": "14",
         "ignition": "Back Wall",
@@ -355,8 +377,10 @@
         "plannedDate": "2026-05-26",
         "recircStopToIgnitionSec": "321",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "293.15",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "9.383538505159276",
+        "mfcFlowSlpm": "20"
       },
       "name": "Verif-Wk22-02",
       "notes": "Physical Range -1,1 bar"
@@ -369,7 +393,7 @@
         "dataFiles": [
           "Verif-Wk22-03/DAQ-1/DAQ-1-Verif-03.tpc5",
           "Verif-Wk22-03/DAQ-2/DAQ-2-Verif-03/DAQ-2-Verif-03.mf4",
-          "Verif-Wk22-03/H2CM/H2CM-U-M-L-Verif-03-260526-160316.csv"
+          "Verif-Wk22-03/H2BGA/H2BGA-U-M-L-Verif-03-260526-160316.csv"
         ],
         "h2": "16",
         "ignition": "Back Wall",
@@ -378,8 +402,10 @@
         "plannedDate": "2026-05-26",
         "recircStopToIgnitionSec": "263",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "294.15",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "10.637876563061878",
+        "mfcFlowSlpm": "20"
       },
       "name": "Verif-Wk22-03",
       "notes": "\nChannel 2 Physical Range -1, ,1 bar\nChannel 2 Physical Range -0.5, ,0.5 bar\nLeak on Blind Sensor Flange Connection 3L & 5L \n\nVolume Correction +0.06708 \n\n"
@@ -392,7 +418,7 @@
         "dataFiles": [
           "Verif-Wk22-04/DAQ-1/DAQ-1-Verif-04.tpc5",
           "Verif-Wk22-04/DAQ-2/DAQ-2-Verif-04/DAQ-2-Verif-04.mf4",
-          "Verif-Wk22-04/H2CM/H2CM-U-M-L-Verif-04-260526-174304.csv"
+          "Verif-Wk22-04/H2BGA/H2BGA-U-M-L-Verif-04-260526-174304.csv"
         ],
         "h2": "18",
         "ignition": "Back Wall",
@@ -401,8 +427,10 @@
         "plannedDate": "2026-05-26",
         "recircStopToIgnitionSec": "233",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "291.65",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "12.070196519467626",
+        "mfcFlowSlpm": "20"
       },
       "name": "Verif-Wk22-04",
       "notes": "P1 swapped for P5"
@@ -456,7 +484,7 @@
         "dataFiles": [
           "VH2D-Wk22-01-07/DAQ-1/DAQ-1-VH2D-01-07.tpc5",
           "VH2D-Wk22-01-07/DAQ-2-3/VH2D-01-07.mf4",
-          "VH2D-Wk22-01-07/H2CM/H2CM-U-M-L-VH2D-01-07-260527-180934.csv"
+          "VH2D-Wk22-01-07/H2BGA/H2BGA-U-M-L-VH2D-01-07-260527-180934.csv"
         ],
         "h2": "20",
         "ignition": "Back Wall",
@@ -464,8 +492,10 @@
         "p0": "101325",
         "plannedDate": "2026-05-27",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "290.56",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "13.461640414306215",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-01-07",
       "notes": "PP1 and PP3 swapped"
@@ -497,10 +527,10 @@
         "dataFiles": [
           "VH2D-Wk22-04-01/DAQ-1/DAQ-1-VH2D-04-01.tpc5",
           "VH2D-Wk22-04-01/DAQ-2-3/DAQ-2-3-VH2D-04-01_Rec_01.mf4",
-          "VH2D-Wk22-04-01/H2CM/H2CM-U-M-L-VH2D-04-01-260529-104759.csv"
+          "VH2D-Wk22-04-01/H2BGA/H2BGA-U-M-L-VH2D-04-01-260529-104759.csv"
         ],
         "h2": "16",
-        "h2InjectedGrams": "10.885",
+        "h2InjectedGrams": "10.885280000000002",
         "ignition": "Back Wall",
         "isPreparation": false,
         "mfcFlowSlpm": "20",
@@ -523,7 +553,7 @@
         "dataFiles": [
           "VH2D-Wk22-03-05/DAQ-1/DAQ-1-VH2D-03-05.tpc5",
           "VH2D-Wk22-03-05/DAQ-2-3/DAQ-2-3-VH2D-03-05.mf4",
-          "VH2D-Wk22-03-05/H2CM/H2CM-U-M-L-VH2D-03-05-260528-184939.csv"
+          "VH2D-Wk22-03-05/H2BGA/H2BGA-U-M-L-VH2D-03-05-260528-184939.csv"
         ],
         "h2": "20",
         "ignition": "Back  Wall",
@@ -533,8 +563,10 @@
         "plannedDay": "",
         "recircStopToIgnitionSec": "321",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film"
+        "t0": "291.45",
+        "vent": "Thin Film",
+        "h2InjectedGrams": "13.670800000000002",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-03-05",
       "notes": "Added 13.671 gr\nCorrelation>\nM= 69.638 C - 0.2568"
@@ -547,7 +579,7 @@
         "dataFiles": [
           "VH2D-Wk22-04-02/DAQ-1/DAQ-1-VH2D-04-02.tpc5",
           "VH2D-Wk22-04-02/DAQ-2-3/DAQ-2-3-VH2D-04-02_Rec_01.mf4",
-          "VH2D-Wk22-04-02/H2CM/H2CM-U-M-L-VH2D-04-02-260529-115753.csv"
+          "VH2D-Wk22-04-02/H2BGA/H2BGA-U-M-L-VH2D-04-02-260529-115753.csv"
         ],
         "h2": "16",
         "ignition": "Back Wall",
@@ -556,8 +588,10 @@
         "plannedDate": "2026-05-29",
         "recircStopToIgnitionSec": "502",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "292.75",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "10.885280000000002",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-04-02",
       "notes": "Added 10.885 gr\nCorrelation>\nM= 69.638 C - 0.2568\n1024 hPa\nHR 53%\n"
@@ -570,7 +604,7 @@
         "dataFiles": [
           "VH2D-Wk22-04-03/DAQ-1/DAQ-1-VH2D-04-03.tpc5",
           "VH2D-Wk22-04-03/DAQ-2-3/DAQ-2-3-VH2D-04-03_Rec_01.mf4",
-          "VH2D-Wk22-04-03/H2CM/H2CM-U-M-L-VH2D-04-03-260529-125215.csv"
+          "VH2D-Wk22-04-03/H2BGA/H2BGA-U-M-L-VH2D-04-03-260529-125215.csv"
         ],
         "h2": "21",
         "ignition": "Back",
@@ -579,8 +613,10 @@
         "plannedDate": "2026-05-29",
         "recircStopToIgnitionSec": "261",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "thin plastic"
+        "t0": "293.05",
+        "vent": "thin plastic",
+        "h2InjectedGrams": "14.367180000000001",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-04-03",
       "notes": "Added 14.367 gr\nCorrelation>\nM= 69.638 C - 0.2568\n1023 hPa\nHR 57%"
@@ -593,7 +629,7 @@
         "dataFiles": [
           "VH2D-Wk22-04-04/DAQ-1/DAQ-1-VH2D-04-04.tpc5",
           "VH2D-Wk22-04-04/DAQ-2-3/DAQ-2-3-VH2D-04-04_Rec_01.mf4",
-          "VH2D-Wk22-04-04/H2CM/H2CM-U-M-L-VH2D-04-04-260529-135315.csv"
+          "VH2D-Wk22-04-04/H2BGA/H2BGA-U-M-L-VH2D-04-04-260529-135315.csv"
         ],
         "h2": "21",
         "ignition": "Back Wall",
@@ -602,8 +638,10 @@
         "plannedDate": "2026-05-29",
         "recircStopToIgnitionSec": "252",
         "shortDescription": "",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "293.75",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "14.367180000000001",
+        "mfcFlowSlpm": "20"
       },
       "name": "VH2D-Wk22-04-04",
       "notes": "Added 14.367 gr\nCorrelation>\nM= 69.638 C - 0.2568\n1023 hPa\nHR 44%"
@@ -616,7 +654,7 @@
         "dataFiles": [
           "VH2D-Wk22-04-05/DAQ-1/DAQ-1-VH2D-04-05.tpc5",
           "VH2D-Wk22-04-05/DAQ-2-3/DAQ-2-3-VH2D-04-05_Rec_01.mf4",
-          "VH2D-Wk22-04-05/H2CM/H2CM-M-U-L-M-VH2D-04-05-260529-150229.csv"
+          "VH2D-Wk22-04-05/H2BGA/H2BGA-M-U-L-M-VH2D-04-05-260529-150229.csv"
         ],
         "h2": "12",
         "ignition": "Back Wall",
@@ -624,8 +662,10 @@
         "p0": "101325",
         "plannedDate": "2026-05-29",
         "shortDescription": "Non Homogenous Flammable Mixture",
-        "t0": "293",
-        "vent": "Thin Film with Hotwire Activated"
+        "t0": "295.05",
+        "vent": "Thin Film with Hotwire Activated",
+        "h2InjectedGrams": "8.09976",
+        "mfcFlowSlpm": "10"
       },
       "name": "VH2D-Wk22-04-05",
       "notes": "Added xxxx gr for a 12vol.%\n1020 hPa\nHR 41%\nNon HOmogeneous\n"
