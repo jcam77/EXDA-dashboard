@@ -25,7 +25,6 @@ const createDefaultCamera = () => ({
   frameRate: '',
   resolution: '',
   lensFocalLength: '',
-  viewingDirection: '',
   x: '',
   y: '',
   z: '',
@@ -140,8 +139,7 @@ const validateCameraAgainstList = (camera, allCameras, currentId = null) => {
   if (!String(camera.frameRate || '').trim()) warnings.push('Frame rate missing');
   if (!String(camera.resolution || '').trim()) warnings.push('Resolution missing');
   if (!String(camera.lensFocalLength || '').trim()) warnings.push('Lens / focal length missing');
-  if (!String(camera.viewingDirection || '').trim()) warnings.push('Viewing direction missing');
-  if (!String(camera.mountingLocation || '').trim()) warnings.push('Mounting location missing');
+  if (!String(camera.mountingLocation || '').trim()) warnings.push('Mounting description missing');
   if (!String(camera.fieldOfView || '').trim()) warnings.push('Field of view / target region missing');
   if (!String(displayTriggerSource(camera) || '').trim() || displayTriggerSource(camera) === '-') warnings.push('Trigger source missing');
   if (!String(camera.synchronizationNotes || '').trim()) warnings.push('Synchronization notes missing');
@@ -697,7 +695,6 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
                     <th className="py-2 pr-3">FPS</th>
                     <th className="py-2 pr-3">Resolution</th>
                     <th className="py-2 pr-3">Lens</th>
-                    <th className="py-2 pr-3">View</th>
                     <th className="py-2 pr-3">Coord.(x,y,z)m</th>
                     <th className="py-2 pr-3">Mounting</th>
                     <th className="py-2 pr-3">FOV / Target</th>
@@ -721,7 +718,6 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
                         <td className="py-2 pr-3">{camera.frameRate || '-'}</td>
                         <td className="py-2 pr-3">{camera.resolution || '-'}</td>
                         <td className="py-2 pr-3">{camera.lensFocalLength || '-'}</td>
-                        <td className="py-2 pr-3">{camera.viewingDirection || '-'}</td>
                         <td className="py-2 pr-3">({camera.x || '-'},{camera.y || '-'},{camera.z || '-'}) {camera.coordinateUnit || 'm'}</td>
                         <td className="py-2 pr-3">{camera.mountingLocation || '-'}</td>
                         <td className="py-2 pr-3">{camera.fieldOfView || '-'}</td>
@@ -895,7 +891,6 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
               <label className="text-xs">Frame Rate<input value={editingCamera.frameRate} onChange={(e) => setEditingCamera((prev) => ({ ...prev, frameRate: e.target.value }))} placeholder="e.g., 10000 fps" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Resolution<input value={editingCamera.resolution} onChange={(e) => setEditingCamera((prev) => ({ ...prev, resolution: e.target.value }))} placeholder="e.g., 1024 x 512" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Lens / Focal Length<input value={editingCamera.lensFocalLength} onChange={(e) => setEditingCamera((prev) => ({ ...prev, lensFocalLength: e.target.value }))} placeholder="e.g., 50 mm" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
-              <label className="text-xs">Viewing Direction<input value={editingCamera.viewingDirection} onChange={(e) => setEditingCamera((prev) => ({ ...prev, viewingDirection: e.target.value }))} placeholder="e.g., left side to chamber center" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">X<input value={editingCamera.x} onChange={(e) => setEditingCamera((prev) => ({ ...prev, x: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Y<input value={editingCamera.y} onChange={(e) => setEditingCamera((prev) => ({ ...prev, y: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Z<input value={editingCamera.z} onChange={(e) => setEditingCamera((prev) => ({ ...prev, z: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
@@ -924,8 +919,8 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
                   <textarea value={editingCamera.coordinateOrigin} onChange={(e) => setEditingCamera((prev) => ({ ...prev, coordinateOrigin: e.target.value }))} className="mt-2 min-h-20 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" placeholder="Describe the coordinate origin used for this camera setup..." />
                 )}
               </div>
-              <label className="text-xs">Mounting Location<input value={editingCamera.mountingLocation} onChange={(e) => setEditingCamera((prev) => ({ ...prev, mountingLocation: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
-              <label className="text-xs">Field of View / Target Region<input value={editingCamera.fieldOfView} onChange={(e) => setEditingCamera((prev) => ({ ...prev, fieldOfView: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <label className="text-xs">Mounting Description<input value={editingCamera.mountingLocation} onChange={(e) => setEditingCamera((prev) => ({ ...prev, mountingLocation: e.target.value }))} placeholder="e.g., tripod outside left window, top rail bracket" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <label className="text-xs">Field of View / Target Region<input value={editingCamera.fieldOfView} onChange={(e) => setEditingCamera((prev) => ({ ...prev, fieldOfView: e.target.value }))} placeholder="e.g., flame front first 1.5 m after chamber venting" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Trigger Source<select value={editingCamera.triggerSource} onChange={(e) => setEditingCamera((prev) => ({ ...prev, triggerSource: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{TRIGGER_SOURCE_OPTIONS.map((opt) => <option key={opt || 'blank'} value={opt}>{opt || 'Select trigger source'}</option>)}</select></label>
               {editingCamera.triggerSource === 'Other' && <label className="text-xs">Custom Trigger Source<input value={editingCamera.customTriggerSource || ''} onChange={(e) => setEditingCamera((prev) => ({ ...prev, customTriggerSource: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>}
               <label className="text-xs md:col-span-2">Synchronization Notes<textarea value={editingCamera.synchronizationNotes} onChange={(e) => setEditingCamera((prev) => ({ ...prev, synchronizationNotes: e.target.value }))} className="mt-1 min-h-20 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" placeholder="Trigger alignment, timing offsets, shared clocks, external sync, etc." /></label>

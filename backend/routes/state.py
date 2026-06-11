@@ -1897,7 +1897,6 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
                 "frame_rate": "-",
                 "resolution": "-",
                 "lens_focal_length": "-",
-                "viewing_direction": "-",
                 "coordinates": "-",
                 "coordinate_unit": "-",
                 "coordinate_origin": "-",
@@ -1924,7 +1923,6 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
             frame_rate = str(record.get("frameRate") or "").strip()
             resolution = str(record.get("resolution") or "").strip()
             lens_focal_length = str(record.get("lensFocalLength") or "").strip()
-            viewing_direction = str(record.get("viewingDirection") or "").strip()
             x = str(record.get("x") or "").strip()
             y = str(record.get("y") or "").strip()
             z = str(record.get("z") or "").strip()
@@ -1958,10 +1956,8 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
                 status_warnings.append("missing resolution")
             if not lens_focal_length:
                 status_warnings.append("missing lens")
-            if not viewing_direction:
-                status_warnings.append("missing viewing direction")
             if not mounting_location:
-                status_warnings.append("missing mounting location")
+                status_warnings.append("missing mounting description")
             if not field_of_view:
                 status_warnings.append("missing field of view")
             if not trigger_source:
@@ -1995,7 +1991,6 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
                 "frame_rate": frame_rate,
                 "resolution": resolution,
                 "lens_focal_length": lens_focal_length,
-                "viewing_direction": viewing_direction,
                 "coordinates": f"({x or '-'},{y or '-'},{z or '-'})",
                 "coordinate_unit": coordinate_unit,
                 "coordinate_origin": coordinate_origin,
@@ -2024,11 +2019,10 @@ def _write_cameras_csv(rows, target_path, project_name=None):
         "Frame Rate",
         "Resolution",
         "Lens / Focal Length",
-        "Viewing Direction",
         "Position Coordinates",
         "Coordinate Unit",
         "Coordinate Origin",
-        "Mounting Location",
+        "Mounting Description",
         "Field of View / Target Region",
         "Trigger Source",
         "Synchronization Notes",
@@ -2076,7 +2070,6 @@ def _write_cameras_csv(rows, target_path, project_name=None):
                 row.get("frame_rate", ""),
                 row.get("resolution", ""),
                 row.get("lens_focal_length", ""),
-                row.get("viewing_direction", ""),
                 row.get("coordinates", ""),
                 row.get("coordinate_unit", ""),
                 row.get("coordinate_origin", ""),
@@ -2174,7 +2167,6 @@ def _write_cameras_pdf(project_name, rows, target_path):
         ("FPS", 7),
         ("Res.", 9),
         ("Lens", 8),
-        ("View", 10),
         ("Coord.", 13),
         ("Mount", 10),
         ("Trigger", 10),
@@ -2218,7 +2210,6 @@ def _write_cameras_pdf(project_name, rows, target_path):
             row.get("frame_rate"),
             row.get("resolution"),
             row.get("lens_focal_length"),
-            row.get("viewing_direction"),
             f"{row.get('coordinates') or '-'} {row.get('coordinate_unit') or ''}".strip(),
             row.get("mounting_location"),
             row.get("trigger_source"),
@@ -3989,11 +3980,10 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
             "Frame Rate",
             "Resolution",
             "Lens / Focal Length",
-            "Viewing Direction",
             "Position Coordinates",
             "Coordinate Unit",
             "Coordinate Origin",
-            "Mounting Location",
+            "Mounting Description",
             "Field of View / Target Region",
             "Trigger Source",
             "Synchronization Notes",
@@ -4024,7 +4014,6 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
                 row.get("frame_rate", ""),
                 row.get("resolution", ""),
                 row.get("lens_focal_length", ""),
-                row.get("viewing_direction", ""),
                 row.get("coordinates", ""),
                 row.get("coordinate_unit", ""),
                 row.get("coordinate_origin", ""),
