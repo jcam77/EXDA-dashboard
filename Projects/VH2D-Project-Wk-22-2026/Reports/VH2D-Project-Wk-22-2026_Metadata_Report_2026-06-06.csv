@@ -1,7 +1,7 @@
 ﻿Export Type,Metadata Report
 Project,VH2D-Project-Wk-22-2026
 Responsible Researcher,PhD Student Javier I. Camacho
-Generated At,2026-06-06 10:47:46
+Generated At,2026-06-06 16:30:06
 Sections,"Plan, DAQ Systems, Sensors Mapping, Gas Mixing"
 
 [TAB] Plan
@@ -43,7 +43,7 @@ VH2D-Wk22-02-03,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kis
 Added 13.671 gr
 Correlation>
 M= 69.638 C - 0.2568",No,,No,
-VH2D-Wk22-02-04,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kistler),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,back,thin film,101325,292.15,221,,4,VH2D-Wk22-02-04/DAQ-1/DAQ-1-VH2D-02-04.tpc5 | VH2D-Wk22-02-04/DAQ-2-3/DAQ-2-3-VH2D-02-04.mf4 | VH2D-Wk22-02-04/DAQ-4/DAQ-4-VH2D-02-04.mf4 | VH2D-Wk22-02-04/H2BGA/H2BGA-U-M-L-VH2D-02-04-260528-144105.csv,,"P3 and P7 swapped
+VH2D-Wk22-02-04,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kistler),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,292.15,221,,4,VH2D-Wk22-02-04/DAQ-1/DAQ-1-VH2D-02-04.tpc5 | VH2D-Wk22-02-04/DAQ-2-3/DAQ-2-3-VH2D-02-04.mf4 | VH2D-Wk22-02-04/DAQ-4/DAQ-4-VH2D-02-04.mf4 | VH2D-Wk22-02-04/H2BGA/H2BGA-U-M-L-VH2D-02-04-260528-144105.csv,,"P3 and P7 swapped
 
 Added 13.671 gr
 Correlation>
@@ -56,15 +56,15 @@ VH2D-Wk22-03-02,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI
 Added 12.278 gr
 Correlation>
 M= 69.638 C - 0.2568",No,,No,
-VH2D-Wk22-03-03,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),error,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film,101325,292.15,,,3,VH2D-Wk22-03-03/DAQ-1/DAQ-1-VH2D-03-03.tpc5 | VH2D-Wk22-03-03/DAQ-2-3/DAQ-2-3-VH2D-03-03.mf4 | VH2D-Wk22-03-03/H2BGA/H2BGA-U-M-L-VH2D-03-03-260528-173139.csv,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,"Added 13.671 gr
+VH2D-Wk22-03-03,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),error,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,292.15,,,3,VH2D-Wk22-03-03/DAQ-1/DAQ-1-VH2D-03-03.tpc5 | VH2D-Wk22-03-03/DAQ-2-3/DAQ-2-3-VH2D-03-03.mf4 | VH2D-Wk22-03-03/H2BGA/H2BGA-U-M-L-VH2D-03-03-260528-173139.csv,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,"Added 13.671 gr
 Correlation>
 M= 69.638 C - 0.2568
 
 Attention!!! Hot-wire short circuit. Check carefully data could compromised.",Yes,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,No,
-VH2D-Wk22-03-04,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,vack,thin,101325,291.65,221,,3,VH2D-Wk22-03-04/DAQ-1/DAQ-1-VH2D-03-04.tpc5 | VH2D-Wk22-03-04/DAQ-2-3/DAQ-2-3-VH2D-03-04.mf4 | VH2D-Wk22-03-04/H2BGA/H2BGA-U-M-L-VH2D-03-04-260528-181435.csv,,"Added 13.671 gr
+VH2D-Wk22-03-04,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,291.65,221,,3,VH2D-Wk22-03-04/DAQ-1/DAQ-1-VH2D-03-04.tpc5 | VH2D-Wk22-03-04/DAQ-2-3/DAQ-2-3-VH2D-03-04.mf4 | VH2D-Wk22-03-04/H2BGA/H2BGA-U-M-L-VH2D-03-04-260528-181435.csv,,"Added 13.671 gr
 Correlation>
 M= 69.638 C - 0.2568",No,,No,
-VH2D-Wk22-03-05,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back  Wall,Thin Film,101325,291.45,321,,3,VH2D-Wk22-03-05/DAQ-1/DAQ-1-VH2D-03-05.tpc5 | VH2D-Wk22-03-05/DAQ-2-3/DAQ-2-3-VH2D-03-05.mf4 | VH2D-Wk22-03-05/H2BGA/H2BGA-U-M-L-VH2D-03-05-260528-184939.csv,,"Added 13.671 gr
+VH2D-Wk22-03-05,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,291.45,321,,3,VH2D-Wk22-03-05/DAQ-1/DAQ-1-VH2D-03-05.tpc5 | VH2D-Wk22-03-05/DAQ-2-3/DAQ-2-3-VH2D-03-05.mf4 | VH2D-Wk22-03-05/H2BGA/H2BGA-U-M-L-VH2D-03-05-260528-184939.csv,,"Added 13.671 gr
 Correlation>
 M= 69.638 C - 0.2568",No,,No,
 VH2D-Wk22-04-01,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,16,10.885280000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,291.75,245,,3,VH2D-Wk22-04-01/DAQ-1/DAQ-1-VH2D-04-01.tpc5 | VH2D-Wk22-04-01/DAQ-2-3/DAQ-2-3-VH2D-04-01_Rec_01.mf4 | VH2D-Wk22-04-01/H2BGA/H2BGA-U-M-L-VH2D-04-01-260529-104759.csv,,"Added 10.885 gr
@@ -79,7 +79,7 @@ M= 69.638 C - 0.2568
 1024 hPa
 HR 53%
 ",No,,No,
-VH2D-Wk22-04-03,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,21,14.367180000000001,20,Back,thin plastic,101325,293.05,261,,3,VH2D-Wk22-04-03/DAQ-1/DAQ-1-VH2D-04-03.tpc5 | VH2D-Wk22-04-03/DAQ-2-3/DAQ-2-3-VH2D-04-03_Rec_01.mf4 | VH2D-Wk22-04-03/H2BGA/H2BGA-U-M-L-VH2D-04-03-260529-125215.csv,,"Added 14.367 gr
+VH2D-Wk22-04-03,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,21,14.367180000000001,20,Back Wall,Thin Film with Hotwire Activated,101325,293.05,261,,3,VH2D-Wk22-04-03/DAQ-1/DAQ-1-VH2D-04-03.tpc5 | VH2D-Wk22-04-03/DAQ-2-3/DAQ-2-3-VH2D-04-03_Rec_01.mf4 | VH2D-Wk22-04-03/H2BGA/H2BGA-U-M-L-VH2D-04-03-260529-125215.csv,,"Added 14.367 gr
 Correlation>
 M= 69.638 C - 0.2568
 1023 hPa
@@ -157,7 +157,6 @@ radius 3m
 sensitivity 3461 mV/bar"
 VH2D-Wk22-01,Trig-1,voltage,DAQ-1,CH5,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
 VH2D-Wk22-01,Trig-2,voltage,DAQ-2,CH4,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
-VH2D-Wk22-01,Trig-3,voltage,DAQ-3,CH2,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
 Group Reference Note (VH2D-Wk22-01),Vented deflagration concentration series (Hotwire)
 
 Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Sensitivity,Location,"Coord.(x,y,z)m",Mounting,Active,Blind,Trigger Method,Status,Notes
@@ -181,15 +180,14 @@ VH2D-Wk22-03,P9,pressure,DAQ-1,CH1,1008976,-78.79 pC/bar,1L,"(-0.45,0.396,0.467)
 VH2D-Wk22-03,PP1,pressure,Kistler LabAmp,CH6,6652959,3264 mV/bar,3m60deg,"(0,2,0.68)",other,Yes,No,M-Duino,Complete,"Angle 60 deg
 radius 3m
 sensitivity 3264 mV/bar"
-VH2D-Wk22-03,PP2,pressure,Kistler LabAmp,CH7,6652961,3478 mV/bar,3m30deg,"(0,2,0.68)",other,No,No,M-Duino,Complete,"right Side 30 deg
+VH2D-Wk22-03,PP2,pressure,Kistler LabAmp,CH7,6652961,3478 mV/bar,3m30deg,"(0,2,0.68)",other,Yes,No,M-Duino,Complete,"right Side 30 deg
 radius 3m
 sensitivity 3478  mV/bar"
-VH2D-Wk22-03,PP3,pressure,Kistler LabAmp,CH8,6652960,3461 mV/bar,3m0deg,"(0,2,0.68)",other,No,No,M-Duino,Complete,"Center 0 deg
+VH2D-Wk22-03,PP3,pressure,Kistler LabAmp,CH8,6652960,3461 mV/bar,3m0deg,"(0,2,0.68)",other,Yes,No,M-Duino,Complete,"Center 0 deg
 radius 3m
 sensitivity 3461 mV/bar"
 VH2D-Wk22-03,Trig-1,voltage,DAQ-1,CH5,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
 VH2D-Wk22-03,Trig-2,voltage,DAQ-2,CH4,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
-VH2D-Wk22-03,Trig-3,voltage,DAQ-3,CH2,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
 Group Reference Note (VH2D-Wk22-03),Vented deflagration concentration series (Hotwire) LU vs DBI
 
 Group,Sensor ID,Measured Quantity,DAQ System,DAQ Channel,Serial Number,Sensitivity,Location,"Coord.(x,y,z)m",Mounting,Active,Blind,Trigger Method,Status,Notes
@@ -204,41 +202,40 @@ VH2D-Wk22-04,P9,pressure,DAQ-1,CH1,1008976,-78.79 pC/bar,1L,"(-0.45,0.396,0.467)
 VH2D-Wk22-04,PP1,pressure,Kistler LabAmp,CH6,6652959,3264 mV/bar,3m,"(0,2,0.68)",other,Yes,No,,Complete,"Angle 0 deg
 radius 3m
 sensitivity 3264 mV/bar"
-VH2D-Wk22-04,PP2,pressure,Kistler LabAmp,CH7,6652961,3478 mV/bar,5m,"(0,2,0.68)",other,No,No,,Complete,"0 deg
+VH2D-Wk22-04,PP2,pressure,Kistler LabAmp,CH7,6652961,3478 mV/bar,5m,"(0,2,0.68)",other,Yes,No,,Complete,"0 deg
 radius 5m
 sensitivity 3478  mV/bar"
-VH2D-Wk22-04,PP3,pressure,Kistler LabAmp,CH8,6652960,3461 mV/bar,7m,"(0,2,0.68)",other,No,No,,Complete,"Center 0 deg
+VH2D-Wk22-04,PP3,pressure,Kistler LabAmp,CH8,6652960,3461 mV/bar,7m,"(0,2,0.68)",other,Yes,No,,Complete,"Center 0 deg
 radius 7m
 sensitivity 3461 mV/bar"
 VH2D-Wk22-04,Trig-1,voltage,DAQ-1,CH5,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
 VH2D-Wk22-04,Trig-2,voltage,DAQ-2,CH4,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
-VH2D-Wk22-04,Trig-3,voltage,DAQ-3,CH2,,- pC/bar,,"(-,-,-)",N/A,Yes,No,M-Duino,Complete,
 Group Reference Note (VH2D-Wk22-04),Vented deflagration concentration series (Hotwire) LU vs DBI
 
 [TAB] Gas Mixing
-Group,Run/Test,Target H2 (%vol),Relative Humidity (%RH),Pchamber (Pa),Tchamber (K),H2 Injected Estimated (g),H2 Injected Corrected (g),H2 Injected Volume (L),MFC Flow (SLPM),Fill Time (s),Fill Time (min),Calibration Model Type,Calibration Target Basis,Calibration Enabled,Calibration Applied,Calibration a,Calibration b,Calibration Notes,Notes,Updated At
-Prep-Wk22,01,13.50,,101325,292.15,8.276,Not corrected by model,98.41,20.00,301.3,5.0,,,,,,,,,2026-05-25 17:27:49
-Verif-Wk22,01,13.50,,101325,294.25,8.217,Not corrected by model,98.42,20.00,299.2,5.0,,,,,,,,,2026-05-26 11:46:08
-Verif-Wk22,02,14.00,,101325,293.15,9.384,Not corrected by model,111.97,20.00,334.8,5.6,,,,,,,,,2026-05-26 14:03:57
-Verif-Wk22,03,16.00,,101325,294.15,10.638,Not corrected by model,127.37,20.00,387.3,6.5,,,,,,,,,2026-05-26 15:53:24
-Verif-Wk22,04,18.00,,101325,291.65,12.070,Not corrected by model,143.29,20.00,439.5,7.3,,,,,,,,,2026-05-26 17:31:49
-VH2D-Wk22-01,01,16.00,,101325,293.15,10.674,Not corrected by model,127.37,20.00,388.6,6.5,,,,,,,,,2026-05-27 13:51:19
-VH2D-Wk22-01,02,16.00,,101325,292.05,10.714,Not corrected by model,127.37,20.00,390.1,6.5,,,,,,,,,2026-05-27 14:47:32
-VH2D-Wk22-01,03,18.00,,101325,291.35,12.083,Not corrected by model,143.29,20.00,439.9,7.3,,,,,,,,,2026-05-27 15:24:55
-VH2D-Wk22-01,04,18.00,,101325,290.85,12.103,Not corrected by model,143.29,20.00,440.7,7.3,,,,,,,,,2026-05-27 16:30:34
-VH2D-Wk22-01,05,19.00,,101325,290.55,12.789,Not corrected by model,151.26,20.00,465.6,7.8,,,,,,,,,2026-05-27 17:50:04
-VH2D-Wk22-01,07,20.00,,101325,290.56,13.462,Not corrected by model,159.22,20.00,490.1,8.2,,,,,,,,,2026-05-27 17:57:37
-VH2D-Wk22-02,01,18.00,,101325,289.95,12.141,12.278,143.29,20.00,447.0,7.5,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:13:35
-VH2D-Wk22-02,02,18.00,,101325,291.15,12.091,12.278,143.29,20.00,447.0,7.5,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:16:08
-VH2D-Wk22-02,03,20.00,,101325,293.15,13.343,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:18:22
-VH2D-Wk22-02,04,20.00,,101325,292.15,13.388,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:26:26
-VH2D-Wk22-03,01,18.00,,101325,292.45,12.037,12.278,143.29,20.00,447.0,7.5,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:27:55
-VH2D-Wk22-03,02,18.00,,101325,292.25,12.045,12.278,143.29,20.00,447.0,7.5,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:37:36
-VH2D-Wk22-03,03,20.00,,101325,292.15,13.388,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:38:07
-VH2D-Wk22-03,04,20.00,,101325,291.65,13.411,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:40:37
-VH2D-Wk22-03,05,20.00,,101325,291.45,13.421,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:41:26
-VH2D-Wk22-04,01,16.00,,101325,291.75,10.725,10.885,127.37,20.00,396.3,6.6,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:42:01
-VH2D-Wk22-04,02,16.00,,101325,292.75,10.689,10.885,127.37,20.00,396.3,6.6,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:42:59
-VH2D-Wk22-04,03,21.00,,101325,293.05,14.015,14.367,167.18,20.00,523.1,8.7,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:43:47
-VH2D-Wk22-04,04,21.00,,101325,293.75,13.981,14.367,167.18,20.00,523.1,8.7,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:44:14
-VH2D-Wk22-04,05,12.00,,101325,295.05,7.954,8.100,95.53,10.00,589.8,9.8,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,"MFC set to 7.954 g (12 vol.%) but stopped at vol. 8% at location measured by H2CM. This was the initial plan, but the total hydrogen mass was injected.",2026-06-06 08:46:30
+Group,Run/Test,Target H2 (%vol),Relative Humidity (%RH),Pchamber (Pa),Tchamber (°C),Tchamber (K),H2 Injected Estimated (g),H2 Injected Corrected (g),H2 Injected Volume (L),MFC Flow (SLPM),Fill Time (s),Fill Time (min),Calibration Model Type,Calibration Target Basis,Calibration Enabled,Calibration Applied,Calibration a,Calibration b,Calibration Notes,Notes,Updated At
+Prep-Wk22,01,13.50,,101325,19.00,292.15,8.276,Not corrected by model,98.41,20.00,301.3,5.0,,,,,,,,,2026-05-25 17:27:49
+Verif-Wk22,01,13.50,,101325,21.10,294.25,8.217,Not corrected by model,98.42,20.00,299.2,5.0,,,,,,,,,2026-05-26 11:46:08
+Verif-Wk22,02,14.00,,101325,20.00,293.15,9.384,Not corrected by model,111.97,20.00,334.8,5.6,,,,,,,,,2026-05-26 14:03:57
+Verif-Wk22,03,16.00,,101325,21.00,294.15,10.638,Not corrected by model,127.37,20.00,387.3,6.5,,,,,,,,,2026-05-26 15:53:24
+Verif-Wk22,04,18.00,,101325,18.50,291.65,12.070,Not corrected by model,143.29,20.00,439.5,7.3,,,,,,,,,2026-05-26 17:31:49
+VH2D-Wk22-01,01,16.00,,101325,20.00,293.15,10.674,Not corrected by model,127.37,20.00,388.6,6.5,,,,,,,,,2026-05-27 13:51:19
+VH2D-Wk22-01,02,16.00,,101325,18.90,292.05,10.714,Not corrected by model,127.37,20.00,390.1,6.5,,,,,,,,,2026-05-27 14:47:32
+VH2D-Wk22-01,03,18.00,,101325,18.20,291.35,12.083,Not corrected by model,143.29,20.00,439.9,7.3,,,,,,,,,2026-05-27 15:24:55
+VH2D-Wk22-01,04,18.00,,101325,17.70,290.85,12.103,Not corrected by model,143.29,20.00,440.7,7.3,,,,,,,,,2026-05-27 16:30:34
+VH2D-Wk22-01,05,19.00,,101325,17.40,290.55,12.789,Not corrected by model,151.26,20.00,465.6,7.8,,,,,,,,,2026-05-27 17:50:04
+VH2D-Wk22-01,07,20.00,,101325,17.41,290.56,13.462,Not corrected by model,159.22,20.00,490.1,8.2,,,,,,,,,2026-05-27 17:57:37
+VH2D-Wk22-02,01,18.00,,101325,16.80,289.95,12.141,12.278,143.29,20.00,447.0,7.5,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:13:35
+VH2D-Wk22-02,02,18.00,,101325,18.00,291.15,12.091,12.278,143.29,20.00,447.0,7.5,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:16:08
+VH2D-Wk22-02,03,20.00,,101325,20.00,293.15,13.343,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:18:22
+VH2D-Wk22-02,04,20.00,,101325,19.00,292.15,13.388,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:26:26
+VH2D-Wk22-03,01,18.00,,101325,19.30,292.45,12.037,12.278,143.29,20.00,447.0,7.5,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:27:55
+VH2D-Wk22-03,02,18.00,,101325,19.10,292.25,12.045,12.278,143.29,20.00,447.0,7.5,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:37:36
+VH2D-Wk22-03,03,20.00,,101325,19.00,292.15,13.388,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:38:07
+VH2D-Wk22-03,04,20.00,,101325,18.50,291.65,13.411,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:40:37
+VH2D-Wk22-03,05,20.00,,101325,18.30,291.45,13.421,13.671,159.22,20.00,497.7,8.3,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:41:26
+VH2D-Wk22-04,01,16.00,,101325,18.60,291.75,10.725,10.885,127.37,20.00,396.3,6.6,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:42:01
+VH2D-Wk22-04,02,16.00,,101325,19.60,292.75,10.689,10.885,127.37,20.00,396.3,6.6,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:42:59
+VH2D-Wk22-04,03,21.00,,101325,19.90,293.05,14.015,14.367,167.18,20.00,523.1,8.7,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:43:47
+VH2D-Wk22-04,04,21.00,,101325,20.60,293.75,13.981,14.367,167.18,20.00,523.1,8.7,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,,2026-06-06 08:44:14
+VH2D-Wk22-04,05,12.00,,101325,21.90,295.05,7.954,8.100,95.53,10.00,589.8,9.8,linear_targetVol_to_mass,fraction_0_1,Yes,Yes,69.638,-0.2568,,"MFC set to 7.954 g (12 vol.%) but stopped at vol. 8% at location measured by H2CM. This was the initial plan, but the total hydrogen mass was injected.",2026-06-06 08:46:30

@@ -1868,6 +1868,18 @@ def _build_gas_mixing_export_rows(records):
         results = record.get("results") if isinstance(record.get("results"), dict) else {}
         return _to_float(results.get("V_H2_injected_L"))
 
+    def _t_chamber_c(record):
+        direct = _to_float(record.get("tChamberC"))
+        if direct is not None:
+            return direct
+        kelvin = _to_float(record.get("tChamberK"))
+        if kelvin is None:
+            results = record.get("results") if isinstance(record.get("results"), dict) else {}
+            kelvin = _to_float(results.get("T_chamber_K"))
+        if kelvin is not None:
+            return kelvin - 273.15
+        return None
+
     def _h2_mass_est_g(record):
         direct = _to_float(record.get("mH2EstimatedG"))
         if direct is not None:
@@ -1909,6 +1921,7 @@ def _build_gas_mixing_export_rows(records):
         calibration_applied = str(item.get("calibrationApplied") or "")
         correction_applied = _is_yes(calibration_applied)
         h2_mass_corr = _fmt(_h2_mass_corr_g(item), 3)
+        calibration_basis = str(item.get("calibrationTargetBasis") or "")
         rows.append({
             "group": group,
             "run_name": run_name,
@@ -1916,6 +1929,7 @@ def _build_gas_mixing_export_rows(records):
             "target_vol": _fmt(item.get("targetVol"), 2),
             "relative_humidity_pct": _fmt(item.get("relativeHumidityPct"), 1),
             "p_chamber_pa": _fmt(item.get("pChamberPa") or item.get("P_chamber_Pa") or item.get("ambPressure"), 0),
+            "t_chamber_c": _fmt(_t_chamber_c(item), 2),
             "t_chamber_k": _fmt(item.get("tChamberK"), 2),
             "l_m": _fmt(item.get("lM"), 3),
             "w_m": _fmt(item.get("wM"), 3),
@@ -1928,12 +1942,14 @@ def _build_gas_mixing_export_rows(records):
             "h2_mass_est_g": _fmt(_h2_mass_est_g(item), 3),
             "h2_mass_corr_g": h2_mass_corr,
             "h2_mass_corr_display": h2_mass_corr if correction_applied else "Not corrected by model",
+            "h2_mass_corr_pdf": h2_mass_corr if correction_applied else "No model",
             "v_h2_inj_l": _fmt(_h2_inj_l(item), 2),
             "mfc_flow_slpm": _fmt(item.get("mfcFlowSlpm"), 2),
             "injection_time_s": _fmt(item.get("injectionTimeS"), 1),
             "injection_time_min": _fmt(item.get("injectionTimeMin"), 1),
             "calibration_model_type": str(item.get("calibrationModelType") or ""),
-            "calibration_target_basis": str(item.get("calibrationTargetBasis") or ""),
+            "calibration_target_basis": calibration_basis,
+            "calibration_target_basis_short": "frac" if calibration_basis == "fraction_0_1" else ("pct" if calibration_basis == "percent" else calibration_basis),
             "calibration_enabled": str(item.get("calibrationEnabled") or ""),
             "calibration_applied": calibration_applied,
             "calibration_a": str(item.get("calibrationA") or ""),
@@ -1995,6 +2011,7 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
         "Target H2 (%vol)",
         "Relative Humidity (%RH)",
         "Pchamber (Pa)",
+        "Tchamber (°C)",
         "Tchamber (K)",
         "H2 Injected Estimated (g)",
         "H2 Injected Corrected (g)",
@@ -2019,6 +2036,7 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
             "Target H2 (%vol)",
             "Relative Humidity (%RH)",
             "Pchamber (Pa)",
+            "Tchamber (°C)",
             "Tchamber (K)",
             "L (m)",
             "W (m)",
@@ -2070,6 +2088,7 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
                     row["target_vol"],
                     row["relative_humidity_pct"],
                     row["p_chamber_pa"],
+                    row["t_chamber_c"],
                     row["t_chamber_k"],
                     row["l_m"],
                     row["w_m"],
@@ -2102,6 +2121,7 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
                     row["target_vol"],
                     row["relative_humidity_pct"],
                     row["p_chamber_pa"],
+                    row["t_chamber_c"],
                     row["t_chamber_k"],
                     row["h2_mass_est_g"],
                     row["h2_mass_corr_display"],
@@ -2194,41 +2214,52 @@ def _write_gas_mixing_pdf(project_name, rows, target_path, verification_meta=Non
     _write_line("")
 
     shared_setup, shared_varies = _gas_mixing_shared_setup(rows)
+    def _pdf_value_is_not_zero(value):
+        text = str(value or "").strip()
+        if not text or text == "-":
+            return False
+        if text == "VARIES":
+            return True
+        numeric = _to_float(text)
+        return numeric is None or abs(numeric) > 1e-12
+
+    show_hotwire_setup = any(_pdf_value_is_not_zero(row.get("hotwire_assembly_m3")) for row in rows)
+    show_welded_setup = any(_pdf_value_is_not_zero(row.get("welded_parts_m3")) for row in rows)
+    show_bolts_setup = any(_pdf_value_is_not_zero(row.get("bolts_m3")) for row in rows)
+
     _write_line("Shared Chamber Setup (applies to all runs unless noted otherwise):", bold=True)
-    _write_line(
-        "L={L} m, W={W} m, H={H} m, Pipes+={P} m^3, Hotwire+={HW} m^3, Welded-={WD} m^3, Bolts-={B} m^3, Vcorr={VC} L".format(
-            L=shared_setup.get("L (m)", "-"),
-            W=shared_setup.get("W (m)", "-"),
-            H=shared_setup.get("H (m)", "-"),
-            P=shared_setup.get("Pipes + (m^3)", "-"),
-            HW=shared_setup.get("Hotwire + (m^3)", "-"),
-            WD=shared_setup.get("Welded - (m^3)", "-"),
-            B=shared_setup.get("Bolts - (m^3)", "-"),
-            VC=shared_setup.get("Vchamber Corrected (L)", "-"),
-        )
-    )
+    setup_parts = [
+        f"L={shared_setup.get('L (m)', '-')} m",
+        f"W={shared_setup.get('W (m)', '-')} m",
+        f"H={shared_setup.get('H (m)', '-')} m",
+        f"Pipes+={shared_setup.get('Pipes + (m^3)', '-')} m^3",
+    ]
+    if show_hotwire_setup:
+        setup_parts.append(f"Hotwire+={shared_setup.get('Hotwire + (m^3)', '-')} m^3")
+    if show_welded_setup:
+        setup_parts.append(f"Welded-={shared_setup.get('Welded - (m^3)', '-')} m^3")
+    if show_bolts_setup:
+        setup_parts.append(f"Bolts-={shared_setup.get('Bolts - (m^3)', '-')} m^3")
+    setup_parts.append(f"Vcorr={shared_setup.get('Vchamber Corrected (L)', '-')} L")
+    _write_line(", ".join(setup_parts))
     if shared_varies:
         _write_line("Note: setup values vary across runs; detailed per-run setup table is included below.")
     _write_line("")
 
     core_columns = [
-        ("Group", 14),
-        ("Run/Test", 18),
+        ("Group", 12),
+        ("Run/Test", 17),
         ("H2%", 5),
-        ("RH%", 5),
-        ("Pch(Pa)", 8),
-        ("Tch(K)", 7),
+        ("Tch(C)", 7),
         ("H2est(g)", 8),
         ("H2corr(g)", 9),
         ("H2inj(L)", 8),
         ("MFC", 6),
-        ("t(s)", 6),
         ("t(min)", 6),
-        ("Model", 8),
-        ("Basis", 8),
-        ("a", 6),
-        ("b", 6),
-        ("Updated", 19),
+        ("Basis", 5),
+        ("a", 8),
+        ("b", 8),
+        ("Updated", 16),
     ]
     setup_columns = [
         ("Group", 10),
@@ -2237,12 +2268,38 @@ def _write_gas_mixing_pdf(project_name, rows, target_path, verification_meta=Non
         ("W (m)", 5),
         ("H (m)", 5),
         ("Pipes+ (m3)", 11),
-        ("Hotwire+ (m3)", 13),
-        ("Welded- (m3)", 12),
-        ("Bolts- (m3)", 11),
+    ]
+    if show_hotwire_setup:
+        setup_columns.append(("Hotwire+ (m3)", 13))
+    if show_welded_setup:
+        setup_columns.append(("Welded- (m3)", 12))
+    if show_bolts_setup:
+        setup_columns.append(("Bolts- (m3)", 11))
+    setup_columns.extend([
         ("Vcorr(L)", 8),
         ("Notes", 28),
-    ]
+    ])
+
+    def _setup_row_values(row):
+        values = [
+            row.get("group"),
+            row.get("run_name"),
+            row.get("l_m"),
+            row.get("w_m"),
+            row.get("h_m"),
+            row.get("vol_pipes_m3"),
+        ]
+        if show_hotwire_setup:
+            values.append(row.get("hotwire_assembly_m3"))
+        if show_welded_setup:
+            values.append(row.get("welded_parts_m3"))
+        if show_bolts_setup:
+            values.append(row.get("bolts_m3"))
+        values.extend([
+            row.get("v_chamber_corr_l"),
+            row.get("notes"),
+        ])
+        return values
 
     def _write_table(title, columns, row_builder):
         _write_line(title, bold=True)
@@ -2269,17 +2326,13 @@ def _write_gas_mixing_pdf(project_name, rows, target_path, verification_meta=Non
             row.get("group"),
             row.get("run_name"),
             row.get("target_vol"),
-            row.get("relative_humidity_pct"),
-            row.get("p_chamber_pa"),
-            row.get("t_chamber_k"),
+            row.get("t_chamber_c"),
             row.get("h2_mass_est_g"),
-            row.get("h2_mass_corr_display"),
+            row.get("h2_mass_corr_pdf"),
             row.get("v_h2_inj_l"),
             row.get("mfc_flow_slpm"),
-            row.get("injection_time_s"),
             row.get("injection_time_min"),
-            row.get("calibration_model_type"),
-            row.get("calibration_target_basis"),
+            row.get("calibration_target_basis_short"),
             row.get("calibration_a"),
             row.get("calibration_b"),
             row.get("updated_at"),
@@ -2290,19 +2343,7 @@ def _write_gas_mixing_pdf(project_name, rows, target_path, verification_meta=Non
         _write_table(
             "Per-Run Chamber Setup (because values vary)",
             setup_columns,
-            lambda row: [
-                row.get("group"),
-                row.get("run_name"),
-                row.get("l_m"),
-                row.get("w_m"),
-                row.get("h_m"),
-                row.get("vol_pipes_m3"),
-                row.get("hotwire_assembly_m3"),
-                row.get("welded_parts_m3"),
-                row.get("bolts_m3"),
-                row.get("v_chamber_corr_l"),
-                row.get("notes"),
-            ],
+            _setup_row_values,
         )
 
     total_pages = len(doc)
@@ -3395,7 +3436,7 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
         writer.writerow([])
 
         writer.writerow(["[TAB] Gas Mixing"])
-        writer.writerow(["Group", "Run/Test", "Target H2 (%vol)", "Relative Humidity (%RH)", "Pchamber (Pa)", "Tchamber (K)", "H2 Injected Estimated (g)", "H2 Injected Corrected (g)", "H2 Injected Volume (L)", "MFC Flow (SLPM)", "Fill Time (s)", "Fill Time (min)", "Calibration Model Type", "Calibration Target Basis", "Calibration Enabled", "Calibration Applied", "Calibration a", "Calibration b", "Calibration Notes", "Notes", "Updated At"])
+        writer.writerow(["Group", "Run/Test", "Target H2 (%vol)", "Relative Humidity (%RH)", "Pchamber (Pa)", "Tchamber (°C)", "Tchamber (K)", "H2 Injected Estimated (g)", "H2 Injected Corrected (g)", "H2 Injected Volume (L)", "MFC Flow (SLPM)", "Fill Time (s)", "Fill Time (min)", "Calibration Model Type", "Calibration Target Basis", "Calibration Enabled", "Calibration Applied", "Calibration a", "Calibration b", "Calibration Notes", "Notes", "Updated At"])
         for row in gas_rows:
             writer.writerow([
                 row.get("group", ""),
@@ -3403,6 +3444,7 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
                 row.get("target_vol", ""),
                 row.get("relative_humidity_pct", ""),
                 row.get("p_chamber_pa", ""),
+                row.get("t_chamber_c", ""),
                 row.get("t_chamber_k", ""),
                 row.get("h2_mass_est_g", ""),
                 row.get("h2_mass_corr_display", ""),

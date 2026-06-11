@@ -4,7 +4,7 @@ Objective,LU / DBI / Kistler pressure DAQ systems characterisation.
 Start Date,2026-05-25
 Deadline,2026-05-29
 Total Experiments,27
-Generated At,2026-06-06 10:47:09
+Generated At,2026-06-06 14:40:52
 
 Run Name,Group,Group Description,Status,Done,Preparation,Schedule,Planned Date,Planned Day,H2 (%),H2 Injected (g),MFC Flow (SLPM),Ignition,Vent,Pressure P0 (Pa),Temperature T0 (K),Recirc Stop To Ignition (s),Case ID / CFD Hash,Data Files Count,File Path (Raw_Data Folder),Short Description,Run Notes,Error,Error Note,Canceled,Canceled Note
 Prep-Wk22-01,Prep-Wk22,Preparation,done,Yes,Yes,2026-05-25,2026-05-25,,13.5,8.275657522940918,20,Back Wall,Thin Film with Hotwire NOT Activated,101325,292.15,,,3,Prep-Wk22-01/H2BGA/Prep-01-H2BGA-U.csv | Prep-Wk22-01/DAQ-1/Prep-01.exp/data/Prep-01-DAQ-1.tpc5 | Prep-Wk22-01/DAQ-2/Prep-01-DAQ-2.mf4,Preliminar Test,"Recirc stop → ignition time (s): No Recorded
@@ -44,7 +44,7 @@ VH2D-Wk22-02-03,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kis
 Added 13.671 gr
 Correlation>
 M= 69.638 C - 0.2568",No,,No,
-VH2D-Wk22-02-04,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kistler),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,back,thin film,101325,292.15,221,,4,VH2D-Wk22-02-04/DAQ-1/DAQ-1-VH2D-02-04.tpc5 | VH2D-Wk22-02-04/DAQ-2-3/DAQ-2-3-VH2D-02-04.mf4 | VH2D-Wk22-02-04/DAQ-4/DAQ-4-VH2D-02-04.mf4 | VH2D-Wk22-02-04/H2BGA/H2BGA-U-M-L-VH2D-02-04-260528-144105.csv,,"P3 and P7 swapped
+VH2D-Wk22-02-04,VH2D-Wk22-02,Vented deflagration concentration series (LU vs Kistler),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,292.15,221,,4,VH2D-Wk22-02-04/DAQ-1/DAQ-1-VH2D-02-04.tpc5 | VH2D-Wk22-02-04/DAQ-2-3/DAQ-2-3-VH2D-02-04.mf4 | VH2D-Wk22-02-04/DAQ-4/DAQ-4-VH2D-02-04.mf4 | VH2D-Wk22-02-04/H2BGA/H2BGA-U-M-L-VH2D-02-04-260528-144105.csv,,"P3 and P7 swapped
 
 Added 13.671 gr
 Correlation>
@@ -57,15 +57,15 @@ VH2D-Wk22-03-02,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI
 Added 12.278 gr
 Correlation>
 M= 69.638 C - 0.2568",No,,No,
-VH2D-Wk22-03-03,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),error,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film,101325,292.15,,,3,VH2D-Wk22-03-03/DAQ-1/DAQ-1-VH2D-03-03.tpc5 | VH2D-Wk22-03-03/DAQ-2-3/DAQ-2-3-VH2D-03-03.mf4 | VH2D-Wk22-03-03/H2BGA/H2BGA-U-M-L-VH2D-03-03-260528-173139.csv,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,"Added 13.671 gr
+VH2D-Wk22-03-03,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),error,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,292.15,,,3,VH2D-Wk22-03-03/DAQ-1/DAQ-1-VH2D-03-03.tpc5 | VH2D-Wk22-03-03/DAQ-2-3/DAQ-2-3-VH2D-03-03.mf4 | VH2D-Wk22-03-03/H2BGA/H2BGA-U-M-L-VH2D-03-03-260528-173139.csv,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,"Added 13.671 gr
 Correlation>
 M= 69.638 C - 0.2568
 
 Attention!!! Hot-wire short circuit. Check carefully data could compromised.",Yes,Attention!!! Hot-wire short circuit. Check carefully data could compromised.,No,
-VH2D-Wk22-03-04,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,vack,thin,101325,291.65,221,,3,VH2D-Wk22-03-04/DAQ-1/DAQ-1-VH2D-03-04.tpc5 | VH2D-Wk22-03-04/DAQ-2-3/DAQ-2-3-VH2D-03-04.mf4 | VH2D-Wk22-03-04/H2BGA/H2BGA-U-M-L-VH2D-03-04-260528-181435.csv,,"Added 13.671 gr
+VH2D-Wk22-03-04,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,291.65,221,,3,VH2D-Wk22-03-04/DAQ-1/DAQ-1-VH2D-03-04.tpc5 | VH2D-Wk22-03-04/DAQ-2-3/DAQ-2-3-VH2D-03-04.mf4 | VH2D-Wk22-03-04/H2BGA/H2BGA-U-M-L-VH2D-03-04-260528-181435.csv,,"Added 13.671 gr
 Correlation>
 M= 69.638 C - 0.2568",No,,No,
-VH2D-Wk22-03-05,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back  Wall,Thin Film,101325,291.45,321,,3,VH2D-Wk22-03-05/DAQ-1/DAQ-1-VH2D-03-05.tpc5 | VH2D-Wk22-03-05/DAQ-2-3/DAQ-2-3-VH2D-03-05.mf4 | VH2D-Wk22-03-05/H2BGA/H2BGA-U-M-L-VH2D-03-05-260528-184939.csv,,"Added 13.671 gr
+VH2D-Wk22-03-05,VH2D-Wk22-03,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-28,2026-05-28,,20,13.670800000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,291.45,321,,3,VH2D-Wk22-03-05/DAQ-1/DAQ-1-VH2D-03-05.tpc5 | VH2D-Wk22-03-05/DAQ-2-3/DAQ-2-3-VH2D-03-05.mf4 | VH2D-Wk22-03-05/H2BGA/H2BGA-U-M-L-VH2D-03-05-260528-184939.csv,,"Added 13.671 gr
 Correlation>
 M= 69.638 C - 0.2568",No,,No,
 VH2D-Wk22-04-01,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,16,10.885280000000002,20,Back Wall,Thin Film with Hotwire Activated,101325,291.75,245,,3,VH2D-Wk22-04-01/DAQ-1/DAQ-1-VH2D-04-01.tpc5 | VH2D-Wk22-04-01/DAQ-2-3/DAQ-2-3-VH2D-04-01_Rec_01.mf4 | VH2D-Wk22-04-01/H2BGA/H2BGA-U-M-L-VH2D-04-01-260529-104759.csv,,"Added 10.885 gr
@@ -80,7 +80,7 @@ M= 69.638 C - 0.2568
 1024 hPa
 HR 53%
 ",No,,No,
-VH2D-Wk22-04-03,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,21,14.367180000000001,20,Back,thin plastic,101325,293.05,261,,3,VH2D-Wk22-04-03/DAQ-1/DAQ-1-VH2D-04-03.tpc5 | VH2D-Wk22-04-03/DAQ-2-3/DAQ-2-3-VH2D-04-03_Rec_01.mf4 | VH2D-Wk22-04-03/H2BGA/H2BGA-U-M-L-VH2D-04-03-260529-125215.csv,,"Added 14.367 gr
+VH2D-Wk22-04-03,VH2D-Wk22-04,Vented deflagration concentration series (LU vs DBI),done,Yes,No,2026-05-29,2026-05-29,,21,14.367180000000001,20,Back Wall,Thin Film with Hotwire Activated,101325,293.05,261,,3,VH2D-Wk22-04-03/DAQ-1/DAQ-1-VH2D-04-03.tpc5 | VH2D-Wk22-04-03/DAQ-2-3/DAQ-2-3-VH2D-04-03_Rec_01.mf4 | VH2D-Wk22-04-03/H2BGA/H2BGA-U-M-L-VH2D-04-03-260529-125215.csv,,"Added 14.367 gr
 Correlation>
 M= 69.638 C - 0.2568
 1023 hPa
