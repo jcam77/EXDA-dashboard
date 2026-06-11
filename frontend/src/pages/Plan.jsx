@@ -516,7 +516,7 @@ const PlanPage = ({
         if (!metadataResult) {
             setFolderCheck({
                 status: 'warning',
-                message: 'Run names were updated, but metadata references (Gas Mixing/Sensors Mapping) could not be auto-renamed. Please reopen those tabs to verify.',
+                message: 'Run names were updated, but metadata references (Gas Mixing/Sensors Mapping/Cameras Mapping) could not be auto-renamed. Please reopen those tabs to verify.',
             });
         }
         await syncRunFolders(generatedNames);

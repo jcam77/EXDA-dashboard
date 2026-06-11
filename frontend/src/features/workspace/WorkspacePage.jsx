@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
     FlaskConical, AudioLines, ClipboardList, FileSpreadsheet, 
     Folder, Activity, Flame, FolderOpen, BrainCircuit, Droplets,
-    FileText, Beaker, BookOpen, Home, Layers, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck, Save, HardDrive
+    FileText, Beaker, BookOpen, Home, Layers, Camera, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck, Save, HardDrive
 } from 'lucide-react';
 
 // --- MODULAR IMPORTS ---
@@ -57,6 +57,7 @@ const ChecklistPage = lazy(() => import('../../pages/Checklist'));
 const PlanPage = lazy(() => import('../../pages/Plan'));
 const DaqSystemsPage = lazy(() => import('../../pages/DaqSystems'));
 const SensorsMappingPage = lazy(() => import('../../pages/SensorsMapping'));
+const CamerasMappingPage = lazy(() => import('../../pages/CamerasMapping'));
 const GasMixingPage = lazy(() => import('../../pages/GasMixing'));
 const ImportDataPage = lazy(() => import('../../pages/ImportData'));
 const RawDataScreeningCorePage = lazy(() => import('../../pages/RawDataScreeningCorePage'));
@@ -78,6 +79,7 @@ const TAB_PATHS = {
     plan: '/plan',
     daq_systems: '/daq-systems',
     sensors_mapping: '/sensors-mapping',
+    cameras_mapping: '/cameras-mapping',
     gas: '/gas',
     data: '/data',
     data_preprocessing: '/data/preprocessing',
@@ -98,6 +100,7 @@ const PROJECT_WORKSPACE_TABS = [
     {id:'plan', l:'Plan', i:FileSpreadsheet, to: TAB_PATHS.plan},
     {id:'daq_systems', l:'DAQ Systems', i:HardDrive, to: TAB_PATHS.daq_systems},
     {id:'sensors_mapping', l:'Sensors Mapping', i:Layers, to: TAB_PATHS.sensors_mapping},
+    {id:'cameras_mapping', l:'Cameras Mapping', i:Camera, to: TAB_PATHS.cameras_mapping},
     {id:'gas', l:'Gas Mixing', i:FlaskConical, to: TAB_PATHS.gas},
     {id:'data', l:'Import Data', i:Import, to: TAB_PATHS.data},
     {id:'raw_h2_concentration_analysis', l:'Raw Data Screening — H2 Concentration', i:Droplets, to: TAB_PATHS.raw_h2_concentration_analysis},
@@ -129,6 +132,7 @@ const resolveTabFromPath = (pathname) => {
     if (pathname.startsWith('/plan')) return 'plan';
     if (pathname.startsWith('/daq-systems')) return 'daq_systems';
     if (pathname.startsWith('/sensors-mapping')) return 'sensors_mapping';
+    if (pathname.startsWith('/cameras-mapping')) return 'cameras_mapping';
     if (pathname.startsWith('/gas')) return 'gas';
     if (pathname.startsWith('/analysis/raw-h2-concentration')) return 'raw_h2_concentration_analysis';
     if (pathname.startsWith('/analysis/raw-pressure')) return 'raw_pressure_analysis';
@@ -842,19 +846,20 @@ const WorkspacePage = () => {
       return Boolean(String(state.selectedGroup || '').trim());
   }, []);
 
-  const saveProject = useCallback(async () => {
+  const saveProject = useCallback(async ({ silent = false } = {}) => {
       if (!projectPath) {
-          notify('error', 'Save Failed', 'No project selected');
+          if (!silent) notify('error', 'Save Failed', 'No project selected');
           return { success: false, error: 'No project selected' };
       }
 
       const planResult = await savePlan({ silent: true });
       if (!planResult?.success) {
-          notify('error', 'Save Failed', planResult?.error || 'Could not save plan');
+          if (!silent) notify('error', 'Save Failed', planResult?.error || 'Could not save plan');
           return { success: false, error: planResult?.error || 'Could not save plan' };
       }
 
       let sensorsPath = '';
+      let camerasPath = '';
       let daqPath = '';
       let gasPath = '';
       let checklistPath = '';
@@ -880,7 +885,7 @@ const WorkspacePage = () => {
           }
           daqPath = savePayload.path || '';
       } catch (error) {
-          notify('error', 'Partial Save', `Plan saved, but DAQ Systems could not be saved.${error?.message ? ` ${error.message}` : ''}`);
+          if (!silent) notify('error', 'Partial Save', `Plan saved, but DAQ Systems could not be saved.${error?.message ? ` ${error.message}` : ''}`);
           return { success: false, error: error?.message || 'Could not save DAQ systems' };
       }
 
@@ -915,7 +920,7 @@ const WorkspacePage = () => {
           }
           gasPath = savePayload.path || '';
       } catch (error) {
-          notify('error', 'Partial Save', `Plan and DAQ saved, but Gas Mixing could not be saved.${error?.message ? ` ${error.message}` : ''}`);
+          if (!silent) notify('error', 'Partial Save', `Plan and DAQ saved, but Gas Mixing could not be saved.${error?.message ? ` ${error.message}` : ''}`);
           return { success: false, error: error?.message || 'Could not save Gas Mixing' };
       }
 
@@ -934,7 +939,7 @@ const WorkspacePage = () => {
           }
           checklistPath = saveChecklistPayload.path || '';
       } catch (error) {
-          notify('error', 'Partial Save', `Plan, DAQ, and Gas saved, but Checklist could not be saved.${error?.message ? ` ${error.message}` : ''}`);
+          if (!silent) notify('error', 'Partial Save', `Plan, DAQ, and Gas saved, but Checklist could not be saved.${error?.message ? ` ${error.message}` : ''}`);
           return { success: false, error: error?.message || 'Could not save checklist state' };
       }
 
@@ -989,8 +994,63 @@ const WorkspacePage = () => {
           }
           sensorsPath = payload.path || '';
       } catch (error) {
-          notify('error', 'Partial Save', `Plan saved, but Sensors Mapping could not be saved.${error?.message ? ` ${error.message}` : ''}`);
+          if (!silent) notify('error', 'Partial Save', `Plan saved, but Sensors Mapping could not be saved.${error?.message ? ` ${error.message}` : ''}`);
           return { success: false, error: error?.message || 'Could not save sensors mapping' };
+      }
+
+      try {
+          const camerasStorageKey = `exda:cameras-mapping:${projectPath}`;
+          let localCamerasState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+          try {
+              const rawCamerasState = localStorage.getItem(camerasStorageKey);
+              const parsed = rawCamerasState ? JSON.parse(rawCamerasState) : {};
+              localCamerasState = normalizeSensorsStateForSave(parsed);
+          } catch {
+              localCamerasState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+          }
+
+          let serverCamerasState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+          try {
+              const getCamerasRes = await fetch(`${apiBaseUrl}/get_cameras_mapping?projectPath=${encodeURIComponent(projectPath)}`);
+              const getCamerasPayload = await getCamerasRes.json();
+              if (!getCamerasRes.ok || !getCamerasPayload?.success) {
+                  throw new Error(getCamerasPayload?.error || 'Could not load cameras mapping');
+              }
+              serverCamerasState = normalizeSensorsStateForSave(getCamerasPayload);
+          } catch {
+              serverCamerasState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+          }
+
+          const localHasState = hasSensorsStateForSave(localCamerasState);
+          const serverHasState = hasSensorsStateForSave(serverCamerasState);
+          let camerasStateToSave = serverCamerasState;
+
+          if (activeTab === 'cameras_mapping' && localHasState) {
+              camerasStateToSave = localCamerasState;
+          } else if (serverHasState) {
+              camerasStateToSave = serverCamerasState;
+          } else if (localHasState) {
+              camerasStateToSave = localCamerasState;
+          }
+
+          const response = await fetch(`${apiBaseUrl}/save_cameras_mapping`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  projectPath,
+                  mappingsByGroup: camerasStateToSave.mappingsByGroup || {},
+                  groupNotes: camerasStateToSave.groupNotes || {},
+                  selectedGroup: String(camerasStateToSave.selectedGroup || ''),
+              }),
+          });
+          const payload = await response.json();
+          if (!response.ok || !payload?.success) {
+              throw new Error(payload?.error || 'Could not save cameras mapping');
+          }
+          camerasPath = payload.path || '';
+      } catch (error) {
+          if (!silent) notify('error', 'Partial Save', `Plan saved, but Cameras Mapping could not be saved.${error?.message ? ` ${error.message}` : ''}`);
+          return { success: false, error: error?.message || 'Could not save cameras mapping' };
       }
 
       const savedItems = [
@@ -998,6 +1058,7 @@ const WorkspacePage = () => {
           { label: 'Plan', ok: Boolean(planResult?.path) },
           { label: 'DAQ Systems', ok: Boolean(daqPath) },
           { label: 'Sensors Mapping', ok: Boolean(sensorsPath) },
+          { label: 'Cameras Mapping', ok: Boolean(camerasPath) },
           { label: 'Gas Mixing', ok: Boolean(gasPath) },
       ];
 
@@ -1020,7 +1081,7 @@ const WorkspacePage = () => {
               </ul>
           </div>
       );
-      notify('success', 'Project Saved', details);
+      if (!silent) notify('success', 'Project Saved', details);
       return { success: true, savedItems };
   }, [activeTab, apiBaseUrl, checklistState, hasSensorsStateForSave, normalizeSensorsStateForSave, notify, projectPath, savePlan]);
 
@@ -1088,10 +1149,10 @@ const WorkspacePage = () => {
           return;
       }
       const timerId = setTimeout(() => {
-          savePlan({ silent: true });
+          saveProject({ silent: true });
       }, 1200);
       return () => clearTimeout(timerId);
-  }, [projectPath, savePlan]);
+  }, [projectPath, saveProject]);
 
   useEffect(() => {
       const handler = (event) => {
@@ -1606,6 +1667,14 @@ const WorkspacePage = () => {
                   <SafeComponent>
                       <Suspense fallback={<TabFallback />}>
                           <SensorsMappingPage key={projectPath || 'global'} projectPath={projectPath} />
+                      </Suspense>
+                  </SafeComponent>
+              )}
+
+              {activeTab === 'cameras_mapping' && FLAGS.ENABLE_PLAN && (
+                  <SafeComponent>
+                      <Suspense fallback={<TabFallback />}>
+                          <CamerasMappingPage key={projectPath || 'global'} projectPath={projectPath} />
                       </Suspense>
                   </SafeComponent>
               )}

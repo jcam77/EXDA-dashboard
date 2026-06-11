@@ -152,7 +152,7 @@ const ReportPage = ({
             <h3 className="text-base font-semibold text-foreground">1. Metadata Report</h3>
           </div>
           <p className="text-sm text-muted-foreground">
-            Builds one consolidated metadata report from Plan, DAQ Systems, Sensors Mapping, and Gas Mixing.
+            Builds one consolidated metadata report from Plan, DAQ Systems, Sensors Mapping, Cameras Mapping, and Gas Mixing.
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
             CSV is exported as sectioned blocks (one labeled section per module), and PDF is exported as one merged file.

@@ -29,6 +29,7 @@ DAQ_MEASUREMENT_CHAIN_REFERENCE_PDF = os.path.join(REPO_ROOT, "frontend", "publi
 DAQ_MIXTURE_SAMPLING_REFERENCE_PDF = os.path.join(REPO_ROOT, "frontend", "public", "MixtureSampling_Sub-System_000.pdf")
 DAQ_SYSTEMS_FILENAME = "daq_systems.json"
 SENSORS_MAPPING_FILENAME = "sensors_mapping.json"
+CAMERAS_MAPPING_FILENAME = "cameras_mapping.json"
 GAS_MIXING_FILENAME = "gas_mixing.json"
 CHECKLIST_STATE_FILENAME = "checklist_state.json"
 EXDA_DISPLAY_TIMEZONE = "Europe/Stockholm"
@@ -1830,6 +1831,423 @@ def _write_sensors_pdf(project_name, rows, target_path):
     return True, target_path
 
 
+def _camera_type_display(record):
+    camera_type = str(record.get("cameraType") or "").strip()
+    if camera_type == "Other":
+        return str(record.get("customCameraType") or "").strip() or "Other"
+    return camera_type
+
+
+def _camera_trigger_display(record):
+    trigger_source = str(record.get("triggerSource") or "").strip()
+    if trigger_source == "Other":
+        return str(record.get("customTriggerSource") or "").strip() or "Other"
+    return trigger_source
+
+
+def _is_infrared_camera_record(record):
+    text = f"{_camera_type_display(record)} {record.get('model') or ''}".lower()
+    return "infrared" in text or "thermal" in text or re.search(r"\bir\b", text) is not None
+
+
+def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=None):
+    safe_groups = mappings_by_group if isinstance(mappings_by_group, dict) else {}
+    safe_notes = group_notes if isinstance(group_notes, dict) else {}
+    provided_groups = group_names if isinstance(group_names, list) else []
+    merged_groups = set()
+    for group in provided_groups:
+        text = str(group).strip()
+        if text:
+            merged_groups.add(text)
+    for group in safe_groups.keys():
+        text = str(group).strip()
+        if text:
+            merged_groups.add(text)
+    for group in safe_notes.keys():
+        text = str(group).strip()
+        if text:
+            merged_groups.add(text)
+
+    rows = []
+    groups = sorted(merged_groups, key=lambda value: value.lower())
+    for group in groups:
+        cameras = safe_groups.get(group)
+        safe_cameras = cameras if isinstance(cameras, list) else []
+        group_note = str(safe_notes.get(group) or "").strip()
+
+        camera_id_counts = {}
+        for item in safe_cameras:
+            record = item if isinstance(item, dict) else {}
+            camera_id = str(record.get("cameraId") or "").strip().lower()
+            if camera_id:
+                camera_id_counts[camera_id] = camera_id_counts.get(camera_id, 0) + 1
+
+        ordered = sorted(
+            safe_cameras,
+            key=lambda item: str((item if isinstance(item, dict) else {}).get("cameraId") or "").strip().lower(),
+        )
+        if not ordered:
+            rows.append({
+                "group": group,
+                "group_note": group_note,
+                "camera_id": "-",
+                "camera_type": "-",
+                "model": "-",
+                "serial": "-",
+                "frame_rate": "-",
+                "resolution": "-",
+                "lens_focal_length": "-",
+                "viewing_direction": "-",
+                "coordinates": "-",
+                "coordinate_unit": "-",
+                "coordinate_origin": "-",
+                "mounting_location": "-",
+                "field_of_view": "-",
+                "trigger_source": "-",
+                "synchronization_notes": "-",
+                "active": "-",
+                "calibration_reference": "-",
+                "emissivity": "-",
+                "temperature_range": "-",
+                "status": "Reference",
+                "notes": "-",
+                "is_reference_only": True,
+            })
+            continue
+
+        for item in ordered:
+            record = item if isinstance(item, dict) else {}
+            camera_id = str(record.get("cameraId") or "").strip()
+            camera_type = _camera_type_display(record)
+            model = str(record.get("model") or "").strip()
+            serial = str(record.get("serialNumber") or "").strip()
+            frame_rate = str(record.get("frameRate") or "").strip()
+            resolution = str(record.get("resolution") or "").strip()
+            lens_focal_length = str(record.get("lensFocalLength") or "").strip()
+            viewing_direction = str(record.get("viewingDirection") or "").strip()
+            x = str(record.get("x") or "").strip()
+            y = str(record.get("y") or "").strip()
+            z = str(record.get("z") or "").strip()
+            coordinate_unit = str(record.get("coordinateUnit") or "").strip() or "m"
+            coordinate_origin = str(record.get("coordinateOrigin") or "").strip()
+            mounting_location = str(record.get("mountingLocation") or "").strip()
+            field_of_view = str(record.get("fieldOfView") or "").strip()
+            trigger_source = _camera_trigger_display(record)
+            synchronization_notes = str(record.get("synchronizationNotes") or "").strip()
+            is_active = record.get("isActive") is not False
+            calibration_reference = str(record.get("calibrationReference") or "").strip()
+            emissivity = str(record.get("emissivity") or "").strip()
+            temperature_range = str(record.get("temperatureRange") or "").strip()
+            notes = str(record.get("notes") or "").strip()
+
+            status_errors = []
+            status_warnings = []
+            if not camera_id:
+                status_errors.append("missing camera id")
+            elif camera_id_counts.get(camera_id.lower(), 0) > 1:
+                status_errors.append("duplicate camera id")
+            if not camera_type:
+                status_warnings.append("missing camera type")
+            if not model:
+                status_warnings.append("missing model")
+            if not serial:
+                status_warnings.append("missing serial")
+            if not frame_rate:
+                status_warnings.append("missing frame rate")
+            if not resolution:
+                status_warnings.append("missing resolution")
+            if not lens_focal_length:
+                status_warnings.append("missing lens")
+            if not viewing_direction:
+                status_warnings.append("missing viewing direction")
+            if not mounting_location:
+                status_warnings.append("missing mounting location")
+            if not field_of_view:
+                status_warnings.append("missing field of view")
+            if not trigger_source:
+                status_warnings.append("missing trigger source")
+            if not synchronization_notes:
+                status_warnings.append("missing synchronization notes")
+            if _to_float(x) is None or _to_float(y) is None or _to_float(z) is None:
+                status_warnings.append("coordinates not numeric")
+            if not coordinate_origin:
+                status_warnings.append("missing coordinate origin")
+            if _is_infrared_camera_record(record):
+                if not emissivity:
+                    status_warnings.append("missing emissivity")
+                if not temperature_range:
+                    status_warnings.append("missing temperature range")
+
+            if status_errors:
+                status = "Incomplete"
+            elif status_warnings:
+                status = "Needs Review"
+            else:
+                status = "Complete"
+
+            rows.append({
+                "group": group,
+                "group_note": group_note,
+                "camera_id": camera_id,
+                "camera_type": camera_type,
+                "model": model,
+                "serial": serial,
+                "frame_rate": frame_rate,
+                "resolution": resolution,
+                "lens_focal_length": lens_focal_length,
+                "viewing_direction": viewing_direction,
+                "coordinates": f"({x or '-'},{y or '-'},{z or '-'})",
+                "coordinate_unit": coordinate_unit,
+                "coordinate_origin": coordinate_origin,
+                "mounting_location": mounting_location,
+                "field_of_view": field_of_view,
+                "trigger_source": trigger_source,
+                "synchronization_notes": synchronization_notes,
+                "active": "Yes" if is_active else "No",
+                "calibration_reference": calibration_reference,
+                "emissivity": emissivity,
+                "temperature_range": temperature_range,
+                "status": status,
+                "notes": notes,
+                "is_reference_only": False,
+            })
+    return rows
+
+
+def _write_cameras_csv(rows, target_path, project_name=None):
+    headers = [
+        "Group",
+        "Camera ID",
+        "Camera Type",
+        "Model",
+        "Serial Number",
+        "Frame Rate",
+        "Resolution",
+        "Lens / Focal Length",
+        "Viewing Direction",
+        "Position Coordinates",
+        "Coordinate Unit",
+        "Coordinate Origin",
+        "Mounting Location",
+        "Field of View / Target Region",
+        "Trigger Source",
+        "Synchronization Notes",
+        "Active",
+        "Calibration / Reference Image",
+        "Emissivity",
+        "Temperature Range",
+        "Status",
+        "Notes",
+    ]
+    total_groups = len({str(row.get("group") or "").strip() for row in rows if str(row.get("group") or "").strip()})
+    total_mappings = sum(1 for row in rows if not bool(row.get("is_reference_only")))
+    unique_camera_ids = {
+        str(row.get("camera_id") or "").strip().lower()
+        for row in rows
+        if not bool(row.get("is_reference_only")) and str(row.get("camera_id") or "").strip() and str(row.get("camera_id") or "").strip() != "-"
+    }
+    with open(target_path, "w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["Export Type", "Cameras Mapping"])
+        writer.writerow(["Project", str(project_name or "-")])
+        writer.writerow(["Responsible Researcher", "PhD Student Javier I. Camacho"])
+        writer.writerow(["Total Groups", str(total_groups)])
+        writer.writerow(["Total Camera IDs", str(len(unique_camera_ids))])
+        writer.writerow(["Total Camera Mappings", str(total_mappings)])
+        writer.writerow(["Generated At", _now_display_str(include_seconds=True)])
+        writer.writerow([])
+        previous_group = None
+        previous_group_note = ""
+        for row in rows:
+            current_group = str(row.get("group") or "").strip()
+            current_group_note = str(row.get("group_note") or "").strip()
+            if current_group != previous_group:
+                if previous_group is not None:
+                    if previous_group_note:
+                        writer.writerow([f"Group Reference Note ({previous_group})", previous_group_note])
+                    writer.writerow([])
+                writer.writerow(headers)
+            writer.writerow([
+                row.get("group", ""),
+                row.get("camera_id", ""),
+                row.get("camera_type", ""),
+                row.get("model", ""),
+                row.get("serial", ""),
+                row.get("frame_rate", ""),
+                row.get("resolution", ""),
+                row.get("lens_focal_length", ""),
+                row.get("viewing_direction", ""),
+                row.get("coordinates", ""),
+                row.get("coordinate_unit", ""),
+                row.get("coordinate_origin", ""),
+                row.get("mounting_location", ""),
+                row.get("field_of_view", ""),
+                row.get("trigger_source", ""),
+                row.get("synchronization_notes", ""),
+                row.get("active", ""),
+                row.get("calibration_reference", ""),
+                row.get("emissivity", ""),
+                row.get("temperature_range", ""),
+                row.get("status", ""),
+                row.get("notes", ""),
+            ])
+            previous_group = current_group
+            previous_group_note = current_group_note
+        if previous_group and previous_group_note:
+            writer.writerow([f"Group Reference Note ({previous_group})", previous_group_note])
+
+
+def _write_cameras_pdf(project_name, rows, target_path):
+    try:
+        import fitz  # PyMuPDF
+    except Exception as exc:
+        return False, f"PyMuPDF unavailable: {exc}"
+
+    def _clip(value, width):
+        text = str(value or "")
+        if len(text) <= width:
+            return text.ljust(width)
+        if width <= 1:
+            return text[:width]
+        return (text[: width - 1] + "…")
+
+    def _wrap(value, width):
+        text = str(value or "").strip()
+        if not text:
+            return ["-"]
+        return textwrap.wrap(text, width=width, break_long_words=True, break_on_hyphens=False) or ["-"]
+
+    doc = fitz.open()
+    page = doc.new_page(width=842, height=595)
+    x0 = 24
+    top_content_y = 92
+    y = top_content_y
+    line_h = 12
+    logo_paths = _resolve_pdf_logos()
+
+    def _draw_logo(page_obj):
+        try:
+            university_logo = logo_paths.get("university")
+            if university_logo:
+                page_obj.insert_image(fitz.Rect(500, 16, 660, 76), filename=university_logo, keep_proportion=True, overlay=True)
+            institute_logo = logo_paths.get("institute")
+            if institute_logo:
+                page_obj.insert_image(fitz.Rect(668, 16, 818, 76), filename=institute_logo, keep_proportion=True, overlay=True)
+        except Exception:
+            return
+
+    _draw_logo(page)
+
+    def _write_line(text, bold=False):
+        nonlocal page, y
+        if y > 570:
+            page = doc.new_page(width=842, height=595)
+            y = top_content_y
+            _draw_logo(page)
+        page.insert_text((x0, y), text, fontname="courier-bold" if bold else "courier", fontsize=8.5, color=(0, 0, 0))
+        y += line_h
+
+    total_groups = len({str(row.get("group") or "").strip() for row in rows if str(row.get("group") or "").strip()})
+    total_mappings = sum(1 for row in rows if not bool(row.get("is_reference_only")))
+    unique_camera_ids = {
+        str(row.get("camera_id") or "").strip().lower()
+        for row in rows
+        if not bool(row.get("is_reference_only")) and str(row.get("camera_id") or "").strip() and str(row.get("camera_id") or "").strip() != "-"
+    }
+
+    page.insert_text((x0, y), "EXDA Cameras Mapping Export", fontname="courier-bold", fontsize=18, color=(0, 0, 0))
+    y += 22
+    _write_line(f"Project: {str(project_name or '-')}")
+    _write_line("Responsible Researcher: PhD Student Javier I. Camacho")
+    _write_line(f"Total Groups: {total_groups}")
+    _write_line(f"Total Camera IDs: {len(unique_camera_ids)}")
+    _write_line(f"Total Camera Mappings: {total_mappings}")
+    _write_line(f"Generated: {_now_display_str(include_seconds=True)}")
+    _write_line("")
+
+    columns = [
+        ("Group", 8),
+        ("Camera", 8),
+        ("Type", 10),
+        ("Model", 10),
+        ("Serial", 8),
+        ("FPS", 7),
+        ("Res.", 9),
+        ("Lens", 8),
+        ("View", 10),
+        ("Coord.", 13),
+        ("Mount", 10),
+        ("Trigger", 10),
+        ("IR", 8),
+        ("Active", 6),
+        ("Status", 10),
+    ]
+    divider = "-+-".join("-" * width for _, width in columns)
+    header = " | ".join(_clip(name, width) for name, width in columns)
+
+    previous_group = None
+    previous_group_note = ""
+    for row in rows:
+        current_group = str(row.get("group") or "")
+        current_group_note = str(row.get("group_note") or "").strip()
+        if previous_group is None:
+            _write_line("")
+            _write_line(f"Group: {current_group or '-'}", bold=True)
+            _write_line(header, bold=True)
+            _write_line(divider)
+        elif current_group != previous_group:
+            if previous_group_note:
+                _write_line(f"Group Reference Note: {previous_group_note}")
+            _write_line("")
+            _write_line("=" * len(divider))
+            _write_line(f"Group: {current_group or '-'}", bold=True)
+            _write_line(header, bold=True)
+            _write_line(divider)
+
+        previous_group = current_group
+        previous_group_note = current_group_note
+        ir_display = " / ".join(
+            part for part in [str(row.get("emissivity") or "").strip(), str(row.get("temperature_range") or "").strip()] if part
+        ) or "-"
+        row_values = [
+            row.get("group"),
+            row.get("camera_id"),
+            row.get("camera_type"),
+            row.get("model"),
+            row.get("serial"),
+            row.get("frame_rate"),
+            row.get("resolution"),
+            row.get("lens_focal_length"),
+            row.get("viewing_direction"),
+            f"{row.get('coordinates') or '-'} {row.get('coordinate_unit') or ''}".strip(),
+            row.get("mounting_location"),
+            row.get("trigger_source"),
+            ir_display,
+            row.get("active"),
+            row.get("status"),
+        ]
+        wrapped_cells = [_wrap(value, width) for value, (_, width) in zip(row_values, columns)]
+        row_lines = max(len(lines) for lines in wrapped_cells) if wrapped_cells else 1
+        for idx in range(row_lines):
+            line = " | ".join(
+                _clip((wrapped_cells[col_idx][idx] if idx < len(wrapped_cells[col_idx]) else ""), columns[col_idx][1])
+                for col_idx in range(len(columns))
+            )
+            _write_line(line)
+
+    if previous_group and previous_group_note:
+        _write_line(f"Group Reference Note: {previous_group_note}")
+
+    total_pages = len(doc)
+    for page_index, page_obj in enumerate(doc, start=1):
+        footer_text = f"Page {page_index}/{total_pages}"
+        page_obj.insert_text((770, 582), footer_text, fontname="courier", fontsize=8, color=(0.25, 0.25, 0.25))
+
+    doc.save(target_path, deflate=True, garbage=4)
+    doc.close()
+    return True, target_path
+
+
 def _build_gas_mixing_export_rows(records):
     def _short_run_name(group_name, run_name):
         group_clean = str(group_name or "").strip()
@@ -2965,6 +3383,104 @@ def get_sensors_mapping():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
+@state_bp.route('/save_cameras_mapping', methods=['POST'])
+def save_cameras_mapping():
+    """Persist cameras mapping metadata in Reports/cameras_mapping.json."""
+    payload = request.json or {}
+    project_path = payload.get("projectPath")
+    mappings_by_group = payload.get("mappingsByGroup")
+    group_notes = payload.get("groupNotes") if isinstance(payload.get("groupNotes"), dict) else {}
+    selected_group = str(payload.get("selectedGroup") or "").strip()
+
+    if not isinstance(mappings_by_group, dict):
+        return jsonify({"success": False, "error": "mappingsByGroup must be an object"}), 400
+
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    file_path = os.path.join(reports_dir, CAMERAS_MAPPING_FILENAME)
+    if not project_manager.is_path_within(reports_dir, file_path):
+        return jsonify({"success": False, "error": "Invalid cameras mapping path"}), 400
+
+    safe_groups = {}
+    for key, value in mappings_by_group.items():
+        group_name = str(key or "").strip()
+        if not group_name:
+            continue
+        if isinstance(value, list):
+            safe_groups[group_name] = [dict(item) if isinstance(item, dict) else {} for item in value]
+        else:
+            safe_groups[group_name] = []
+
+    safe_notes = {}
+    for key, value in group_notes.items():
+        group_name = str(key or "").strip()
+        if not group_name:
+            continue
+        safe_notes[group_name] = str(value or "")
+
+    total_cameras = sum(len(items) for items in safe_groups.values() if isinstance(items, list))
+    try:
+        data = {
+            "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "selectedGroup": selected_group,
+            "groupNotes": safe_notes,
+            "mappingsByGroup": safe_groups,
+        }
+        with open(file_path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=2)
+        return jsonify({
+            "success": True,
+            "path": file_path,
+            "groupCount": len(safe_groups),
+            "cameraCount": total_cameras,
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@state_bp.route('/get_cameras_mapping', methods=['GET'])
+def get_cameras_mapping():
+    """Load cameras mapping metadata for a project."""
+    project_path = request.args.get('projectPath')
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_path = os.path.join(project_root, "Reports", CAMERAS_MAPPING_FILENAME)
+    file_path = _resolve_existing_metadata_file(project_root, CAMERAS_MAPPING_FILENAME)
+
+    if not os.path.exists(file_path):
+        return jsonify({
+            "success": True,
+            "path": reports_path,
+            "selectedGroup": "",
+            "groupNotes": {},
+            "mappingsByGroup": {},
+        })
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        if not isinstance(payload, dict):
+            payload = {}
+        mappings_by_group = payload.get("mappingsByGroup") if isinstance(payload.get("mappingsByGroup"), dict) else {}
+        group_notes = payload.get("groupNotes") if isinstance(payload.get("groupNotes"), dict) else {}
+        selected_group = str(payload.get("selectedGroup") or "").strip()
+        return jsonify({
+            "success": True,
+            "path": file_path,
+            "selectedGroup": selected_group,
+            "groupNotes": group_notes,
+            "mappingsByGroup": mappings_by_group,
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
 @state_bp.route('/get_gas_mixing', methods=['GET'])
 def get_gas_mixing():
     """Load gas mixing metadata for a project."""
@@ -3273,6 +3789,29 @@ def _load_sensors_mapping_payload(project_root):
         return {"path": file_path, "mappingsByGroup": {}, "groupNotes": {}, "groupNames": []}
 
 
+def _load_cameras_mapping_payload(project_root):
+    file_path = _resolve_existing_metadata_file(project_root, CAMERAS_MAPPING_FILENAME)
+    if not os.path.exists(file_path):
+        return {"path": file_path, "mappingsByGroup": {}, "groupNotes": {}, "groupNames": []}
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        mappings_by_group = payload.get("mappingsByGroup") if isinstance(payload, dict) and isinstance(payload.get("mappingsByGroup"), dict) else {}
+        group_notes = payload.get("groupNotes") if isinstance(payload, dict) and isinstance(payload.get("groupNotes"), dict) else {}
+        groups = sorted(
+            set(list(mappings_by_group.keys()) + list(group_notes.keys())),
+            key=lambda value: str(value).lower(),
+        )
+        return {
+            "path": file_path,
+            "mappingsByGroup": mappings_by_group,
+            "groupNotes": group_notes,
+            "groupNames": groups,
+        }
+    except Exception:
+        return {"path": file_path, "mappingsByGroup": {}, "groupNotes": {}, "groupNames": []}
+
+
 def _load_gas_mixing_payload(project_root):
     file_path = _resolve_existing_metadata_file(project_root, GAS_MIXING_FILENAME)
     if not os.path.exists(file_path):
@@ -3287,7 +3826,7 @@ def _load_gas_mixing_payload(project_root):
         return {"path": file_path, "records": [], "verificationMeta": _normalize_gas_verification_meta({})}
 
 
-def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_payload, sensors_payload, gas_payload):
+def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_payload, sensors_payload, cameras_payload, gas_payload):
     plan_rows = _build_plan_export_rows(plan_payload.get("experiments"), plan_payload.get("meta"))
     plan_meta = plan_payload.get("meta") if isinstance(plan_payload.get("meta"), dict) else {}
     group_objectives = plan_meta.get("groupObjectives") if isinstance(plan_meta.get("groupObjectives"), dict) else {}
@@ -3297,6 +3836,11 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
         group_notes=sensors_payload.get("groupNotes"),
         group_names=sensors_payload.get("groupNames"),
     )
+    camera_rows = _build_cameras_export_rows(
+        cameras_payload.get("mappingsByGroup"),
+        group_notes=cameras_payload.get("groupNotes"),
+        group_names=cameras_payload.get("groupNames"),
+    )
     gas_rows = _build_gas_mixing_export_rows(gas_payload.get("records"))
 
     with open(target_path, "w", encoding="utf-8-sig", newline="") as handle:
@@ -3305,7 +3849,7 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
         writer.writerow(["Project", str(project_name or "-")])
         writer.writerow(["Responsible Researcher", "PhD Student Javier I. Camacho"])
         writer.writerow(["Generated At", _now_display_str(include_seconds=True)])
-        writer.writerow(["Sections", "Plan, DAQ Systems, Sensors Mapping, Gas Mixing"])
+        writer.writerow(["Sections", "Plan, DAQ Systems, Sensors Mapping, Cameras Mapping, Gas Mixing"])
         writer.writerow([])
 
         writer.writerow(["[TAB] Plan"])
@@ -3435,6 +3979,72 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
             writer.writerow([f"Group Reference Note ({previous_group})", previous_group_note])
         writer.writerow([])
 
+        writer.writerow(["[TAB] Cameras Mapping"])
+        cameras_headers = [
+            "Group",
+            "Camera ID",
+            "Camera Type",
+            "Model",
+            "Serial Number",
+            "Frame Rate",
+            "Resolution",
+            "Lens / Focal Length",
+            "Viewing Direction",
+            "Position Coordinates",
+            "Coordinate Unit",
+            "Coordinate Origin",
+            "Mounting Location",
+            "Field of View / Target Region",
+            "Trigger Source",
+            "Synchronization Notes",
+            "Active",
+            "Calibration / Reference Image",
+            "Emissivity",
+            "Temperature Range",
+            "Status",
+            "Notes",
+        ]
+        previous_group = None
+        previous_group_note = ""
+        for row in camera_rows:
+            current_group = str(row.get("group") or "").strip()
+            current_group_note = str(row.get("group_note") or "").strip()
+            if current_group != previous_group:
+                if previous_group is not None:
+                    if previous_group_note:
+                        writer.writerow([f"Group Reference Note ({previous_group})", previous_group_note])
+                    writer.writerow([])
+                writer.writerow(cameras_headers)
+            writer.writerow([
+                row.get("group", ""),
+                row.get("camera_id", ""),
+                row.get("camera_type", ""),
+                row.get("model", ""),
+                row.get("serial", ""),
+                row.get("frame_rate", ""),
+                row.get("resolution", ""),
+                row.get("lens_focal_length", ""),
+                row.get("viewing_direction", ""),
+                row.get("coordinates", ""),
+                row.get("coordinate_unit", ""),
+                row.get("coordinate_origin", ""),
+                row.get("mounting_location", ""),
+                row.get("field_of_view", ""),
+                row.get("trigger_source", ""),
+                row.get("synchronization_notes", ""),
+                row.get("active", ""),
+                row.get("calibration_reference", ""),
+                row.get("emissivity", ""),
+                row.get("temperature_range", ""),
+                row.get("status", ""),
+                row.get("notes", ""),
+            ])
+            previous_group = current_group
+            previous_group_note = current_group_note
+        if previous_group and previous_group_note:
+            writer.writerow([f"Group Reference Note ({previous_group})", previous_group_note])
+        writer.writerow([])
+
         writer.writerow(["[TAB] Gas Mixing"])
         writer.writerow(["Group", "Run/Test", "Target H2 (%vol)", "Relative Humidity (%RH)", "Pchamber (Pa)", "Tchamber (°C)", "Tchamber (K)", "H2 Injected Estimated (g)", "H2 Injected Corrected (g)", "H2 Injected Volume (L)", "MFC Flow (SLPM)", "Fill Time (s)", "Fill Time (min)", "Calibration Model Type", "Calibration Target Basis", "Calibration Enabled", "Calibration Applied", "Calibration a", "Calibration b", "Calibration Notes", "Notes", "Updated At"])
         for row in gas_rows:
@@ -3493,6 +4103,7 @@ def export_metadata_report_artifact():
     plan_payload = _load_latest_plan_payload(project_root)
     daq_payload = _load_daq_systems_payload(project_root)
     sensors_payload = _load_sensors_mapping_payload(project_root)
+    cameras_payload = _load_cameras_mapping_payload(project_root)
     gas_payload = _load_gas_mixing_payload(project_root)
 
     try:
@@ -3503,6 +4114,7 @@ def export_metadata_report_artifact():
                 plan_payload=plan_payload,
                 daq_payload=daq_payload,
                 sensors_payload=sensors_payload,
+                cameras_payload=cameras_payload,
                 gas_payload=gas_payload,
             )
             return jsonify({"success": True, "path": target_path, "format": "csv"})
@@ -3519,6 +4131,11 @@ def export_metadata_report_artifact():
             group_notes=sensors_payload.get("groupNotes"),
             group_names=sensors_payload.get("groupNames"),
         )
+        cameras_rows = _build_cameras_export_rows(
+            cameras_payload.get("mappingsByGroup"),
+            group_notes=cameras_payload.get("groupNotes"),
+            group_names=cameras_payload.get("groupNames"),
+        )
         gas_rows = _build_gas_mixing_export_rows(gas_payload.get("records"))
         plan_meta = plan_payload.get("meta") if isinstance(plan_payload.get("meta"), dict) else {}
         project_objective = str(plan_meta.get("objective") or "").strip() or "-"
@@ -3528,6 +4145,7 @@ def export_metadata_report_artifact():
             plan_pdf = os.path.join(tmp_dir, "plan.pdf")
             daq_pdf = os.path.join(tmp_dir, "daq.pdf")
             sensors_pdf = os.path.join(tmp_dir, "sensors.pdf")
+            cameras_pdf = os.path.join(tmp_dir, "cameras.pdf")
             gas_pdf = os.path.join(tmp_dir, "gas.pdf")
 
             ok, result = _write_plan_pdf(
@@ -3544,6 +4162,10 @@ def export_metadata_report_artifact():
                 return jsonify({"success": False, "error": result}), 500
 
             ok, result = _write_sensors_pdf(project_name, sensors_rows, sensors_pdf)
+            if not ok:
+                return jsonify({"success": False, "error": result}), 500
+
+            ok, result = _write_cameras_pdf(project_name, cameras_rows, cameras_pdf)
             if not ok:
                 return jsonify({"success": False, "error": result}), 500
 
@@ -3577,7 +4199,7 @@ def export_metadata_report_artifact():
             cover.insert_text((36, 54), "EXDA Metadata Report", fontname="courier-bold", fontsize=18, color=(0, 0, 0))
             cover.insert_text((36, 84), f"Project: {project_name}", fontname="courier", fontsize=10, color=(0, 0, 0))
             cover.insert_text((36, 100), f"Generated: {_now_display_str(include_seconds=True)}", fontname="courier", fontsize=10, color=(0, 0, 0))
-            cover.insert_text((36, 130), "Includes: Plan, DAQ Systems, Sensors Mapping, Gas Mixing", fontname="courier", fontsize=10, color=(0, 0, 0))
+            cover.insert_text((36, 130), "Includes: Plan, DAQ Systems, Sensors Mapping, Cameras Mapping, Gas Mixing", fontname="courier", fontsize=10, color=(0, 0, 0))
             cover.insert_text((36, 146), "Responsible Researcher: PhD Student Javier I. Camacho", fontname="courier", fontsize=10, color=(0, 0, 0))
 
             objective_y = 176
@@ -3600,7 +4222,7 @@ def export_metadata_report_artifact():
                     cover.insert_text((36, objective_y), line, fontname="courier", fontsize=9.5, color=(0, 0, 0))
                     objective_y += 12
 
-            for section_path in [plan_pdf, daq_pdf, sensors_pdf, gas_pdf]:
+            for section_path in [plan_pdf, daq_pdf, sensors_pdf, cameras_pdf, gas_pdf]:
                 if not os.path.exists(section_path):
                     continue
                 section_doc = fitz.open(section_path)
@@ -3708,6 +4330,52 @@ def export_sensors_mapping_artifact():
             return jsonify({"success": True, "path": target_path, "format": "csv", "rows": len(rows)})
 
         ok, result = _write_sensors_pdf(project_name, rows, target_path)
+        if not ok:
+            return jsonify({"success": False, "error": result}), 500
+        return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@state_bp.route('/export_cameras_mapping_artifact', methods=['POST'])
+def export_cameras_mapping_artifact():
+    """Export cameras mapping artifact (CSV or PDF) into the project's Reports folder."""
+    payload = request.json or {}
+    project_path = payload.get("projectPath")
+    mappings_by_group = payload.get("mappingsByGroup") if isinstance(payload.get("mappingsByGroup"), dict) else {}
+    group_notes = payload.get("groupNotes") if isinstance(payload.get("groupNotes"), dict) else {}
+    group_names = payload.get("groupNames") if isinstance(payload.get("groupNames"), list) else []
+    export_format = str(payload.get("format") or "").strip().lower()
+
+    if export_format not in {"csv", "pdf"}:
+        return jsonify({"success": False, "error": "format must be 'csv' or 'pdf'"}), 400
+
+    project_root, err = project_manager.resolve_project_path(project_path)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    reports_dir = os.path.join(project_root, "Reports")
+    os.makedirs(reports_dir, exist_ok=True)
+
+    project_name = os.path.basename(project_root.rstrip(os.sep)) or "Project"
+    date_stamp = datetime.now().strftime("%Y-%m-%d")
+    stem = _sanitize_export_stem(f"{project_name}_Cameras_Mapping", "Cameras_Mapping")
+    target_name = f"{stem}_{date_stamp}.{export_format}"
+    target_path = os.path.join(reports_dir, target_name)
+    if not project_manager.is_path_within(reports_dir, target_path):
+        return jsonify({"success": False, "error": "Invalid export filename"}), 400
+
+    rows = _build_cameras_export_rows(
+        mappings_by_group,
+        group_notes=group_notes,
+        group_names=group_names,
+    )
+    try:
+        if export_format == "csv":
+            _write_cameras_csv(rows, target_path, project_name=project_name)
+            return jsonify({"success": True, "path": target_path, "format": "csv", "rows": len(rows)})
+
+        ok, result = _write_cameras_pdf(project_name, rows, target_path)
         if not ok:
             return jsonify({"success": False, "error": result}), 500
         return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
@@ -4038,6 +4706,8 @@ def rename_run_metadata_references():
         "gasMixingGroupRenamed": False,
         "sensorsMappingUpdated": False,
         "sensorsGroupsRenamed": 0,
+        "camerasMappingUpdated": False,
+        "camerasGroupsRenamed": 0,
     }
 
     # --- Gas Mixing remap (group + runName + selected pointers) ---
@@ -4148,5 +4818,68 @@ def rename_run_metadata_references():
             _write_json(sensors_path, sensors_payload)
             result["sensorsMappingUpdated"] = True
             result["sensorsGroupsRenamed"] = renamed_group_count
+
+    # --- Cameras Mapping remap (group keys + selectedGroup + notes keys) ---
+    cameras_path = os.path.join(reports_dir, CAMERAS_MAPPING_FILENAME)
+    cameras_payload = _load_json_dict(cameras_path)
+    if cameras_payload is not None and old_group and new_group and _fold(old_group) != _fold(new_group):
+        mappings_by_group = cameras_payload.get("mappingsByGroup")
+        group_notes = cameras_payload.get("groupNotes")
+        if not isinstance(mappings_by_group, dict):
+            mappings_by_group = {}
+        if not isinstance(group_notes, dict):
+            group_notes = {}
+
+        touched = False
+        renamed_group_count = 0
+
+        old_key = _find_case_key(mappings_by_group, old_group)
+        if old_key is not None:
+            source_cameras = mappings_by_group.pop(old_key)
+            target_key = _find_case_key(mappings_by_group, new_group) or new_group
+            target_cameras = mappings_by_group.get(target_key)
+            if not isinstance(target_cameras, list):
+                target_cameras = []
+            if not isinstance(source_cameras, list):
+                source_cameras = []
+            merged = []
+            seen = set()
+            for camera in target_cameras + source_cameras:
+                if not isinstance(camera, dict):
+                    continue
+                fingerprint = json.dumps(camera, sort_keys=True, ensure_ascii=False)
+                if fingerprint in seen:
+                    continue
+                seen.add(fingerprint)
+                merged.append(camera)
+            mappings_by_group[target_key] = merged
+            touched = True
+            renamed_group_count += 1
+
+        old_note_key = _find_case_key(group_notes, old_group)
+        if old_note_key is not None:
+            source_note = _clean(group_notes.pop(old_note_key))
+            target_note_key = _find_case_key(group_notes, new_group) or new_group
+            existing_note = _clean(group_notes.get(target_note_key))
+            if source_note and existing_note and source_note != existing_note:
+                group_notes[target_note_key] = f"{existing_note}\n\n{source_note}"
+            elif source_note and not existing_note:
+                group_notes[target_note_key] = source_note
+            elif existing_note:
+                group_notes[target_note_key] = existing_note
+            touched = True
+
+        selected_group = _clean(cameras_payload.get("selectedGroup"))
+        if _fold(selected_group) == _fold(old_group):
+            cameras_payload["selectedGroup"] = new_group
+            touched = True
+
+        if touched:
+            cameras_payload["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cameras_payload["mappingsByGroup"] = mappings_by_group
+            cameras_payload["groupNotes"] = group_notes
+            _write_json(cameras_path, cameras_payload)
+            result["camerasMappingUpdated"] = True
+            result["camerasGroupsRenamed"] = renamed_group_count
 
     return jsonify(result)

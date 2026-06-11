@@ -85,22 +85,18 @@ const section = [
   `- Updated on: \`${releaseDate}\``,
   '',
 ].join('\n');
-const startMarker = '## Current Release';
-const endMarker = '\nThe safe rule is:';
-const startIndex = text.indexOf(startMarker);
-const endIndex = text.indexOf(endMarker);
 
-if (startIndex >= 0 && endIndex > startIndex) {
-  text = `${text.slice(0, startIndex)}${section}${text.slice(endIndex + 1)}`;
+const currentReleaseBlock = /(?:^|\n)## Current Release\n\n- Latest release version: `[^`]*`\n- Latest release tag: `[^`]*`\n- Updated on: `[^`]*`\n*/g;
+text = text.replace(currentReleaseBlock, '\n');
+
+const marker = 'This is the EXDA versioning workflow.';
+if (text.includes(marker)) {
+  text = text.replace(marker, `${marker}\n\n${section.trimEnd()}`);
 } else {
-  const marker = 'This is the EXDA versioning workflow.';
-  if (text.includes(marker)) {
-    text = text.replace(marker, `${marker}\n\n${section.trimEnd()}`);
-  } else {
-    text = `${section}${text}`;
-  }
+  text = `${section}${text}`;
 }
 
+text = text.replace(/\n{3,}/g, '\n\n');
 fs.writeFileSync(path, text);
 NODE
 }

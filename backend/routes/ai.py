@@ -100,7 +100,11 @@ APP_STRUCTURE_FILES = [
     ("frontend/src/pages/EwtAnalysis.jsx", "Empirical Wavelet Transform (EWT) analysis page."),
     ("frontend/src/pages/FlameSpeedAnalysis.jsx", "Flame speed analysis page."),
     ("frontend/src/pages/ImportData.jsx", "Import Data tab page."),
+    ("frontend/src/pages/SensorsMapping.jsx", "Sensors Mapping tab for group-based DAQ/sensor location and calibration metadata."),
+    ("frontend/src/pages/CamerasMapping.jsx", "Cameras Mapping tab for group-based high-speed/IR camera metadata, coordinates, trigger/sync, emissivity, and temperature range."),
     ("frontend/src/pages/GasMixing.jsx", "Gas Mixing tab page."),
+    ("frontend/src/pages/Report.jsx", "Report tab that exports consolidated project metadata reports."),
+    ("backend/routes/state.py", "Project state, metadata persistence, report exports, and mapping artifact routes."),
     ("frontend/src/pages/AiRA.jsx", "AiRA chat UI and streaming client."),
     ("backend/routes/ai.py", "AiRA backend route, prompt context, and repo snapshot generation."),
 ]
@@ -456,6 +460,9 @@ def _build_repo_context():
     lines.append("- Full resolution mode can load all samples; fast mode may downsample large datasets for responsiveness.")
     lines.append("- Data Preprocessing is primarily inspection/QA; analysis tabs may apply different processing settings.")
     lines.append("- Unit handling combines inference, per-channel overrides, and optional pressure conversion to kPa.")
+    lines.append("- Metadata modules save into Reports/*.json: DAQ Systems, Sensors Mapping, Cameras Mapping, Gas Mixing, and Checklist state.")
+    lines.append("- Cameras Mapping is group-based and records camera ID/type/model/serial, FPS, resolution, lens, viewing direction, coordinates/origin, mounting, FOV/target, trigger/sync notes, active state, calibration reference, IR emissivity, and temperature range.")
+    lines.append("- Consolidated metadata report exports include Plan, DAQ Systems, Sensors Mapping, Cameras Mapping, and Gas Mixing; CSV keeps full metadata while PDF prioritizes compact readable summaries.")
     lines.append("- Pressure/flame/simulation flows are not identical and use different endpoints/data paths.")
     lines.append("- Optional dependencies gate features (e.g., asammdf for MF4, h5py for TPC5, Ollama availability for AI).")
     lines.append("- Mixed chart stack is used across tabs (Recharts and uPlot), so interaction behavior can differ.")
