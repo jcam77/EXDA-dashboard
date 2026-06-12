@@ -91,7 +91,7 @@ MAIN_CALCULATION_FILES = [
 APP_STRUCTURE_FILES = [
     ("frontend/src/main.jsx", "Frontend entry point that mounts AppShell."),
     ("frontend/src/app/AppShell.jsx", "Router shell selecting BrowserRouter/HashRouter for desktop packaging."),
-    ("frontend/src/features/workspace/WorkspacePage.jsx", "Main workspace orchestrator with navigation tabs and shared state."),
+    ("frontend/src/features/workspace/WorkspacePage.jsx", "Main workspace orchestrator with navigation tabs, MVP mode gating, project open/save, and shared state."),
     ("frontend/src/features/workspace/hooks/useAnalysisPipeline.js", "Shared analysis orchestration for pressure/EWT/flame tabs."),
     ("frontend/src/features/analysis/PressureAnalysisWorkbench.jsx", "Shared pressure plotting/controls used by two tabs."),
     ("frontend/src/pages/PressureAnalysis.jsx", "Pressure Analysis tab page wrapper (experiments mode)."),
@@ -101,7 +101,7 @@ APP_STRUCTURE_FILES = [
     ("frontend/src/pages/FlameSpeedAnalysis.jsx", "Flame speed analysis page."),
     ("frontend/src/pages/ImportData.jsx", "Import Data tab page."),
     ("frontend/src/pages/SensorsMapping.jsx", "Sensors Mapping tab for group-based DAQ/sensor location and calibration metadata."),
-    ("frontend/src/pages/CamerasMapping.jsx", "Cameras Mapping tab for group-based high-speed/IR camera metadata, coordinates, trigger/sync, emissivity, and temperature range."),
+    ("frontend/src/pages/CamerasMapping.jsx", "Cameras Mapping tab for group-based camera hardware metadata, optical method, coordinates, trigger/sync, emissivity, and temperature range."),
     ("frontend/src/pages/GasMixing.jsx", "Gas Mixing tab page."),
     ("frontend/src/pages/Report.jsx", "Report tab that exports consolidated project metadata reports."),
     ("backend/routes/state.py", "Project state, metadata persistence, report exports, and mapping artifact routes."),
@@ -460,8 +460,9 @@ def _build_repo_context():
     lines.append("- Full resolution mode can load all samples; fast mode may downsample large datasets for responsiveness.")
     lines.append("- Data Preprocessing is primarily inspection/QA; analysis tabs may apply different processing settings.")
     lines.append("- Unit handling combines inference, per-channel overrides, and optional pressure conversion to kPa.")
+    lines.append("- Workspace supports MVP mode, which gates selected advanced tabs behind the MVP toggle/password flow while keeping core metadata and analysis workflows available.")
     lines.append("- Metadata modules save into Reports/*.json: DAQ Systems, Sensors Mapping, Cameras Mapping, Gas Mixing, and Checklist state.")
-    lines.append("- Cameras Mapping is group-based and records camera ID/type/model/serial, FPS, resolution, lens, coordinates/origin, mounting description, FOV/target region, trigger/sync notes, active state, calibration reference, IR emissivity, and temperature range.")
+    lines.append("- Cameras Mapping is group-based and records camera ID/type/model/serial, optical method used (for example BOS or Schlieren), FPS, resolution, lens, coordinates/origin, mounting description, FOV/target region, trigger/sync notes, active state, calibration reference, IR emissivity, and temperature range.")
     lines.append("- Consolidated metadata report exports include Plan, DAQ Systems, Sensors Mapping, Cameras Mapping, and Gas Mixing; CSV keeps full metadata while PDF prioritizes compact readable summaries.")
     lines.append("- Pressure/flame/simulation flows are not identical and use different endpoints/data paths.")
     lines.append("- Optional dependencies gate features (e.g., asammdf for MF4, h5py for TPC5, Ollama availability for AI).")

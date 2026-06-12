@@ -8,7 +8,8 @@ import { useAppDialog } from '../hooks/useAppDialog';
 const COORDINATE_UNIT_OPTIONS = ['m', 'mm'];
 const DEFAULT_COORDINATE_ORIGIN = '((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.';
 const CUSTOM_COORDINATE_ORIGIN = '__custom_coordinate_origin__';
-const CAMERA_TYPE_OPTIONS = ['', 'High-speed camera', 'Infrared camera', 'Standard video camera', 'Schlieren camera', 'Other'];
+const CAMERA_TYPE_OPTIONS = ['', 'High-speed camera', 'Infrared camera', 'Standard video camera', 'Other'];
+const METHOD_USED_OPTIONS = ['', 'BOS (Background Oriented Schlieren)', 'Schlieren', 'Other'];
 const TRIGGER_SOURCE_OPTIONS = ['', 'M-Duino', 'DAQ trigger', 'Camera internal trigger', 'Manual trigger', 'Other'];
 const RUN_GROUP_RE = /^(.*)-(\d+)(?:-[Rr]\d+)?$/;
 
@@ -20,6 +21,8 @@ const createDefaultCamera = () => ({
   cameraId: '',
   cameraType: '',
   customCameraType: '',
+  methodUsed: '',
+  customMethodUsed: '',
   model: '',
   serialNumber: '',
   frameRate: '',
@@ -44,11 +47,17 @@ const createDefaultCamera = () => ({
 
 const normalizeCameraRecord = (camera) => {
   const record = camera && typeof camera === 'object' ? camera : {};
-  return {
+  const normalized = {
     ...createDefaultCamera(),
     ...record,
     isActive: record.isActive !== false,
   };
+  if (normalize(normalized.cameraType) === 'schlieren camera') {
+    normalized.cameraType = '';
+    normalized.customCameraType = '';
+    if (!String(normalized.methodUsed || '').trim()) normalized.methodUsed = 'Schlieren';
+  }
+  return normalized;
 };
 
 const normalizeCamerasStatePayload = (payload) => {
@@ -111,6 +120,12 @@ const displayCameraType = (camera) => {
   return type || '-';
 };
 
+const displayMethodUsed = (camera) => {
+  const method = String(camera.methodUsed || '').trim();
+  if (method === 'Other') return String(camera.customMethodUsed || '').trim() || 'Other';
+  return method || '-';
+};
+
 const displayTriggerSource = (camera) => {
   const source = String(camera.triggerSource || '').trim();
   if (source === 'Other') return String(camera.customTriggerSource || '').trim() || 'Other';
@@ -134,6 +149,7 @@ const validateCameraAgainstList = (camera, allCameras, currentId = null) => {
   if (duplicateCameraId) errors.push('Duplicate camera ID');
 
   if (!String(displayCameraType(camera) || '').trim() || displayCameraType(camera) === '-') warnings.push('Camera type missing');
+  if (!String(displayMethodUsed(camera) || '').trim() || displayMethodUsed(camera) === '-') warnings.push('Method used missing');
   if (!String(camera.model || '').trim()) warnings.push('Model missing');
   if (!String(camera.serialNumber || '').trim()) warnings.push('Serial number missing');
   if (!String(camera.frameRate || '').trim()) warnings.push('Frame rate missing');
@@ -686,11 +702,12 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
               </label>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-[1500px] text-xs">
+              <table className="min-w-[1620px] text-xs">
                 <thead>
                   <tr className="border-b border-sidebar-border text-left text-muted-foreground">
                     <th className="py-2 pr-3">Camera ID</th>
                     <th className="py-2 pr-3">Type / Model</th>
+                    <th className="py-2 pr-3">Method Used</th>
                     <th className="py-2 pr-3">Serial</th>
                     <th className="py-2 pr-3">FPS</th>
                     <th className="py-2 pr-3">Resolution</th>
@@ -714,6 +731,7 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
                       <tr key={camera.id} className="border-b border-sidebar-border/50">
                         <td className="py-2 pr-3 font-semibold text-foreground">{camera.cameraId || '-'}</td>
                         <td className="py-2 pr-3">{displayCameraType(camera)} / {camera.model || '-'}</td>
+                        <td className="py-2 pr-3">{displayMethodUsed(camera)}</td>
                         <td className="py-2 pr-3">{camera.serialNumber || '-'}</td>
                         <td className="py-2 pr-3">{camera.frameRate || '-'}</td>
                         <td className="py-2 pr-3">{camera.resolution || '-'}</td>
@@ -886,6 +904,8 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
               <label className="text-xs">Camera ID<input value={editingCamera.cameraId} onChange={(e) => setEditingCamera((prev) => ({ ...prev, cameraId: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Camera Type<select value={editingCamera.cameraType} onChange={(e) => setEditingCamera((prev) => ({ ...prev, cameraType: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{CAMERA_TYPE_OPTIONS.map((opt) => <option key={opt || 'blank'} value={opt}>{opt || 'Select camera type'}</option>)}</select></label>
               {editingCamera.cameraType === 'Other' && <label className="text-xs md:col-span-2">Custom Camera Type<input value={editingCamera.customCameraType || ''} onChange={(e) => setEditingCamera((prev) => ({ ...prev, customCameraType: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>}
+              <label className="text-xs">Method Used<select value={editingCamera.methodUsed || ''} onChange={(e) => setEditingCamera((prev) => ({ ...prev, methodUsed: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{METHOD_USED_OPTIONS.map((opt) => <option key={opt || 'blank'} value={opt}>{opt || 'Select method'}</option>)}</select></label>
+              {editingCamera.methodUsed === 'Other' && <label className="text-xs">Custom Method<input value={editingCamera.customMethodUsed || ''} onChange={(e) => setEditingCamera((prev) => ({ ...prev, customMethodUsed: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>}
               <label className="text-xs">Model<input value={editingCamera.model} onChange={(e) => setEditingCamera((prev) => ({ ...prev, model: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Serial Number<input value={editingCamera.serialNumber} onChange={(e) => setEditingCamera((prev) => ({ ...prev, serialNumber: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Frame Rate<input value={editingCamera.frameRate} onChange={(e) => setEditingCamera((prev) => ({ ...prev, frameRate: e.target.value }))} placeholder="e.g., 10000 fps" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>

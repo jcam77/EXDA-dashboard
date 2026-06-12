@@ -1833,9 +1833,22 @@ def _write_sensors_pdf(project_name, rows, target_path):
 
 def _camera_type_display(record):
     camera_type = str(record.get("cameraType") or "").strip()
+    if camera_type.lower() == "schlieren camera":
+        return ""
     if camera_type == "Other":
         return str(record.get("customCameraType") or "").strip() or "Other"
     return camera_type
+
+
+def _camera_method_display(record):
+    method_used = str(record.get("methodUsed") or "").strip()
+    if method_used == "Other":
+        return str(record.get("customMethodUsed") or "").strip() or "Other"
+    if method_used:
+        return method_used
+    if str(record.get("cameraType") or "").strip().lower() == "schlieren camera":
+        return "Schlieren"
+    return ""
 
 
 def _camera_trigger_display(record):
@@ -1892,6 +1905,7 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
                 "group_note": group_note,
                 "camera_id": "-",
                 "camera_type": "-",
+                "method_used": "-",
                 "model": "-",
                 "serial": "-",
                 "frame_rate": "-",
@@ -1918,6 +1932,7 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
             record = item if isinstance(item, dict) else {}
             camera_id = str(record.get("cameraId") or "").strip()
             camera_type = _camera_type_display(record)
+            method_used = _camera_method_display(record)
             model = str(record.get("model") or "").strip()
             serial = str(record.get("serialNumber") or "").strip()
             frame_rate = str(record.get("frameRate") or "").strip()
@@ -1946,6 +1961,8 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
                 status_errors.append("duplicate camera id")
             if not camera_type:
                 status_warnings.append("missing camera type")
+            if not method_used:
+                status_warnings.append("missing method used")
             if not model:
                 status_warnings.append("missing model")
             if not serial:
@@ -1986,6 +2003,7 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
                 "group_note": group_note,
                 "camera_id": camera_id,
                 "camera_type": camera_type,
+                "method_used": method_used,
                 "model": model,
                 "serial": serial,
                 "frame_rate": frame_rate,
@@ -2014,6 +2032,7 @@ def _write_cameras_csv(rows, target_path, project_name=None):
         "Group",
         "Camera ID",
         "Camera Type",
+        "Method Used",
         "Model",
         "Serial Number",
         "Frame Rate",
@@ -2065,6 +2084,7 @@ def _write_cameras_csv(rows, target_path, project_name=None):
                 row.get("group", ""),
                 row.get("camera_id", ""),
                 row.get("camera_type", ""),
+                row.get("method_used", ""),
                 row.get("model", ""),
                 row.get("serial", ""),
                 row.get("frame_rate", ""),
@@ -2161,7 +2181,7 @@ def _write_cameras_pdf(project_name, rows, target_path):
     columns = [
         ("Group", 8),
         ("Camera", 8),
-        ("Type", 10),
+        ("Type/Method", 13),
         ("Model", 10),
         ("Serial", 8),
         ("FPS", 7),
@@ -2204,7 +2224,9 @@ def _write_cameras_pdf(project_name, rows, target_path):
         row_values = [
             row.get("group"),
             row.get("camera_id"),
-            row.get("camera_type"),
+            " / ".join(
+                part for part in [str(row.get("camera_type") or "").strip(), str(row.get("method_used") or "").strip()] if part
+            ) or "-",
             row.get("model"),
             row.get("serial"),
             row.get("frame_rate"),
@@ -3975,6 +3997,7 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
             "Group",
             "Camera ID",
             "Camera Type",
+            "Method Used",
             "Model",
             "Serial Number",
             "Frame Rate",
@@ -4009,6 +4032,7 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
                 row.get("group", ""),
                 row.get("camera_id", ""),
                 row.get("camera_type", ""),
+                row.get("method_used", ""),
                 row.get("model", ""),
                 row.get("serial", ""),
                 row.get("frame_rate", ""),
