@@ -1,0 +1,19 @@
+{
+  "updatedAt": "2026-06-12 16:44:38",
+  "verificationMeta": {
+    "isMatlabVerified": true,
+    "verificationRefFileA": "scripts/GasMixingVerificationFiles/H2_MFC_Fill_Calculator_v000.m",
+    "verificationRefFileB": "scripts/GasMixingVerificationFiles/AuxFcn_H2_MFC_FillCalculator_000.m"
+  },
+  "dosageModel": {
+    "enabled": true,
+    "modelType": "linear_targetVol_to_mass",
+    "targetBasis": "fraction_0_1",
+    "a": "69.638",
+    "b": "-0.2568",
+    "notes": ""
+  },
+  "selectedGroup": "Verif-Wk27",
+  "selectedRunName": "Verif-Wk27-01",
+  "records": []
+}
