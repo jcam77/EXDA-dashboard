@@ -69,18 +69,18 @@
         "dataFiles": [],
         "errorNote": "",
         "h2": "16",
+        "h2InjectedGrams": "",
         "hasError": false,
         "ignition": "Back Wall",
         "isCanceled": false,
         "isPreparation": false,
+        "mfcFlowSlpm": "",
         "p0": "",
         "plannedDate": "2026-06-30",
+        "plannedDay": "",
         "shortDescription": "",
         "t0": "",
-        "vent": "Thin Film with Hotwire Activated",
-        "plannedDay": "",
-        "h2InjectedGrams": "",
-        "mfcFlowSlpm": ""
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk27-01-04"
     },
@@ -402,17 +402,17 @@
         "dataFiles": [],
         "errorNote": "",
         "h2": "18",
+        "h2InjectedGrams": "",
         "hasError": false,
         "ignition": "Back Wall",
         "isCanceled": false,
         "isPreparation": false,
+        "mfcFlowSlpm": "",
         "p0": "",
         "plannedDate": "2026-07-01",
         "shortDescription": "",
         "t0": "",
-        "vent": "Thin Film with Hotwire Activated",
-        "h2InjectedGrams": "",
-        "mfcFlowSlpm": ""
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk27-01-10"
     },
@@ -425,17 +425,17 @@
         "dataFiles": [],
         "errorNote": "",
         "h2": "20",
+        "h2InjectedGrams": "",
         "hasError": false,
         "ignition": "Back Wall",
         "isCanceled": false,
         "isPreparation": false,
+        "mfcFlowSlpm": "",
         "p0": "",
         "plannedDate": "2026-07-01",
         "shortDescription": "",
         "t0": "",
-        "vent": "Thin Film with Hotwire Activated",
-        "h2InjectedGrams": "",
-        "mfcFlowSlpm": ""
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk27-01-11"
     },
@@ -448,17 +448,17 @@
         "dataFiles": [],
         "errorNote": "",
         "h2": "20",
+        "h2InjectedGrams": "",
         "hasError": false,
         "ignition": "Back Wall",
         "isCanceled": false,
         "isPreparation": false,
+        "mfcFlowSlpm": "",
         "p0": "",
         "plannedDate": "2026-07-01",
         "shortDescription": "",
         "t0": "",
-        "vent": "Thin Film with Hotwire Activated",
-        "h2InjectedGrams": "",
-        "mfcFlowSlpm": ""
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk27-01-12"
     },
@@ -471,17 +471,17 @@
         "dataFiles": [],
         "errorNote": "",
         "h2": "20",
+        "h2InjectedGrams": "",
         "hasError": false,
         "ignition": "Back Wall",
         "isCanceled": false,
         "isPreparation": false,
+        "mfcFlowSlpm": "",
         "p0": "",
         "plannedDate": "2026-07-01",
         "shortDescription": "",
         "t0": "",
-        "vent": "Thin Film with Hotwire Activated",
-        "h2InjectedGrams": "",
-        "mfcFlowSlpm": ""
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk27-01-13"
     },
@@ -494,17 +494,17 @@
         "dataFiles": [],
         "errorNote": "",
         "h2": "20",
+        "h2InjectedGrams": "",
         "hasError": false,
         "ignition": "Back Wall",
         "isCanceled": false,
         "isPreparation": false,
+        "mfcFlowSlpm": "",
         "p0": "",
         "plannedDate": "2026-07-01",
         "shortDescription": "",
         "t0": "",
-        "vent": "Thin Film with Hotwire Activated",
-        "h2InjectedGrams": "",
-        "mfcFlowSlpm": ""
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk27-01-14"
     },
@@ -517,17 +517,17 @@
         "dataFiles": [],
         "errorNote": "",
         "h2": "20",
+        "h2InjectedGrams": "",
         "hasError": false,
         "ignition": "Back Wall",
         "isCanceled": false,
         "isPreparation": false,
+        "mfcFlowSlpm": "",
         "p0": "",
         "plannedDate": "2026-07-01",
         "shortDescription": "",
         "t0": "",
-        "vent": "Thin Film with Hotwire Activated",
-        "h2InjectedGrams": "",
-        "mfcFlowSlpm": ""
+        "vent": "Thin Film with Hotwire Activated"
       },
       "name": "VH2D-Wk27-01-15"
     }
