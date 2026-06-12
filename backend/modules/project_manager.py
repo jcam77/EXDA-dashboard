@@ -413,6 +413,20 @@ def rename_project(project_path, new_project_name):
 
     return True, "Project renamed successfully", target_path
 
+def _tree_copy_stats(base_path):
+    """Return basic recursive stats used to verify a project folder copy."""
+    stats = {"files": 0, "dirs": 0, "bytes": 0}
+    for root, dirs, files in os.walk(base_path):
+        stats["dirs"] += len(dirs)
+        for filename in files:
+            full_path = os.path.join(root, filename)
+            try:
+                stats["files"] += 1
+                stats["bytes"] += os.path.getsize(full_path)
+            except OSError:
+                return None
+    return stats
+
 def copy_project(project_path, new_project_name):
     """Create a full copy of a project folder as a sibling directory."""
     resolved_path, err = resolve_project_path(project_path, require_project_folder=True)
@@ -432,9 +446,27 @@ def copy_project(project_path, new_project_name):
     if os.path.exists(target_path):
         return False, "A project with that name already exists", target_path
 
+    source_stats = _tree_copy_stats(resolved_path)
+    if source_stats is None:
+        return False, "Could not inspect source project before copying", None
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+    temp_path = os.path.join(parent_dir, f".{safe_name}.copying-{stamp}")
+
     try:
-        shutil.copytree(resolved_path, target_path)
+        shutil.copytree(resolved_path, temp_path)
+        target_stats = _tree_copy_stats(temp_path)
+        if target_stats != source_stats:
+            shutil.rmtree(temp_path, ignore_errors=True)
+            return False, (
+                "Project copy verification failed. "
+                f"Source: {source_stats['files']} files / {source_stats['bytes']} bytes; "
+                f"copy: {(target_stats or {}).get('files', 0)} files / {(target_stats or {}).get('bytes', 0)} bytes."
+            ), None
+        os.rename(temp_path, target_path)
     except Exception as e:
+        if os.path.exists(temp_path):
+            shutil.rmtree(temp_path, ignore_errors=True)
         return False, str(e), None
 
     status = read_project_status(target_path) or ensure_project_status(target_path)
