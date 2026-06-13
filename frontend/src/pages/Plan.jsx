@@ -14,9 +14,55 @@ const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
 const RUN_STATUS_COLORS = {
     error: '#dc2626',
     canceled: '#f97316',
-    done: 'hsl(var(--primary))',
+    done: 'hsl(var(--primary) / 0.12)',
     planned: '#3f3f46',
 };
+
+const GROUP_MARKER_COLORS = [
+  '#708090', // Slate
+  '#0047AB', // Cobalt
+  '#FF1493', // Deep Pink 
+  '#8B4513', // Brown
+  '#7851A9', // Royal Purple
+  '#00FFFF', // Cyan
+  '#8B4513', // Brown
+  '#FFFFFF', // Pure White 
+  '#000080', // Navy
+  '#87CEEB', // Sky Blue
+];
+
+const formatVolPercentLabel = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    const numericText = raw
+        .replace(/h2/gi, '')
+        .replace(/vol\.?\s*%/gi, '')
+        .replace(/%\s*vol\.?/gi, '')
+        .replace(/%/g, '')
+        .trim()
+        .replace(',', '.');
+    const numeric = Number.parseFloat(numericText);
+    if (!Number.isFinite(numeric)) return `${raw} vol.%`;
+    return `${numeric.toFixed(2).replace(/\.?0+$/, '')} vol.%`;
+};
+
+const formatCompactPercentLabel = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    const numericText = raw
+        .replace(/h2/gi, '')
+        .replace(/vol\.?\s*%/gi, '')
+        .replace(/%\s*vol\.?/gi, '')
+        .replace(/%/g, '')
+        .trim()
+        .replace(',', '.');
+    const numeric = Number.parseFloat(numericText);
+    if (!Number.isFinite(numeric)) return raw;
+    return `${numeric.toFixed(2).replace(/\.?0+$/, '')}%`;
+};
+
+const getScheduleH2BadgeWidth = (label) => Math.max(30, Math.min(42, (String(label || '').length * 5.2) + 10));
+
 const IGNITION_PRESET_OPTIONS = [
     'Back Wall',
     'Center',
@@ -797,14 +843,31 @@ const PlanPage = ({
     const groupedTasks = getGroupedExperiments();
     const scheduleBarSpan = 0.68;
     const scheduleBarOffset = (1 - scheduleBarSpan) / 2;
+    const scheduleGroupNames = Array.from(new Set(
+        experiments
+            .map((exp) => getRunGroupKey(exp?.name))
+            .filter(Boolean)
+    )).sort((a, b) => {
+        if (a === "GENERAL") return 1;
+        if (b === "GENERAL") return -1;
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+    const scheduleGroupColorByName = scheduleGroupNames.reduce((acc, groupName, index) => {
+        acc[groupName] = GROUP_MARKER_COLORS[index % GROUP_MARKER_COLORS.length];
+        return acc;
+    }, {});
     const scheduleSource = [...experiments]
         .sort((a, b) => compareRunNames(a?.name, b?.name));
     const scheduleRunsByDay = new Map();
     scheduleSource.forEach((exp, index) => {
         const day = getPlannedDay(exp, index);
+        const groupName = getRunGroupKey(exp?.name);
         if (!scheduleRunsByDay.has(day)) scheduleRunsByDay.set(day, []);
         scheduleRunsByDay.get(day).push({
             name: exp.name,
+            groupName,
+            groupColor: scheduleGroupColorByName[groupName] || GROUP_MARKER_COLORS[0],
+            h2Label: formatCompactPercentLabel(exp?.meta?.h2),
             day,
             visualStatus: getRunVisualStatus(exp),
             runSortKey: String(exp?.name || ''),
@@ -834,6 +897,9 @@ const PlanPage = ({
                 row[`${dayKey}Duration`] = 0;
             }
             row[`${dayKey}Name`] = run?.name || '';
+            row[`${dayKey}Group`] = run?.groupName || '';
+            row[`${dayKey}GroupColor`] = run?.groupColor || '';
+            row[`${dayKey}H2`] = run?.h2Label || '';
             row[`${dayKey}Status`] = run?.visualStatus || 'planned';
             row[`${dayKey}Day`] = day;
         });
@@ -849,7 +915,8 @@ const PlanPage = ({
         scheduleTicks.push(scheduleMaxDay - 0.5);
     }
     const scheduleLaneCount = Math.max(1, scheduleData.length);
-    const scheduleChartHeightPx = Math.max(520, (scheduleLaneCount * 40) + 130);
+    const scheduleGroupLegendExtraPx = scheduleGroupNames.length > 0 ? Math.ceil(scheduleGroupNames.length / 6) * 14 : 0;
+    const scheduleChartHeightPx = Math.max(520 + scheduleGroupLegendExtraPx, (scheduleLaneCount * 40) + 130 + scheduleGroupLegendExtraPx);
     const getCalendarDateForDay = useCallback((dayNumber) => {
         const startRaw = getScheduleBaseDateRaw();
         const parsedDay = Number.parseInt(String(dayNumber || ''), 10);
@@ -965,22 +1032,81 @@ const PlanPage = ({
             return <rect x={x} y={y} width={width} height={height} fill="transparent" />;
         }
         const fill = RUN_STATUS_COLORS[visualStatus] || RUN_STATUS_COLORS.planned;
+        const groupColor = String(payload?.[`${dayKey}GroupColor`] || GROUP_MARKER_COLORS[0]).trim();
         const isDragging = draggingScheduleRun === runName;
+        const statusStroke = visualStatus === 'done'
+            ? 'hsl(var(--primary) / 0.42)'
+            : (isDragging ? 'rgba(255,255,255,0.55)' : 'rgba(2,6,23,0.25)');
+        const statusStrokeWidth = visualStatus === 'done'
+            ? 0.9
+            : (isDragging ? 1 : 0.45);
+        const h2Label = String(payload?.[`${dayKey}H2`] || '').trim();
+        const showH2Badge = h2Label && width >= 120;
+        const h2BadgeText = h2Label;
+        const h2BadgeWidth = showH2Badge ? getScheduleH2BadgeWidth(h2BadgeText) : 0;
         return (
-            <rect
-                x={x}
-                y={y}
-                width={width}
-                height={height}
-                rx={4}
-                ry={4}
-                fill={fill}
-                opacity={isDragging ? 0.88 : 1}
-                stroke={isDragging ? 'rgba(255,255,255,0.55)' : 'none'}
-                strokeWidth={isDragging ? 1 : 0}
+            <g
                 style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                 onMouseDown={(event) => beginScheduleRunDrag(event, runName, dayNumber)}
-            />
+            >
+                <rect
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    rx={4}
+                    ry={4}
+                    fill={fill}
+                    opacity={isDragging ? 0.88 : 1}
+                    stroke={statusStroke}
+                    strokeWidth={statusStrokeWidth}
+                />
+                <rect
+                    x={x}
+                    y={y}
+                    width={7}
+                    height={height}
+                    rx={4}
+                    ry={4}
+                    fill="rgba(2,6,23,0.78)"
+                />
+                <rect
+                    x={x + 2}
+                    y={y + 2}
+                    width={3}
+                    height={Math.max(0, height - 4)}
+                    rx={3}
+                    ry={3}
+                    fill={groupColor}
+                    opacity={1}
+                />
+                {showH2Badge && (
+                    <g pointerEvents="none">
+                        <rect
+                            x={x + width + 5}
+                            y={y + 3}
+                            width={h2BadgeWidth}
+                            height={Math.max(0, height - 6)}
+                            rx={5}
+                            ry={5}
+                            fill="hsl(var(--primary) / 0.12)"
+                            stroke="hsl(var(--primary) / 0.42)"
+                            strokeWidth={0.55}
+                        />
+                        <text
+                            x={x + width + h2BadgeWidth / 2 + 5}
+                            y={y + height / 2}
+                            fill="hsl(var(--primary))"
+                            fontSize={7.6}
+                            fontWeight={800}
+                            dominantBaseline="middle"
+                            textAnchor="middle"
+                        >
+                            {h2BadgeText}
+                        </text>
+                    </g>
+                )}
+            </g>
         );
     }, [beginScheduleRunDrag, draggingScheduleRun]);
 
@@ -996,8 +1122,8 @@ const PlanPage = ({
             ? getRunVisualStatus(runFromList)
             : String(payload?.[`${dayKey}Status`] || 'planned');
         const dayNumber = Number.parseInt(String(payload?.[`${dayKey}Day`] || ''), 10) || 1;
-        const fill = visualStatus === 'done' ? '#020617' : '#f8fafc';
-        const stroke = visualStatus === 'done' ? 'rgba(2,6,23,0.35)' : 'rgba(2,6,23,0.25)';
+        const fill = visualStatus === 'done' ? 'hsl(var(--primary))' : '#f8fafc';
+        const stroke = visualStatus === 'done' ? 'rgba(2,6,23,0.75)' : 'rgba(2,6,23,0.25)';
         return (
             <text
                 x={x + width / 2}
@@ -1163,7 +1289,7 @@ const PlanPage = ({
                         <input
                             value={input.h2}
                             onChange={e=>{ setInput({...input, h2:e.target.value}); setCreateError(""); }}
-                            placeholder="H2 %vol (e.g., 18)"
+                            placeholder="H2 vol.% (e.g., 18)"
                             className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
                         />
                         <input
@@ -1318,7 +1444,7 @@ const PlanPage = ({
                                     <div className="ml-8 mt-2 flex flex-wrap gap-2">
                                         {String(e.meta?.h2 || '').trim() && (
                                             <div className="flex items-center gap-1 bg-primary/10 border border-primary/30 px-1.5 py-0.5 rounded text-[9px] text-primary font-bold">
-                                                <Beaker size={8}/> {e.meta.h2}% vol H2
+                                                <Beaker size={8}/> {formatVolPercentLabel(e.meta.h2)} H2
                                             </div>
                                         )}
                                         {formatRunSchedule(e) && (
@@ -1479,7 +1605,7 @@ const PlanPage = ({
                                 layout="vertical"
                                 data={scheduleData}
                                 barSize={22}
-                                margin={{left: 16, right: 16, top: 16, bottom: 22}}
+                                margin={{left: 16, right: 54, top: 16, bottom: 22}}
                             >
                                 <CartesianGrid strokeDasharray="2 4" horizontal={false} stroke="#334155" />
                                 <XAxis
@@ -1525,7 +1651,7 @@ const PlanPage = ({
                     </div>
                     <div className="mt-3 flex items-center justify-center gap-4 text-[10px] text-zinc-400">
                         <div className="flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-cyan-400" />
+                            <span className="inline-block h-2.5 w-2.5 rounded-sm border border-primary/40 bg-primary/15" />
                             <span>Done</span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1537,6 +1663,20 @@ const PlanPage = ({
                             <span>Error</span>
                         </div>
                     </div>
+                    {scheduleGroupNames.length > 0 && (
+                        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[9px] text-zinc-500">
+                            <span className="font-bold uppercase tracking-wide text-zinc-600">Groups</span>
+                            {scheduleGroupNames.map((groupName) => (
+                                <span key={groupName} className="inline-flex items-center gap-1.5">
+                                    <span
+                                        className="inline-block h-2 w-2 rounded-[2px]"
+                                        style={{ backgroundColor: scheduleGroupColorByName[groupName] || GROUP_MARKER_COLORS[0] }}
+                                    />
+                                    <span>{groupName}</span>
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
             </div>

@@ -1122,7 +1122,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
               <tr className="border-b border-sidebar-border text-left text-muted-foreground">
                 <th className="py-2 pr-3">Group</th>
                 <th className="py-2 pr-3">Run/Test</th>
-                <th className="py-2 pr-3">H2 (%vol)</th>
+                <th className="py-2 pr-3">H2 (vol.%)</th>
                 <th className="py-2 pr-3">RH (%)</th>
                 <th className="py-2 pr-3">Pchamber (Pa)</th>
                 <th className="py-2 pr-3">Tchamber (°C [K])</th>

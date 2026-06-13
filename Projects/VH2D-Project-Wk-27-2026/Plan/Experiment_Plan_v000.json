@@ -9,6 +9,7 @@
         "dataFiles": [],
         "h2": "16",
         "h2InjectedGrams": "",
+        "hasError": false,
         "ignition": "Back Wall",
         "isPreparation": false,
         "mfcFlowSlpm": "",
@@ -18,7 +19,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-01"
+      "name": "VH2D-Wk27-G01-01"
     },
     {
       "done": false,
@@ -26,7 +27,7 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "16",
+        "h2": "18",
         "h2InjectedGrams": "",
         "ignition": "Back Wall",
         "isPreparation": false,
@@ -38,7 +39,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-02"
+      "name": "VH2D-Wk27-G01-02"
     },
     {
       "done": false,
@@ -46,7 +47,7 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "16",
+        "h2": "20",
         "h2InjectedGrams": "",
         "ignition": "Back Wall",
         "isPreparation": false,
@@ -58,7 +59,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-03"
+      "name": "VH2D-Wk27-G01-03"
     },
     {
       "done": false,
@@ -82,7 +83,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-04"
+      "name": "VH2D-Wk27-G01-04"
     },
     {
       "done": false,
@@ -102,7 +103,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-02-01",
+      "name": "VH2D-Wk27-G02-01",
       "notes": ""
     },
     {
@@ -124,7 +125,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire NOT Activated"
       },
-      "name": "VH2D-Wk27-03-01",
+      "name": "VH2D-Wk27-G04-01",
       "notes": ""
     },
     {
@@ -146,7 +147,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-02-02",
+      "name": "VH2D-Wk27-G02-02",
       "notes": ""
     },
     {
@@ -168,7 +169,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-02-03",
+      "name": "VH2D-Wk27-G02-03",
       "notes": ""
     },
     {
@@ -190,7 +191,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire NOT Activated"
       },
-      "name": "VH2D-Wk27-03-02",
+      "name": "VH2D-Wk27-G04-02",
       "notes": ""
     },
     {
@@ -213,7 +214,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire NOT Activated"
       },
-      "name": "VH2D-Wk27-03-03",
+      "name": "VH2D-Wk27-G04-03",
       "notes": ""
     },
     {
@@ -224,7 +225,9 @@
         "dataFiles": [],
         "h2": "16",
         "h2InjectedGrams": "",
+        "hasError": false,
         "ignition": "Back Wall",
+        "isCanceled": false,
         "isPreparation": true,
         "mfcFlowSlpm": "",
         "p0": "",
@@ -289,7 +292,7 @@
         "canceledNote": "Time restriction",
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "16",
+        "h2": "18",
         "h2InjectedGrams": "",
         "ignition": "Back Wall",
         "isCanceled": false,
@@ -302,7 +305,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-05",
+      "name": "VH2D-Wk27-G01-05",
       "notes": ""
     },
     {
@@ -312,20 +315,20 @@
         "canceledNote": "",
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "18",
+        "h2": "20",
         "h2InjectedGrams": "",
         "ignition": "Back Wall",
         "isCanceled": false,
         "isPreparation": false,
         "mfcFlowSlpm": "",
         "p0": "",
-        "plannedDate": "2026-07-01",
+        "plannedDate": "2026-06-30",
         "plannedDay": "",
         "shortDescription": "",
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-06"
+      "name": "VH2D-Wk27-G01-06"
     },
     {
       "done": false,
@@ -333,7 +336,7 @@
       "meta": {
         "cfdHash": "",
         "dataFiles": [],
-        "h2": "18",
+        "h2": "16",
         "h2InjectedGrams": "",
         "ignition": "Back Wall",
         "isPreparation": false,
@@ -345,7 +348,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-07",
+      "name": "VH2D-Wk27-G01-07",
       "notes": ""
     },
     {
@@ -368,57 +371,11 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-08"
+      "name": "VH2D-Wk27-G01-08"
     },
     {
       "done": false,
       "id": 1781272578412,
-      "meta": {
-        "canceledNote": "",
-        "cfdHash": "",
-        "dataFiles": [],
-        "errorNote": "",
-        "h2": "18",
-        "h2InjectedGrams": "",
-        "hasError": false,
-        "ignition": "Back Wall",
-        "isCanceled": false,
-        "isPreparation": false,
-        "mfcFlowSlpm": "",
-        "p0": "",
-        "plannedDate": "2026-07-01",
-        "shortDescription": "",
-        "t0": "",
-        "vent": "Thin Film with Hotwire Activated"
-      },
-      "name": "VH2D-Wk27-01-09"
-    },
-    {
-      "done": false,
-      "id": 1781274579350,
-      "meta": {
-        "canceledNote": "",
-        "cfdHash": "",
-        "dataFiles": [],
-        "errorNote": "",
-        "h2": "18",
-        "h2InjectedGrams": "",
-        "hasError": false,
-        "ignition": "Back Wall",
-        "isCanceled": false,
-        "isPreparation": false,
-        "mfcFlowSlpm": "",
-        "p0": "",
-        "plannedDate": "2026-07-01",
-        "shortDescription": "",
-        "t0": "",
-        "vent": "Thin Film with Hotwire Activated"
-      },
-      "name": "VH2D-Wk27-01-10"
-    },
-    {
-      "done": false,
-      "id": 1781274586352,
       "meta": {
         "canceledNote": "",
         "cfdHash": "",
@@ -437,7 +394,53 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-11"
+      "name": "VH2D-Wk27-G01-09"
+    },
+    {
+      "done": false,
+      "id": 1781274579350,
+      "meta": {
+        "canceledNote": "",
+        "cfdHash": "",
+        "dataFiles": [],
+        "errorNote": "",
+        "h2": "16",
+        "h2InjectedGrams": "",
+        "hasError": false,
+        "ignition": "Back Wall",
+        "isCanceled": false,
+        "isPreparation": false,
+        "mfcFlowSlpm": "",
+        "p0": "",
+        "plannedDate": "2026-07-01",
+        "shortDescription": "",
+        "t0": "",
+        "vent": "Thin Film with Hotwire Activated"
+      },
+      "name": "VH2D-Wk27-G01-10"
+    },
+    {
+      "done": false,
+      "id": 1781274586352,
+      "meta": {
+        "canceledNote": "",
+        "cfdHash": "",
+        "dataFiles": [],
+        "errorNote": "",
+        "h2": "18",
+        "h2InjectedGrams": "",
+        "hasError": false,
+        "ignition": "Back Wall",
+        "isCanceled": false,
+        "isPreparation": false,
+        "mfcFlowSlpm": "",
+        "p0": "",
+        "plannedDate": "2026-07-01",
+        "shortDescription": "",
+        "t0": "",
+        "vent": "Thin Film with Hotwire Activated"
+      },
+      "name": "VH2D-Wk27-G01-11"
     },
     {
       "done": false,
@@ -460,7 +463,7 @@
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-12"
+      "name": "VH2D-Wk27-G01-12"
     },
     {
       "done": false,
@@ -470,7 +473,7 @@
         "cfdHash": "",
         "dataFiles": [],
         "errorNote": "",
-        "h2": "20",
+        "h2": "16",
         "h2InjectedGrams": "",
         "hasError": false,
         "ignition": "Back Wall",
@@ -478,12 +481,13 @@
         "isPreparation": false,
         "mfcFlowSlpm": "",
         "p0": "",
-        "plannedDate": "2026-07-01",
+        "plannedDate": "2026-07-02",
+        "plannedDay": "",
         "shortDescription": "",
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-13"
+      "name": "VH2D-Wk27-G01-13"
     },
     {
       "done": false,
@@ -493,7 +497,7 @@
         "cfdHash": "",
         "dataFiles": [],
         "errorNote": "",
-        "h2": "20",
+        "h2": "18",
         "h2InjectedGrams": "",
         "hasError": false,
         "ignition": "Back Wall",
@@ -501,12 +505,13 @@
         "isPreparation": false,
         "mfcFlowSlpm": "",
         "p0": "",
-        "plannedDate": "2026-07-01",
+        "plannedDate": "2026-07-02",
+        "plannedDay": "",
         "shortDescription": "",
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-14"
+      "name": "VH2D-Wk27-G01-14"
     },
     {
       "done": false,
@@ -524,23 +529,87 @@
         "isPreparation": false,
         "mfcFlowSlpm": "",
         "p0": "",
-        "plannedDate": "2026-07-01",
+        "plannedDate": "2026-07-02",
+        "plannedDay": "",
         "shortDescription": "",
         "t0": "",
         "vent": "Thin Film with Hotwire Activated"
       },
-      "name": "VH2D-Wk27-01-15"
+      "name": "VH2D-Wk27-G01-15"
+    },
+    {
+      "done": false,
+      "id": 1781329897465,
+      "meta": {
+        "canceledNote": "",
+        "cfdHash": "",
+        "dataFiles": [],
+        "errorNote": "",
+        "h2": "16",
+        "hasError": false,
+        "ignition": "",
+        "isCanceled": false,
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-07-03",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-Wk27-G03-01"
+    },
+    {
+      "done": false,
+      "id": 1781329956049,
+      "meta": {
+        "canceledNote": "",
+        "cfdHash": "",
+        "dataFiles": [],
+        "errorNote": "",
+        "h2": "18",
+        "hasError": false,
+        "ignition": "",
+        "isCanceled": false,
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-07-03",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-Wk27-G03-02"
+    },
+    {
+      "done": false,
+      "id": 1781329963531,
+      "meta": {
+        "canceledNote": "",
+        "cfdHash": "",
+        "dataFiles": [],
+        "errorNote": "",
+        "h2": "20",
+        "hasError": false,
+        "ignition": "",
+        "isCanceled": false,
+        "isPreparation": false,
+        "p0": "101325",
+        "plannedDate": "2026-07-03",
+        "shortDescription": "",
+        "t0": "293",
+        "vent": ""
+      },
+      "name": "VH2D-Wk27-G03-03"
     }
   ],
   "meta": {
     "deadline": "2026-07-03",
     "description": "The primary objectives of the experiments are:\n1. Internal Over-pressure Development\nMeasurement of internal over-pressure development during vented hydrogen deflagrations in a partially confined enclosure for homogeneous flammable hydrogen–air mixtures with hydrogen concentrations up to 20 vol.%.\n\n2.Flame Propagation (Under Consideration)\nMeasurement of flame propagation characteristics, including potential estimation of flame time-of-arrival (TOA) at selected locations.\n\n3.Instrumentation Evaluation\nEvaluation and cross-comparison of different pressure measurement systems and data acquisition configurations, including sensor characteristics and the influence of measurement chain dynamics (e.g., time constant (tau) effects, sampling rate).\n\n4. Measurement Uncertainty Factors\nInvestigation of experimental factors that may affect the accuracy and reliability of pressure measurements, including structural vibration effects and thermal protection methods.\n\n5. Venting Behavior\nInvestigation of vent opening behavior and the influence of vent rupture mechanisms on pressure development, including comparison between pressure-driven thin-film rupture and controlled vent opening using a hot-wire cutting system.",
     "groupObjectives": {
-      "Prep-Wk27": "Preparation",
-      "VH2D-Wk27-01": "Vented deflagration concentration series (Hotwire ON)",
-      "VH2D-Wk27-02": "Vented deflagration concentration series (LU vs Kistler) (Cables Swap)",
-      "VH2D-Wk27-03": "Vented deflagration concentration series (LU vs DBI) (Hotwire OFF)",
       "VH2D-Wk27-04": "Vented deflagration concentration series (LU vs DBI)",
+      "VH2D-Wk27-G01": "Vented deflagration concentration series (Hotwire ON) (LU vs Kistler)",
+      "VH2D-Wk27-G02": "Cable Length Effect(Cables Swap) (LU vs Kistler) ",
+      "VH2D-Wk27-G03": "Sensor/DAQ Swap Effect (LU vs Kistler) ",
+      "VH2D-Wk27-G04": "Vent Cover Condition Effect (Hotwire OFF) (LU vs Kistler) ",
       "Verif-Wk27": "Performance Verification (DAQs, EMI Interferance & Blind Sensors Check)"
     },
     "objective": "LU / DBI  pressure DAQ systems characterisation.",

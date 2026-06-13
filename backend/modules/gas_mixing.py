@@ -139,7 +139,7 @@ def calculate_h2_mfc_fill(payload: dict) -> dict:
     if P_std_Pa <= 0:
         raise ValueError("P_std_Pa must be greater than zero")
     if not np.all((x_H2 > 0) & (x_H2 < 1)):
-        raise ValueError("All hydrogen concentrations must be between 0 and 100 vol%")
+        raise ValueError("All hydrogen concentrations must be between 0 and 100 vol.%")
     if not np.all(MFC_setpoint_SLPM > 0):
         raise ValueError("MFC setpoint (SLPM) must be greater than zero")
     if Ru <= 0:
@@ -150,7 +150,7 @@ def calculate_h2_mfc_fill(payload: dict) -> dict:
     # Ideal gas law on the full chamber mixture:
     # n_total = (P * V) / (R * T)
     n_total_mol = (P_chamber_Pa * V_chamber_m3) / (Ru * T_chamber_K)
-    # Hydrogen mole fraction from target concentration (vol% -> fraction)
+    # Hydrogen mole fraction from target concentration (vol.% -> fraction)
     n_H2_mol = x_H2 * n_total_mol
     # Convert hydrogen moles to mass (kg), then to grams for user-facing output
     m_H2_kg = n_H2_mol * M_H2

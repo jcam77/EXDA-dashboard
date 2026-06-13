@@ -271,26 +271,26 @@ const ImportDataPage = (props) => {
                                     Example:
                                 </div>
                                 <ul className="mt-1 space-y-1 text-[11px] text-zinc-300 font-mono">
-                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/DAQ-1/DAQ-1-VH2D-01-01.tpc5</li>
-                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/DAQ-2/DAQ-2-VH2D-01-01.mf4</li>
-                                    <li>Projects/VH2D-Project/Raw_Data/VH2D-01-01/H2CM/H2CM-U-M-L-VH2D-01-01.csv</li>
+                                    <li>Projects/XXXX-Project/Raw_Data/XXXX-01-01/DAQ-1/DAQ-1-XXXX-01-01.tpc5</li>
+                                    <li>Projects/XXXX-Project/Raw_Data/XXXX-01-01/DAQ-2/DAQ-2-XXXX-01-01.mf4</li>
+                                    <li>Projects/XXXX-Project/Raw_Data/XXXX-01-01/H2BGA/H2BGA-U-M-L-XXXX-01-01.csv</li>
                                 </ul>
                             </div>
                             <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
                                 <div className="text-xs font-semibold uppercase tracking-wide text-primary">Filename Convention</div>
                                 <div className="mt-1 text-[11px] text-zinc-300 font-mono break-all">
-                                    &lt;Run&gt;-&lt;DAQ&gt;.&lt;ext&gt;
+                                    &lt;DAQ&gt;-&lt;Run&gt;.&lt;ext&gt;
                                 </div>
                                 <div className="mt-2 text-[11px] text-zinc-400">
                                     Recommended examples:
                                 </div>
                                 <ul className="mt-1 space-y-1 text-[11px] text-zinc-300 font-mono">
-                                    <li>DAQ-1-VH2D-01-01.tpc5</li>
-                                    <li>DAQ-2-VH2D-01-01.mf4</li>
-                                    <li>H2CM-U-M-L-VH2D-01-01.csv</li>
+                                    <li>DAQ-1-XXXX-01-01.tpc5</li>
+                                    <li>DAQ-2-XXXX-01-01.mf4</li>
+                                    <li>H2BGA-U-M-L-XXXX-01-01.csv</li>
                                 </ul>
                                 <div className="mt-2 text-[11px] text-zinc-400">
-                                    H2CM legend (sampling point location in chamber): <span className="font-mono">U</span>=Upper, <span className="font-mono">M</span>=Middle, <span className="font-mono">L</span>=Lower
+                                    H2BGA legend (sampling point location in chamber): <span className="font-mono">U</span>=Upper, <span className="font-mono">M</span>=Middle, <span className="font-mono">L</span>=Lower
                                 </div>
                             </div>
                         </div>

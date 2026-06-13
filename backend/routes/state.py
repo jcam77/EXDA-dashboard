@@ -1113,7 +1113,7 @@ def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
                 f"Preparation: {row.get('preparation') or 'No'} | Schedule: {row.get('schedule') or '-'}"
             )
             _write_line(
-                f"H2: {row.get('h2') or '-'} %vol | H2 Injected: {row.get('h2_injected_grams') or '-'} g | "
+                f"H2: {row.get('h2') or '-'} vol.% | H2 Injected: {row.get('h2_injected_grams') or '-'} g | "
                 f"MFC Flow: {row.get('mfc_flow_slpm') or '-'} SLPM"
             )
             _write_line(
@@ -2439,7 +2439,7 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
     headers = [
         "Group",
         "Run/Test",
-        "Target H2 (%vol)",
+        "Target H2 (vol.%)",
         "Relative Humidity (%RH)",
         "Pchamber (Pa)",
         "Tchamber (°C)",
@@ -2464,7 +2464,7 @@ def _write_gas_mixing_csv(rows, target_path, project_name=None, verification_met
         headers = [
             "Group",
             "Run/Test",
-            "Target H2 (%vol)",
+            "Target H2 (vol.%)",
             "Relative Humidity (%RH)",
             "Pchamber (Pa)",
             "Tchamber (°C)",
@@ -4059,7 +4059,7 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
         writer.writerow([])
 
         writer.writerow(["[TAB] Gas Mixing"])
-        writer.writerow(["Group", "Run/Test", "Target H2 (%vol)", "Relative Humidity (%RH)", "Pchamber (Pa)", "Tchamber (°C)", "Tchamber (K)", "H2 Injected Estimated (g)", "H2 Injected Corrected (g)", "H2 Injected Volume (L)", "MFC Flow (SLPM)", "Fill Time (s)", "Fill Time (min)", "Calibration Model Type", "Calibration Target Basis", "Calibration Enabled", "Calibration Applied", "Calibration a", "Calibration b", "Calibration Notes", "Notes", "Updated At"])
+        writer.writerow(["Group", "Run/Test", "Target H2 (vol.%)", "Relative Humidity (%RH)", "Pchamber (Pa)", "Tchamber (°C)", "Tchamber (K)", "H2 Injected Estimated (g)", "H2 Injected Corrected (g)", "H2 Injected Volume (L)", "MFC Flow (SLPM)", "Fill Time (s)", "Fill Time (min)", "Calibration Model Type", "Calibration Target Basis", "Calibration Enabled", "Calibration Applied", "Calibration a", "Calibration b", "Calibration Notes", "Notes", "Updated At"])
         for row in gas_rows:
             writer.writerow([
                 row.get("group", ""),
