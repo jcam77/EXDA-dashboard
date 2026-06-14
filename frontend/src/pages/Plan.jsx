@@ -8,6 +8,7 @@ import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, LabelL
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
+import IsoDateInput from '../components/IsoDateInput';
 import { useAppDialog } from '../hooks/useAppDialog';
 
 const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
@@ -1292,12 +1293,12 @@ const PlanPage = ({
                             placeholder="H2 vol.% (e.g., 18)"
                             className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
                         />
-                        <input
-                            type="date"
+                        <IsoDateInput
                             value={input.plannedDate}
-                            onChange={e=>{ setInput({...input, plannedDate:e.target.value}); setCreateError(""); }}
+                            onValueChange={next=>{ setInput({...input, plannedDate: next}); setCreateError(""); }}
+                            placeholder="YYYY-MM-DD"
                             title="Schedule date"
-                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                            className="w-full bg-black border border-zinc-800 rounded px-3 py-1.5 pr-9 text-sm outline-none focus:border-primary text-white"
                         />
                     </div>
                     <input
@@ -1513,12 +1514,12 @@ const PlanPage = ({
                             <div className="flex gap-4 bg-black/40 p-2 rounded-lg border border-zinc-800/50">
                                 <div className="flex flex-col">
                                     <span className="text-[8px] text-zinc-500 font-bold text-center">Start</span>
-                                    <input type="date" value={planMeta.startDate} onChange={e=>setPlanMeta({...planMeta, startDate: e.target.value})} className="bg-transparent text-[10px] text-zinc-400 border-none p-0 outline-none w-24 cursor-pointer text-center"/>
+                                    <IsoDateInput value={planMeta.startDate} onValueChange={next=>setPlanMeta({...planMeta, startDate: next})} placeholder="YYYY-MM-DD" iconSize={11} className="bg-transparent text-[10px] text-zinc-400 border-none p-0 pr-6 outline-none w-24 cursor-text text-center"/>
                                 </div>
                                 <div className="w-px bg-zinc-800 h-6 mx-1"></div>
                                 <div className="flex flex-col">
                                     <span className="text-[8px] text-zinc-500 font-bold text-center">Deadline</span>
-                                    <input type="date" value={planMeta.deadline} onChange={e=>setPlanMeta({...planMeta, deadline: e.target.value})} className="bg-transparent text-[10px] text-primary border-none p-0 outline-none w-24 cursor-pointer font-bold text-center"/>
+                                    <IsoDateInput value={planMeta.deadline} onValueChange={next=>setPlanMeta({...planMeta, deadline: next})} placeholder="YYYY-MM-DD" iconSize={11} className="bg-transparent text-[10px] text-primary border-none p-0 pr-6 outline-none w-24 cursor-text font-bold text-center"/>
                                 </div>
                             </div>
                         </div>
@@ -1736,7 +1737,7 @@ const PlanPage = ({
                                             <label className="text-[9px] text-zinc-500 font-bold mb-1 block" title="Mass flow controller flow">MFC flow (SLPM) • mirrored from Gas Mixing</label>
                                             <input value={editingMirroredMfcFlow} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Not calculated yet'} />
                                         </div>
-                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Schedule Date</label><input type="date" value={editingExp.meta?.plannedDate || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDate:e.target.value, plannedDay: ''}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"/></div>
+                                        <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block">Schedule Date</label><IsoDateInput value={editingExp.meta?.plannedDate || ''} onValueChange={next=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDate: next, plannedDay: ''}})} placeholder="YYYY-MM-DD" className="w-full bg-black border border-zinc-800 rounded p-2.5 pr-9 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"/></div>
                                         <div>
                                             <label className="text-[9px] text-zinc-500 font-bold mb-1 block">Init. P (Pa) • mirrored from Gas Mixing</label>
                                             <input value={editingMirroredPchamber} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Set in Gas Mixing'} />

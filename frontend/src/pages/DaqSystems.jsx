@@ -4,6 +4,7 @@ import { getBackendBaseUrl } from '../utils/backendUrl';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../utils/timezone';
 import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
+import IsoDateInput from '../components/IsoDateInput';
 import { useAppDialog } from '../hooks/useAppDialog';
 
 const createDefaultDaq = () => ({
@@ -440,7 +441,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
                 <input value={draft.owner} onChange={(e) => setDraft((prev) => ({ ...prev, owner: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" placeholder="e.g. Institute, University, Partner" />
               </label>
               <label className="text-xs">Last Calibration Date
-                <input type="date" value={draft.lastCalibrationDate} onChange={(e) => setDraft((prev) => ({ ...prev, lastCalibrationDate: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" />
+                <IsoDateInput value={draft.lastCalibrationDate} onValueChange={(next) => setDraft((prev) => ({ ...prev, lastCalibrationDate: next }))} placeholder="YYYY-MM-DD" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5 pr-9" />
               </label>
               <label className="text-xs">Calibration Certificate ID
                 <input value={draft.calibrationCertificateId || ''} onChange={(e) => setDraft((prev) => ({ ...prev, calibrationCertificateId: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" placeholder="e.g. CAL-2026-014" />

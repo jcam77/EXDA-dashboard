@@ -3,6 +3,7 @@ import { MapPinned, Plus, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, Gri
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
+import IsoDateInput from '../components/IsoDateInput';
 import { useAppDialog } from '../hooks/useAppDialog';
 
 const QUANTITY_OPTIONS = [
@@ -1155,7 +1156,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
               <label className="text-xs">Manufacturer<input value={editingSensor.manufacturer} onChange={(e) => setEditingSensor((prev) => ({ ...prev, manufacturer: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Model<input value={editingSensor.model} onChange={(e) => setEditingSensor((prev) => ({ ...prev, model: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Serial Number<input value={editingSensor.serialNumber} onChange={(e) => setEditingSensor((prev) => ({ ...prev, serialNumber: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
-              <label className="text-xs">Last Calibration Date<input type="date" value={editingSensor.calibrationDate || ''} onChange={(e) => setEditingSensor((prev) => ({ ...prev, calibrationDate: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <label className="text-xs">Last Calibration Date<IsoDateInput value={editingSensor.calibrationDate || ''} onValueChange={(next) => setEditingSensor((prev) => ({ ...prev, calibrationDate: next }))} placeholder="YYYY-MM-DD" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5 pr-9" /></label>
               <label className="text-xs">Calibration Certificate ID<input value={editingSensor.calibrationCertificateId || ''} onChange={(e) => setEditingSensor((prev) => ({ ...prev, calibrationCertificateId: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Sensitivity<input value={editingSensor.sensitivity} onChange={(e) => setEditingSensor((prev) => ({ ...prev, sensitivity: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Sensitivity Unit<select value={editingSensor.sensitivityUnit} onChange={(e) => setEditingSensor((prev) => ({ ...prev, sensitivityUnit: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{SENSITIVITY_UNIT_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
