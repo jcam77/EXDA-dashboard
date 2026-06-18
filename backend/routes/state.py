@@ -877,6 +877,28 @@ def _draw_plan_overview_page(fitz, doc, plan_name, plan_meta, rows, draw_logo):
     page = doc.new_page(width=842, height=595)
     draw_logo(page)
 
+    group_marker_hex = [
+        "#708090",  # Slate
+        "#0047AB",  # Cobalt
+        "#FF1493",  # Deep pink
+        "#8B4513",  # Brown
+        "#7851A9",  # Royal purple
+        "#00FFFF",  # Cyan
+        "#8B4513",  # Brown
+        "#FFFFFF",  # White
+        "#000080",  # Navy
+        "#87CEEB",  # Sky blue
+    ]
+
+    def _hex_to_rgb(hex_color, fallback=(0.35, 0.38, 0.43)):
+        raw = str(hex_color or "").strip().lstrip("#")
+        if len(raw) != 6:
+            return fallback
+        try:
+            return tuple(int(raw[idx:idx + 2], 16) / 255 for idx in (0, 2, 4))
+        except Exception:
+            return fallback
+
     def _textbox(rect, text, fontname="courier", fontsize=8.5, color=(0, 0, 0), align=0):
         page.insert_textbox(rect, str(text or ""), fontname=fontname, fontsize=fontsize, color=color, align=align)
 
@@ -894,6 +916,24 @@ def _draw_plan_overview_page(fitz, doc, plan_name, plan_meta, rows, draw_logo):
         if len(text) <= max_chars:
             return text
         return text[: max(0, max_chars - 3)] + "..."
+
+    def _compact_h2_label(value):
+        raw = str(value or "").strip()
+        if not raw:
+            return ""
+        numeric_text = re.sub(r"h2", "", raw, flags=re.IGNORECASE)
+        numeric_text = re.sub(r"vol\.?\s*%", "", numeric_text, flags=re.IGNORECASE)
+        numeric_text = re.sub(r"%\s*vol\.?", "", numeric_text, flags=re.IGNORECASE)
+        numeric_text = numeric_text.replace("%", "").replace(",", ".").strip()
+        try:
+            numeric = float(numeric_text)
+        except Exception:
+            return raw
+        return f"{numeric:.2f}".rstrip("0").rstrip(".") + "%"
+
+    def _group_sort_key(group_name):
+        clean = str(group_name or "GENERAL").strip() or "GENERAL"
+        return (clean == "GENERAL", clean.lower())
 
     def _status(row):
         if _is_yes((row or {}).get("error")):
@@ -948,6 +988,14 @@ def _draw_plan_overview_page(fitz, doc, plan_name, plan_meta, rows, draw_logo):
     page.draw_rect(plot_rect, color=border, fill=(0.99, 0.995, 1.0), width=0.8)
 
     safe_rows = rows if isinstance(rows, list) else []
+    group_names = sorted(
+        {str((row or {}).get("group") or "GENERAL").strip() or "GENERAL" for row in safe_rows},
+        key=_group_sort_key,
+    )
+    group_color_by_name = {
+        group_name: _hex_to_rgb(group_marker_hex[index % len(group_marker_hex)])
+        for index, group_name in enumerate(group_names)
+    }
     start_date = _parse_plan_date((plan_meta or {}).get("startDate"))
     deadline = _parse_plan_date((plan_meta or {}).get("deadline"))
     dated_rows = []
@@ -1013,8 +1061,39 @@ def _draw_plan_overview_page(fitz, doc, plan_name, plan_meta, rows, draw_logo):
             }.get(status, cyan)
             text_color = (0, 0, 0) if status in {"done", "planned"} else (1, 1, 1)
             page.draw_rect(fitz.Rect(x0, y0, x1, y1), color=fill, fill=fill, width=0.6)
+            group_name = str((row or {}).get("group") or "GENERAL").strip() or "GENERAL"
+            group_color = group_color_by_name.get(group_name, muted)
+            page.draw_rect(fitz.Rect(x0, y0, min(x0 + 3.2, x1), y1), color=group_color, fill=group_color, width=0.4)
             label = _clip_text((row or {}).get("run_name") or "-", 22)
-            _textbox(fitz.Rect(x0 + 2, y0 + 1.5, x1 - 2, y1 + 1.5), label, fontname="courier-bold", fontsize=6.5, color=text_color, align=1)
+            _textbox(fitz.Rect(x0 + 4.5, y0 + 1.5, x1 - 2, y1 + 1.5), label, fontname="courier-bold", fontsize=6.5, color=text_color, align=1)
+
+            h2_label = _compact_h2_label((row or {}).get("h2"))
+            if h2_label:
+                badge_w = max(16, min(24, len(h2_label) * 3.2 + 7))
+                badge_x0 = x1 + 2
+                badge_x1 = badge_x0 + badge_w
+                if badge_x1 <= inner_right - 1:
+                    badge_y0 = y0 + max((bar_h - 10) / 2, 0)
+                    badge_y1 = badge_y0 + 10
+                    page.draw_rect(
+                        fitz.Rect(badge_x0, badge_y0, badge_x1, badge_y1),
+                        color=primary,
+                        fill=(0.88, 0.98, 1.0),
+                        width=0.45,
+                    )
+                    badge_font_size = 5.8
+                    try:
+                        badge_text_w = fitz.get_text_length(h2_label, fontname="courier-bold", fontsize=badge_font_size)
+                    except Exception:
+                        badge_text_w = len(h2_label) * badge_font_size * 0.55
+                    badge_text_x = badge_x0 + max((badge_w - badge_text_w) / 2, 1.0)
+                    page.insert_text(
+                        (badge_text_x, badge_y0 + 7.2),
+                        h2_label,
+                        fontname="courier-bold",
+                        fontsize=badge_font_size,
+                        color=(0, 0, 0),
+                    )
 
     legend_y = 548
     legend_items = [("Done", cyan), ("Canceled", orange), ("Error", red)]
@@ -1023,6 +1102,29 @@ def _draw_plan_overview_page(fitz, doc, plan_name, plan_meta, rows, draw_logo):
         page.draw_rect(fitz.Rect(legend_x, legend_y - 7, legend_x + 8, legend_y + 1), color=fill, fill=fill, width=0.5)
         page.insert_text((legend_x + 13, legend_y), label, fontname="courier", fontsize=7.5, color=muted)
         legend_x += 82
+
+    if group_names:
+        group_legend_y = 568
+        group_legend_x = 220
+        page.insert_text((group_legend_x, group_legend_y), "Groups", fontname="courier-bold", fontsize=6.6, color=muted)
+        group_legend_x += 42
+        hidden_groups = 0
+        for group_name in group_names:
+            label = _clip_text(group_name, 15)
+            try:
+                label_w = fitz.get_text_length(label, fontname="courier", fontsize=6.2)
+            except Exception:
+                label_w = len(label) * 3.6
+            item_w = 12 + label_w + 10
+            if group_legend_x + item_w > 760:
+                hidden_groups += 1
+                continue
+            fill = group_color_by_name.get(group_name, muted)
+            page.draw_rect(fitz.Rect(group_legend_x, group_legend_y - 7, group_legend_x + 7, group_legend_y), color=fill, fill=fill, width=0.45)
+            page.insert_text((group_legend_x + 11, group_legend_y), label, fontname="courier", fontsize=6.2, color=muted)
+            group_legend_x += item_w
+        if hidden_groups:
+            page.insert_text((group_legend_x, group_legend_y), f"+{hidden_groups} more", fontname="courier", fontsize=6.2, color=muted)
 
 
 def _write_plan_pdf(plan_name, plan_meta, rows, target_path):
@@ -1852,10 +1954,14 @@ def _camera_method_display(record):
 
 
 def _camera_trigger_display(record):
-    trigger_source = str(record.get("triggerSource") or "").strip()
-    if trigger_source == "Other":
-        return str(record.get("customTriggerSource") or "").strip() or "Other"
-    return trigger_source
+    trigger_mode = str(record.get("triggerMode") or record.get("triggerSource") or "").strip()
+    if trigger_mode == "M-Duino":
+        trigger_mode = "External trigger (M-Duino)"
+    elif trigger_mode == "DAQ trigger":
+        trigger_mode = "External trigger (DAQ)"
+    if trigger_mode == "Other":
+        return str(record.get("customTriggerMode") or record.get("customTriggerSource") or "").strip() or "Other"
+    return trigger_mode
 
 
 def _is_infrared_camera_record(record):
@@ -1911,12 +2017,16 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
                 "frame_rate": "-",
                 "resolution": "-",
                 "lens_focal_length": "-",
+                "shutter_speed": "-",
+                "aperture": "-",
+                "iso": "-",
+                "white_balance": "-",
                 "coordinates": "-",
                 "coordinate_unit": "-",
                 "coordinate_origin": "-",
                 "mounting_location": "-",
                 "field_of_view": "-",
-                "trigger_source": "-",
+                "trigger_mode": "-",
                 "synchronization_notes": "-",
                 "active": "-",
                 "calibration_reference": "-",
@@ -1938,6 +2048,10 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
             frame_rate = str(record.get("frameRate") or "").strip()
             resolution = str(record.get("resolution") or "").strip()
             lens_focal_length = str(record.get("lensFocalLength") or "").strip()
+            shutter_speed = str(record.get("shutterSpeed") or "").strip()
+            aperture = str(record.get("aperture") or "").strip()
+            iso = str(record.get("iso") or "").strip()
+            white_balance = str(record.get("whiteBalance") or "").strip()
             x = str(record.get("x") or "").strip()
             y = str(record.get("y") or "").strip()
             z = str(record.get("z") or "").strip()
@@ -1945,7 +2059,7 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
             coordinate_origin = str(record.get("coordinateOrigin") or "").strip()
             mounting_location = str(record.get("mountingLocation") or "").strip()
             field_of_view = str(record.get("fieldOfView") or "").strip()
-            trigger_source = _camera_trigger_display(record)
+            trigger_mode = _camera_trigger_display(record)
             synchronization_notes = str(record.get("synchronizationNotes") or "").strip()
             is_active = record.get("isActive") is not False
             calibration_reference = str(record.get("calibrationReference") or "").strip()
@@ -1973,12 +2087,18 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
                 status_warnings.append("missing resolution")
             if not lens_focal_length:
                 status_warnings.append("missing lens")
+            if not shutter_speed:
+                status_warnings.append("missing shutter speed")
+            if not aperture:
+                status_warnings.append("missing iris/aperture")
+            if not iso:
+                status_warnings.append("missing iso")
             if not mounting_location:
                 status_warnings.append("missing mounting description")
             if not field_of_view:
                 status_warnings.append("missing field of view")
-            if not trigger_source:
-                status_warnings.append("missing trigger source")
+            if not trigger_mode:
+                status_warnings.append("missing trigger mode")
             if not synchronization_notes:
                 status_warnings.append("missing synchronization notes")
             if _to_float(x) is None or _to_float(y) is None or _to_float(z) is None:
@@ -2009,12 +2129,16 @@ def _build_cameras_export_rows(mappings_by_group, group_notes=None, group_names=
                 "frame_rate": frame_rate,
                 "resolution": resolution,
                 "lens_focal_length": lens_focal_length,
+                "shutter_speed": shutter_speed,
+                "aperture": aperture,
+                "iso": iso,
+                "white_balance": white_balance,
                 "coordinates": f"({x or '-'},{y or '-'},{z or '-'})",
                 "coordinate_unit": coordinate_unit,
                 "coordinate_origin": coordinate_origin,
                 "mounting_location": mounting_location,
                 "field_of_view": field_of_view,
-                "trigger_source": trigger_source,
+                "trigger_mode": trigger_mode,
                 "synchronization_notes": synchronization_notes,
                 "active": "Yes" if is_active else "No",
                 "calibration_reference": calibration_reference,
@@ -2038,12 +2162,16 @@ def _write_cameras_csv(rows, target_path, project_name=None):
         "Frame Rate",
         "Resolution",
         "Lens / Focal Length",
+        "Shutter Speed",
+        "Iris / Aperture (F-number)",
+        "ISO",
+        "White Balance",
         "Position Coordinates",
         "Coordinate Unit",
         "Coordinate Origin",
         "Mounting Description",
         "Field of View / Target Region",
-        "Trigger Source",
+        "Trigger Mode",
         "Synchronization Notes",
         "Active",
         "Calibration / Reference Image",
@@ -2090,12 +2218,16 @@ def _write_cameras_csv(rows, target_path, project_name=None):
                 row.get("frame_rate", ""),
                 row.get("resolution", ""),
                 row.get("lens_focal_length", ""),
+                row.get("shutter_speed", ""),
+                row.get("aperture", ""),
+                row.get("iso", ""),
+                row.get("white_balance", ""),
                 row.get("coordinates", ""),
                 row.get("coordinate_unit", ""),
                 row.get("coordinate_origin", ""),
                 row.get("mounting_location", ""),
                 row.get("field_of_view", ""),
-                row.get("trigger_source", ""),
+                row.get("trigger_mode", ""),
                 row.get("synchronization_notes", ""),
                 row.get("active", ""),
                 row.get("calibration_reference", ""),
@@ -2181,18 +2313,18 @@ def _write_cameras_pdf(project_name, rows, target_path):
     columns = [
         ("Group", 8),
         ("Camera", 8),
-        ("Type/Method", 13),
-        ("Model", 10),
+        ("Type/Method", 12),
+        ("Model", 9),
         ("Serial", 8),
-        ("FPS", 7),
-        ("Res.", 9),
-        ("Lens", 8),
-        ("Coord.", 13),
-        ("Mount", 10),
+        ("FPS", 6),
+        ("Res.", 8),
+        ("Lens", 7),
+        ("Exposure", 15),
+        ("Coord.", 10),
         ("Trigger", 10),
-        ("IR", 8),
+        ("IR", 7),
         ("Active", 6),
-        ("Status", 10),
+        ("Status", 9),
     ]
     divider = "-+-".join("-" * width for _, width in columns)
     header = " | ".join(_clip(name, width) for name, width in columns)
@@ -2221,6 +2353,14 @@ def _write_cameras_pdf(project_name, rows, target_path):
         ir_display = " / ".join(
             part for part in [str(row.get("emissivity") or "").strip(), str(row.get("temperature_range") or "").strip()] if part
         ) or "-"
+        exposure_display = " / ".join(
+            part for part in [
+                str(row.get("shutter_speed") or "").strip(),
+                str(row.get("aperture") or "").strip(),
+                f"ISO {row.get('iso')}" if str(row.get("iso") or "").strip() else "",
+                f"WB {row.get('white_balance')}" if str(row.get("white_balance") or "").strip() else "",
+            ] if part
+        ) or "-"
         row_values = [
             row.get("group"),
             row.get("camera_id"),
@@ -2232,9 +2372,9 @@ def _write_cameras_pdf(project_name, rows, target_path):
             row.get("frame_rate"),
             row.get("resolution"),
             row.get("lens_focal_length"),
+            exposure_display,
             f"{row.get('coordinates') or '-'} {row.get('coordinate_unit') or ''}".strip(),
-            row.get("mounting_location"),
-            row.get("trigger_source"),
+            row.get("trigger_mode"),
             ir_display,
             row.get("active"),
             row.get("status"),
@@ -4003,12 +4143,16 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
             "Frame Rate",
             "Resolution",
             "Lens / Focal Length",
+            "Shutter Speed",
+            "Iris / Aperture (F-number)",
+            "ISO",
+            "White Balance",
             "Position Coordinates",
             "Coordinate Unit",
             "Coordinate Origin",
             "Mounting Description",
             "Field of View / Target Region",
-            "Trigger Source",
+            "Trigger Mode",
             "Synchronization Notes",
             "Active",
             "Calibration / Reference Image",
@@ -4038,12 +4182,16 @@ def _write_metadata_sections_csv(target_path, project_name, plan_payload, daq_pa
                 row.get("frame_rate", ""),
                 row.get("resolution", ""),
                 row.get("lens_focal_length", ""),
+                row.get("shutter_speed", ""),
+                row.get("aperture", ""),
+                row.get("iso", ""),
+                row.get("white_balance", ""),
                 row.get("coordinates", ""),
                 row.get("coordinate_unit", ""),
                 row.get("coordinate_origin", ""),
                 row.get("mounting_location", ""),
                 row.get("field_of_view", ""),
-                row.get("trigger_source", ""),
+                row.get("trigger_mode", ""),
                 row.get("synchronization_notes", ""),
                 row.get("active", ""),
                 row.get("calibration_reference", ""),

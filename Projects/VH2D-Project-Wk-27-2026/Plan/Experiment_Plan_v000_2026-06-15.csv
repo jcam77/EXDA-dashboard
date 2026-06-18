@@ -1,0 +1,42 @@
+﻿Plan Name,Experiment_Plan_v000
+Responsible Researcher,PhD Student Javier I. Camacho
+Objective,LU / DBI  pressure DAQ systems characterisation.
+Start Date,2026-06-29
+Deadline,2026-07-03
+Total Experiments,33
+Generated At,2026-06-15 11:24:50
+
+Run Name,Group,Group Description,Status,Done,Preparation,Schedule,Planned Date,Planned Day,H2 (%),H2 Injected (g),MFC Flow (SLPM),Ignition,Vent,Pressure P0 (Pa),Temperature T0 (K),Recirc Stop To Ignition (s),Case ID / CFD Hash,Data Files Count,File Path (Raw_Data Folder),Short Description,Run Notes,Error,Error Note,Canceled,Canceled Note
+VH2D-Wk27-G00-01,VH2D-Wk27-G00,"Performance Verification (DAQs, EMI Interferance & Blind Sensors Check) (DAQ-1 vs DAQ-2)",planned,No,Yes,2026-06-29,2026-06-29,1,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G00-02,VH2D-Wk27-G00,"Performance Verification (DAQs, EMI Interferance & Blind Sensors Check) (DAQ-1 vs DAQ-2)",planned,No,Yes,2026-06-29,2026-06-29,,18,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G00-03,VH2D-Wk27-G00,"Performance Verification (DAQs, EMI Interferance & Blind Sensors Check) (DAQ-1 vs DAQ-2)",planned,No,Yes,2026-06-29,2026-06-29,,20,,,Back Wall,Thin Film with Hotwire Activated,,,263,,0,,,,No,,No,
+VH2D-Wk27-G01-01,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-06-30,2026-06-30,,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-02,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-06-30,2026-06-30,,18,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-03,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-06-30,2026-06-30,,20,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-04,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-06-30,2026-06-30,,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-05,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-06-30,2026-06-30,,18,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,Time restriction
+VH2D-Wk27-G01-06,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-06-30,2026-06-30,,20,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-07,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-06-30,2026-06-30,,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-08,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-06-30,2026-06-30,,18,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,Time restriction
+VH2D-Wk27-G01-09,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-06-30,2026-06-30,,20,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-10,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-07-01,2026-07-01,,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-11,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-07-01,2026-07-01,,18,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-12,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-07-01,2026-07-01,,20,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-13,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-07-01,2026-07-01,,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-14,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-07-01,2026-07-01,,18,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G01-15,VH2D-Wk27-G01,Repetability: vented deflagration concentration series (Hotwire ON) (DAQ-1 vs DAQ-2),planned,No,No,2026-07-01,2026-07-01,,20,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G02-01,VH2D-Wk27-G02,Cable Length Effect (Cables Swap) (DAQ-1 vs DAQ-2),planned,No,No,2026-07-01,2026-07-01,,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G02-02,VH2D-Wk27-G02,Cable Length Effect (Cables Swap) (DAQ-1 vs DAQ-2),planned,No,No,2026-07-01,2026-07-01,,18,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G02-03,VH2D-Wk27-G02,Cable Length Effect (Cables Swap) (DAQ-1 vs DAQ-2),planned,No,No,2026-07-01,2026-07-01,,20,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G03-01,VH2D-Wk27-G03,Sensor/DAQ Swap Effect (DAQ-1 vs DAQ-2),planned,No,No,2026-07-03,2026-07-03,,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G03-02,VH2D-Wk27-G03,Sensor/DAQ Swap Effect (DAQ-1 vs DAQ-2),planned,No,No,2026-07-03,2026-07-03,,18,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G03-03,VH2D-Wk27-G03,Sensor/DAQ Swap Effect (DAQ-1 vs DAQ-2),planned,No,No,2026-07-03,2026-07-03,,20,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G04-01,VH2D-Wk27-G04,Time Constant (t) Effect (Short-Medium-Long) only DAQ-1,planned,No,No,2026-07-02,2026-07-02,,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G04-02,VH2D-Wk27-G04,Time Constant (t) Effect (Short-Medium-Long) only DAQ-1,planned,No,No,2026-07-02,2026-07-02,,16,,,Back Wall,Thin Film with Hotwire Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G04-03,VH2D-Wk27-G04,Time Constant (t) Effect (Short-Medium-Long) only DAQ-1,planned,No,No,2026-07-02,2026-07-02,,18,,,,,,,,,0,,,,No,,No,
+VH2D-Wk27-G04-04,VH2D-Wk27-G04,Time Constant (t) Effect (Short-Medium-Long) only DAQ-1,planned,No,No,2026-07-02,2026-07-02,,18,,,,,,,,,0,,,,No,,No,
+VH2D-Wk27-G04-05,VH2D-Wk27-G04,Time Constant (t) Effect (Short-Medium-Long) only DAQ-1,planned,No,No,2026-07-02,2026-07-02,,20,,,,,,,,,0,,,,No,,No,
+VH2D-Wk27-G04-06,VH2D-Wk27-G04,Time Constant (t) Effect (Short-Medium-Long) only DAQ-1,planned,No,No,2026-07-02,2026-07-02,,20,,,,,,,,,0,,,,No,,No,
+VH2D-Wk27-G05-01,VH2D-Wk27-G05,Vent Cover Condition Effect (Hotwire OFF) (LU vs DBI),planned,No,No,2026-07-03,2026-07-03,,16,,,Back Wall,Thin Film with Hotwire NOT Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G05-02,VH2D-Wk27-G05,Vent Cover Condition Effect (Hotwire OFF) (LU vs DBI),planned,No,No,2026-07-03,2026-07-03,,18,,,Back Wall,Thin Film with Hotwire NOT Activated,,,,,0,,,,No,,No,
+VH2D-Wk27-G05-03,VH2D-Wk27-G05,Vent Cover Condition Effect (Hotwire OFF) (LU vs DBI),planned,No,No,2026-07-03,2026-07-03,,20,,,Back Wall,Thin Film with Hotwire NOT Activated,,,,,0,,,,No,,No,

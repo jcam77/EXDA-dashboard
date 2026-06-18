@@ -1,11 +1,11 @@
 {
-  "updatedAt": "2026-06-14 13:51:17",
-  "selectedGroup": "Verif-Wk27",
+  "updatedAt": "2026-06-16 13:57:20",
+  "selectedGroup": "VH2D-Wk27-G00",
   "groupNotes": {
-    "Verif-Wk27": "Vented deflagration concentration series (Hotwire ON) LU vs DBI"
+    "VH2D-Wk27-G00": "Vented deflagration concentration series (Hotwire ON) LU vs DBI"
   },
   "mappingsByGroup": {
-    "Verif-Wk27": [
+    "VH2D-Wk27-G00": [
       {
         "calibrationCertificateId": "",
         "calibrationDate": "2023-11-13",

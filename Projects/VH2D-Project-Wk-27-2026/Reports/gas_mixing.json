@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-14 13:51:17",
+  "updatedAt": "2026-06-16 13:57:20",
   "verificationMeta": {
     "isMatlabVerified": true,
     "verificationRefFileA": "scripts/GasMixingVerificationFiles/H2_MFC_Fill_Calculator_v000.m",
@@ -13,7 +13,7 @@
     "b": "-0.2568",
     "notes": ""
   },
-  "selectedGroup": "Verif-Wk27",
-  "selectedRunName": "Verif-Wk27-01",
+  "selectedGroup": "VH2D-Wk27-G00",
+  "selectedRunName": "VH2D-Wk27-G00-01",
   "records": []
 }

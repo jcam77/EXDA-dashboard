@@ -10,7 +10,7 @@ const DEFAULT_COORDINATE_ORIGIN = '((0,0,0)) is defined at the centre of the int
 const CUSTOM_COORDINATE_ORIGIN = '__custom_coordinate_origin__';
 const CAMERA_TYPE_OPTIONS = ['', 'High-speed camera', 'Infrared camera', 'Standard video camera', 'Other'];
 const METHOD_USED_OPTIONS = ['', 'BOS (Background Oriented Schlieren)', 'Schlieren', 'Other'];
-const TRIGGER_SOURCE_OPTIONS = ['', 'M-Duino', 'DAQ trigger', 'Camera internal trigger', 'Manual trigger', 'Other'];
+const TRIGGER_MODE_OPTIONS = ['', 'External trigger (M-Duino)', 'External trigger (DAQ)', 'Camera internal trigger', 'Manual trigger', 'Software trigger', 'Free run', 'Other'];
 const RUN_GROUP_RE = /^(.*)-(\d+)(?:-[Rr]\d+)?$/;
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
@@ -28,6 +28,10 @@ const createDefaultCamera = () => ({
   frameRate: '',
   resolution: '',
   lensFocalLength: '',
+  shutterSpeed: '',
+  aperture: '',
+  iso: '',
+  whiteBalance: '',
   x: '',
   y: '',
   z: '',
@@ -35,8 +39,8 @@ const createDefaultCamera = () => ({
   coordinateOrigin: DEFAULT_COORDINATE_ORIGIN,
   mountingLocation: '',
   fieldOfView: '',
-  triggerSource: '',
-  customTriggerSource: '',
+  triggerMode: '',
+  customTriggerMode: '',
   synchronizationNotes: '',
   isActive: true,
   calibrationReference: '',
@@ -56,6 +60,15 @@ const normalizeCameraRecord = (camera) => {
     normalized.cameraType = '';
     normalized.customCameraType = '';
     if (!String(normalized.methodUsed || '').trim()) normalized.methodUsed = 'Schlieren';
+  }
+  if (!String(normalized.triggerMode || '').trim() && String(record.triggerSource || '').trim()) {
+    const legacyTrigger = String(record.triggerSource || '').trim();
+    const mappedLegacyTrigger = {
+      'M-Duino': 'External trigger (M-Duino)',
+      'DAQ trigger': 'External trigger (DAQ)',
+    }[legacyTrigger] || legacyTrigger;
+    normalized.triggerMode = mappedLegacyTrigger;
+    normalized.customTriggerMode = String(record.customTriggerSource || '').trim();
   }
   return normalized;
 };
@@ -126,10 +139,22 @@ const displayMethodUsed = (camera) => {
   return method || '-';
 };
 
-const displayTriggerSource = (camera) => {
-  const source = String(camera.triggerSource || '').trim();
-  if (source === 'Other') return String(camera.customTriggerSource || '').trim() || 'Other';
-  return source || '-';
+const displayTriggerMode = (camera) => {
+  const mode = String(camera.triggerMode || camera.triggerSource || '').trim();
+  if (mode === 'Other') return String(camera.customTriggerMode || camera.customTriggerSource || '').trim() || 'Other';
+  if (mode === 'M-Duino') return 'External trigger (M-Duino)';
+  if (mode === 'DAQ trigger') return 'External trigger (DAQ)';
+  return mode || '-';
+};
+
+const displayExposureSettings = (camera) => {
+  const parts = [
+    camera.shutterSpeed ? `Shutter ${camera.shutterSpeed}` : '',
+    camera.aperture ? `Iris ${camera.aperture}` : '',
+    camera.iso ? `ISO ${camera.iso}` : '',
+    camera.whiteBalance ? `WB ${camera.whiteBalance}` : '',
+  ].filter(Boolean);
+  return parts.join(' | ') || '-';
 };
 
 const isInfraredCamera = (camera) => {
@@ -155,9 +180,12 @@ const validateCameraAgainstList = (camera, allCameras, currentId = null) => {
   if (!String(camera.frameRate || '').trim()) warnings.push('Frame rate missing');
   if (!String(camera.resolution || '').trim()) warnings.push('Resolution missing');
   if (!String(camera.lensFocalLength || '').trim()) warnings.push('Lens / focal length missing');
+  if (!String(camera.shutterSpeed || '').trim()) warnings.push('Shutter speed missing');
+  if (!String(camera.aperture || '').trim()) warnings.push('Iris / aperture missing');
+  if (!String(camera.iso || '').trim()) warnings.push('ISO missing');
   if (!String(camera.mountingLocation || '').trim()) warnings.push('Mounting description missing');
   if (!String(camera.fieldOfView || '').trim()) warnings.push('Field of view / target region missing');
-  if (!String(displayTriggerSource(camera) || '').trim() || displayTriggerSource(camera) === '-') warnings.push('Trigger source missing');
+  if (!String(displayTriggerMode(camera) || '').trim() || displayTriggerMode(camera) === '-') warnings.push('Trigger mode missing');
   if (!String(camera.synchronizationNotes || '').trim()) warnings.push('Synchronization notes missing');
   if (!String(camera.coordinateOrigin || '').trim()) warnings.push('Coordinate origin missing');
   if (!isNumeric(camera.x) || !isNumeric(camera.y) || !isNumeric(camera.z)) warnings.push('Coordinates x/y/z should be numeric');
@@ -702,7 +730,7 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
               </label>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-[1620px] text-xs">
+              <table className="min-w-[1780px] text-xs">
                 <thead>
                   <tr className="border-b border-sidebar-border text-left text-muted-foreground">
                     <th className="py-2 pr-3">Camera ID</th>
@@ -712,10 +740,11 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
                     <th className="py-2 pr-3">FPS</th>
                     <th className="py-2 pr-3">Resolution</th>
                     <th className="py-2 pr-3">Lens</th>
+                    <th className="py-2 pr-3">Exposure</th>
                     <th className="py-2 pr-3">Coord.(x,y,z)m</th>
                     <th className="py-2 pr-3">Mounting</th>
                     <th className="py-2 pr-3">FOV / Target</th>
-                    <th className="py-2 pr-3">Trigger</th>
+                    <th className="py-2 pr-3">Trigger Mode</th>
                     <th className="py-2 pr-3">Emissivity</th>
                     <th className="py-2 pr-3">Temp Range</th>
                     <th className="py-2 pr-3">Active</th>
@@ -736,10 +765,11 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
                         <td className="py-2 pr-3">{camera.frameRate || '-'}</td>
                         <td className="py-2 pr-3">{camera.resolution || '-'}</td>
                         <td className="py-2 pr-3">{camera.lensFocalLength || '-'}</td>
+                        <td className="py-2 pr-3">{displayExposureSettings(camera)}</td>
                         <td className="py-2 pr-3">({camera.x || '-'},{camera.y || '-'},{camera.z || '-'}) {camera.coordinateUnit || 'm'}</td>
                         <td className="py-2 pr-3">{camera.mountingLocation || '-'}</td>
                         <td className="py-2 pr-3">{camera.fieldOfView || '-'}</td>
-                        <td className="py-2 pr-3">{displayTriggerSource(camera)}</td>
+                        <td className="py-2 pr-3">{displayTriggerMode(camera)}</td>
                         <td className="py-2 pr-3">{camera.emissivity || '-'}</td>
                         <td className="py-2 pr-3">{camera.temperatureRange || '-'}</td>
                         <td className="py-2 pr-3">{camera.isActive !== false ? 'Yes' : 'No'}</td>
@@ -785,7 +815,7 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
           <h2 className="text-lg font-bold text-foreground">Cameras Mapping &amp; Traceability</h2>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Track high-speed and infrared cameras, optical geometry, trigger/synchronization notes, and calibration references per campaign group.
+          Track high-speed and infrared cameras, optical geometry, exposure settings, trigger mode/synchronization notes, and calibration references per campaign group.
         </p>
         <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
           Project: <span className="text-foreground">{projectName}</span>
@@ -911,6 +941,10 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
               <label className="text-xs">Frame Rate<input value={editingCamera.frameRate} onChange={(e) => setEditingCamera((prev) => ({ ...prev, frameRate: e.target.value }))} placeholder="e.g., 10000 fps" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Resolution<input value={editingCamera.resolution} onChange={(e) => setEditingCamera((prev) => ({ ...prev, resolution: e.target.value }))} placeholder="e.g., 1024 x 512" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Lens / Focal Length<input value={editingCamera.lensFocalLength} onChange={(e) => setEditingCamera((prev) => ({ ...prev, lensFocalLength: e.target.value }))} placeholder="e.g., 50 mm" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <label className="text-xs">Shutter Speed<input value={editingCamera.shutterSpeed} onChange={(e) => setEditingCamera((prev) => ({ ...prev, shutterSpeed: e.target.value }))} placeholder="e.g., 1/10000 s or 100 us" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <label className="text-xs">Iris / Aperture (F-number)<input value={editingCamera.aperture} onChange={(e) => setEditingCamera((prev) => ({ ...prev, aperture: e.target.value }))} placeholder="e.g., f/2.8" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <label className="text-xs">ISO<input value={editingCamera.iso} onChange={(e) => setEditingCamera((prev) => ({ ...prev, iso: e.target.value }))} placeholder="e.g., 800" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
+              <label className="text-xs">White Balance<input value={editingCamera.whiteBalance} onChange={(e) => setEditingCamera((prev) => ({ ...prev, whiteBalance: e.target.value }))} placeholder="Optional; may not apply to monochrome cameras" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">X<input value={editingCamera.x} onChange={(e) => setEditingCamera((prev) => ({ ...prev, x: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Y<input value={editingCamera.y} onChange={(e) => setEditingCamera((prev) => ({ ...prev, y: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Z<input value={editingCamera.z} onChange={(e) => setEditingCamera((prev) => ({ ...prev, z: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
@@ -941,8 +975,8 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
               </div>
               <label className="text-xs">Mounting Description<input value={editingCamera.mountingLocation} onChange={(e) => setEditingCamera((prev) => ({ ...prev, mountingLocation: e.target.value }))} placeholder="e.g., tripod outside left window, top rail bracket" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Field of View / Target Region<input value={editingCamera.fieldOfView} onChange={(e) => setEditingCamera((prev) => ({ ...prev, fieldOfView: e.target.value }))} placeholder="e.g., flame front first 1.5 m after chamber venting" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
-              <label className="text-xs">Trigger Source<select value={editingCamera.triggerSource} onChange={(e) => setEditingCamera((prev) => ({ ...prev, triggerSource: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{TRIGGER_SOURCE_OPTIONS.map((opt) => <option key={opt || 'blank'} value={opt}>{opt || 'Select trigger source'}</option>)}</select></label>
-              {editingCamera.triggerSource === 'Other' && <label className="text-xs">Custom Trigger Source<input value={editingCamera.customTriggerSource || ''} onChange={(e) => setEditingCamera((prev) => ({ ...prev, customTriggerSource: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>}
+              <label className="text-xs">Trigger Mode<select value={editingCamera.triggerMode || ''} onChange={(e) => setEditingCamera((prev) => ({ ...prev, triggerMode: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{TRIGGER_MODE_OPTIONS.map((opt) => <option key={opt || 'blank'} value={opt}>{opt || 'Select trigger mode'}</option>)}</select></label>
+              {editingCamera.triggerMode === 'Other' && <label className="text-xs">Custom Trigger Mode<input value={editingCamera.customTriggerMode || ''} onChange={(e) => setEditingCamera((prev) => ({ ...prev, customTriggerMode: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>}
               <label className="text-xs md:col-span-2">Synchronization Notes<textarea value={editingCamera.synchronizationNotes} onChange={(e) => setEditingCamera((prev) => ({ ...prev, synchronizationNotes: e.target.value }))} className="mt-1 min-h-20 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" placeholder="Trigger alignment, timing offsets, shared clocks, external sync, etc." /></label>
               <label className="text-xs">Emissivity<input value={editingCamera.emissivity} onChange={(e) => setEditingCamera((prev) => ({ ...prev, emissivity: e.target.value }))} placeholder="IR camera only, e.g., 0.95" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Temperature Range<input value={editingCamera.temperatureRange} onChange={(e) => setEditingCamera((prev) => ({ ...prev, temperatureRange: e.target.value }))} placeholder="IR camera only, e.g., -20 to 650 °C" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
