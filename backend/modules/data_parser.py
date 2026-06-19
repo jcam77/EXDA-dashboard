@@ -53,6 +53,27 @@ def _parse_datetime(value: str):
     return None
 
 
+def _parse_datetime_axis(time_tokens: list[str]):
+    """Convert datetime text tokens to elapsed seconds, allowing duplicate stamps."""
+    parsed_times = []
+    for token in time_tokens:
+        parsed = _parse_datetime(token)
+        if parsed is None:
+            return None
+        parsed_times.append(parsed)
+
+    if not parsed_times:
+        return None
+
+    origin = parsed_times[0]
+    t = np.asarray([(item - origin).total_seconds() for item in parsed_times], dtype=float)
+    if not np.all(np.isfinite(t)):
+        return None
+    if t.size > 1 and not np.any(np.diff(t) > 0):
+        return None
+    return t
+
+
 def _looks_like_multichannel_waveform(lines: list[str]) -> bool:
     """Detect semicolon waveform exports with metadata/header rows."""
     if not lines:
@@ -259,14 +280,10 @@ def _parse_semicolon_multichannel(lines: list[str], channel_index: int = 0):
         idx = np.argsort(t)
         return t[idx], y[idx], None
 
-    if len(time_tokens) >= 2:
-        t0 = _parse_datetime(time_tokens[0])
-        t1 = _parse_datetime(time_tokens[1])
-        if t0 is not None and t1 is not None:
-            dt = (t1 - t0).total_seconds()
-            if np.isfinite(dt) and dt > 0:
-                t = np.arange(len(y), dtype=float) * float(dt)
-                return t, y, None
+    t_datetime = _parse_datetime_axis(time_tokens)
+    if t_datetime is not None and len(t_datetime) == len(y):
+        idx = np.argsort(t_datetime)
+        return t_datetime[idx], y[idx], None
 
     return None, None, "Could not infer time axis for multichannel waveform file"
 
@@ -343,14 +360,10 @@ def _parse_semicolon_multichannel_all(lines: list[str]):
         idx = np.argsort(t)
         return t[idx], y[idx, :], channel_names, None
 
-    if len(time_tokens) >= 2:
-        t0 = _parse_datetime(time_tokens[0])
-        t1 = _parse_datetime(time_tokens[1])
-        if t0 is not None and t1 is not None:
-            dt = (t1 - t0).total_seconds()
-            if np.isfinite(dt) and dt > 0:
-                t = np.arange(y.shape[0], dtype=float) * float(dt)
-                return t, y, channel_names, None
+    t_datetime = _parse_datetime_axis(time_tokens)
+    if t_datetime is not None and len(t_datetime) == y.shape[0]:
+        idx = np.argsort(t_datetime)
+        return t_datetime[idx], y[idx, :], channel_names, None
 
     return None, None, None, "Could not infer time axis for multichannel waveform file"
 

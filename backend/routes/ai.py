@@ -19,6 +19,12 @@ ai_bp = Blueprint("ai", __name__)
 APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPO_CONTEXT_MAX_CHARS = int(os.environ.get("EXDA_REPO_CONTEXT_MAX_CHARS", "7000"))
 REPO_CONTEXT_TTL_SECONDS = int(os.environ.get("EXDA_REPO_CONTEXT_TTL", "120"))
+RELEVANT_REPO_CONTEXT_MAX_CHARS = int(os.environ.get("EXDA_RELEVANT_REPO_CONTEXT_MAX_CHARS", "24000"))
+RELEVANT_REPO_CONTEXT_MAX_FILES = int(os.environ.get("EXDA_RELEVANT_REPO_CONTEXT_MAX_FILES", "8"))
+RELEVANT_REPO_FILE_READ_MAX_CHARS = int(os.environ.get("EXDA_RELEVANT_REPO_FILE_READ_MAX_CHARS", "80000"))
+RELEVANT_REPO_EXCERPT_MAX_CHARS = int(os.environ.get("EXDA_RELEVANT_REPO_EXCERPT_MAX_CHARS", "2200"))
+RELEVANT_REPO_DOC_EXCERPT_MAX_CHARS = int(os.environ.get("EXDA_RELEVANT_REPO_DOC_EXCERPT_MAX_CHARS", "7000"))
+DYNAMIC_CITED_PATH_CONTEXT_MAX_CHARS = int(os.environ.get("EXDA_DYNAMIC_CITED_PATH_CONTEXT_MAX_CHARS", "12000"))
 REPO_SCAN_IGNORE_DIRS = {
     ".git",
     "node_modules",
@@ -31,14 +37,144 @@ REPO_SCAN_IGNORE_DIRS = {
     "playwright-report",
     "test-results",
     "test-report-results",
+    "Projects",
+    "Demo Projects",
+    "appsTestEnvironment",
+    "appsTestEnviroment",
 }
 REPO_SCAN_ALLOW_HIDDEN_DIRS = {".github"}
 REPO_SCAN_IGNORE_PREFIXES = ("._",)
+REPO_RETRIEVAL_SUFFIXES = (
+    ".py",
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".css",
+    ".md",
+    ".json",
+    ".sh",
+    ".ps1",
+    ".yml",
+    ".yaml",
+    ".txt",
+)
+REPO_RETRIEVAL_SKIP_FILES = {
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+}
+REPO_QUERY_STOP_WORDS = {
+    "about", "above", "after", "again", "also", "and", "any", "are", "because",
+    "been", "but", "can", "could", "does", "for", "from", "have", "how", "into",
+    "its", "just", "like", "max", "more", "not", "now", "only", "our", "please", "point", "points", "show",
+    "that", "the", "then", "there", "this", "use", "using", "was", "what", "when",
+    "where", "which", "who", "why", "with", "would", "you", "your",
+}
+REPO_QUERY_TERM_EXPANSIONS = {
+    "downsampling": ("downsample", "downsampled", "decimation", "maxpoints", "max_points", "max_samples", "linspace", "read_project_file", "preview_multichannel"),
+    "downsample": ("downsampling", "downsampled", "decimation", "maxpoints", "max_points", "max_samples", "linspace", "read_project_file", "preview_multichannel"),
+    "downsampled": ("downsample", "downsampling", "decimation", "maxpoints", "max_points", "max_samples", "linspace", "read_project_file", "preview_multichannel"),
+    "visualisation": ("visualization", "plot", "preview", "chart", "screening"),
+    "visualization": ("visualisation", "plot", "preview", "chart", "screening"),
+    "optimise": ("optimize", "performance", "preview", "plot"),
+    "optimize": ("optimise", "performance", "preview", "plot"),
+    "plotting": ("plot", "preview", "chart"),
+    "plots": ("plot", "preview", "chart"),
+}
+UNSUPPORTED_IMPLEMENTATION_CLAIM_PATTERNS = (
+    (
+        re.compile(r"\b(?:minimum[-\s]*maximum|min[-\s]*max|max[-\s]*min)\b", re.IGNORECASE),
+        "min-max/bucket envelope downsampling",
+    ),
+    (
+        re.compile(r"\bbuckets?\b|\bbucketing\b", re.IGNORECASE),
+        "bucket-based downsampling",
+    ),
+    (
+        re.compile(r"\bmedian\b", re.IGNORECASE),
+        "median downsampling",
+    ),
+    (
+        re.compile(r"\binterpolat(?:e|ed|es|ion|ing)\b|\bnp\.interp\b|\bnumpy(?:'s|’s)?\s+interp\b", re.IGNORECASE),
+        "interpolation-based downsampling",
+    ),
+    (
+        re.compile(r"\bresampl(?:e|ed|es|ing)\b|\blower,\s*uniformly\s*spaced\s*grid\b", re.IGNORECASE),
+        "resampling-to-grid downsampling",
+    ),
+    (
+        re.compile(r"\bmean\b|\baverage(?:d|s|ing)?\b", re.IGNORECASE),
+        "mean/average downsampling",
+    ),
+    (
+        re.compile(r"\blttb\b|\blargest[-\s]*triangle\b", re.IGNORECASE),
+        "LTTB downsampling",
+    ),
+    (
+        re.compile(r"\bpoints?\s*per\s*pixel\b|\bpixel\s*width\b", re.IGNORECASE),
+        "pixel-width/points-per-pixel target",
+    ),
+    (
+        re.compile(r"(?:~|≈|about|around|commonly)?\s*\b5\s*,?\s*000\b", re.IGNORECASE),
+        "5,000-point visualization default",
+    ),
+    (
+        re.compile(
+            r"\bbuilt[-\s]*in.{0,40}\bdownsample\b|\buplot(?:'s|’s)?\s+built[-\s]*in\b|\buplot\b.{0,80}\bdownsample\b|\bsamples\s+option\b|\binternal\s+point[-\s]*reduction\b|\bnative\s+sampling\s+options?\b",
+            re.IGNORECASE,
+        ),
+        "chart-library sampling/downsampling speculation",
+    ),
+    (
+        re.compile(r"\brecharts\b", re.IGNORECASE),
+        "Recharts plotting/downsampling path",
+    ),
+    (
+        re.compile(r"\bpressureanalysisworkbench(?:\.jsx)?\b|\bflamespeedanalysis(?:\.jsx)?\b", re.IGNORECASE),
+        "unsupported analysis component path",
+    ),
+    (
+        re.compile(r"\bconfig/visuali[sz]ation\.json\b|\bsettings dialog\b", re.IGNORECASE),
+        "unsupported visualization configuration source",
+    ),
+    (
+        re.compile(r"\bmvp mode\b.{0,120}\bdown[-\s]*sampling\b|\bmvp mode\b.{0,120}\bheavy[-\s]*duty\b", re.IGNORECASE),
+        "unsupported MVP-mode/downsampling behavior",
+    ),
+)
+FALSE_MISSING_EVIDENCE_PATTERNS = (
+    (
+        re.compile(
+            r"\b(?:does\s+not\s+expose|not\s+exposed|not\s+present|not\s+shown|cannot\s+be\s+confirmed|without\s+concrete\s+code\s+references|lack\s+of\s+source\s+evidence)\b",
+            re.IGNORECASE,
+        ),
+        "selected source/docs were ignored or described as unavailable",
+    ),
+    (
+        re.compile(
+            r"\b(?:review|inspect|search|locate)\b.{0,80}\b(?:documentation|docs/|repository|source|frontend|backend)\b",
+            re.IGNORECASE,
+        ),
+        "speculative next step asks to search sources that were already retrieved",
+    ),
+)
 _REPO_CONTEXT_CACHE = {
     "context": "",
     "generated_at": 0.0,
 }
 _STRUCTURED_EXECUTOR = ThreadPoolExecutor(max_workers=2)
+DEFAULT_AI_MODEL = os.environ.get("EXDA_DEFAULT_AI_MODEL", "").strip()
+PREFERRED_AI_MODELS = tuple(
+    model for model in [
+        DEFAULT_AI_MODEL,
+        "gpt-oss:20b-cloud",
+        "gpt-oss:120b-cloud",
+        "minimax-m3:cloud",
+        "nemotron-3-super:cloud",
+    ]
+    if model
+)
 IMPROVEMENT_QUERY_HINTS = (
     "improve",
     "improvement",
@@ -282,16 +418,30 @@ def get_pdf_context(project_path):
     if err:
         return ""
 
-    literature_dir = os.path.join(project_root, "Literature")
+    literature_dir = os.path.realpath(os.path.join(project_root, "Literature"))
     if not os.path.exists(literature_dir):
+        return ""
+    if not project_manager.is_path_within(project_root, literature_dir):
         return ""
 
     all_pdf_data = []
     for root, dirs, files in os.walk(literature_dir):
+        dirs[:] = [
+            directory
+            for directory in dirs
+            if not directory.startswith(".")
+            and project_manager.is_path_within(literature_dir, os.path.join(root, directory))
+            and project_manager.is_path_within(project_root, os.path.join(root, directory))
+        ]
         for filename in files:
             if filename.lower().endswith(".pdf"):
                 rel_path = os.path.relpath(os.path.join(root, filename), literature_dir)
-                file_path = os.path.join(root, filename)
+                file_path = os.path.realpath(os.path.join(root, filename))
+                if (
+                    not project_manager.is_path_within(literature_dir, file_path)
+                    or not project_manager.is_path_within(project_root, file_path)
+                ):
+                    continue
                 try:
                     with fitz.open(file_path) as doc:
                         text = ""
@@ -446,6 +596,628 @@ def _app_structure_file_lines():
     return [f"- {path}: {description}" for path, description in APP_STRUCTURE_FILES]
 
 
+def _read_repo_text(relative_path, max_chars=RELEVANT_REPO_FILE_READ_MAX_CHARS):
+    """Read a bounded text file from the repository."""
+    safe_path = os.path.normpath(relative_path).lstrip(os.sep)
+    safe_rel_path = safe_path.replace("\\", "/")
+    if safe_rel_path == "backend/routes/state.py":
+        max_chars = max(max_chars, 220000)
+    file_path = os.path.join(APP_ROOT, safe_path)
+    if not project_manager.is_path_within(APP_ROOT, file_path):
+        return ""
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            content = handle.read()
+    except Exception:
+        return ""
+    if len(content) > max_chars:
+        return f"{content[:max_chars]}\n\n[File truncated for prompt size.]"
+    return content
+
+
+def _is_retrievable_repo_path(relative_path):
+    """Return True when a referenced repo path exists and is safe to read."""
+    if not relative_path:
+        return False
+    rel_path = os.path.normpath(str(relative_path).strip()).lstrip(os.sep).replace("\\", "/")
+    filename = os.path.basename(rel_path)
+    if not filename or _should_skip_file(filename):
+        return False
+    if filename in REPO_RETRIEVAL_SKIP_FILES:
+        return False
+    if not filename.lower().endswith(REPO_RETRIEVAL_SUFFIXES):
+        return False
+    abs_path = os.path.join(APP_ROOT, rel_path)
+    if not project_manager.is_path_within(APP_ROOT, abs_path):
+        return False
+    return os.path.isfile(abs_path)
+
+
+def _expand_repo_query_terms(terms, max_terms=24):
+    """Add conservative source-code synonyms so retrieval finds real implementation files."""
+    expanded = []
+    for term in terms:
+        if term not in expanded:
+            expanded.append(term)
+        for extra in REPO_QUERY_TERM_EXPANSIONS.get(term, ()):
+            if extra not in expanded:
+                expanded.append(extra)
+        if len(expanded) >= max_terms:
+            break
+    return expanded[:max_terms]
+
+
+def _tokenize_repo_query(text, max_terms=16):
+    """Extract search terms for repository retrieval."""
+    raw_terms = re.findall(r"[a-zA-Z0-9_./%-]+", (text or "").lower())
+    terms = []
+    for term in raw_terms:
+        cleaned = term.strip("._/%-")
+        if len(cleaned) < 3:
+            continue
+        if cleaned in REPO_QUERY_STOP_WORDS:
+            continue
+        if cleaned not in terms:
+            terms.append(cleaned)
+        if len(terms) >= max_terms:
+            break
+    return _expand_repo_query_terms(terms)
+
+
+def _iter_retrievable_repo_files():
+    """Yield text/code files that AiRA is allowed to inspect for app answers."""
+    for current, dirs, files in os.walk(APP_ROOT):
+        dirs[:] = [d for d in sorted(dirs) if not _should_skip_dir(d)]
+        for filename in sorted(files):
+            if _should_skip_file(filename):
+                continue
+            if filename in REPO_RETRIEVAL_SKIP_FILES:
+                continue
+            if not filename.lower().endswith(REPO_RETRIEVAL_SUFFIXES):
+                continue
+            abs_path = os.path.join(current, filename)
+            if not project_manager.is_path_within(APP_ROOT, abs_path):
+                continue
+            rel_path = os.path.relpath(abs_path, APP_ROOT).replace("\\", "/")
+            yield rel_path
+
+
+def _is_repo_doc_path(rel_path):
+    """Return True for repository documentation files that should be read first."""
+    return str(rel_path or "").startswith("docs/") and str(rel_path or "").lower().endswith(".md")
+
+
+def _score_repo_file(rel_path, content, query_terms):
+    """Score a repository file against the user's question."""
+    if not query_terms:
+        return 0
+    if rel_path == "backend/routes/ai.py":
+        ai_terms = {"aira", "ai", "ollama", "model", "models", "assistant", "chat", "prompt"}
+        if not any(term in ai_terms for term in query_terms):
+            return 0
+    rel_lower = rel_path.lower()
+    content_lower = content.lower()
+    score = 0
+    for term in query_terms:
+        if term in rel_lower:
+            score += 25
+        count = content_lower.count(term)
+        if count:
+            score += min(count, 12)
+            if content_lower.find(term) < 1200:
+                score += 4
+    if score > 0 and _is_repo_doc_path(rel_path):
+        # Documentation is the intended workflow overview; source still verifies implementation details.
+        score += 35
+    return score
+
+
+def _extract_referenced_repo_paths(content, max_paths=12):
+    """Extract literal repo paths from a retrieved source/doc excerpt."""
+    if not content:
+        return []
+    pattern = re.compile(
+        r"\b((?:backend|frontend|docs|electron|config|scripts)/"
+        r"[A-Za-z0-9_./-]+\.(?:py|js|jsx|ts|tsx|css|md|json|sh|ps1|yml|yaml|txt))\b"
+    )
+    paths = []
+    for match in pattern.finditer(content):
+        rel_path = os.path.normpath(match.group(1)).replace("\\", "/")
+        if rel_path not in paths and _is_retrievable_repo_path(rel_path):
+            paths.append(rel_path)
+        if len(paths) >= max_paths:
+            break
+    return paths
+
+
+def _excerpt_repo_content(rel_path, content, query_terms):
+    """Return a focused excerpt around the first relevant match."""
+    max_chars = (
+        RELEVANT_REPO_DOC_EXCERPT_MAX_CHARS
+        if str(rel_path).startswith("docs/")
+        else RELEVANT_REPO_EXCERPT_MAX_CHARS
+    )
+    if len(content) <= max_chars:
+        return content
+    content_lower = content.lower()
+    match_positions = [
+        content_lower.find(term)
+        for term in query_terms
+        if term and content_lower.find(term) >= 0
+    ]
+    if not match_positions:
+        return f"{content[:max_chars]}\n\n[Excerpt truncated.]"
+    route_source_terms = {
+        "preview_multichannel",
+        "read_project_file",
+    }
+    primary_source_terms = {
+        "maxpoints",
+        "max_points",
+        "linspace",
+    }
+    secondary_source_terms = {
+        "max_samples",
+        "downsampling",
+        "downsample",
+        "downsampled",
+        "decimation",
+    }
+    prioritized_positions = []
+    for term in query_terms:
+        if not term:
+            continue
+        pos = content_lower.find(term)
+        if pos < 0:
+            continue
+        if term in route_source_terms:
+            priority = 0
+        elif term in primary_source_terms:
+            priority = 1
+        elif term in secondary_source_terms:
+            priority = 2
+        else:
+            priority = 3
+        prioritized_positions.append((priority, pos))
+    center = min(prioritized_positions or [(3, min(match_positions))])[1]
+    start = max(0, center - max_chars // 3)
+    end = min(len(content), start + max_chars)
+    if end - start < max_chars:
+        start = max(0, end - max_chars)
+    excerpt = content[start:end]
+    prefix = "[Excerpt starts mid-file]\n" if start > 0 else ""
+    suffix = "\n[Excerpt ends mid-file]" if end < len(content) else ""
+    return f"{prefix}{excerpt}{suffix}"
+
+
+def _get_relevant_repo_context(user_query):
+    """Search app source/docs and attach the most relevant evidence for this question."""
+    query_terms = _tokenize_repo_query(user_query)
+    if not query_terms:
+        return ""
+
+    scored_files = []
+    for rel_path in _iter_retrievable_repo_files():
+        content = _read_repo_text(rel_path)
+        if not content.strip():
+            continue
+        score = _score_repo_file(rel_path, content, query_terms)
+        if score <= 0:
+            continue
+        scored_files.append((score, rel_path, content))
+
+    if not scored_files:
+        return (
+            "Repository retrieval found no matching source/documentation excerpts for this question. "
+            "Use the repository map, and state clearly if evidence is insufficient."
+        )
+
+    scored_files.sort(key=lambda item: (-item[0], item[1]))
+    doc_files = [item for item in scored_files if _is_repo_doc_path(item[1])]
+    source_files = [item for item in scored_files if not _is_repo_doc_path(item[1])]
+    doc_seed_count = min(len(doc_files), 2, RELEVANT_REPO_CONTEXT_MAX_FILES)
+    source_seed_count = max(0, min(3, RELEVANT_REPO_CONTEXT_MAX_FILES) - doc_seed_count)
+    seed_files = doc_files[:doc_seed_count] + source_files[:source_seed_count]
+    selected_by_path = {
+        rel_path: (score, rel_path, content)
+        for score, rel_path, content in seed_files
+    }
+
+    # Docs often contain the best overview and exact source references.
+    # Pull those referenced source files too, so AiRA can verify details directly.
+    referenced_any = False
+    for score, rel_path, content in seed_files:
+        for referenced_path in _extract_referenced_repo_paths(content):
+            referenced_any = True
+            referenced_content = _read_repo_text(referenced_path)
+            if not referenced_content.strip():
+                continue
+            referenced_score = max(1, score // 2)
+            existing = selected_by_path.get(referenced_path)
+            if existing and existing[0] >= referenced_score:
+                continue
+            selected_by_path[referenced_path] = (referenced_score, referenced_path, referenced_content)
+
+    if not referenced_any:
+        for score, rel_path, content in scored_files:
+            if len(selected_by_path) >= RELEVANT_REPO_CONTEXT_MAX_FILES:
+                break
+            selected_by_path.setdefault(rel_path, (score, rel_path, content))
+
+    selected = list(selected_by_path.values())
+    selected.sort(key=lambda item: (0 if _is_repo_doc_path(item[1]) else 1, -item[0], item[1]))
+    selected = selected[:RELEVANT_REPO_CONTEXT_MAX_FILES]
+    selected_docs = [rel_path for _, rel_path, _ in selected if _is_repo_doc_path(rel_path)]
+    sections = [
+        "Relevant repository excerpts selected by lexical retrieval over EXDA source/docs.",
+        f"Search terms: {', '.join(query_terms)}",
+        "Documentation files checked first:",
+        *([f"- {rel_path}" for rel_path in selected_docs] if selected_docs else ["- None matched this question."]),
+        "Allowed cited source files for this answer:",
+        *[f"- {rel_path}" for _, rel_path, _ in selected],
+        "Use documentation as the workflow overview, then verify implementation details in source code.",
+        "If documentation and direct source conflict, cite both and prefer source code for current behavior.",
+        "Use these excerpts as evidence. Cite file paths. If they are insufficient, say what is missing.",
+    ]
+    for score, rel_path, content in selected:
+        excerpt = _excerpt_repo_content(rel_path, content, query_terms)
+        section = (
+            f"\n--- SOURCE FILE: {rel_path} | score={score} ---\n"
+            f"{excerpt}\n"
+            f"--- END SOURCE FILE: {rel_path} ---"
+        )
+        if len("\n".join(sections)) + len(section) > RELEVANT_REPO_CONTEXT_MAX_CHARS:
+            sections.append("\n[Relevant repository context truncated for prompt size.]")
+            break
+        sections.append(section)
+    return "\n".join(sections)
+
+
+def _extract_allowed_source_paths(relevant_repo_context):
+    """Return source file paths explicitly included in the retrieved context."""
+    if not relevant_repo_context:
+        return set()
+    allowed = set()
+    source_pattern = re.compile(r"--- SOURCE FILE:\s*([^|\n]+)")
+    list_pattern = re.compile(r"^\s*-\s+((?:backend|frontend|docs|electron|config|scripts)/\S+)\s*$")
+    for match in source_pattern.finditer(relevant_repo_context):
+        allowed.add(match.group(1).strip())
+    for line in relevant_repo_context.splitlines():
+        match = list_pattern.match(line)
+        if match:
+            allowed.add(match.group(1).strip())
+    return allowed
+
+
+def _extract_repo_paths_from_text(text):
+    """Extract repository-like paths mentioned in model output."""
+    if not text:
+        return []
+    path_pattern = re.compile(
+        r"\b((?:backend|frontend|docs|electron|config|scripts)/"
+        r"[A-Za-z0-9_./-]+(?:\.[A-Za-z0-9]+)?)"
+    )
+    paths = []
+    for match in path_pattern.finditer(text):
+        rel_path = match.group(1).rstrip(".,;:)`]}'\"")
+        rel_path = os.path.normpath(rel_path).replace("\\", "/")
+        if rel_path not in paths:
+            paths.append(rel_path)
+
+    # Models often cite a source file by basename only. Resolve unique filenames
+    # dynamically instead of relying on a hand-written list of known files.
+    full_path_basenames = {os.path.basename(path) for path in paths}
+    basename_pattern = re.compile(
+        r"(?<!/)\b([A-Za-z0-9_-]+\.(?:py|js|jsx|ts|tsx|css|md|json|sh|ps1|yml|yaml|txt))\b"
+    )
+    for match in basename_pattern.finditer(text):
+        basename = match.group(1).rstrip(".,;:)`]}'\"")
+        if basename in full_path_basenames:
+            continue
+        matches = [
+            rel_path for rel_path in _iter_retrievable_repo_files()
+            if os.path.basename(rel_path) == basename
+        ]
+        if len(matches) == 1:
+            rel_path = matches[0]
+        else:
+            rel_path = basename
+        if rel_path not in paths:
+            paths.append(rel_path)
+    return paths
+
+
+def _repo_path_exists(relative_path):
+    """Return True when a model-cited repo path exists in this checkout."""
+    if not relative_path:
+        return False
+    rel_path = os.path.normpath(str(relative_path).strip()).lstrip(os.sep)
+    abs_path = os.path.join(APP_ROOT, rel_path)
+    return project_manager.is_path_within(APP_ROOT, abs_path) and os.path.exists(abs_path)
+
+
+def _replace_unsupported_claims_line(text, unsupported_paths):
+    """Prevent a model from saying unsupported claims are none after a failed source check."""
+    if not unsupported_paths:
+        return text
+    replacement = (
+        "- Unsupported claims: mentioned repository paths that were not validated for this answer: "
+        + ", ".join(f"`{path}`" for path in unsupported_paths)
+    )
+    lines = []
+    replaced = False
+    for line in text.splitlines():
+        if "unsupported claims" in line.lower() and re.search(r"\bnone\b", line, flags=re.IGNORECASE):
+            lines.append(replacement)
+            replaced = True
+        else:
+            lines.append(line)
+    result = "\n".join(lines)
+    if not replaced:
+        result = f"{result.rstrip()}\n\n## Validation Notes\n{replacement}"
+    return result
+
+
+def _repo_source_guard_issues(text, relevant_repo_context):
+    """Return cited path issues for a model response."""
+    allowed_paths = _extract_allowed_source_paths(relevant_repo_context)
+    cited_paths = _extract_repo_paths_from_text(text)
+    invalid_paths = [path for path in cited_paths if not _repo_path_exists(path)]
+    outside_context_paths = [
+        path for path in cited_paths
+        if path not in invalid_paths and allowed_paths and path not in allowed_paths
+    ]
+    return allowed_paths, invalid_paths, outside_context_paths
+
+
+def _build_dynamic_cited_path_context(user_query, relevant_repo_context, cited_paths):
+    """Append real excerpts for existing repo paths mentioned by a draft answer."""
+    if not cited_paths:
+        return relevant_repo_context, []
+
+    allowed_paths = _extract_allowed_source_paths(relevant_repo_context)
+    query_terms = _tokenize_repo_query(user_query)
+    sections = []
+    loaded_paths = []
+    used_chars = 0
+
+    for rel_path in cited_paths:
+        if rel_path in allowed_paths or rel_path in loaded_paths:
+            continue
+        if not _repo_path_exists(rel_path) or not _is_retrievable_repo_path(rel_path):
+            continue
+        content = _read_repo_text(rel_path)
+        if not content.strip():
+            continue
+        excerpt = _excerpt_repo_content(rel_path, content, query_terms)
+        section = (
+            f"\n--- DRAFT-CITED FILE CHECK: {rel_path} ---\n"
+            f"{excerpt}\n"
+            f"--- END DRAFT-CITED FILE CHECK: {rel_path} ---"
+        )
+        if used_chars + len(section) > DYNAMIC_CITED_PATH_CONTEXT_MAX_CHARS:
+            break
+        sections.append(section)
+        loaded_paths.append(rel_path)
+        used_chars += len(section)
+
+    if not sections:
+        return relevant_repo_context, []
+
+    intro = (
+        "\n\nDYNAMIC PATH CHECK:\n"
+        "The previous draft mentioned these existing repository paths even though they were not selected as evidence. "
+        "Their real contents are included below only for verification, not as automatically approved evidence. "
+        "If a file was not selected as relevant evidence for the question, the corrected answer should normally "
+        "remove that claim/path instead of guessing."
+    )
+    return f"{relevant_repo_context}{intro}{''.join(sections)}", loaded_paths
+
+
+def _is_negated_claim_context(text, start_index):
+    """Return True when a matched implementation claim is explicitly negated nearby."""
+    before = text[max(0, start_index - 70):start_index].lower()
+    negators = (
+        "not ",
+        "no ",
+        "without ",
+        "rather than ",
+        "instead of ",
+        "does not ",
+        "do not ",
+        "is not ",
+        "isn't ",
+        "are not ",
+        "aren't ",
+        "never ",
+    )
+    return any(negator in before for negator in negators)
+
+
+def _context_supports_claim(pattern, relevant_repo_context):
+    """Return True only when the evidence contains a non-negated implementation claim."""
+    for match in pattern.finditer(relevant_repo_context or ""):
+        if not _is_negated_claim_context(relevant_repo_context, match.start()):
+            return True
+    return False
+
+
+def _repo_claim_guard_issues(text, relevant_repo_context):
+    """Return unsupported implementation claims not present in selected evidence."""
+    if not text or not relevant_repo_context:
+        return []
+
+    unsupported_claims = []
+    for pattern, label in UNSUPPORTED_IMPLEMENTATION_CLAIM_PATTERNS:
+        if _context_supports_claim(pattern, relevant_repo_context):
+            continue
+        for match in pattern.finditer(text):
+            if _is_negated_claim_context(text, match.start()):
+                continue
+            if label not in unsupported_claims:
+                unsupported_claims.append(label)
+            break
+    if _extract_allowed_source_paths(relevant_repo_context):
+        for pattern, label in FALSE_MISSING_EVIDENCE_PATTERNS:
+            if pattern.search(text) and label not in unsupported_claims:
+                unsupported_claims.append(label)
+    return unsupported_claims
+
+
+def _apply_repo_source_guard(text, relevant_repo_context, strict=False):
+    """Mark model-cited repo paths that do not exist or were not retrieved as evidence."""
+    if not text:
+        return ""
+
+    allowed_paths, invalid_paths, outside_context_paths = _repo_source_guard_issues(text, relevant_repo_context)
+    unsupported_claims = _repo_claim_guard_issues(text, relevant_repo_context) if strict else []
+    unsupported_paths = invalid_paths + outside_context_paths if strict else invalid_paths
+
+    guarded = text
+    for path in invalid_paths:
+        guarded = re.sub(
+            rf"(?<!`)({re.escape(path)})(?!`|\s*\[Not found in repository\])",
+            rf"`\1` [Not found in repository]",
+            guarded,
+        )
+    if strict:
+        for path in outside_context_paths:
+            guarded = re.sub(
+                rf"(?<!`)({re.escape(path)})(?!`|\s*\[Not in selected source context\])",
+                rf"`\1` [Not in selected source context]",
+                guarded,
+            )
+    guarded = _replace_unsupported_claims_line(guarded, unsupported_paths)
+
+    notices = []
+    if invalid_paths:
+        notices.append(
+            "- AiRA mentioned repository paths that do not exist in this checkout: "
+            + ", ".join(f"`{path}`" for path in invalid_paths)
+        )
+    if outside_context_paths:
+        notices.append(
+            "- AiRA mentioned existing paths that were not part of the selected evidence for this question: "
+            + ", ".join(f"`{path}`" for path in outside_context_paths)
+        )
+    if unsupported_claims:
+        notices.append(
+            "- AiRA made implementation claims not present in the selected evidence: "
+            + ", ".join(unsupported_claims)
+        )
+    if notices:
+        source_check = "## Source Check\n" + "\n".join(notices) + (
+            "\n- Treat those details as unsupported unless you verify them manually."
+        )
+        guarded = f"{source_check}\n\n{guarded.lstrip()}"
+    return guarded
+
+
+def _build_source_guard_failure_response(
+    relevant_repo_context,
+    invalid_paths,
+    outside_context_paths,
+    unsupported_claims=None,
+):
+    """Fail closed when a model continues to cite unsupported implementation sources."""
+    unsupported_claims = unsupported_claims or []
+    allowed_paths = sorted(_extract_allowed_source_paths(relevant_repo_context))
+    lines = [
+        "## Source Check",
+        "- AiRA blocked the generated answer because it still contained unsupported implementation details.",
+    ]
+    if invalid_paths:
+        lines.append(
+            "- Paths not found in this checkout: " + ", ".join(f"`{path}`" for path in invalid_paths)
+        )
+    if outside_context_paths:
+        lines.append(
+            "- Paths not selected as evidence for this question: "
+            + ", ".join(f"`{path}`" for path in outside_context_paths)
+        )
+    if unsupported_claims:
+        lines.append(
+            "- Unsupported implementation claims: " + ", ".join(unsupported_claims)
+        )
+    if allowed_paths:
+        lines.append("")
+        lines.append("## Verified Source Files Selected")
+        lines.extend([f"- `{path}`" for path in allowed_paths])
+    lines.append("")
+    lines.append("## Answer Not Accepted")
+    lines.append(
+        "- The previous model response mixed verified source context with speculation. "
+        "Please retry the question; AiRA will re-query using only the verified source files above."
+    )
+    return "\n".join(lines)
+
+
+def _extract_chat_content(response):
+    """Extract assistant text from Ollama chat response shapes."""
+    if isinstance(response, dict):
+        message = response.get("message") or {}
+        if isinstance(message, dict):
+            return str(message.get("content") or "")
+        return str(response.get("content") or "")
+    message = getattr(response, "message", None)
+    if isinstance(message, dict):
+        return str(message.get("content") or "")
+    content = getattr(message, "content", None)
+    if content is not None:
+        return str(content)
+    return str(getattr(response, "content", "") or "")
+
+
+def _retry_source_grounded_response(
+    model,
+    system_content,
+    user_query,
+    relevant_repo_context,
+    invalid_paths,
+    outside_context_paths,
+    unsupported_claims=None,
+    dynamically_checked_paths=None,
+):
+    """Ask the model once more to rewrite from evidence only after source validation fails."""
+    unsupported_claims = unsupported_claims or []
+    dynamically_checked_paths = dynamically_checked_paths or []
+    allowed_paths = sorted(_extract_allowed_source_paths(relevant_repo_context))
+    correction_prompt = (
+        f"{system_content}\n\n"
+        "SOURCE CHECK FAILED FOR THE PREVIOUS DRAFT.\n"
+        "Rewrite the answer from scratch using ONLY the RELEVANT SOURCE/DOC EXCERPTS above.\n"
+        "A deterministic pre-screen checked repository paths mentioned by the previous draft. "
+        "Nonexistent paths must be removed. Existing draft-cited paths were loaded below only when they "
+        "could be verified inside the app checkout.\n"
+        f"\n--- UPDATED VERIFIED SOURCE/DOC EXCERPTS FOR RETRY ---\n{relevant_repo_context}\n"
+        "--- END UPDATED VERIFIED SOURCE/DOC EXCERPTS FOR RETRY ---\n"
+        "Do not mention implementation files, hooks, utility modules, routes, constants, algorithms, "
+        "cache behavior, chart pixel width, points-per-pixel rules, min/max envelopes, averages, medians, "
+        "benchmarks, or random-access reads unless they are explicitly visible in the SOURCE FILE excerpts.\n"
+        "Do not include speculative 'Assumptions' or broad 'Next Steps' for app implementation questions.\n"
+        "Every concrete implementation statement must cite one of these selected source files:\n"
+        + "\n".join(f"- {path}" for path in allowed_paths)
+        + "\nRejected paths from previous draft:\n"
+        + "\n".join(f"- {path}" for path in [*invalid_paths, *outside_context_paths])
+        + "\nExisting draft-cited paths dynamically checked before retry:\n"
+        + "\n".join(f"- {path}" for path in dynamically_checked_paths)
+        + "\nRejected implementation claims from previous draft:\n"
+        + "\n".join(f"- {claim}" for claim in unsupported_claims)
+    )
+    try:
+        response = client.chat(
+            model=model,
+            messages=[
+                {"role": "system", "content": correction_prompt},
+                {"role": "user", "content": user_query},
+            ],
+            stream=False,
+        )
+        return _extract_chat_content(response)
+    except Exception:
+        return ""
+
+
 def _build_repo_context():
     """Build a bounded-size repository context snapshot for AiRA prompts."""
     lines = [
@@ -457,7 +1229,7 @@ def _build_repo_context():
     lines.append("- Import Data tab queues selected files/paths; heavy parsing happens when downstream tabs consume content.")
     lines.append("- Data Preprocessing preview requests file content via /read_project_file and then calls /preview_multichannel.")
     lines.append("- Time-window controls (windowStart/windowEnd) are supported for CSV/TXT/DAT/ASC/ASCII/MF4/TPC5 in /read_project_file.")
-    lines.append("- Full resolution mode can load all samples; fast mode may downsample large datasets for responsiveness.")
+    lines.append("- Technical documentation in docs/ and relevant source files are retrieved dynamically for detailed app questions.")
     lines.append("- Data Preprocessing is primarily inspection/QA; analysis tabs may apply different processing settings.")
     lines.append("- Unit handling combines inference, per-channel overrides, and optional pressure conversion to kPa.")
     lines.append("- Workspace supports MVP mode, which gates selected advanced tabs behind the MVP toggle/password flow while keeping core metadata and analysis workflows available.")
@@ -491,6 +1263,7 @@ def _build_repo_context():
     lines.extend(_main_calculation_file_lines())
 
     sections = [
+        ("Documentation files", _collect_files("docs", (".md", ".txt"), max_depth=3, max_items=40)),
         ("Electron files", _collect_files("electron", (".cjs", ".js", ".json"), max_depth=2, max_items=30)),
         ("Frontend app files", _collect_files("frontend/src", (".jsx", ".js", ".tsx", ".ts", ".css"), max_depth=4, max_items=120)),
         ("Backend route files", _collect_files("backend/routes", (".py",), max_depth=2, max_items=80)),
@@ -959,19 +1732,63 @@ def _run_structured_chat(model, system_content, user_query, timeout_seconds=18):
         return None, str(exc)
 
 
+def _extract_model_name(model_entry):
+    """Handle both old dict-style and new object-style Ollama model entries."""
+    if isinstance(model_entry, dict):
+        return str(model_entry.get("name") or model_entry.get("model") or "").strip()
+    return str(
+        getattr(model_entry, "name", "")
+        or getattr(model_entry, "model", "")
+        or ""
+    ).strip()
+
+
+def _list_ollama_models():
+    """Return available model names and an error string when Ollama is unavailable."""
+    if not HAS_OLLAMA:
+        return [], "ollama python package is not installed"
+    try:
+        models_response = client.list()
+        raw_models = []
+        if isinstance(models_response, dict):
+            raw_models = models_response.get("models", []) or []
+        else:
+            raw_models = getattr(models_response, "models", []) or []
+        detected_names = [_extract_model_name(model) for model in raw_models]
+        names = _unique_preserve_order([*PREFERRED_AI_MODELS, *detected_names])
+        if not names:
+            return [], "Ollama responded, but no models are installed or visible"
+        return names, ""
+    except Exception as exc:
+        return [], str(exc)
+
+
 @ai_bp.route('/get_models', methods=['GET'])
 def get_models():
-    """List available Ollama models (or fallback default)."""
-    if not HAS_OLLAMA:
-        return jsonify({"success": True, "models": ['deepseek-v3.1:671b-cloud']})
-    try:
-        models_list = client.list()
-        names = [m['name'] for m in models_list.get('models', [])]
-        if not names:
-            names = ['deepseek-v3.1:671b-cloud']
-        return jsonify({"success": True, "models": names})
-    except Exception:
-        return jsonify({"success": True, "models": ['deepseek-v3.1:671b-cloud']})
+    """List available Ollama models and report real reachability."""
+    names, err = _list_ollama_models()
+    if err:
+        return jsonify({
+            "success": False,
+            "online": False,
+            "models": list(PREFERRED_AI_MODELS),
+            "error": err,
+            "ollama_host": ollama_host if HAS_OLLAMA else "",
+        })
+    return jsonify({"success": True, "online": True, "models": names, "ollama_host": ollama_host})
+
+
+@ai_bp.route('/ai_health', methods=['GET'])
+def ai_health():
+    """Lightweight health endpoint used by the AiRA badge."""
+    names, err = _list_ollama_models()
+    return jsonify({
+        "success": not bool(err),
+        "online": not bool(err),
+        "models": names if names else list(PREFERRED_AI_MODELS),
+        "error": err,
+        "ollama_host": ollama_host if HAS_OLLAMA else "",
+    })
 
 
 @ai_bp.route('/app_repo_context', methods=['GET'])
@@ -990,7 +1807,20 @@ def ai_research_stream():
         return Response(generate_unavailable(), mimetype='text/event-stream')
     user_query = request.args.get('query', '')
     project_path = request.args.get('projectPath', 'Unknown')
-    selected_model = request.args.get('model', 'deepseek-v3.1:671b-cloud')
+    selected_model = (request.args.get('model') or DEFAULT_AI_MODEL).strip()
+    available_models, models_error = _list_ollama_models()
+    model_warning = ""
+    if models_error:
+        model_warning = f"[Error: AI service unavailable at {ollama_host} - {models_error}]"
+    elif not selected_model and available_models:
+        selected_model = available_models[0]
+        model_warning = f"[AiRA notice: no model was selected; using '{selected_model}'.]"
+    elif not selected_model:
+        model_warning = f"[Error: no Ollama model is available from {ollama_host}. Install/select a model or check Ollama sign-in.]"
+    elif available_models and selected_model not in available_models:
+        fallback_model = available_models[0]
+        model_warning = f"[AiRA notice: selected model '{selected_model}' is not available; using '{fallback_model}'.]"
+        selected_model = fallback_model
     primary_role = _normalize_role_id((request.args.get('expert_role') or '').strip())
     active_roles_raw = request.args.getlist('expert_roles')
     if not active_roles_raw:
@@ -1022,11 +1852,18 @@ def ai_research_stream():
     include_repo_context = (request.args.get('include_repo_context') or '1').strip().lower() not in {'0', 'false', 'no', 'off'}
     structured_mode = (request.args.get('structured') or '0').strip().lower() in {'1', 'true', 'yes', 'on'}
     repo_context = get_repo_context() if include_repo_context else ''
+    relevant_repo_context = _get_relevant_repo_context(user_query) if include_repo_context else ''
     pdf_context = get_pdf_context(project_path)
     improvement_mode = _is_improvement_request(user_query)
 
     def generate():
         try:
+            if model_warning:
+                yield f"data: {model_warning}\n\n"
+                if model_warning.startswith("[Error:"):
+                    yield "event: done\ndata: [DONE]\n\n"
+                    return
+
             def emit_sse(text):
                 for line in text.splitlines():
                     yield f"data: {line}\n"
@@ -1070,9 +1907,22 @@ def ai_research_stream():
                     "- 2-5 concrete actions\n"
                 )
             validator_lite = (
-                "VALIDATOR-LITE CHECKS:\n"
-                "Before finalizing, self-check for unit consistency, contradictory statements, "
-                "and unsupported claims. If uncertain, explicitly mark uncertainty."
+                "SOURCE-GROUNDING AND VALIDATOR CHECKS:\n"
+                "For questions about EXDA app behavior, defaults, endpoints, algorithms, or file locations, "
+                "prioritize RELEVANT SOURCE/DOC EXCERPTS over general knowledge and over the broad repo map.\n"
+                "If the relevant excerpts include any docs/*.md file, read that documentation first as the workflow "
+                "overview before inferring behavior from source code.\n"
+                "Only cite a repo path as evidence when it appears in the 'Allowed cited source files for this answer' "
+                "list or in a SOURCE FILE block. Do not invent file names, hooks, modules, routes, constants, or defaults.\n"
+                "If a detail is not present in the relevant excerpts, write '[Not found in provided app context]' or "
+                "'[Needs verification]' instead of guessing.\n"
+                "If docs and direct source code conflict, say so and prefer direct source code for current behavior.\n"
+                "Before finalizing, self-check for unit consistency, contradictory statements, and unsupported claims. "
+                "Never write 'Unsupported claims: none' unless every concrete path/default/algorithm in the answer is "
+                "supported by the relevant excerpts. For app implementation answers, each concrete behavior/default/"
+                "algorithm claim must cite an allowed source file path. Do not add speculative Next Steps asking the "
+                "user to locate files when source excerpts are already provided; answer from the provided evidence or "
+                "state that the evidence is insufficient."
             )
 
             system_content = (
@@ -1083,7 +1933,8 @@ def ai_research_stream():
                 f"Primary Expert Role: {primary_role or 'general'}. "
                 f"Active Expert Personas:\n{expert_block}\n"
                 f"\n--- APP CONTEXT ---\n{app_context}\n"
-                f"\n--- APPLICATION CODEBASE CONTEXT ---\n{repo_context}\n"
+                f"\n--- RELEVANT SOURCE/DOC EXCERPTS FOR THIS QUESTION ---\n{relevant_repo_context or 'None.'}\n"
+                f"\n--- APPLICATION CODEBASE CONTEXT (BACKGROUND ONLY, NOT CONCRETE EVIDENCE) ---\n{repo_context}\n"
                 f"\n--- ATTACHED LITERATURE CONTEXT ---\n{pdf_context}\n"
                 "Provide PhD-level technical insights.\n"
                 "CRITICAL FORMATTING INSTRUCTIONS:\n"
@@ -1096,7 +1947,7 @@ def ai_research_stream():
                 "   '## Role Inputs' headers. Instead, output a single line: 'Experts used: <Role A>, <Role B>'.\n"
                 "6b. Never print internal role IDs with underscores. Always use human-readable role names.\n"
                 "7. When asked about this application's architecture, behavior, or improvements, ground your answer\n"
-                "   in the APPLICATION CODEBASE CONTEXT and cite concrete repository paths.\n"
+                "   in RELEVANT SOURCE/DOC EXCERPTS first, then APPLICATION CODEBASE CONTEXT, and cite concrete repository paths.\n"
                 "8. STRICT MARKDOWN LAYOUT: every heading must be on its own line, add a blank line between sections,\n"
                 "   and never concatenate separators/headings (avoid patterns like '---##' or 'Inputs###').\n"
                 "9. Scope discipline: answer only the user's current question; do not append unrelated sections.\n"
@@ -1107,23 +1958,81 @@ def ai_research_stream():
             if improvement_mode:
                 system_content += f"\n\n{IMPROVEMENT_REPORT_INSTRUCTIONS}"
 
-            if structured_mode:
-                # Temporary fail-safe: keep strict-format toggle non-blocking.
-                # We intentionally bypass non-stream structured generation to guarantee responsiveness.
-                yield "data: [Strict format currently using fast streaming mode]\n\n"
-
-            # Fallback: legacy stream mode if structured mode is disabled or parsing fails.
+            # Collect before emitting so source-guard checks can catch invented repo paths.
             stream = client.chat(model=selected_model, messages=[
                 {"role": "system", "content": system_content},
                 {"role": "user", "content": user_query}
             ], stream=True)
 
+            response_chunks = []
             for chunk in stream:
                 content = chunk.get('message', {}).get('content', '')
                 if not content:
                     continue
-                yield f"data: {content}\n\n"
-        except Exception:
-            yield "data: [Error: AI service unreachable]\n\n"
+                response_chunks.append(content)
+
+            final_response = "".join(response_chunks)
+            final_response = _normalize_markdown_response(final_response)
+            final_response = _mark_unverified_standards_claims(final_response)
+
+            source_guard_failed_closed = False
+            source_guard_context = relevant_repo_context
+            if include_repo_context and relevant_repo_context:
+                _, invalid_paths, outside_context_paths = _repo_source_guard_issues(final_response, relevant_repo_context)
+                source_guard_context, dynamically_checked_paths = _build_dynamic_cited_path_context(
+                    user_query,
+                    relevant_repo_context,
+                    outside_context_paths,
+                )
+                unsupported_claims = _repo_claim_guard_issues(final_response, relevant_repo_context)
+                if invalid_paths or outside_context_paths or unsupported_claims:
+                    retry_response = _retry_source_grounded_response(
+                        selected_model,
+                        system_content,
+                        user_query,
+                        source_guard_context,
+                        invalid_paths,
+                        outside_context_paths,
+                        unsupported_claims,
+                        dynamically_checked_paths,
+                    )
+                    if retry_response:
+                        retry_response = _normalize_markdown_response(retry_response)
+                        retry_response = _mark_unverified_standards_claims(retry_response)
+                        _, retry_invalid_paths, retry_outside_context_paths = _repo_source_guard_issues(
+                            retry_response,
+                            source_guard_context,
+                        )
+                        retry_unsupported_claims = _repo_claim_guard_issues(retry_response, relevant_repo_context)
+                        if retry_invalid_paths or retry_outside_context_paths or retry_unsupported_claims:
+                            final_response = _build_source_guard_failure_response(
+                                source_guard_context,
+                                retry_invalid_paths,
+                                retry_outside_context_paths,
+                                retry_unsupported_claims,
+                            )
+                            source_guard_failed_closed = True
+                        else:
+                            final_response = retry_response
+                    else:
+                        final_response = _build_source_guard_failure_response(
+                            source_guard_context,
+                            invalid_paths,
+                            outside_context_paths,
+                            unsupported_claims,
+                        )
+                        source_guard_failed_closed = True
+
+            if include_repo_context and not source_guard_failed_closed:
+                final_response = _apply_repo_source_guard(
+                    final_response,
+                    source_guard_context,
+                    strict=True,
+                )
+            yield from emit_sse(final_response)
+            yield "event: done\ndata: [DONE]\n\n"
+        except Exception as exc:
+            yield f"data: [Error: AI service unreachable at {ollama_host} with model '{selected_model}' - {exc}]\n\n"
+            yield "event: done\ndata: [DONE]\n\n"
 
     return Response(generate(), mimetype='text/event-stream')

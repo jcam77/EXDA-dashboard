@@ -217,7 +217,7 @@ Use one of these two methods:
 2. Non-interactive mode (recommended in automated/remote terminals):
 
 ```bash
-./versioning.sh browser-MVP-v2.31.1
+./versioning.sh browser-MVP-v3.11.0
 ```
 
 Important:

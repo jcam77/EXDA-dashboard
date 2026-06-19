@@ -106,6 +106,15 @@ const ROLE_LABELS = {
 
 const getRoleLabel = (role) => ROLE_LABELS[role] || role.replace(/_/g, " ");
 
+const stripThinkingTrace = (content = '') => {
+    const text = String(content || '');
+    const withoutXmlThink = text.replace(/^\s*<think>[\s\S]*?<\/think>\s*/i, '');
+    if (/^\s*<think>/i.test(text) && !/<\/think>/i.test(text)) return '';
+    const withoutOllamaThink = withoutXmlThink.replace(/^\s*Thinking\.\.\.[\s\S]*?\.\.\.done thinking\.\s*/i, '');
+    if (/^\s*Thinking\.\.\./i.test(withoutXmlThink) && !/\.\.\.done thinking\./i.test(withoutXmlThink)) return '';
+    return withoutOllamaThink;
+};
+
 /**
  * AiRAPage Component - PhD Research Assistant Context Enhancement
  * Incorporates experimental objectives and investigator metadata into the streaming request.
@@ -120,18 +129,14 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
     const { dialogModal, setDialogModal, showAlert } = useAppDialog();
     const [query, setQuery] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [models, setModels] = useState(['deepseek-v3.1:671b-cloud']);
-    const [selectedModel, setSelectedModel] = useState('deepseek-v3.1:671b-cloud');
+    const [models, setModels] = useState([]);
+    const [selectedModel, setSelectedModel] = useState('');
     const [copiedIndex, setCopiedIndex] = useState(null);
     const [isAtBottom, setIsAtBottom] = useState(true);
     const [strictFormat, setStrictFormat] = useState(false);
     // Multi-Agent mode state
     const [_multiAgentMode, _setMultiAgentMode] = useState(false);
-    const [_multiAgentModels, _setMultiAgentModels] = useState([
-        'deepseek-v3.1:671b-cloud',
-        'deepseek-v3.1:671b-cloud',
-        'deepseek-v3.1:671b-cloud',
-    ]);
+    const [_multiAgentModels, _setMultiAgentModels] = useState([]);
     const [aiStatus, setAiStatus] = useState('unknown');
     const [appContext, setAppContext] = useState('');
     const [hasRepoContextSnapshot, setHasRepoContextSnapshot] = useState(false);
@@ -145,7 +150,7 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
 
     const flushStreamBuffer = useCallback(() => {
         flushTimerRef.current = null;
-        const nextContent = streamBufferRef.current;
+        const nextContent = stripThinkingTrace(streamBufferRef.current);
         setChatHistory(prev => {
             if (!prev.length) return prev;
             const next = [...prev];
@@ -165,7 +170,8 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
         }, 80);
     }, [flushStreamBuffer]);
 
-    const stopStreaming = useCallback(() => {
+    const stopStreaming = useCallback((options = {}) => {
+        const { flush = false } = options;
         if (eventSourceRef.current) {
             eventSourceRef.current.close();
             eventSourceRef.current = null;
@@ -174,19 +180,24 @@ const AiRAPage = ({ projectPath, chatHistory = [], setChatHistory, planMeta = {}
             window.clearTimeout(flushTimerRef.current);
             flushTimerRef.current = null;
         }
+        if (flush) {
+            flushStreamBuffer();
+        }
         setIsGenerating(false);
-    }, []);
+    }, [flushStreamBuffer]);
 
     const checkAiConnection = useCallback(() => {
         if (demoMode) {
             setAiStatus('disabled');
             return;
         }
-        fetch(`${apiBaseUrl}/get_models`)
+        fetch(`${apiBaseUrl}/ai_health`)
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
-                    setModels(data.models);
+                const nextModels = Array.isArray(data.models) ? data.models.filter(Boolean) : [];
+                setModels(nextModels);
+                setSelectedModel(prev => nextModels.includes(prev) ? prev : (nextModels[0] || ''));
+                if (data.success && data.online) {
                     setAiStatus('online');
                 } else {
                     setAiStatus('offline');
@@ -508,6 +519,13 @@ const handleAsk = () => {
             setQuery('');
             return;
         }
+        if (!selectedModel) {
+            setChatHistory(prev => [
+                ...prev,
+                { role: 'ai', content: 'AiRA has no available Ollama model selected. Start Ollama and install/select a local model, then press the retry button.', timestamp: Date.now() }
+            ]);
+            return;
+        }
         const currentQuery = query;
         setQuery('');
         setIsGenerating(true);
@@ -551,13 +569,34 @@ const handleAsk = () => {
         const es = new EventSource(url);
         eventSourceRef.current = es;
         streamBufferRef.current = '';
+        let streamFinished = false;
         es.onmessage = (event) => {
             if (event.data.includes("[Thinking Time:")) return;
+            if (event.data === '[DONE]') {
+                streamFinished = true;
+                stopStreaming({ flush: true });
+                return;
+            }
+            if (event.data.startsWith('[Error:')) {
+                streamBufferRef.current += event.data;
+                setAiStatus('offline');
+                stopStreaming({ flush: true });
+                return;
+            }
             streamBufferRef.current += event.data;
             scheduleStreamFlush();
         };
+        es.addEventListener('done', () => {
+            streamFinished = true;
+            stopStreaming({ flush: true });
+        });
         es.onerror = () => {
-            stopStreaming();
+            const hasPartialResponse = streamBufferRef.current.trim().length > 0;
+            if (!streamFinished && !hasPartialResponse) {
+                streamBufferRef.current = 'AiRA connection failed before a response was received. Check that Ollama is running and that the selected model is available.';
+                setAiStatus('offline');
+            }
+            stopStreaming({ flush: true });
         };
     };
 
@@ -758,6 +797,7 @@ const handleAsk = () => {
                                 onChange={e => setSelectedModel(e.target.value)}
                                 className="appearance-none bg-card/60 border border-border text-[9px] text-muted-foreground pl-2 pr-6 py-0.5 rounded outline-none cursor-pointer hover:border-ring transition-colors"
                             >
+                                {models.length === 0 && <option value="">No Ollama models available</option>}
                                 {models.map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                             <ChevronDown size={10} className="absolute right-1 text-muted-foreground pointer-events-none" />
@@ -781,7 +821,7 @@ const handleAsk = () => {
                             <StopCircle size={18} />
                         </button>
                     ) : (
-                        <button onClick={handleAsk} disabled={!query || demoMode} className="p-2 bg-primary/90 text-primary-foreground rounded-lg hover:bg-primary transition-all disabled:opacity-20 disabled:cursor-not-allowed">
+                        <button onClick={handleAsk} disabled={!query || demoMode || !selectedModel} className="p-2 bg-primary/90 text-primary-foreground rounded-lg hover:bg-primary transition-all disabled:opacity-20 disabled:cursor-not-allowed">
                             <Send size={18} className="text-white" />
                         </button>
                     )}
