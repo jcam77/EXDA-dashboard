@@ -10,6 +10,7 @@ import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
 import IsoDateInput from '../components/IsoDateInput';
 import { useAppDialog } from '../hooks/useAppDialog';
+import { formatPressurePa, formatTempK } from '../utils/formatting';
 
 const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
 const RUN_STATUS_COLORS = {
@@ -1250,8 +1251,9 @@ const PlanPage = ({
         ? mirroredH2InjectedNumeric.toFixed(3)
         : rawMirroredH2Injected;
     const editingMirroredMfcFlow = String(editingGasMirror?.mfcFlowSlpm || '');
-    const editingMirroredPchamber = String(editingGasMirror?.pChamberPa || '');
-    const editingMirroredTchamberK = String(editingGasMirror?.tChamberK || '');
+    // Display only (item 8): stored values are unchanged.
+    const editingMirroredPchamber = formatPressurePa(editingGasMirror?.pChamberPa);
+    const editingMirroredTchamberK = formatTempK(editingGasMirror?.tChamberK);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
@@ -1472,10 +1474,10 @@ const PlanPage = ({
                                         {isReady(e) ? (
                                             <>
                                                 <div className="flex items-center gap-1 border border-zinc-800 px-1.5 py-0.5 rounded text-[9px] text-zinc-500">
-                                                    <Gauge size={8}/> {e.meta.p0} Pa
+                                                    <Gauge size={8}/> {formatPressurePa(e.meta.p0) || '-'} Pa
                                                 </div>
                                                 <div className="flex items-center gap-1 border border-zinc-800 px-1.5 py-0.5 rounded text-[9px] text-zinc-500">
-                                                    <Thermometer size={8}/> {e.meta.t0} K
+                                                    <Thermometer size={8}/> {formatTempK(e.meta.t0) || '-'} K
                                                 </div>
                                                 {!!(Array.isArray(e.meta?.dataFiles) && e.meta.dataFiles.length) && (
                                                     <div className="flex items-center gap-1 border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded text-[9px] text-primary font-semibold">

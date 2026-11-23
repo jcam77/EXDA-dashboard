@@ -269,5 +269,30 @@ class GasMixingConsistencyCheckTests(unittest.TestCase):
         self.assertEqual(listing_before, sorted(p.name for p in (project / "Reports").iterdir()))
 
 
+class OutputFormatTests(unittest.TestCase):
+    """Item 8: format at output only."""
+
+    def test_noise_is_hidden_and_precision_applied(self):
+        from modules import output_format as f
+
+        self.assertEqual(f.fmt_temp_k("295.34999999999997"), "295.35")
+        self.assertEqual(f.fmt_mass_g("13.670800000000002"), "13.671")
+        self.assertEqual(f.fmt_temp_c("22.25"), "22.2")
+        self.assertEqual(f.fmt_pressure_pa("101500"), "101500")
+        self.assertEqual(f.fmt_time_s("396.26"), "396.3")
+        self.assertEqual(f.fmt_temp_k(""), "")
+        self.assertEqual(f.fmt_temp_k("n/a"), "n/a")
+
+    def test_plan_export_rows_are_formatted_without_changing_input(self):
+        from routes.state import _build_plan_export_rows
+
+        experiments = [{"name": "VH2D-Wk27-G00-01", "meta": {
+            "p0": "101600", "t0": "295.34999999999997", "h2InjectedGrams": "13.670800000000002"}}]
+        snapshot = json.dumps(experiments)
+        row = _build_plan_export_rows(experiments)[0]
+        self.assertEqual((row["p0"], row["t0"], row["h2_injected_grams"]), ("101600", "295.35", "13.671"))
+        self.assertEqual(json.dumps(experiments), snapshot)
+
+
 if __name__ == "__main__":
     unittest.main()

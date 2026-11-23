@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from modules import data_parser, gas_mixing_checks, gas_mixing_store, mf4_parser, project_manager, tpc5_parser
+from modules import data_parser, gas_mixing_checks, gas_mixing_store, mf4_parser, output_format, project_manager, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
@@ -768,12 +768,13 @@ def _build_plan_export_rows(experiments, plan_meta=None):
             "planned_date": str(meta.get("plannedDate") or ""),
             "planned_day": str(meta.get("plannedDay") or ""),
             "h2": str(meta.get("h2") or ""),
-            "h2_injected_grams": str(meta.get("h2InjectedGrams") or ""),
+            # Formatted for output only (EXDA-Check item 8); stored values unchanged.
+            "h2_injected_grams": output_format.fmt_mass_g(meta.get("h2InjectedGrams")),
             "mfc_flow_slpm": str(meta.get("mfcFlowSlpm") or ""),
             "ignition": str(meta.get("ignition") or ""),
             "vent": str(meta.get("vent") or ""),
-            "p0": str(meta.get("p0") or ""),
-            "t0": str(meta.get("t0") or ""),
+            "p0": output_format.fmt_pressure_pa(meta.get("p0")),
+            "t0": output_format.fmt_temp_k(meta.get("t0")),
             "recirc_stop_to_ignition_sec": str(meta.get("recircStopToIgnitionSec") or ""),
             "cfd_hash": str(meta.get("cfdHash") or ""),
             "data_files_count": str(len(data_files)),
@@ -2500,7 +2501,7 @@ def _build_gas_mixing_export_rows(records):
             "target_vol": _fmt(item.get("targetVol"), 2),
             "relative_humidity_pct": _fmt(item.get("relativeHumidityPct"), 1),
             "p_chamber_pa": _fmt(item.get("pChamberPa") or item.get("P_chamber_Pa") or item.get("ambPressure"), 0),
-            "t_chamber_c": _fmt(_t_chamber_c(item), 2),
+            "t_chamber_c": _fmt(_t_chamber_c(item), 1),
             "t_chamber_k": _fmt(item.get("tChamberK"), 2),
             "l_m": _fmt(item.get("lM"), 3),
             "w_m": _fmt(item.get("wM"), 3),

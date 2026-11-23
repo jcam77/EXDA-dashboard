@@ -24,6 +24,7 @@ import {
   savedRecordResults,
   toPa,
 } from '../utils/gasMixing';
+import { formatTempC, formatTempK } from '../utils/formatting';
 
 const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
 
@@ -74,13 +75,13 @@ const formatTempCWithK = (celsiusValue, kelvinValue) => {
   const celsius = parseFiniteNumber(celsiusValue);
   const kelvin = parseFiniteNumber(kelvinValue);
   if (celsius !== null && kelvin !== null) {
-    return `${celsius.toFixed(2)} (${kelvin.toFixed(2)} K)`;
+    return `${formatTempC(celsius)} (${formatTempK(kelvin)} K)`;
   }
   if (celsius !== null) {
-    return `${celsius.toFixed(2)} (${(celsius + KELVIN_OFFSET).toFixed(2)} K)`;
+    return `${formatTempC(celsius)} (${formatTempK(celsius + KELVIN_OFFSET)} K)`;
   }
   if (kelvin !== null) {
-    return `${(kelvin - KELVIN_OFFSET).toFixed(2)} (${kelvin.toFixed(2)} K)`;
+    return `${formatTempC(kelvin - KELVIN_OFFSET)} (${formatTempK(kelvin)} K)`;
   }
   return '-';
 };
