@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from modules import data_parser, mf4_parser, project_manager, tpc5_parser
+from modules import data_parser, gas_mixing_store, mf4_parser, project_manager, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
@@ -3700,6 +3700,64 @@ def get_gas_mixing():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
+def _normalize_gas_record(item):
+    """Normalize one gas mixing record to the stored schema (used on save)."""
+    item_results = item.get("results") if isinstance(item.get("results"), dict) else None
+    item_calibration_applied = str(item.get("calibrationApplied") or "").strip().lower() in {"yes", "true", "1", "y"}
+    item_estimated_h2 = (
+        item.get("mH2EstimatedG")
+        or (item_results or {}).get("m_H2_injected_g")
+        or ((item.get("mH2InjectedG") or item.get("h2MassG")) if not item_calibration_applied else "")
+        or ""
+    )
+    return {
+        "group": str(item.get("group") or "").strip(),
+        "runName": str(item.get("runName") or "").strip(),
+        "targetVol": str(item.get("targetVol") or "").strip(),
+        "relativeHumidityPct": str(item.get("relativeHumidityPct") or "").strip(),
+        "pChamberPa": str(item.get("pChamberPa") or item.get("P_chamber_Pa") or item.get("ambPressure") or "").strip(),
+        "tChamberC": str(item.get("tChamberC") or "").strip(),
+        "tChamberK": str(item.get("tChamberK") or "").strip(),
+        "mfcFlowSlpm": str(item.get("mfcFlowSlpm") or "").strip(),
+        "lM": str(item.get("lM") or "").strip(),
+        "wM": str(item.get("wM") or "").strip(),
+        "hM": str(item.get("hM") or "").strip(),
+        "volPipesM3": str(item.get("volPipesM3") or "").strip(),
+        "hotwireAssemblyM3": str(item.get("hotwireAssemblyM3") or "").strip(),
+        "weldedPartsM3": str(item.get("weldedPartsM3") or "").strip(),
+        "boltsM3": str(item.get("boltsM3") or "").strip(),
+        "tStdC": str(item.get("tStdC") or "").strip(),
+        "tStdK": str(item.get("tStdK") or "").strip(),
+        "pStdPa": str(item.get("pStdPa") or "").strip(),
+        "ru": str(item.get("ru") or "").strip(),
+        "mH2": str(item.get("mH2") or "").strip(),
+        "mH2EstimatedG": str(item_estimated_h2).strip(),
+        "mH2CorrectedG": str(item.get("mH2CorrectedG") or "").strip(),
+        "mH2InjectedG": str(item.get("mH2InjectedG") or item.get("h2MassG") or "").strip(),
+        "vH2StdL": str(item.get("vH2StdL") or "").strip(),
+        "vChamberCorrectedM3": str(item.get("vChamberCorrectedM3") or "").strip(),
+        "injectionTimeS": str(item.get("injectionTimeS") or "").strip(),
+        "injectionTimeMin": str(item.get("injectionTimeMin") or "").strip(),
+        # Unambiguous fill times (EXDA-Check item 6). injectionTimeS is kept
+        # for compatibility and equals the time applied on the MFC.
+        "fillTimeEstimated_s": str(item.get("fillTimeEstimated_s") or "").strip(),
+        "fillTimeCorrected_s": str(item.get("fillTimeCorrected_s") or "").strip(),
+        "fillTimeAppliedOnMfc": str(item.get("fillTimeAppliedOnMfc") or "").strip(),
+        "vChamberL": str(item.get("vChamberL") or "").strip(),
+        "vH2InjectedL": str(item.get("vH2InjectedL") or "").strip(),
+        "calibrationModelType": str(item.get("calibrationModelType") or "").strip(),
+        "calibrationTargetBasis": str(item.get("calibrationTargetBasis") or "").strip(),
+        "calibrationEnabled": str(item.get("calibrationEnabled") or "").strip(),
+        "calibrationApplied": str(item.get("calibrationApplied") or "").strip(),
+        "calibrationA": str(item.get("calibrationA") or "").strip(),
+        "calibrationB": str(item.get("calibrationB") or "").strip(),
+        "calibrationNotes": str(item.get("calibrationNotes") or "").strip(),
+        "results": item_results,
+        "notes": str(item.get("notes") or "").strip(),
+        "updatedAt": str(item.get("updatedAt") or "").strip(),
+    }
+
+
 @state_bp.route('/save_gas_mixing', methods=['POST'])
 def save_gas_mixing():
     """Persist gas mixing metadata in Reports/gas_mixing.json."""
@@ -3753,64 +3811,28 @@ def save_gas_mixing():
                 existing_model = {}
         dosage_model = _normalize_gas_dosage_model(existing_model)
 
-    safe_records = []
-    for item in records:
-        if not isinstance(item, dict):
-            continue
-        item_results = item.get("results") if isinstance(item.get("results"), dict) else None
-        item_calibration_applied = str(item.get("calibrationApplied") or "").strip().lower() in {"yes", "true", "1", "y"}
-        item_estimated_h2 = (
-            item.get("mH2EstimatedG")
-            or (item_results or {}).get("m_H2_injected_g")
-            or ((item.get("mH2InjectedG") or item.get("h2MassG")) if not item_calibration_applied else "")
-            or ""
-        )
-        safe_records.append({
-            "group": str(item.get("group") or "").strip(),
-            "runName": str(item.get("runName") or "").strip(),
-            "targetVol": str(item.get("targetVol") or "").strip(),
-            "relativeHumidityPct": str(item.get("relativeHumidityPct") or "").strip(),
-            "pChamberPa": str(item.get("pChamberPa") or item.get("P_chamber_Pa") or item.get("ambPressure") or "").strip(),
-            "tChamberC": str(item.get("tChamberC") or "").strip(),
-            "tChamberK": str(item.get("tChamberK") or "").strip(),
-            "mfcFlowSlpm": str(item.get("mfcFlowSlpm") or "").strip(),
-            "lM": str(item.get("lM") or "").strip(),
-            "wM": str(item.get("wM") or "").strip(),
-            "hM": str(item.get("hM") or "").strip(),
-            "volPipesM3": str(item.get("volPipesM3") or "").strip(),
-            "hotwireAssemblyM3": str(item.get("hotwireAssemblyM3") or "").strip(),
-            "weldedPartsM3": str(item.get("weldedPartsM3") or "").strip(),
-            "boltsM3": str(item.get("boltsM3") or "").strip(),
-            "tStdC": str(item.get("tStdC") or "").strip(),
-            "tStdK": str(item.get("tStdK") or "").strip(),
-            "pStdPa": str(item.get("pStdPa") or "").strip(),
-            "ru": str(item.get("ru") or "").strip(),
-            "mH2": str(item.get("mH2") or "").strip(),
-            "mH2EstimatedG": str(item_estimated_h2).strip(),
-            "mH2CorrectedG": str(item.get("mH2CorrectedG") or "").strip(),
-            "mH2InjectedG": str(item.get("mH2InjectedG") or item.get("h2MassG") or "").strip(),
-            "vH2StdL": str(item.get("vH2StdL") or "").strip(),
-            "vChamberCorrectedM3": str(item.get("vChamberCorrectedM3") or "").strip(),
-            "injectionTimeS": str(item.get("injectionTimeS") or "").strip(),
-            "injectionTimeMin": str(item.get("injectionTimeMin") or "").strip(),
-            # Unambiguous fill times (EXDA-Check item 6). injectionTimeS is kept
-            # for compatibility and equals the time applied on the MFC.
-            "fillTimeEstimated_s": str(item.get("fillTimeEstimated_s") or "").strip(),
-            "fillTimeCorrected_s": str(item.get("fillTimeCorrected_s") or "").strip(),
-            "fillTimeAppliedOnMfc": str(item.get("fillTimeAppliedOnMfc") or "").strip(),
-            "vChamberL": str(item.get("vChamberL") or "").strip(),
-            "vH2InjectedL": str(item.get("vH2InjectedL") or "").strip(),
-            "calibrationModelType": str(item.get("calibrationModelType") or "").strip(),
-            "calibrationTargetBasis": str(item.get("calibrationTargetBasis") or "").strip(),
-            "calibrationEnabled": str(item.get("calibrationEnabled") or "").strip(),
-            "calibrationApplied": str(item.get("calibrationApplied") or "").strip(),
-            "calibrationA": str(item.get("calibrationA") or "").strip(),
-            "calibrationB": str(item.get("calibrationB") or "").strip(),
-            "calibrationNotes": str(item.get("calibrationNotes") or "").strip(),
-            "results": item_results,
-            "notes": str(item.get("notes") or "").strip(),
-            "updatedAt": str(item.get("updatedAt") or "").strip(),
-        })
+    safe_records = [_normalize_gas_record(item) for item in records if isinstance(item, dict)]
+
+    # Append-only history (EXDA-Check item 4): compare with the file on disk,
+    # keep previous versions in record["history"], archive removed records,
+    # and log every change to Reports/gas_mixing_audit.jsonl.
+    existing_payload = None
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as existing_handle:
+                existing_payload = json.load(existing_handle)
+        except Exception as exc:
+            # Never overwrite a file we cannot read: its history would be lost.
+            return jsonify({
+                "success": False,
+                "error": f"Existing gas_mixing.json could not be read; not overwriting it ({exc})",
+            }), 500
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    merged_records, archived_records, audit_entries = gas_mixing_store.merge_with_history(
+        existing_payload, safe_records, now_iso, normalize=_normalize_gas_record,
+    )
+    audit_entries.append(gas_mixing_store.dosage_model_audit(existing_payload, dosage_model, now_iso))
 
     try:
         data = {
@@ -3819,17 +3841,25 @@ def save_gas_mixing():
             "dosageModel": dosage_model,
             "selectedGroup": selected_group,
             "selectedRunName": selected_run_name,
-            "records": safe_records,
+            "records": merged_records,
         }
-        with open(file_path, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=2)
-        return jsonify({
-            "success": True,
-            "path": file_path,
-            "count": len(safe_records),
-        })
+        if archived_records:
+            data["archivedRecords"] = archived_records
+        gas_mixing_store.write_json_atomic(file_path, data)
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
+
+    response = {
+        "success": True,
+        "path": file_path,
+        "count": len(merged_records),
+        "auditEntries": len([entry for entry in audit_entries if entry]),
+    }
+    try:
+        gas_mixing_store.append_audit(reports_dir, audit_entries)
+    except Exception as exc:
+        response["auditWarning"] = f"Saved, but the audit log could not be written: {exc}"
+    return jsonify(response)
 
 
 @state_bp.route('/save_checklist_state', methods=['POST'])
