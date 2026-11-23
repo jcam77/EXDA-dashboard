@@ -22,6 +22,10 @@ export const celsiusToKelvin = (celsiusValue) => {
 };
 
 // Missing K gives '' (never a default temperature).
+// Standard-condition temperature for the dosage conversion: a documented
+// constant (25 °C = 298.15 K), not a measured input.
+export const STANDARD_T_C = '25.00';
+
 export const kelvinToCelsiusString = (kelvinValue) => {
   const kelvin = parseFiniteNumber(kelvinValue);
   if (kelvin === null) return '';

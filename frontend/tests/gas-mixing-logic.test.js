@@ -160,3 +160,19 @@ describe('fill time fields (item 6)', () => {
       .toBe('estimated');
   });
 });
+
+describe('standard temperature constant (regression)', () => {
+  it('a new run with the default Tstd is not reported as stale after calculating', async () => {
+    const { STANDARD_T_C, findInputMismatches, buildCalcRequest } = await import('../src/utils/gasMixing');
+    const draft = {
+      targetVol: '16', pChamberPa: '100900', tChamberC: '21.4', mfcFlowSlpm: '20',
+      lM: '1', wM: '1', hM: '1', volPipesM3: '0', hotwireAssemblyM3: '0', weldedPartsM3: '0', boltsM3: '0',
+      tStdC: STANDARD_T_C, pStdPa: '101325', ru: '8.314462618', mH2: '2.01588e-3',
+    };
+    const req = buildCalcRequest(draft);
+    const inputs = Object.fromEntries(Object.entries(req).map(([k, v]) => [k, Number(v)]));
+    expect(inputs.T_std_K).toBeCloseTo(298.15, 9);
+    expect(findInputMismatches(draft, { inputs })).toEqual([]);
+    expect(findInputMismatches({ ...draft, tStdC: '' }, { inputs }).map((m) => m.key)).toEqual(['T_std_K']);
+  });
+});

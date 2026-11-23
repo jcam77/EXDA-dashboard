@@ -16,6 +16,7 @@ import {
   fillTimeFields,
   findInputMismatches,
   fromPa,
+  STANDARD_T_C,
   kelvinToCelsiusString,
   normalizeDosageModel,
   parseFiniteNumber,
@@ -168,7 +169,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
     hotwireAssemblyM3: '0',
     weldedPartsM3: '0',
     boltsM3: '0',
-    tStdC: '25.00',
+    tStdC: STANDARD_T_C,
     pStdPa: '101325',
     ru: '8.314462618',
     mH2: '2.01588e-3',
@@ -364,7 +365,9 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       boltsM3: String(fromRecord?.boltsM3 ?? '0'),
       tStdC: String(firstNonBlank(
         fromRecord?.tStdC,
-        kelvinToCelsiusString(fromRecord?.tStdK, '25.00'),
+        kelvinToCelsiusString(fromRecord?.tStdK),
+        // Documented standard-condition constant (not a measurement): 25 °C.
+        STANDARD_T_C,
       )),
       pStdPa: String(fromRecord?.pStdPa ?? '101325'),
       ru: String(fromRecord?.ru ?? '8.314462618'),
