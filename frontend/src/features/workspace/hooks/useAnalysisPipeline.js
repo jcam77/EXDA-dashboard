@@ -41,7 +41,10 @@ export const useAnalysisPipeline = ({
       const query = new URLSearchParams({
         path: fileObj.path,
         projectPath: projectPath || '',
-        fullResolution: '1',
+        // Only the EWT tab reads text content now (pressure analysis reads the
+        // file at full resolution on the backend). EWT keeps its previous
+        // preview-level read; it was not part of the EXDA-Check review.
+        fullResolution: '0',
       });
       if (settings.analysisLimitTimeWindow) {
         const start = Number(settings.analysisWindowStart);
