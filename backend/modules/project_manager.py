@@ -4,6 +4,8 @@ import os
 import sys
 import subprocess
 import json
+
+from modules import project_store
 import shutil
 from datetime import datetime, timezone
 
@@ -116,8 +118,7 @@ def ensure_project_status(base_path):
     }
 
     try:
-        with open(status_file, "w", encoding="utf-8") as f:
-            json.dump(status, f, indent=2)
+        project_store.save_json_tracked(base_path, status_file, status, action="ensure_project_status")
         return status
     except Exception:
         return None
@@ -244,8 +245,7 @@ def update_project_status(project_path, status_value):
     status["updated_at"] = _now_iso()
 
     try:
-        with open(_status_path(project_path), "w", encoding="utf-8") as f:
-            json.dump(status, f, indent=2)
+        project_store.save_json_tracked(project_path, _status_path(project_path), status, action="update_project_status")
     except Exception as e:
         return False, str(e)
 
@@ -260,8 +260,7 @@ def update_project_status(project_path, status_value):
                 meta = {}
             meta["status"] = status_value
             plan_data["meta"] = meta
-            with open(latest_plan, "w", encoding="utf-8") as f:
-                json.dump(plan_data, f, indent=2)
+            project_store.save_json_tracked(project_path, latest_plan, plan_data, action="update_project_status (plan meta.status)")
         except Exception:
             pass
 
@@ -406,8 +405,7 @@ def rename_project(project_path, new_project_name):
         status["project_path"] = target_path
         status["updated_at"] = _now_iso()
         try:
-            with open(_status_path(target_path), "w", encoding="utf-8") as f:
-                json.dump(status, f, indent=2)
+            project_store.save_json_tracked(target_path, _status_path(target_path), status, action="project_status")
         except Exception:
             pass
 
@@ -477,8 +475,7 @@ def copy_project(project_path, new_project_name):
         status["updated_at"] = status["created_at"]
         status["last_opened_at"] = status["created_at"]
         try:
-            with open(_status_path(target_path), "w", encoding="utf-8") as f:
-                json.dump(status, f, indent=2)
+            project_store.save_json_tracked(target_path, _status_path(target_path), status, action="project_status")
         except Exception:
             pass
 
@@ -499,7 +496,7 @@ def save_plan_to_project(project_path, filename, content):
     if not is_path_within(target_dir, full_path):
         return False, "Invalid filename"
     try:
-        with open(full_path, 'w', encoding='utf-8') as f: f.write(content)
+        project_store.save_text_tracked(resolved_path, full_path, content, action="save_plan")
         return True, full_path
     except Exception as e:
         return False, str(e)

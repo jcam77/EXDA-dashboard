@@ -146,17 +146,10 @@ def dosage_model_audit(existing_payload, dosage_model: dict, now_iso: str):
 
 
 def write_json_atomic(path: str, payload: dict) -> None:
-    """Write JSON via a temp file + rename so a crash never leaves a half file."""
-    directory = os.path.dirname(path) or "."
-    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".json", dir=directory)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-        raise
+    """Atomic JSON write (temp file + fsync + rename). See project_store."""
+    from modules import project_store
+
+    project_store.write_json_atomic(path, payload)
 
 
 def append_audit(reports_dir: str, entries) -> None:

@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from modules import daq_reader, data_parser, gas_mixing_checks, h2s_parser, gas_mixing_store, mf4_parser, output_format, pressure_analysis, project_manager, tpc5_parser
+from modules import daq_reader, data_parser, gas_mixing_checks, h2s_parser, gas_mixing_store, mf4_parser, output_format, pressure_analysis, project_manager, project_store, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
@@ -3566,11 +3566,10 @@ def get_daq_systems():
         if os.path.exists(plan_path) and file_path == plan_path and not os.path.exists(reports_path):
             try:
                 os.makedirs(os.path.dirname(reports_path), exist_ok=True)
-                with open(reports_path, "w", encoding="utf-8") as out_handle:
-                    json.dump({
+                project_store.write_json_atomic(reports_path, {
                         "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "daqSystems": daq_systems,
-                    }, out_handle, indent=2)
+                })
                 file_path = reports_path
                 migrated = True
             except Exception:
@@ -3605,8 +3604,7 @@ def save_daq_systems():
             "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "daqSystems": daq_systems,
         }
-        with open(file_path, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=2)
+        project_store.save_json_tracked(project_root, file_path, data, action="save_daq_systems")
         return jsonify({"success": True, "path": file_path, "count": len(daq_systems)})
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
@@ -3666,8 +3664,7 @@ def save_sensors_mapping():
             "groupNotes": safe_notes,
             "mappingsByGroup": safe_groups,
         }
-        with open(file_path, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=2)
+        project_store.save_json_tracked(project_root, file_path, data, action="save_sensors_mapping")
         return jsonify({
             "success": True,
             "path": file_path,
@@ -3764,8 +3761,7 @@ def save_cameras_mapping():
             "groupNotes": safe_notes,
             "mappingsByGroup": safe_groups,
         }
-        with open(file_path, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=2)
+        project_store.save_json_tracked(project_root, file_path, data, action="save_cameras_mapping")
         return jsonify({
             "success": True,
             "path": file_path,
@@ -3853,15 +3849,14 @@ def get_gas_mixing():
         if os.path.exists(plan_path) and file_path == plan_path and not os.path.exists(reports_path):
             try:
                 os.makedirs(os.path.dirname(reports_path), exist_ok=True)
-                with open(reports_path, "w", encoding="utf-8") as out_handle:
-                    json.dump({
+                project_store.write_json_atomic(reports_path, {
                         "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "verificationMeta": verification_meta,
                         "dosageModel": dosage_model,
                         "selectedGroup": selected_group,
                         "selectedRunName": selected_run_name,
                         "records": records,
-                    }, out_handle, indent=2)
+                })
                 file_path = reports_path
                 migrated = True
             except Exception:
@@ -4072,7 +4067,7 @@ def save_gas_mixing():
         }
         if archived_records:
             data["archivedRecords"] = archived_records
-        gas_mixing_store.write_json_atomic(file_path, data)
+        project_store.save_json_tracked(project_root, file_path, data, action="save_gas_mixing")
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
@@ -4125,8 +4120,7 @@ def save_checklist_state():
             "updatedAt": _now_display_str(include_seconds=True),
             "checklistState": safe_state,
         }
-        with open(file_path, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=2)
+        project_store.save_json_tracked(project_root, file_path, data, action="save_checklist_state")
         return jsonify({
             "success": True,
             "path": file_path,
@@ -5109,8 +5103,8 @@ def rename_run_metadata_references():
             return {}
 
     def _write_json(path, payload):
-        with open(path, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2)
+        project_store.save_json_tracked(project_root, path, payload, action="rename_run_metadata_references",
+                                        context={"oldGroup": old_group, "newGroup": new_group})
 
     result = {
         "success": True,
