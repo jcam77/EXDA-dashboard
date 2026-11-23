@@ -66,6 +66,28 @@ def current_client():
     return _CURRENT_CLIENT.get()
 
 
+# Windows of this app that have closed (page unloaded). A window id lives only as
+# long as its page, so a closed id never comes back: later requests from it (an
+# 'acquire' still in flight when the page reloaded) must not take the lock, and a
+# lock it still holds is free.
+_CLOSED_CLIENTS = {}
+_MAX_CLOSED_CLIENTS = 1000
+
+
+def mark_client_closed(client_id):
+    if not client_id:
+        return
+    with _WRITE_LOCK:
+        _CLOSED_CLIENTS[client_id] = time.time()
+        if len(_CLOSED_CLIENTS) > _MAX_CLOSED_CLIENTS:
+            for old in sorted(_CLOSED_CLIENTS, key=_CLOSED_CLIENTS.get)[: len(_CLOSED_CLIENTS) - _MAX_CLOSED_CLIENTS]:
+                _CLOSED_CLIENTS.pop(old, None)
+
+
+def client_closed(client_id) -> bool:
+    return bool(client_id) and client_id in _CLOSED_CLIENTS
+
+
 class StoreConflict(Exception):
     """Base class for saves refused to protect data written by someone else."""
 
@@ -101,7 +123,7 @@ class ProjectLockedError(StoreConflict):
                      f"by {self.holder.get('user') or 'another user'}")
         super().__init__(
             f"Read-only: this project is open for editing {where} "
-            f"(since {self.holder.get('acquiredAt') or '?'}). Nothing was saved."
+            f"(since {_local_time_text(self.holder.get('acquiredAt'))}). Nothing was saved."
         )
 
     def to_payload(self):
@@ -110,6 +132,14 @@ class ProjectLockedError(StoreConflict):
 
 def _now():
     return datetime.now(timezone.utc)
+
+
+def _local_time_text(iso_text):
+    """'2026-11-23T16:37:22+00:00' -> '2026-11-23 17:37:22' in this computer's time zone."""
+    try:
+        return datetime.fromisoformat(str(iso_text)).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+    except (TypeError, ValueError):
+        return str(iso_text or "?")
 
 
 def _actor():
@@ -253,6 +283,8 @@ def lock_is_active(lock) -> bool:
         return False
     if age > LOCK_STALE_SECONDS:
         return False
+    if lock.get("instanceId") == INSTANCE_ID and client_closed(lock.get("clientId")):
+        return False  # held by a window of this app that has since closed
     if lock.get("host") == _actor()["host"] and lock.get("instanceId") != INSTANCE_ID \
             and not _pid_alive(lock.get("pid")):
         return False  # app on this computer that is no longer running
@@ -292,6 +324,8 @@ def _exact_owner(lock, client_id):
 def acquire_lock(project_root, force=False, client=None, client_id=None):
     """Take the project lock for one window. 'owned' False if another app or tab holds it."""
     with _WRITE_LOCK:
+        if client_closed(client_id):
+            return lock_status(project_root, client_id)  # late request from a closed window
         lock = read_lock(project_root)
         held_by_other = lock_is_active(lock) and not _exact_owner(lock, client_id)
         if held_by_other and not force:
@@ -308,6 +342,8 @@ def acquire_lock(project_root, force=False, client=None, client_id=None):
 
 def heartbeat_lock(project_root, client=None, client_id=None):
     with _WRITE_LOCK:
+        if client_closed(client_id):
+            return lock_status(project_root, client_id)
         lock = read_lock(project_root)
         if _exact_owner(lock, client_id):
             _write_lock(project_root, lock, client, client_id)
@@ -317,8 +353,12 @@ def heartbeat_lock(project_root, client=None, client_id=None):
         return lock_status(project_root, client_id)
 
 
-def release_lock(project_root, client_id=None):
+def release_lock(project_root, client_id=None, closing=False):
+    """Release this window's lock. closing=True: the page is unloading, so the
+    window id is retired for good (see mark_client_closed)."""
     with _WRITE_LOCK:
+        if closing:
+            mark_client_closed(client_id)
         lock = read_lock(project_root)
         if _exact_owner(lock, client_id) or (lock and lock.get("instanceId") == INSTANCE_ID and not lock.get("clientId")):
             try:

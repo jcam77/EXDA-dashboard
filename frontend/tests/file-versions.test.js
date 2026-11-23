@@ -29,13 +29,20 @@ describe('window id on backend requests', () => {
     const seen = [];
     window.fetch = async (input, init) => { seen.push([String(input), new Headers(init?.headers).get('X-EXDA-Client')]); return new Response('{}'); };
     window.__exdaClientFetchInstalled = false;
-    const { installClientIdOnFetch, CLIENT_ID } = await import('../src/utils/clientId');
+    const { installClientIdOnFetch, getClientId, renewClientId } = await import('../src/utils/clientId');
     const { getBackendBaseUrl } = await import('../src/utils/backendUrl');
     installClientIdOnFetch();
     await window.fetch(`${getBackendBaseUrl()}/save_plan`, { method: 'POST' });
     await window.fetch('https://example.org/x');
-    expect(seen[0][1]).toBe(CLIENT_ID);
+    const first = getClientId();
+    expect(seen[0][1]).toBe(first);
     expect(seen[1][1]).toBeNull();
-    expect(CLIENT_ID).toMatch(/.{8,}/);
+    expect(first).toMatch(/.{8,}/);
+
+    // A page restored from the back/forward cache gets a new id, used from then on.
+    const renewed = renewClientId();
+    expect(renewed).not.toBe(first);
+    await window.fetch(`${getBackendBaseUrl()}/save_plan`, { method: 'POST' });
+    expect(seen[2][1]).toBe(renewed);
   });
 });

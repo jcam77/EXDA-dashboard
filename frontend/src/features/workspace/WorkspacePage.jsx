@@ -15,7 +15,13 @@ import { getPublicUrl } from '../../utils/assetUrl';
 import { recordRecentProject } from '../../utils/recentProjects';
 import { DEFAULT_INPUT_UNIT, FROM_FILE_UNIT } from '../../utils/units';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../../utils/timezone';
-import { CLIENT_ID } from '../../utils/clientId';
+import { getClientId, renewClientId } from '../../utils/clientId';
+
+// ISO time from the backend (UTC) shown in this computer's time zone.
+const localTimeText = (iso) => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? String(iso) : date.toLocaleString();
+};
 import { FILE_KINDS, baseVersionFor, forgetVersions, isStoreConflict, rememberVersion } from '../../utils/fileVersions';
 import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
 import { useDataImportPipeline } from './hooks/useDataImportPipeline';
@@ -589,7 +595,7 @@ const WorkspacePage = () => {
           const res = await fetch(`${apiBaseUrl}/project_lock`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ projectPath, action, client: 'EXDA window', clientId: CLIENT_ID, ...extra }),
+              body: JSON.stringify({ projectPath, action, client: 'EXDA window', clientId: getClientId(), ...extra }),
               keepalive: action === 'release',
           });
           const data = await res.json();
@@ -614,20 +620,38 @@ const WorkspacePage = () => {
       const timer = window.setInterval(() => {
           callProjectLock('heartbeat').then(apply);
       }, 30000);
+      // When the page closes or reloads, release the lock and retire this window id
+      // ('closing'): a lock request still in flight from this page is then ignored
+      // by the backend instead of locking the project for a page that is gone.
+      let closedId = null;
       const releaseOnUnload = () => {
+          const id = getClientId();
+          if (closedId === id) return; // beforeunload and pagehide both fire
+          closedId = id;
           try {
               // text/plain: a beacon cannot send a CORS preflight; the backend parses the body as JSON.
-              const blob = new Blob([JSON.stringify({ projectPath, action: 'release', clientId: CLIENT_ID })], { type: 'text/plain' });
+              const blob = new Blob([JSON.stringify({ projectPath, action: 'release', clientId: id, closing: true })], { type: 'text/plain' });
               navigator.sendBeacon(`${apiBaseUrl}/project_lock`, blob);
           } catch {
               // best effort; a stale lock expires after 2 minutes
           }
       };
+      // Page restored from the back/forward cache: its old id was retired, so
+      // continue with a new one and ask for the lock again.
+      const resumeFromCache = (event) => {
+          if (!event.persisted) return;
+          renewClientId();
+          callProjectLock('acquire').then(apply);
+      };
       window.addEventListener('beforeunload', releaseOnUnload);
+      window.addEventListener('pagehide', releaseOnUnload);
+      window.addEventListener('pageshow', resumeFromCache);
       return () => {
           cancelled = true;
           window.clearInterval(timer);
           window.removeEventListener('beforeunload', releaseOnUnload);
+          window.removeEventListener('pagehide', releaseOnUnload);
+          window.removeEventListener('pageshow', resumeFromCache);
           callProjectLock('release');
           forgetVersions(projectPath);
       };
@@ -1737,7 +1761,7 @@ const WorkspacePage = () => {
                                   <strong>{projectLock.holder?.user || 'another user'}</strong>
                               </>
                           )}
-                          {projectLock.holder?.acquiredAt ? ` since ${projectLock.holder.acquiredAt}` : ''}. Changes made here are not saved.
+                          {projectLock.holder?.acquiredAt ? ` since ${localTimeText(projectLock.holder.acquiredAt)}` : ''}. Changes made here are not saved.
                       </span>
                       <button
                           type="button"

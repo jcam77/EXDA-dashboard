@@ -188,6 +188,57 @@ class ProjectLockTests(unittest.TestCase):
         self.assertTrue(lock("acquire", tab_b)["owned"])
         self.assertEqual(save(tab_a, False).status_code, 423)
 
+    def test_reload_race_does_not_leave_a_lock(self):
+        """Page reload: the old page's 'closing' beacon is processed before its own
+        'acquire' that was still in flight. The late acquire must not lock the project
+        for the page that is gone; the reloaded page gets the lock."""
+        def beacon_release(client_id):
+            self.client.post("/project_lock", data=json.dumps({"projectPath": str(self.root), "action": "release",
+                                                               "clientId": client_id, "closing": True}),
+                             headers={"Content-Type": "text/plain"})
+
+        beacon_release("old-page")
+        late = self.client.post("/project_lock", headers={"X-EXDA-Client": "old-page"},
+                                json={"projectPath": str(self.root), "action": "acquire"}).get_json()
+        self.assertFalse(late["owned"])
+        self.assertFalse((self.root / ".exda.lock").exists())
+        new_page = self.client.post("/project_lock", headers={"X-EXDA-Client": "new-page"},
+                                    json={"projectPath": str(self.root), "action": "acquire"}).get_json()
+        self.assertTrue(new_page["owned"])
+
+    def test_lock_of_closed_window_is_free(self):
+        """Acquire processed first, then the closing beacon is lost or arrives for
+        another project: a lock still held by a closed window does not block."""
+        self.assertTrue(self.lock("acquire", clientId="old-page")["owned"])
+        project_store.mark_client_closed("old-page")
+        status = self.client.post("/project_lock", headers={"X-EXDA-Client": "new-page"},
+                                  json={"projectPath": str(self.root), "action": "acquire"}).get_json()
+        self.assertTrue(status["owned"])
+        r = self.client.post("/save_checklist_state", headers={"X-EXDA-Client": "new-page"},
+                             json={"projectPath": str(self.root), "checklistState": {"a": True}})
+        self.assertEqual(r.status_code, 200)
+
+    def test_plain_release_keeps_window_usable(self):
+        """Closing a project inside the window (no 'closing') must not retire the window:
+        it can open the same project again."""
+        headers = {"X-EXDA-Client": "tab-x"}
+        call = lambda action: self.client.post("/project_lock", headers=headers,  # noqa: E731
+                                               json={"projectPath": str(self.root), "action": action}).get_json()
+        self.assertTrue(call("acquire")["owned"])
+        self.assertFalse(call("release")["locked"])
+        self.assertTrue(call("acquire")["owned"])
+
+    def test_locked_message_uses_local_time(self):
+        other_app_lock(self.root)
+        lock = json.loads((self.root / ".exda.lock").read_text(encoding="utf-8"))
+        lock["acquiredAt"] = "2026-11-23T16:37:22+00:00"
+        (self.root / ".exda.lock").write_text(json.dumps(lock), encoding="utf-8")
+        r = self.client.post("/save_checklist_state", json={"projectPath": str(self.root), "checklistState": {"a": True}})
+        self.assertEqual(r.status_code, 423)
+        from datetime import datetime
+        expected = datetime.fromisoformat("2026-11-23T16:37:22+00:00").astimezone().strftime("%Y-%m-%d %H:%M:%S")
+        self.assertIn(f"since {expected}", r.get_json()["error"])
+
     def test_no_lock_file_means_writes_allowed(self):
         self.assertFalse(os.path.exists(self.root / ".exda.lock"))
         r = self.client.post("/save_checklist_state", json={"projectPath": str(self.root), "checklistState": {"a": True}})

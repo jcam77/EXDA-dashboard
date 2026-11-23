@@ -4270,7 +4270,8 @@ def project_lock():
         elif action == "heartbeat":
             status = project_store.heartbeat_lock(project_root, client=client, client_id=client_id)
         elif action == "release":
-            status = project_store.release_lock(project_root, client_id=client_id)
+            status = project_store.release_lock(project_root, client_id=client_id,
+                                                closing=bool((data or {}).get("closing")))
         else:
             status = project_store.lock_status(project_root, client_id)
     except Exception as exc:

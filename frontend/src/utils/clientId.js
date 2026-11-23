@@ -12,7 +12,15 @@ const makeId = () => {
   return `w-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-export const CLIENT_ID = makeId();
+let currentId = makeId();
+// The id of this page. Read it when needed: it is renewed when the browser
+// restores the page from its back/forward cache (the old id was retired when
+// the page was hidden).
+export const getClientId = () => currentId;
+export const renewClientId = () => {
+  currentId = makeId();
+  return currentId;
+};
 export const CLIENT_HEADER = 'X-EXDA-Client';
 
 const isBackendUrl = (url) => {
@@ -28,7 +36,7 @@ export const installClientIdOnFetch = () => {
   window.fetch = (input, init = {}) => {
     if (!isBackendUrl(input)) return originalFetch(input, init);
     const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
-    if (!headers.has(CLIENT_HEADER)) headers.set(CLIENT_HEADER, CLIENT_ID);
+    if (!headers.has(CLIENT_HEADER)) headers.set(CLIENT_HEADER, currentId);
     return originalFetch(input, { ...init, headers });
   };
   window.__exdaClientFetchInstalled = true;
