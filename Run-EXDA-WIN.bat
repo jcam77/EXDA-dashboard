@@ -8,7 +8,8 @@ set "DEFAULTS_FILE=%REPO_ROOT%config\exda-defaults.env"
 
 if exist "%DEFAULTS_FILE%" (
   for /f "usebackq tokens=1,* delims==" %%A in ("%DEFAULTS_FILE%") do (
-    if not "%%~A"=="" if not "%%~A:~0,1%%"=="#" set "%%~A=%%~B"
+    set "EXDA_DEF_KEY=%%~A"
+    if defined EXDA_DEF_KEY if not "!EXDA_DEF_KEY:~0,1!"=="#" set "%%~A=%%~B"
   )
 )
 
@@ -75,7 +76,7 @@ if defined PYTHON_EXE (
   ) else (
     set /p PY_PREFIX=<"%PY_PREFIX_FILE%"
     if /I "%PYTHON_EXE%"=="%REPO_ROOT%\.venv\Scripts\python.exe" (
-      if /I not "%PY_PREFIX%"=="%REPO_ROOT%\.venv" (
+      if /I not "!PY_PREFIX!"=="%REPO_ROOT%.venv" (
         set "PYTHON_EXE="
         set "PYTHON_ARGS="
         where py >nul 2>nul
@@ -130,7 +131,7 @@ if not defined BACKEND_PORT (
   set "HAS_ERRORS=1"
 )
 
-node -e "require.resolve('vite/package.json'); require.resolve('react/package.json'); require.resolve('react-dom/package.json')" >nul 2>nul
+node -e "require('rollup'); require.resolve('vite/package.json'); require.resolve('react/package.json'); require.resolve('react-dom/package.json')" >nul 2>nul
 if errorlevel 1 (
   echo  - Missing npm packages: run npm install
   set "HAS_ERRORS=1"
@@ -138,13 +139,13 @@ if errorlevel 1 (
 
 if defined PYTHON_EXE (
   "%PYTHON_EXE%" %PYTHON_ARGS% scripts\check_runtime_requirements.py --requirements backend\requirements.txt > "%CHECK_FILE%" 2>nul
-  set "PY_CHECK_EXIT=%ERRORLEVEL%"
-  if "%PY_CHECK_EXIT%"=="1" (
+  set "PY_CHECK_EXIT=!ERRORLEVEL!"
+  if "!PY_CHECK_EXIT!"=="1" (
     for /f "usebackq delims=" %%L in ("%CHECK_FILE%") do (
       if not "%%L"=="" echo  - Missing Python package: %%L
     )
     set "HAS_ERRORS=1"
-  ) else if not "%PY_CHECK_EXIT%"=="0" (
+  ) else if not "!PY_CHECK_EXIT!"=="0" (
     echo  - Could not verify Python packages in backend\requirements.txt
     set "HAS_ERRORS=1"
   )

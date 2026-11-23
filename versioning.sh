@@ -41,6 +41,7 @@ ALLOWED_DIRS=(
   docs
 )
 ALLOWED_FILES=(
+  .gitattributes
   .gitignore
   .ollama_hostname.example
   BASHRC_SETUP.md
