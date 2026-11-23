@@ -26,6 +26,10 @@ dist-electron
 *.sln
 *.sw?
 
+# Microsoft Word lock files and automatic backup copies
+~$*
+Backup of *.docx
+
 # Playwright test outputs
 playwright-report/
 test-report-results/

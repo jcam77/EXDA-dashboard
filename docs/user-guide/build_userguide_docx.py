@@ -16,9 +16,13 @@ based on a report template:
   template unchanged.
 
 Usage:
-    python3 docs/user-guide/build_userguide_docx.py [--template <template.docx>]
+    python3 docs/user-guide/build_userguide_docx.py [--template <template.docx>] [--output <file.docx>]
 
-The default template is docs/Reports_Template.docx.
+The default template is docs/user-guide/report_template.docx (the cover
+page and formats of docs/Reports_Template.docx, without its body text).
+
+Note: edits made directly in the .docx (in Word) are lost when it is rebuilt;
+make lasting changes in the Markdown file.
 
 Supports the Markdown used by the guide: headings, paragraphs, bullet and
 numbered lists, pipe tables, block quotes, images, links, **bold**, `code`,
@@ -44,7 +48,7 @@ from docx.text.paragraph import Paragraph
 DOCS = Path(__file__).resolve().parents[1]
 SOURCE = DOCS / "EXDA-UserGuide.md"
 OUTPUT = DOCS / "EXDA-UserGuide.docx"
-DEFAULT_TEMPLATE = DOCS / "Reports_Template.docx"
+DEFAULT_TEMPLATE = DOCS / "user-guide" / "report_template.docx"
 IMAGE_WIDTH = Cm(14.5)
 INLINE = re.compile(r"(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|\*[^*\s][^*]*\*)")
 TABLE_HEADER_FILL = "EEEEEE"  # same grey as the cover's information table
@@ -326,7 +330,7 @@ def parse_title(lines):
     return title.strip(), subtitle.strip(), version.group(1) if version else ""
 
 
-def build(template: Path):
+def build(template: Path, output: Path = OUTPUT):
     lines = SOURCE.read_text(encoding="utf-8").splitlines()
     title, subtitle, version = parse_title(lines)
     lines = drop_contents_section(lines)
@@ -440,8 +444,8 @@ def build(template: Path):
         raise SystemExit("No sections (## headings) found in the guide.")
     doc.core_properties.title = f"{title} — {subtitle}" if subtitle else title
     doc.core_properties.subject = f"EXDA {version}".strip()
-    doc.save(str(OUTPUT))
-    return OUTPUT
+    doc.save(str(output))
+    return output
 
 
 def drop_contents_section(lines):
@@ -461,6 +465,7 @@ def drop_contents_section(lines):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--template", default=str(DEFAULT_TEMPLATE),
-                        help="Word report template (.docx) with a cover page; default: docs/Reports_Template.docx")
+                        help="Word report template (.docx) with a cover page; default: docs/user-guide/report_template.docx")
+    parser.add_argument("--output", default=str(OUTPUT), help="output .docx; default: docs/EXDA-UserGuide.docx")
     args = parser.parse_args()
-    print(build(Path(args.template)))
+    print(build(Path(args.template), Path(args.output)))
