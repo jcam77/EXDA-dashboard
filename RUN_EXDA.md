@@ -11,9 +11,9 @@ For day-to-day use, the recommended workflow is:
 
 ## Setup Once
 
-- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Setup-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-LINUX.sh)
-- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Setup-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-MAC.command)
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Setup-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-WIN.bat)
+- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh)
+- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Setup-EXDA-MAC.command](Setup-EXDA-MAC.command)
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Setup-EXDA-WIN.bat](Setup-EXDA-WIN.bat)
 
 The setup scripts:
 
@@ -25,9 +25,9 @@ The setup scripts:
 
 ## Launchers
 
-- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Run-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-LINUX.sh)
-- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
+- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
+- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](Run-EXDA-MAC.command)
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat)
 
 ## MVP Mode (Optional)
 
@@ -55,7 +55,7 @@ Terminal shortcuts from the repo root:
 
 - check for required tools: `node`, `npm`, and `python`
 - check that core npm packages are installed
-- check that packages from [backend/requirements.txt](/Volumes/Sim_Back_Up/EXDA-dashboard/backend/requirements.txt) are available
+- check that packages from [backend/requirements.txt](backend/requirements.txt) are available
 - print a clear list of missing tools or packages
 - start the Flask backend on `http://127.0.0.1:5000`
 - start the Vite frontend and open the browser
@@ -102,4 +102,4 @@ pip install -r backend\requirements-optional.txt
 - If Ollama runs on another host and auto-detection is not correct in your environment, set `OLLAMA_HOST` to a full URL such as `http://my-host:11434`.
 - Optional hostname override file `.ollama_hostname` is advanced-only; see `.ollama_hostname.example`.
 - The launchers are intended for users running the app from a repository checkout.
-- Packaged desktop builds are still possible, but they are now treated as a secondary release workflow. See [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).
+- Packaged desktop builds are still possible, but they are now treated as a secondary release workflow. See [PACKAGING.md](PACKAGING.md).

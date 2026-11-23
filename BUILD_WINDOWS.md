@@ -18,6 +18,6 @@ The launcher checks for:
 
 If anything is missing, the launcher prints the missing items and stops gracefully.
 
-For the full launcher-first workflow, see [RUN_EXDA.md](/Volumes/Sim_Back_Up/EXDA-dashboard/RUN_EXDA.md).
+For the full launcher-first workflow, see [RUN_EXDA.md](RUN_EXDA.md).
 
-If you intentionally need a packaged desktop artifact instead, see [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).
+If you intentionally need a packaged desktop artifact instead, see [PACKAGING.md](PACKAGING.md).

@@ -2,7 +2,7 @@
 
 Source of truth: `frontend/src/index.css` theme tokens.
 
-Use this palette for architecture GIFs so visuals match EXDA style without copying `SubAgentFlow`.
+Use this palette for architecture GIFs so visuals match the EXDA style.
 
 ## Dark Mode (recommended for GIF)
 

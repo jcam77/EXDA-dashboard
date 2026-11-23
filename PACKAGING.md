@@ -2,7 +2,7 @@
 
 Packaging is now a secondary workflow.
 
-The primary way to run EXDA is through the browser-first launchers documented in [RUN_EXDA.md](/Volumes/Sim_Back_Up/EXDA-dashboard/RUN_EXDA.md).
+The primary way to run EXDA is through the browser-first launchers documented in [RUN_EXDA.md](RUN_EXDA.md).
 
 Use packaging only when you intentionally want a desktop deliverable such as:
 
@@ -16,11 +16,11 @@ EXDA still supports Electron packaging and Python backend bundling.
 
 Relevant files:
 
-- [package.json](/Volumes/Sim_Back_Up/EXDA-dashboard/package.json)
-- [electron/main.cjs](/Volumes/Sim_Back_Up/EXDA-dashboard/electron/main.cjs)
-- [backend/build_backend.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/backend/build_backend.sh)
-- [backend/build_backend.ps1](/Volumes/Sim_Back_Up/EXDA-dashboard/backend/build_backend.ps1)
-- [backend/exda-backend.spec](/Volumes/Sim_Back_Up/EXDA-dashboard/backend/exda-backend.spec)
+- [package.json](package.json)
+- [electron/main.cjs](electron/main.cjs)
+- [backend/build_backend.sh](backend/build_backend.sh)
+- [backend/build_backend.ps1](backend/build_backend.ps1)
+- [backend/exda-backend.spec](backend/exda-backend.spec)
 
 ## Packaging scripts
 

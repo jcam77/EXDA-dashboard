@@ -29,15 +29,15 @@ Users can prepare EXDA from a repository checkout with a one-time setup file for
 
 Setup once:
 
-- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Setup-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-LINUX.sh)
-- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Setup-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-MAC.command)
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Setup-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Setup-EXDA-WIN.bat)
+- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh)
+- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Setup-EXDA-MAC.command](Setup-EXDA-MAC.command)
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Setup-EXDA-WIN.bat](Setup-EXDA-WIN.bat)
 
 Then run EXDA with the launcher:
 
-- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Run-EXDA-LINUX.sh](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-LINUX.sh)
-- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-MAC.command)
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](/Volumes/Sim_Back_Up/EXDA-dashboard/Run-EXDA-WIN.bat)
+- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
+- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](Run-EXDA-MAC.command)
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat)
 
 ### 🧪 MVP Mode (Simplified Workflow)
 
@@ -74,7 +74,7 @@ The launcher will then:
 - start the frontend
 - open EXDA in the browser
 
-Full launcher notes are in [RUN_EXDA.md](/Volumes/Sim_Back_Up/EXDA-dashboard/RUN_EXDA.md).
+Full launcher notes are in [RUN_EXDA.md](RUN_EXDA.md).
 
 ### 📦 Manual Installation
 
@@ -332,4 +332,4 @@ See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 - If AiRA still cannot detect the correct host automatically, set `OLLAMA_HOST` to the full URL (for example `http://my-host:11434`).
 - If PDF-related AI features are limited, install the optional backend requirements.
 - If frontend tooling behaves strangely on shared or synced folders, check for macOS sidecar files such as `._*` and `.DS_Store`, which can interfere with JS tooling.
-- If you need a packaged desktop build rather than the normal browser-first workflow, see [PACKAGING.md](/Volumes/Sim_Back_Up/EXDA-dashboard/PACKAGING.md).
+- If you need a packaged desktop build rather than the normal browser-first workflow, see [PACKAGING.md](PACKAGING.md).

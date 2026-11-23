@@ -228,7 +228,7 @@ def main():
 
         frames.append(img.resize((W, H), Image.Resampling.LANCZOS))
 
-    out = Path("frontend/public/EXDAArchitectureFlow.gif")
+    out = Path("docs/design/architecture-gif/EXDAArchitectureFlow.gif")
     out.parent.mkdir(parents=True, exist_ok=True)
     frames[0].save(
         out,

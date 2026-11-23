@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INPUT_MP4="${1:-frontend/assets/architecture-gif/exda-architecture-flow.mp4}"
-OUTPUT_GIF="${2:-frontend/public/EXDAArchitectureFlow.gif}"
+INPUT_MP4="${1:-docs/design/architecture-gif/exda-architecture-flow.mp4}"
+OUTPUT_GIF="${2:-docs/design/architecture-gif/EXDAArchitectureFlow.gif}"
 PALETTE_FILE="/tmp/exda_arch_palette.png"
 
 if ! command -v ffmpeg >/dev/null 2>&1; then
