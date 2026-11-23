@@ -3032,7 +3032,7 @@ def get_project_state():
         "planFile": plan_file,
         "planVersion": project_store.file_version(os.path.join(plan_dir, plan_file)) if plan_file else "",
         "checklistVersion": _reports_version(project_root, CHECKLIST_STATE_FILENAME),
-        "lock": project_store.lock_status(project_root),
+        "lock": project_store.lock_status(project_root, project_store.current_client()),
         "project_status": project_status,
         "checklist_state": checklist_state,
         "data_files": data_files,
@@ -4261,15 +4261,18 @@ def project_lock():
         return jsonify({"success": False, "error": err}), 400
     action = str((data or {}).get("action") or "status").strip().lower()
     client = str((data or {}).get("client") or "")[:120] or None
+    # Window id: header on normal requests, body for navigator.sendBeacon.
+    client_id = (str((data or {}).get("clientId") or "").strip()[:80] or project_store.current_client())
     try:
         if action == "acquire":
-            status = project_store.acquire_lock(project_root, force=bool(data.get("force")), client=client)
+            status = project_store.acquire_lock(project_root, force=bool(data.get("force")), client=client,
+                                                client_id=client_id)
         elif action == "heartbeat":
-            status = project_store.heartbeat_lock(project_root, client=client)
+            status = project_store.heartbeat_lock(project_root, client=client, client_id=client_id)
         elif action == "release":
-            status = project_store.release_lock(project_root)
+            status = project_store.release_lock(project_root, client_id=client_id)
         else:
-            status = project_store.lock_status(project_root)
+            status = project_store.lock_status(project_root, client_id)
     except Exception as exc:
         return jsonify({"success": False, "error": f"Could not update the project lock: {exc}"}), 500
     return jsonify({"success": True, **status})

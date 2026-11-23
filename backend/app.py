@@ -78,6 +78,17 @@ def _cors_origins():
 
 CORS(app, resources={r"/*": {"origins": _cors_origins()}})
 
+
+
+@app.before_request
+def _remember_exda_client():
+    """Which browser tab/window sent this request (one editing window per project)."""
+    from flask import request
+    from modules import project_store
+
+    project_store.set_current_client(request.headers.get("X-EXDA-Client"))
+
+
 app.register_blueprint(projects_bp)
 app.register_blueprint(state_bp)
 app.register_blueprint(calculation_api_bp)

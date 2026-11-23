@@ -23,3 +23,19 @@ describe('file versions (outdated-copy protection)', () => {
     expect(isStoreConflict({ status: 500 }, { error: 'x' })).toBe(false);
   });
 });
+
+describe('window id on backend requests', () => {
+  it('adds the id header only to backend URLs', async () => {
+    const seen = [];
+    window.fetch = async (input, init) => { seen.push([String(input), new Headers(init?.headers).get('X-EXDA-Client')]); return new Response('{}'); };
+    window.__exdaClientFetchInstalled = false;
+    const { installClientIdOnFetch, CLIENT_ID } = await import('../src/utils/clientId');
+    const { getBackendBaseUrl } = await import('../src/utils/backendUrl');
+    installClientIdOnFetch();
+    await window.fetch(`${getBackendBaseUrl()}/save_plan`, { method: 'POST' });
+    await window.fetch('https://example.org/x');
+    expect(seen[0][1]).toBe(CLIENT_ID);
+    expect(seen[1][1]).toBeNull();
+    expect(CLIENT_ID).toMatch(/.{8,}/);
+  });
+});

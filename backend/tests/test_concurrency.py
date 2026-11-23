@@ -155,6 +155,39 @@ class ProjectLockTests(unittest.TestCase):
         log = (self.root / "History" / "change_log.jsonl").read_text(encoding="utf-8")
         self.assertIn("project_lock_taken_over", log)
 
+    def test_two_tabs_of_the_same_app(self):
+        tab_a = {"X-EXDA-Client": "tab-a"}
+        tab_b = {"X-EXDA-Client": "tab-b"}
+
+        def lock(action, headers, **extra):
+            return self.client.post("/project_lock", headers=headers,
+                                    json={"projectPath": str(self.root), "action": action, **extra}).get_json()
+
+        def save(headers, value):
+            return self.client.post("/save_checklist_state", headers=headers,
+                                    json={"projectPath": str(self.root), "checklistState": {"vent": value}})
+
+        self.assertTrue(lock("acquire", tab_a)["owned"])
+        b = lock("acquire", tab_b)
+        self.assertFalse(b["owned"])
+        self.assertTrue(b["holder"]["sameApp"])
+        self.assertTrue(lock("heartbeat", tab_a)["owned"])
+        self.assertFalse(lock("heartbeat", tab_b)["owned"])
+
+        refused = save(tab_b, True)
+        self.assertEqual(refused.status_code, 423)
+        self.assertIn("another tab or window of this EXDA", refused.get_json()["error"])
+        self.assertEqual(save(tab_a, True).status_code, 200)
+
+        # Tab B cannot release tab A's lock; a beacon-style release by A (id in body) works.
+        lock("release", tab_b)
+        self.assertFalse(lock("acquire", tab_b)["owned"])
+        self.client.post("/project_lock", data=json.dumps({"projectPath": str(self.root), "action": "release",
+                                                           "clientId": "tab-a"}),
+                         headers={"Content-Type": "text/plain"})
+        self.assertTrue(lock("acquire", tab_b)["owned"])
+        self.assertEqual(save(tab_a, False).status_code, 423)
+
     def test_no_lock_file_means_writes_allowed(self):
         self.assertFalse(os.path.exists(self.root / ".exda.lock"))
         r = self.client.post("/save_checklist_state", json={"projectPath": str(self.root), "checklistState": {"a": True}})

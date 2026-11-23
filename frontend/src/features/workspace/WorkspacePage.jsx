@@ -15,6 +15,7 @@ import { getPublicUrl } from '../../utils/assetUrl';
 import { recordRecentProject } from '../../utils/recentProjects';
 import { DEFAULT_INPUT_UNIT, FROM_FILE_UNIT } from '../../utils/units';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../../utils/timezone';
+import { CLIENT_ID } from '../../utils/clientId';
 import { FILE_KINDS, baseVersionFor, forgetVersions, isStoreConflict, rememberVersion } from '../../utils/fileVersions';
 import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
 import { useDataImportPipeline } from './hooks/useDataImportPipeline';
@@ -588,7 +589,7 @@ const WorkspacePage = () => {
           const res = await fetch(`${apiBaseUrl}/project_lock`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ projectPath, action, client: 'EXDA window', ...extra }),
+              body: JSON.stringify({ projectPath, action, client: 'EXDA window', clientId: CLIENT_ID, ...extra }),
               keepalive: action === 'release',
           });
           const data = await res.json();
@@ -616,7 +617,7 @@ const WorkspacePage = () => {
       const releaseOnUnload = () => {
           try {
               // text/plain: a beacon cannot send a CORS preflight; the backend parses the body as JSON.
-              const blob = new Blob([JSON.stringify({ projectPath, action: 'release' })], { type: 'text/plain' });
+              const blob = new Blob([JSON.stringify({ projectPath, action: 'release', clientId: CLIENT_ID })], { type: 'text/plain' });
               navigator.sendBeacon(`${apiBaseUrl}/project_lock`, blob);
           } catch {
               // best effort; a stale lock expires after 2 minutes
@@ -936,7 +937,10 @@ const WorkspacePage = () => {
       }
       if (isReadOnly) {
           const holder = projectLock.holder || {};
-          const message = `Read-only: this project is open for editing on ${holder.host || 'another computer'} by ${holder.user || 'another user'}. Nothing was saved.`;
+          const where = holder.sameApp
+              ? 'in another tab or window of this EXDA'
+              : `on ${holder.host || 'another computer'} by ${holder.user || 'another user'}`;
+          const message = `Read-only: this project is open for editing ${where}. Nothing was saved.`;
           if (!silent) notify('error', 'Read-only', message);
           return { success: false, error: message, readOnly: true };
       }
@@ -1723,9 +1727,16 @@ const WorkspacePage = () => {
               {isReadOnly && (
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-500">
                       <span>
-                          <strong>Read-only.</strong> This project is open for editing on{' '}
-                          <strong>{projectLock.holder?.host || 'another computer'}</strong> by{' '}
-                          <strong>{projectLock.holder?.user || 'another user'}</strong>
+                          <strong>Read-only.</strong>{' '}
+                          {projectLock.holder?.sameApp ? (
+                              <>This project is open for editing in another tab or window of this EXDA</>
+                          ) : (
+                              <>
+                                  This project is open for editing on{' '}
+                                  <strong>{projectLock.holder?.host || 'another computer'}</strong> by{' '}
+                                  <strong>{projectLock.holder?.user || 'another user'}</strong>
+                              </>
+                          )}
                           {projectLock.holder?.acquiredAt ? ` since ${projectLock.holder.acquiredAt}` : ''}. Changes made here are not saved.
                       </span>
                       <button
@@ -1734,7 +1745,7 @@ const WorkspacePage = () => {
                           onClick={async () => {
                               const ok = await confirmWithModal({
                                   title: 'Take over editing?',
-                                  content: `Only do this if EXDA on ${projectLock.holder?.host || 'the other computer'} is closed or crashed. The other window becomes read-only and its unsaved changes are lost. Reload this window afterwards so it shows the latest saved data.`,
+                                  content: `Only do this if ${projectLock.holder?.sameApp ? 'the other tab or window' : `EXDA on ${projectLock.holder?.host || 'the other computer'}`} is closed or crashed. The other window becomes read-only and its unsaved changes are lost. Reload this window afterwards so it shows the latest saved data.`,
                                   confirmLabel: 'Take over',
                                   type: 'error',
                               });

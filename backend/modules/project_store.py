@@ -21,8 +21,10 @@ Concurrent edits (outdated copies):
   StaleWriteError instead of overwriting the other change.
 
 One writer per project:
-- ``<project>/.exda.lock`` records which running app (instance id, user,
-  host, pid, heartbeat) is writing. While another app holds a fresh lock,
+- ``<project>/.exda.lock`` records which running app and which window
+  (instance id + client id, user, host, pid, heartbeat) is writing. The
+  client id identifies one browser tab/window, so two tabs of the same app
+  cannot both edit (the tab sends it in the X-EXDA-Client header). While another app holds a fresh lock,
   every tracked save raises ProjectLockedError, so a second app (another PC,
   the host of a VM shared folder, an old window) can only read.
 """
@@ -39,6 +41,7 @@ import threading
 import time
 import uuid
 import hashlib
+import contextvars
 from datetime import datetime, timezone
 
 HISTORY_DIRNAME = "History"
@@ -50,6 +53,17 @@ LOCK_FILENAME = ".exda.lock"
 LOCK_STALE_SECONDS = 120
 INSTANCE_ID = uuid.uuid4().hex
 _WRITE_LOCK = threading.RLock()
+# Window (browser tab) making the current request; set per request by the app.
+_CURRENT_CLIENT = contextvars.ContextVar("exda_client_id", default=None)
+
+
+def set_current_client(client_id):
+    value = str(client_id or "").strip()[:80] or None
+    _CURRENT_CLIENT.set(value)
+
+
+def current_client():
+    return _CURRENT_CLIENT.get()
 
 
 class StoreConflict(Exception):
@@ -80,9 +94,13 @@ class ProjectLockedError(StoreConflict):
 
     def __init__(self, holder):
         self.holder = holder or {}
+        if self.holder.get("instanceId") == INSTANCE_ID:
+            where = "in another tab or window of this EXDA"
+        else:
+            where = (f"on {self.holder.get('host') or 'another computer'} "
+                     f"by {self.holder.get('user') or 'another user'}")
         super().__init__(
-            "Read-only: this project is open for editing on "
-            f"{self.holder.get('host') or 'another computer'} by {self.holder.get('user') or 'another user'} "
+            f"Read-only: this project is open for editing {where} "
             f"(since {self.holder.get('acquiredAt') or '?'}). Nothing was saved."
         )
 
@@ -182,7 +200,19 @@ def read_lock(project_root):
 
 def public_lock(lock):
     lock = lock or {}
-    return {k: lock.get(k) for k in ("user", "host", "pid", "acquiredAt", "heartbeatAt", "client")}
+    info = {k: lock.get(k) for k in ("user", "host", "pid", "acquiredAt", "heartbeatAt", "client")}
+    info["sameApp"] = lock.get("instanceId") == INSTANCE_ID
+    return info
+
+
+def _is_owner(lock, client_id):
+    """Same app instance and the same window. A lock without a client id
+    (scripts, tests) belongs to its app instance; a request without one is
+    treated as coming from that app (back-compatible)."""
+    if not lock or lock.get("instanceId") != INSTANCE_ID:
+        return False
+    holder_client = lock.get("clientId")
+    return not holder_client or not client_id or holder_client == client_id
 
 
 def _pid_alive(pid):
@@ -229,22 +259,24 @@ def lock_is_active(lock) -> bool:
     return True
 
 
-def lock_status(project_root):
+def lock_status(project_root, client_id=None):
     lock = read_lock(project_root)
     active = lock_is_active(lock)
-    mine = bool(lock) and lock.get("instanceId") == INSTANCE_ID
+    mine = _is_owner(lock, client_id)
     return {"locked": active, "owned": active and mine, "holder": public_lock(lock) if active else None}
 
 
-def _write_lock(project_root, previous=None, client=None):
+def _write_lock(project_root, previous=None, client=None, client_id=None):
     now = _now()
+    same_owner = bool(previous) and previous.get("instanceId") == INSTANCE_ID \
+        and previous.get("clientId") == client_id
     lock = {
         "instanceId": INSTANCE_ID,
+        "clientId": client_id,
         **_actor(),
         "pid": os.getpid(),
         "client": client or (previous or {}).get("client"),
-        "acquiredAt": (previous or {}).get("acquiredAt") if previous and previous.get("instanceId") == INSTANCE_ID
-        else now.isoformat(timespec="seconds"),
+        "acquiredAt": previous.get("acquiredAt") if same_owner else now.isoformat(timespec="seconds"),
         "heartbeatAt": now.isoformat(timespec="seconds"),
         "heartbeatEpoch": time.time(),
         "note": "Written by EXDA while this project is open for editing. Safe to delete if no EXDA is running.",
@@ -253,47 +285,52 @@ def _write_lock(project_root, previous=None, client=None):
     return lock
 
 
-def acquire_lock(project_root, force=False, client=None):
-    """Take the project lock. Returns lock_status(); 'owned' False if someone else holds it."""
+def _exact_owner(lock, client_id):
+    return bool(lock) and lock.get("instanceId") == INSTANCE_ID and lock.get("clientId") == client_id
+
+
+def acquire_lock(project_root, force=False, client=None, client_id=None):
+    """Take the project lock for one window. 'owned' False if another app or tab holds it."""
     with _WRITE_LOCK:
         lock = read_lock(project_root)
-        if lock_is_active(lock) and lock.get("instanceId") != INSTANCE_ID and not force:
-            return lock_status(project_root)
-        previous_holder = public_lock(lock) if (lock and lock.get("instanceId") != INSTANCE_ID) else None
-        _write_lock(project_root, lock, client)
-        if force and previous_holder and lock_is_active(lock):
+        held_by_other = lock_is_active(lock) and not _exact_owner(lock, client_id)
+        if held_by_other and not force:
+            return lock_status(project_root, client_id)
+        previous_holder = public_lock(lock) if held_by_other else None
+        _write_lock(project_root, lock, client, client_id)
+        if previous_holder:
             try:
                 append_change_log(project_root, {"action": "project_lock_taken_over", "previousHolder": previous_holder})
             except Exception:
                 pass
-        return lock_status(project_root)
+        return lock_status(project_root, client_id)
 
 
-def heartbeat_lock(project_root, client=None):
+def heartbeat_lock(project_root, client=None, client_id=None):
     with _WRITE_LOCK:
         lock = read_lock(project_root)
-        if lock and lock.get("instanceId") == INSTANCE_ID:
-            _write_lock(project_root, lock, client)
-            return lock_status(project_root)
+        if _exact_owner(lock, client_id):
+            _write_lock(project_root, lock, client, client_id)
+            return lock_status(project_root, client_id)
         if not lock_is_active(lock):
-            return acquire_lock(project_root, client=client)
-        return lock_status(project_root)
+            return acquire_lock(project_root, client=client, client_id=client_id)
+        return lock_status(project_root, client_id)
 
 
-def release_lock(project_root):
+def release_lock(project_root, client_id=None):
     with _WRITE_LOCK:
         lock = read_lock(project_root)
-        if lock and lock.get("instanceId") == INSTANCE_ID:
+        if _exact_owner(lock, client_id) or (lock and lock.get("instanceId") == INSTANCE_ID and not lock.get("clientId")):
             try:
                 os.remove(_lock_path(project_root))
             except FileNotFoundError:
                 pass
-        return lock_status(project_root)
+        return lock_status(project_root, client_id)
 
 
 def assert_can_write(project_root):
     lock = read_lock(project_root)
-    if lock_is_active(lock) and lock.get("instanceId") != INSTANCE_ID:
+    if lock_is_active(lock) and not _is_owner(lock, current_client()):
         raise ProjectLockedError(lock)
 
 

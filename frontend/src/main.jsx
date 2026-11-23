@@ -2,6 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import AppShell from './app/AppShell.jsx'
 import './index.css'
+import { installClientIdOnFetch } from './utils/clientId'
+
+// Every backend request says which window sent it (one editing window per project).
+installClientIdOnFetch()
 
 /* global __APP_VERSION__ */
 // IMPORTANT: This looks for a <div> with id="root" in your index.html
