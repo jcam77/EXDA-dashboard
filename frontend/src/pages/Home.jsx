@@ -626,7 +626,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
               },
               {
                 title: 'Analyse & Visualise',
-                body: 'Visualise complex metrics and patterns. Create publication-ready charts with interactive dashboards using Recharts and high-resolution uPlot views.'
+                body: 'Visualise complex metrics and patterns. Create clear charts for on-site assessment, with interactive Recharts dashboards and high-resolution uPlot views.'
               },
               {
                 title: 'AI-Assisted Research',
@@ -653,7 +653,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
         <div className="max-w-5xl mx-auto">
           <h2 className="text-4xl sm:text-5xl font-bold text-center mb-4">Built on Modern Tech</h2>
           <p className="text-center text-lg text-muted-foreground mb-12">
-            Production-ready stack optimised for scientific research
+            Local-first stack for experimental test campaigns
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
             <div className="flex flex-col gap-3">
@@ -682,7 +682,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
               >
                 <h3 className="text-xl font-bold mb-4 text-primary">Frontend</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  React 18 + Vite UI layer designed for scientific workflows and fast iteration.
+                  React 19 + Vite UI layer designed for scientific workflows and fast iteration.
                 </p>
               <ul className="space-y-2 text-muted-foreground text-sm">
                 <li className="flex items-center gap-2">
@@ -692,6 +692,10 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
                   Vite dev server & bundler
+                </li>
+                <li className="flex items-center gap-2">
+                  <Shield size={14} className="text-primary" />
+                  React Router navigation
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
@@ -711,7 +715,11 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
-                  Tailwind CSS dark theme
+                  Tailwind CSS (dark and light themes)
+                </li>
+                <li className="flex items-center gap-2">
+                  <Shield size={14} className="text-primary" />
+                  Vitest unit tests, Playwright end-to-end tests
                 </li>
               </ul>
                 {activeTechCard === 'frontend' && (
@@ -731,7 +739,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
                   <ArrowRight size={12} className="text-primary/60" />
                   <span className="px-2 py-1 rounded-md border border-primary/20 bg-primary/10 text-primary">Storage</span>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">Flask + NumPy + Local files</p>
+                <p className="mt-2 text-xs text-muted-foreground">Flask + NumPy/SciPy + Local files</p>
               </div>
               <div
                 className="rounded-xl border border-sidebar-border bg-card/40 p-8 h-full cursor-pointer hover:border-primary/50 transition"
@@ -753,11 +761,19 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
               <ul className="space-y-2 text-muted-foreground text-sm">
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
-                  Flask RESTful API + CORS
+                  Flask JSON API + CORS
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
-                  NumPy signal processing
+                  NumPy + SciPy signal processing (Butterworth filtering)
+                </li>
+                <li className="flex items-center gap-2">
+                  <Shield size={14} className="text-primary" />
+                  EWT analysis (ewtpy, PyWavelets)
+                </li>
+                <li className="flex items-center gap-2">
+                  <Shield size={14} className="text-primary" />
+                  TPC5 / MF4 DAQ readers (h5py, asammdf)
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
@@ -765,11 +781,11 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
-                  Ollama AI integration (Cloud-Powered)
+                  Ollama AI integration (local or Ollama cloud models)
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
-                  PyMuPDF (PDF ingestion, optional)
+                  PyMuPDF (PDF reports and literature reading)
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
@@ -778,6 +794,10 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
                 <li className="flex items-center gap-2">
                   <Shield size={14} className="text-primary" />
                   Local file system access
+                </li>
+                <li className="flex items-center gap-2">
+                  <Shield size={14} className="text-primary" />
+                  unittest test suite
                 </li>
               </ul>
                 {activeTechCard === 'backend' && (
