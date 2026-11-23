@@ -3,7 +3,7 @@
 This guide walks you through a test campaign in EXDA, from creating a project to
 exporting the metadata report. Every step has a screenshot and a short video
 (15–60 s, no sound) that shows where to click. The videos are MP4 files in
-`docs/user-guide/videos/`; open them with any video player.
+`docs/EXDA-User-Guide/videos/`; open them with any video player.
 
 > The videos and screenshots use a demo project with **synthetic example data**.
 > Your screens will show your own project names, runs and values.
@@ -50,13 +50,13 @@ AiRA, literature) are hidden in MVP mode. The **MVP** button in the top bar
 switches between the two modes; switching MVP mode off can be protected with a
 password set by whoever installed EXDA.
 
-![The project workspace in MVP mode](user-guide/images/00-workspace.png)
+![The project workspace in MVP mode](images/00-workspace.png)
 
 ---
 
 ## 2. Before you start
 
-**Start EXDA** with the launcher for your computer (see [RUN_EXDA.md](../RUN_EXDA.md)):
+**Start EXDA** with the launcher for your computer (see [RUN_EXDA.md](../../RUN_EXDA.md)):
 `Run-EXDA-WIN.bat` (Windows), `Run-EXDA-MAC.command` (macOS) or
 `Run-EXDA-LINUX.sh` (Linux). The launcher checks the requirements, starts EXDA and
 opens it in your web browser.
@@ -93,9 +93,9 @@ read-only (see [section 13](#13-how-exda-protects-your-data)).
 
 The project opens on the Checklist tab, with all folders created.
 
-![Create Project dialog](user-guide/images/01-create-project.png)
+![Create Project dialog](images/01-create-project.png)
 
-▶ **Video:** [Create a project](user-guide/videos/01-create-project.mp4) (22 s)
+▶ **Video:** [Create a project](videos/01-create-project.mp4) (22 s)
 
 ---
 
@@ -108,9 +108,9 @@ Projects you used recently are also listed on the Home page under
 **Recent Projects**, each with its own **Open** button. Click **Close Project**
 (top right) when you are finished; EXDA asks whether to save first.
 
-![Open Project dialog](user-guide/images/10-open-project.png)
+![Open Project dialog](images/10-open-project.png)
 
-▶ **Video:** [Open a project](user-guide/videos/10-open-project.mp4) (19 s)
+▶ **Video:** [Open a project](videos/10-open-project.mp4) (19 s)
 
 ---
 
@@ -138,9 +138,9 @@ EXDA first lists every folder that will be moved and asks you to confirm; runs
 already marked done need a second confirmation. Either all folders are renamed or
 none.
 
-![Plan tab with two runs](user-guide/images/02-plan.png)
+![Plan tab with two runs](images/02-plan.png)
 
-▶ **Video:** [Plan the campaign and add runs](user-guide/videos/02-plan-and-runs.mp4) (48 s)
+▶ **Video:** [Plan the campaign and add runs](videos/02-plan-and-runs.mp4) (48 s)
 
 ---
 
@@ -158,9 +158,9 @@ Each snapshot stores the date and time (with time zone), every tick, the item
 texts and the sign-off. Earlier snapshots are listed per run and are never
 overwritten, so the checks done before each test stay on record.
 
-![Checklist with a saved snapshot](user-guide/images/03-checklist.png)
+![Checklist with a saved snapshot](images/03-checklist.png)
 
-▶ **Video:** [Checklist and per-run snapshot](user-guide/videos/03-checklist.mp4) (33 s)
+▶ **Video:** [Checklist and per-run snapshot](videos/03-checklist.mp4) (33 s)
 
 ---
 
@@ -170,9 +170,9 @@ In **DAQ Systems**, click **Add DAQ**, fill in name, model, serial number, sampl
 rate, channel count and calibration details, and click **Save DAQ**. The list can
 be exported as CSV or PDF.
 
-![DAQ Systems](user-guide/images/04-daq-systems.png)
+![DAQ Systems](images/04-daq-systems.png)
 
-▶ **Video:** [Add a DAQ system](user-guide/videos/04-daq-systems.mp4) (33 s)
+▶ **Video:** [Add a DAQ system](videos/04-daq-systems.mp4) (33 s)
 
 ---
 
@@ -197,9 +197,9 @@ change only what differs. The table shows which mapping each run uses.
 
 **Cameras Mapping** works the same way (**Add Camera**).
 
-![Sensors mapping with per-run overrides](user-guide/images/05-sensors-mapping.png)
+![Sensors mapping with per-run overrides](images/05-sensors-mapping.png)
 
-▶ **Video:** [Sensors mapping and per-run override](user-guide/videos/05-sensors-mapping.mp4) (56 s)
+▶ **Video:** [Sensors mapping and per-run override](videos/05-sensors-mapping.mp4) (56 s)
 
 ---
 
@@ -226,9 +226,9 @@ It never changes the records; you can download the list as CSV.
 
 Every saved change keeps the earlier version of the record.
 
-![Gas Mixing](user-guide/images/06-gas-mixing.png)
+![Gas Mixing](images/06-gas-mixing.png)
 
-▶ **Video:** [Gas mixing: calculate, save, check records](user-guide/videos/06-gas-mixing.mp4) (42 s)
+▶ **Video:** [Gas mixing: calculate, save, check records](videos/06-gas-mixing.mp4) (42 s)
 
 ---
 
@@ -255,9 +255,9 @@ Good to know:
 - Screening reduces long signals for display. It is a quick look, not the
   analysis.
 
-![Raw data screening — pressure](user-guide/images/07-screening-pressure.png)
+![Raw data screening — pressure](images/07-screening-pressure.png)
 
-▶ **Video:** [Import and screen the data](user-guide/videos/07-import-and-screen-data.mp4) (46 s)
+▶ **Video:** [Import and screen the data](videos/07-import-and-screen-data.mp4) (46 s)
 
 ---
 
@@ -276,9 +276,9 @@ The plan holds planned dates; the actual firing time belongs on the run card.
 Nothing is filled in automatically. Some stamps are only hints: a DAQ start time
 can be the same for several runs of one session.
 
-![Actual ignition time suggestions](user-guide/images/09-ignition-time.png)
+![Actual ignition time suggestions](images/09-ignition-time.png)
 
-▶ **Video:** [Record the actual ignition time](user-guide/videos/09-actual-ignition-time.mp4) (26 s)
+▶ **Video:** [Record the actual ignition time](videos/09-actual-ignition-time.mp4) (26 s)
 
 ---
 
@@ -292,9 +292,9 @@ the file name (e.g. `…_Metadata_Report_2026-12-01_143205.pdf`), so an earlier
 report is never overwritten. Plan, DAQ, mapping and gas mixing tables can also be
 exported from their own tabs.
 
-![Report tab](user-guide/images/08-report.png)
+![Report tab](images/08-report.png)
 
-▶ **Video:** [Export the report](user-guide/videos/08-report.mp4) (19 s)
+▶ **Video:** [Export the report](videos/08-report.mp4) (19 s)
 
 ---
 
@@ -317,9 +317,9 @@ exported from their own tabs.
 - **No silent defaults.** Missing measured values stay missing; EXDA tells you
   instead of guessing.
 
-![Read-only window](user-guide/images/11-read-only.png)
+![Read-only window](images/11-read-only.png)
 
-▶ **Video:** [What a second window shows](user-guide/videos/11-read-only-second-window.mp4) (14 s)
+▶ **Video:** [What a second window shows](videos/11-read-only-second-window.mp4) (14 s)
 
 ---
 
@@ -335,4 +335,4 @@ exported from their own tabs.
 | A file does not appear in Import Data | Check that it is inside `Raw_Data/<run>/` and has a supported type: csv, txt, dat, asc, mf4, tpc5. |
 | The project you expect does not open | Check that you are opening it from your projects folder (e.g. `EXDA-Projects`), not from an old copy. |
 
-The detailed review behind version 4.0.0 is in [EXDA-Check.md](EXDA-Check.md).
+The detailed review behind version 4.0.0 is in [EXDA-Check.md](../EXDA-Developer-Overview/EXDA-Check.md).

@@ -4,7 +4,7 @@ How the EXDA code is organised, where each calculation lives, how it is
 verified today, and what to improve before the calculations are extended.
 
 - **Audience:** developers working on EXDA (not end users; see
-  [EXDA-UserGuide.md](EXDA-UserGuide.md) for those).
+  [EXDA-UserGuide.md](../EXDA-User-Guide/EXDA-UserGuide.md) for those).
 - **State described:** release 4.0.0 plus the commits after it on
   `CLAUDE-Updates` (November 2026).
 - **Evidence:** every finding in section 6 was checked against the code;
@@ -65,11 +65,11 @@ flowchart LR
 
 | Layer | Technology | Entry point |
 |---|---|---|
-| Frontend | React 18, Vite, Tailwind, Recharts, vitest | [frontend/src/main.jsx](../frontend/src/main.jsx) → [AppShell.jsx](../frontend/src/app/AppShell.jsx) → [WorkspacePage.jsx](../frontend/src/features/workspace/WorkspacePage.jsx) |
-| Backend | Python 3, Flask (5 blueprints), NumPy, SciPy, h5py, asammdf, ewtpy, PyWavelets | [backend/app.py](../backend/app.py) |
-| Desktop build | Electron (starts the packaged backend) | [electron/main.cjs](../electron/main.cjs) |
+| Frontend | React 18, Vite, Tailwind, Recharts, vitest | [frontend/src/main.jsx](../../frontend/src/main.jsx) → [AppShell.jsx](../../frontend/src/app/AppShell.jsx) → [WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) |
+| Backend | Python 3, Flask (5 blueprints), NumPy, SciPy, h5py, asammdf, ewtpy, PyWavelets | [backend/app.py](../../backend/app.py) |
+| Desktop build | Electron (starts the packaged backend) | [electron/main.cjs](../../electron/main.cjs) |
 | Launchers | Shell/batch scripts start backend + Vite and open the browser | `Run-EXDA-*.{sh,command,bat}` |
-| Configuration | Host/port defaults | [config/exda-defaults.env](../config/exda-defaults.env), env vars `EXDA_*` |
+| Configuration | Host/port defaults | [config/exda-defaults.env](../../config/exda-defaults.env), env vars `EXDA_*` |
 
 Key design rules (from [EXDA-Check.md](EXDA-Check.md), section 0) that every
 change must respect:
@@ -86,59 +86,59 @@ change must respect:
 
 Sizes are lines of code (tracked files, November 2026).
 
-### Backend ([backend/](../backend))
+### Backend ([backend/](../../backend))
 
 | File | Lines | Role |
 |---|---:|---|
-| [routes/state.py](../backend/routes/state.py) | 5 663 | 35 routes: project state, plan/mapping/gas saves, exports (PDF/CSV), raw-file reading, lock, run renames |
-| [routes/ai.py](../backend/routes/ai.py) | 2 038 | AiRA assistant (Ollama), repository context |
-| [routes/calculation_api_routes.py](../backend/routes/calculation_api_routes.py) | 598 | `/analyze`, `/analyze_pressure`, `/analyze_vent`, `/analyze_ewt`, `/preview_multichannel`, `/aggregate_plot`, `/calculate_gas_mix`, `/calculation_verification` |
-| [routes/projects.py](../backend/routes/projects.py) | 254 | Create, open, rename, copy, delete, list projects; default projects folder |
-| [modules/pressure_analysis.py](../backend/modules/pressure_analysis.py) | 580 | Pressure processing chain and metrics (pMax, tMax, impulse), vent time |
-| [modules/project_store.py](../backend/modules/project_store.py) | 579 | Atomic writes, history copies, change log, content versions (409), project lock (423) |
-| [modules/project_manager.py](../backend/modules/project_manager.py) | 517 | Project folder structure, plan save/load, status |
-| [modules/data_parser.py](../backend/modules/data_parser.py) | 493 | Text/CSV parsing (two-column, tables, multichannel waveform), unit conversion for EWT |
-| [modules/ewt_analysis.py](../backend/modules/ewt_analysis.py) | 276 | Empirical wavelet transform, mode energies, filter-cutoff suggestion |
-| [modules/gas_mixing.py](../backend/modules/gas_mixing.py) | 261 | H₂ fill model (ideal gas + MFC timing) |
-| [modules/daq_reader.py](../backend/modules/daq_reader.py) | 231 | Full-resolution channel reads (TPC5, MF4, text) for analysis |
-| [modules/gas_mixing_checks.py](../backend/modules/gas_mixing_checks.py) | 216 | Read-only consistency checks of saved gas/plan records |
-| [modules/h2s_parser.py](../backend/modules/h2s_parser.py) | 196 | H₂ sensor logs: block splitting, duplicates |
-| [modules/tpc5_parser.py](../backend/modules/tpc5_parser.py), [mf4_parser.py](../backend/modules/mf4_parser.py) | 172, 110 | Preview content (decimated) from TPC5/MF4 |
-| [modules/gas_mixing_store.py](../backend/modules/gas_mixing_store.py) | 163 | Gas record history and audit |
-| [modules/plot_interpolation.py](../backend/modules/plot_interpolation.py) | 152 | Merging series for overlay plots (display only) |
-| [modules/flame_analysis.py](../backend/modules/flame_analysis.py) | 85 | Flame speed from probe crossing times |
-| [modules/output_format.py](../backend/modules/output_format.py) | 56 | Fixed-precision formatting for exports |
-| [modules/aira_multi_role.py](../backend/modules/aira_multi_role.py) | 266 | Not imported anywhere (candidate for removal) |
-| [tests/](../backend/tests) | ~1 700 | unittest suites, reference data, Octave comparison scripts, third-party EWT toolbox |
+| [routes/state.py](../../backend/routes/state.py) | 5 663 | 35 routes: project state, plan/mapping/gas saves, exports (PDF/CSV), raw-file reading, lock, run renames |
+| [routes/ai.py](../../backend/routes/ai.py) | 2 038 | AiRA assistant (Ollama), repository context |
+| [routes/calculation_api_routes.py](../../backend/routes/calculation_api_routes.py) | 598 | `/analyze`, `/analyze_pressure`, `/analyze_vent`, `/analyze_ewt`, `/preview_multichannel`, `/aggregate_plot`, `/calculate_gas_mix`, `/calculation_verification` |
+| [routes/projects.py](../../backend/routes/projects.py) | 254 | Create, open, rename, copy, delete, list projects; default projects folder |
+| [modules/pressure_analysis.py](../../backend/modules/pressure_analysis.py) | 580 | Pressure processing chain and metrics (pMax, tMax, impulse), vent time |
+| [modules/project_store.py](../../backend/modules/project_store.py) | 579 | Atomic writes, history copies, change log, content versions (409), project lock (423) |
+| [modules/project_manager.py](../../backend/modules/project_manager.py) | 517 | Project folder structure, plan save/load, status |
+| [modules/data_parser.py](../../backend/modules/data_parser.py) | 493 | Text/CSV parsing (two-column, tables, multichannel waveform), unit conversion for EWT |
+| [modules/ewt_analysis.py](../../backend/modules/ewt_analysis.py) | 276 | Empirical wavelet transform, mode energies, filter-cutoff suggestion |
+| [modules/gas_mixing.py](../../backend/modules/gas_mixing.py) | 261 | H₂ fill model (ideal gas + MFC timing) |
+| [modules/daq_reader.py](../../backend/modules/daq_reader.py) | 231 | Full-resolution channel reads (TPC5, MF4, text) for analysis |
+| [modules/gas_mixing_checks.py](../../backend/modules/gas_mixing_checks.py) | 216 | Read-only consistency checks of saved gas/plan records |
+| [modules/h2s_parser.py](../../backend/modules/h2s_parser.py) | 196 | H₂ sensor logs: block splitting, duplicates |
+| [modules/tpc5_parser.py](../../backend/modules/tpc5_parser.py), [mf4_parser.py](../../backend/modules/mf4_parser.py) | 172, 110 | Preview content (decimated) from TPC5/MF4 |
+| [modules/gas_mixing_store.py](../../backend/modules/gas_mixing_store.py) | 163 | Gas record history and audit |
+| [modules/plot_interpolation.py](../../backend/modules/plot_interpolation.py) | 152 | Merging series for overlay plots (display only) |
+| [modules/flame_analysis.py](../../backend/modules/flame_analysis.py) | 85 | Flame speed from probe crossing times |
+| [modules/output_format.py](../../backend/modules/output_format.py) | 56 | Fixed-precision formatting for exports |
+| [modules/aira_multi_role.py](../../backend/modules/aira_multi_role.py) | 266 | Not imported anywhere (candidate for removal) |
+| [tests/](../../backend/tests) | ~1 700 | unittest suites, reference data, Octave comparison scripts, third-party EWT toolbox |
 
-### Frontend ([frontend/src/](../frontend/src))
+### Frontend ([frontend/src/](../../frontend/src))
 
 | File | Lines | Role |
 |---|---:|---|
-| [pages/Plan.jsx](../frontend/src/pages/Plan.jsx) | 2 115 | Campaign plan, run cards, renames, actual ignition time |
-| [features/workspace/WorkspacePage.jsx](../frontend/src/features/workspace/WorkspacePage.jsx) | 2 081 | App shell: tabs, routing, project open/save, versions, lock, read-only banner |
-| [pages/RawDataScreeningCorePage.jsx](../frontend/src/pages/RawDataScreeningCorePage.jsx) | 1 390 | Pressure and H₂ screening plots; unit and ppm conversions for display |
-| [pages/GasMixing.jsx](../frontend/src/pages/GasMixing.jsx) | 1 369 | Gas mixing form, calculate/save, calibration, record checks |
-| [pages/SensorsMapping.jsx](../frontend/src/pages/SensorsMapping.jsx), [CamerasMapping.jsx](../frontend/src/pages/CamerasMapping.jsx) | 1 222, 1 049 | Sensor/camera mappings, per-run overrides |
-| [features/analysis/PressureAnalysisWorkbench.jsx](../frontend/src/features/analysis/PressureAnalysisWorkbench.jsx) | 766 | Pressure analysis and CFD-validation UI (advanced mode) |
-| [pages/AppCalculationsVerification.jsx](../frontend/src/pages/AppCalculationsVerification.jsx) | 651 | In-app verification page (Python vs Octave) |
-| [pages/EwtAnalysis.jsx](../frontend/src/pages/EwtAnalysis.jsx) | 475 | EWT UI |
-| [features/workspace/hooks/useAnalysisPipeline.js](../frontend/src/features/workspace/hooks/useAnalysisPipeline.js) | 398 | Calls the analysis endpoints |
-| [utils/gasMixing.js](../frontend/src/utils/gasMixing.js) | 287 | Unit conversion, request building, stale detection, **calibration correction** |
-| [utils/units.js](../frontend/src/utils/units.js) | 75 | Unit tokens and display conversion |
+| [pages/Plan.jsx](../../frontend/src/pages/Plan.jsx) | 2 115 | Campaign plan, run cards, renames, actual ignition time |
+| [features/workspace/WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) | 2 081 | App shell: tabs, routing, project open/save, versions, lock, read-only banner |
+| [pages/RawDataScreeningCorePage.jsx](../../frontend/src/pages/RawDataScreeningCorePage.jsx) | 1 390 | Pressure and H₂ screening plots; unit and ppm conversions for display |
+| [pages/GasMixing.jsx](../../frontend/src/pages/GasMixing.jsx) | 1 369 | Gas mixing form, calculate/save, calibration, record checks |
+| [pages/SensorsMapping.jsx](../../frontend/src/pages/SensorsMapping.jsx), [CamerasMapping.jsx](../../frontend/src/pages/CamerasMapping.jsx) | 1 222, 1 049 | Sensor/camera mappings, per-run overrides |
+| [features/analysis/PressureAnalysisWorkbench.jsx](../../frontend/src/features/analysis/PressureAnalysisWorkbench.jsx) | 766 | Pressure analysis and CFD-validation UI (advanced mode) |
+| [pages/AppCalculationsVerification.jsx](../../frontend/src/pages/AppCalculationsVerification.jsx) | 651 | In-app verification page (Python vs Octave) |
+| [pages/EwtAnalysis.jsx](../../frontend/src/pages/EwtAnalysis.jsx) | 475 | EWT UI |
+| [features/workspace/hooks/useAnalysisPipeline.js](../../frontend/src/features/workspace/hooks/useAnalysisPipeline.js) | 398 | Calls the analysis endpoints |
+| [utils/gasMixing.js](../../frontend/src/utils/gasMixing.js) | 287 | Unit conversion, request building, stale detection, **calibration correction** |
+| [utils/units.js](../../frontend/src/utils/units.js) | 75 | Unit tokens and display conversion |
 
-Placeholders: [FlameSpeedAnalysis.jsx](../frontend/src/pages/FlameSpeedAnalysis.jsx)
-(13 lines, no UI). [CFDValidation.jsx](../frontend/src/pages/CFDValidation.jsx)
+Placeholders: [FlameSpeedAnalysis.jsx](../../frontend/src/pages/FlameSpeedAnalysis.jsx)
+(13 lines, no UI). [CFDValidation.jsx](../../frontend/src/pages/CFDValidation.jsx)
 reuses the pressure workbench.
 
 ### Other
 
 | Path | Role |
 |---|---|
-| [tests/e2e/](../tests/e2e) | Playwright end-to-end tests |
-| [scripts/](../scripts) | Packaging/maintenance scripts |
-| [docs/](.) | User guide, this overview, review brief (EXDA-Check.md), templates |
-| [versioning.sh](../versioning.sh), [VERSIONING.md](../VERSIONING.md) | Release assistant (allow-listed staging, tag, merge) |
+| [tests/e2e/](../../tests/e2e) | Playwright end-to-end tests |
+| [scripts/](../../scripts) | Packaging/maintenance scripts |
+| [docs/](..) | `EXDA-User-Guide/` (guide, Word version, screenshots, videos, build script), `EXDA-Developer-Overview/` (this overview, EXDA-Check.md review brief, downsampling notes), `design/` (architecture animation sources), `assets/` (icons used by the README) |
+| [versioning.sh](../../versioning.sh), [VERSIONING.md](../../VERSIONING.md) | Release assistant (allow-listed staging, tag, merge) |
 
 ---
 
@@ -167,10 +167,10 @@ sequenceDiagram
 
 1. The UI asks `/analyze_pressure_file` (state.py) with project path, file,
    channel and settings.
-2. [daq_reader.read_channel](../backend/modules/daq_reader.py) reads the
+2. [daq_reader.read_channel](../../backend/modules/daq_reader.py) reads the
    channel at **full resolution** (TPC5 via h5py, MF4 via asammdf, text via
    data_parser) with its unit from the file header.
-3. [pressure_analysis.analyze_pressure_signal](../backend/modules/pressure_analysis.py#L381)
+3. [pressure_analysis.analyze_pressure_signal](../../backend/modules/pressure_analysis.py#L381)
    runs: crop → unit → gauge/absolute (plan P0) → baseline (opt-in) →
    Butterworth (zero-phase) → metrics.
 4. The response holds metrics, a full `processing` record (unit origin, filter,
@@ -180,20 +180,20 @@ sequenceDiagram
 
 Screening and EWT use **preview content**: the file is read by
 `/read_project_file`, which decimates TPC5/MF4 to at most 200 000 samples by
-index picking ([tpc5_parser.py:149](../backend/modules/tpc5_parser.py#L149)),
+index picking ([tpc5_parser.py:149](../../backend/modules/tpc5_parser.py#L149)),
 and returned as text. Screening converts units **in the browser**
-([units.js](../frontend/src/utils/units.js)); EWT sends the text back to
+([units.js](../../frontend/src/utils/units.js)); EWT sends the text back to
 `/analyze_ewt`. See findings F4 and F5.
 
 ### 3.4 Saves, versions and the lock
 
-Every save goes through [project_store](../backend/modules/project_store.py):
+Every save goes through [project_store](../../backend/modules/project_store.py):
 the old file is copied to `History/`, the change is appended to
 `History/change_log.jsonl`, and the file is written atomically. Loads return a
 content `version`; saves send it back as `baseVersion` and get **409** if the
 file changed meanwhile. One window per project holds `.exda.lock`; other
 windows get **423** on writes. The window id travels in the `X-EXDA-Client`
-header (set by a fetch wrapper in [clientId.js](../frontend/src/utils/clientId.js)).
+header (set by a fetch wrapper in [clientId.js](../../frontend/src/utils/clientId.js)).
 
 ---
 
@@ -214,7 +214,7 @@ EXDA-Projects/<project>/
 
 The default projects folder is `EXDA_PROJECTS_ROOT`, else `EXDA-Projects`
 next to the app folder, else `<app>/Projects`
-([projects.py](../backend/routes/projects.py)).
+([projects.py](../../backend/routes/projects.py)).
 
 ---
 
@@ -226,18 +226,18 @@ tolerance; **T** unit-tested (behaviour, not independent values);
 
 | # | Calculation | Where | Status |
 |---|---|---|---|
-| C1 | H₂ fill model (mass, volumes, fill time) | [gas_mixing.py:82](../backend/modules/gas_mixing.py#L82) | T |
-| C2 | Calibration (dosage) correction | [gasMixing.js:195](../frontend/src/utils/gasMixing.js#L195) (browser) | T (vitest) |
-| C3 | Gas/plan record consistency checks | [gas_mixing_checks.py:94](../backend/modules/gas_mixing_checks.py#L94) | T |
-| C4 | Pressure units, gauge/absolute, baseline | [pressure_analysis.py:264–362](../backend/modules/pressure_analysis.py#L298) | T |
-| C5 | Butterworth zero-phase filter (+ resampling) | [pressure_analysis.py:119](../backend/modules/pressure_analysis.py#L119) | T; vs Octave on one fixture (manual) |
-| C6 | pMax, tMax, impulse | [pressure_analysis.py:211](../backend/modules/pressure_analysis.py#L211) | T (analytic triangle); vs Octave (manual) |
-| C7 | Vent opening time | [pressure_analysis.py:555](../backend/modules/pressure_analysis.py#L555) | – |
-| C8 | EWT modes, energies, cutoff suggestion | [ewt_analysis.py:119](../backend/modules/ewt_analysis.py#L119) | shape only; **disagrees** with Octave |
-| C9 | Flame speed | [flame_analysis.py:42](../backend/modules/flame_analysis.py#L42) | – |
-| C10 | Preview decimation and display unit conversion | [tpc5_parser.py](../backend/modules/tpc5_parser.py), [units.js](../frontend/src/utils/units.js) | T (units) |
-| C11 | ppm → vol.% for BGA/H₂ (÷ 10 000) | [RawDataScreeningCorePage.jsx](../frontend/src/pages/RawDataScreeningCorePage.jsx) | – |
-| C12 | Plot merging/interpolation (display only) | [plot_interpolation.py](../backend/modules/plot_interpolation.py) | T |
+| C1 | H₂ fill model (mass, volumes, fill time) | [gas_mixing.py:82](../../backend/modules/gas_mixing.py#L82) | T |
+| C2 | Calibration (dosage) correction | [gasMixing.js:195](../../frontend/src/utils/gasMixing.js#L195) (browser) | T (vitest) |
+| C3 | Gas/plan record consistency checks | [gas_mixing_checks.py:94](../../backend/modules/gas_mixing_checks.py#L94) | T |
+| C4 | Pressure units, gauge/absolute, baseline | [pressure_analysis.py:264–362](../../backend/modules/pressure_analysis.py#L298) | T |
+| C5 | Butterworth zero-phase filter (+ resampling) | [pressure_analysis.py:119](../../backend/modules/pressure_analysis.py#L119) | T; vs Octave on one fixture (manual) |
+| C6 | pMax, tMax, impulse | [pressure_analysis.py:211](../../backend/modules/pressure_analysis.py#L211) | T (analytic triangle); vs Octave (manual) |
+| C7 | Vent opening time | [pressure_analysis.py:555](../../backend/modules/pressure_analysis.py#L555) | – |
+| C8 | EWT modes, energies, cutoff suggestion | [ewt_analysis.py:119](../../backend/modules/ewt_analysis.py#L119) | shape only; **disagrees** with Octave |
+| C9 | Flame speed | [flame_analysis.py:42](../../backend/modules/flame_analysis.py#L42) | – |
+| C10 | Preview decimation and display unit conversion | [tpc5_parser.py](../../backend/modules/tpc5_parser.py), [units.js](../../frontend/src/utils/units.js) | T (units) |
+| C11 | ppm → vol.% for BGA/H₂ (÷ 10 000) | [RawDataScreeningCorePage.jsx](../../frontend/src/pages/RawDataScreeningCorePage.jsx) | – |
+| C12 | Plot merging/interpolation (display only) | [plot_interpolation.py](../../backend/modules/plot_interpolation.py) | T |
 
 ### C1 H₂ fill model
 
@@ -262,7 +262,7 @@ may default.
 
 `m_corr = a · target + b` (target as fraction or vol.%), and
 `t_fill,corr = t_fill · m_corr / m_H2`. Computed in
-[applyDosageModel](../frontend/src/utils/gasMixing.js#L195) and **saved as
+[applyDosageModel](../../frontend/src/utils/gasMixing.js#L195) and **saved as
 part of the record** (`mH2CorrectedG`, `fillTimeCorrected_s`).
 
 ### C4–C6 Pressure chain
@@ -307,7 +307,7 @@ running the current code.
 ### High
 
 **F1 — EWT crashes when the second decomposition fails** (verified).
-[ewt_analysis.py:193–194](../backend/modules/ewt_analysis.py#L193):
+[ewt_analysis.py:193–194](../../backend/modules/ewt_analysis.py#L193):
 `perform_ewt_analysis` returns `None` on failure, and
 `calculate_energy(None)` raises `TypeError`. The first call is guarded and
 this one is not. The user gets a 500 error instead of the warning.
@@ -332,7 +332,7 @@ and test it with a shifted window.
 
 **F4 — EWT runs on decimated preview data without an anti-aliasing filter.**
 Preview content keeps every k-th sample
-([tpc5_parser.py:149](../backend/modules/tpc5_parser.py#L149)), and EWT then
+([tpc5_parser.py:149](../../backend/modules/tpc5_parser.py#L149)), and EWT then
 analyses that signal. Content above the new Nyquist frequency folds into the
 analysed band, and the EWT `fs` differs from the analysis `fs`. The suggested
 cutoff can therefore point at an aliased peak.
@@ -341,7 +341,7 @@ analysis does), or decimate with `scipy.signal.decimate` (filtered), and
 record `fs` and the decimation factor.
 
 **F5 — The EWT unit falls back to `bar`.**
-[useAnalysisPipeline.js:97](../frontend/src/features/workspace/hooks/useAnalysisPipeline.js#L97)
+[useAnalysisPipeline.js:97](../../frontend/src/features/workspace/hooks/useAnalysisPipeline.js#L97)
 sends `DEFAULT_INPUT_UNIT = 'bar'` when the EWT unit is "from file" or unset,
 so a Pa file is scaled ×100 000 as if it were bar. Frequencies and energy
 percentages are scale-invariant, so the suggested cutoff is not affected;
@@ -352,7 +352,7 @@ pressure analysis does.
 ### Medium
 
 **F6 — Python EWT and Octave EWT disagree.** Stored results on the same
-fixture ([backend/tests/results/](../backend/tests/results)):
+fixture ([backend/tests/results/](../../backend/tests/results)):
 
 | Mode | Octave peak (Hz) | Octave energy % | Python peak (Hz) | Python energy % |
 |---:|---:|---:|---:|---:|
@@ -404,7 +404,7 @@ standard temperature a recorded per-DAQ/MFC property, and add an
 uncertainty estimate (linear propagation is enough here).
 
 **F10 — Name-based unit guessing can mislabel channels.**
-[calculation_api_routes.py:368](../backend/routes/calculation_api_routes.py#L368)
+[calculation_api_routes.py:368](../../backend/routes/calculation_api_routes.py#L368)
 marks a channel without a header unit as a trigger (V) when its name contains
 `ign` (which also matches "s**ign**al") or `volt`, and as ppm when it
 contains `conc`/`hydrogen`. It only applies when the header has no unit, but
@@ -415,12 +415,12 @@ origin in the UI.
 ### Low
 
 - **F11 — Metrics are returned as strings with 4 decimals** (`f"{p_max:.4f}"`,
-  [pressure_analysis.py:475](../backend/modules/pressure_analysis.py#L475)).
+  [pressure_analysis.py:475](../../backend/modules/pressure_analysis.py#L475)).
   This loses precision for small values (e.g. bar or MPa output) and forces
   re-parsing. Return floats and format in the UI. `calculate_metrics` also
   returns `0.0` for "no data", which looks like a measurement; return `None`.
 - **F12 — Vent time** uses a fixed 0.5 threshold on an unscaled trace
-  ([pressure_analysis.py:555](../backend/modules/pressure_analysis.py#L555)),
+  ([pressure_analysis.py:555](../../backend/modules/pressure_analysis.py#L555)),
   has no tests, and its plot uses stride decimation.
 - **F13 — Flame speed** has a hard-coded ignition position (2.4 m), a fixed
   0.5 crossing threshold, `abs()` that hides ordering errors, no tests and no UI.
@@ -443,7 +443,7 @@ origin in the UI.
 |---|---|---|
 | S1 | `routes/state.py` has 5 663 lines and 35 routes (file I/O, exports, lock, renames, analysis). | Split into blueprints: `files`, `records` (plan/mappings/gas), `exports`, `lock`, `runs`. Move PDF/CSV export code to a module. |
 | S2 | `WorkspacePage.jsx` (2 081) and `Plan.jsx` (2 115) hold most frontend state and logic. | Extract hooks (`useProjectLock`, `useProjectSave`, `usePlanEditor`) and keep pages presentational. |
-| S3 | Four pressure-unit tables: [pressure_analysis.py:36](../backend/modules/pressure_analysis.py#L36) (has psi), [data_parser.py:481](../backend/modules/data_parser.py#L481) (no psi), [units.js:38](../frontend/src/utils/units.js#L38) (no psi), [gasMixing.js:38](../frontend/src/utils/gasMixing.js#L38) (Pa-based). | One backend table (`units.py`) exported as JSON to the frontend; test both sides against the same cases. |
+| S3 | Four pressure-unit tables: [pressure_analysis.py:36](../../backend/modules/pressure_analysis.py#L36) (has psi), [data_parser.py:481](../../backend/modules/data_parser.py#L481) (no psi), [units.js:38](../../frontend/src/utils/units.js#L38) (no psi), [gasMixing.js:38](../../frontend/src/utils/gasMixing.js#L38) (Pa-based). | One backend table (`units.py`) exported as JSON to the frontend; test both sides against the same cases. |
 | S4 | Duplicate helpers: `resample_uniform` in pressure_analysis and ewt_analysis; three `parse_data_content` wrappers; `flame_analysis` has its own parser. | One `signal_utils.py` (resample, decimate, uniformity check) and one parser entry point. |
 | S5 | Two read paths: full-resolution `daq_reader` (analysis) and decimated preview text (screening, EWT, vent, flame). | Make analysis always use `daq_reader`; keep preview text for display only. |
 | S6 | `aira_multi_role.py` and `ArchitectureFlowMap.jsx` are not used. | Remove (see the earlier file audit). |
@@ -458,10 +458,10 @@ origin in the UI.
 
 | Suite | Files | Tests | Notes |
 |---|---|---:|---|
-| Backend unittest | 11 in [backend/tests/](../backend/tests) | 85 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
-| Frontend vitest | 7 in [frontend/tests/](../frontend/tests) | 41 | Gas-mixing logic, units, mappings, versions, formatting |
-| End-to-end | 2 in [tests/e2e/](../tests/e2e) | – | Playwright; need a running app |
-| Octave comparison | [backend/tests/scripts/comparison/](../backend/tests/scripts/comparison) | – | Manual scripts writing CSVs to `backend/tests/results/` |
+| Backend unittest | 11 in [backend/tests/](../../backend/tests) | 85 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
+| Frontend vitest | 7 in [frontend/tests/](../../frontend/tests) | 41 | Gas-mixing logic, units, mappings, versions, formatting |
+| End-to-end | 2 in [tests/e2e/](../../tests/e2e) | – | Playwright; need a running app |
+| Octave comparison | [backend/tests/scripts/comparison/](../../backend/tests/scripts/comparison) | – | Manual scripts writing CSVs to `backend/tests/results/` |
 
 ### What is independently verified
 
@@ -478,7 +478,7 @@ origin in the UI.
 
 - **The comparison scripts still use the removed unit guess.** Both the
   Python script
-  ([verify_pressure_metrics_python.py:45](../backend/tests/scripts/comparison/python/verify_pressure_metrics_python.py#L45))
+  ([verify_pressure_metrics_python.py:45](../../backend/tests/scripts/comparison/python/verify_pressure_metrics_python.py#L45))
   and the Octave core (`verify_pressure_metrics_core.m`) convert by magnitude
   (`|y| > 1000 → (y − 101325)/1000`), which the app no longer does. They
   verify a different chain than the app. The fixture is in kPa, so today's
@@ -489,7 +489,7 @@ origin in the UI.
   tolerance.
 - **The Butterworth reference test is skipped**, because it reads
   `Projects/VH2D-Project/...`, which no longer exists
-  ([test_calculations_reference.py:48](../backend/tests/test_calculations_reference.py#L48)).
+  ([test_calculations_reference.py:48](../../backend/tests/test_calculations_reference.py#L48)).
   The same signal is already a fixture (`reference_data/experimental_data_001_clean.csv`).
 - **The fixture is coarse** (348 samples, about 794 Hz): too few to test
   filters near real DAQ rates (tens of kHz) or decimation effects.

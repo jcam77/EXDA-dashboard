@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build docs/EXDA-UserGuide.docx from docs/EXDA-UserGuide.md.
+"""Build EXDA-UserGuide.docx from EXDA-UserGuide.md (both in docs/EXDA-User-Guide/).
 
 The Markdown file is the source. This script renders it into a Word document
 based on a report template:
@@ -16,10 +16,11 @@ based on a report template:
   template unchanged.
 
 Usage:
-    python3 docs/user-guide/build_userguide_docx.py [--template <template.docx>] [--output <file.docx>]
+    python3 docs/EXDA-User-Guide/build_userguide_docx.py [--template <template.docx>] [--output <file.docx>]
 
-The default template is docs/user-guide/report_template.docx (the cover
-page and formats of docs/Reports_Template.docx, without its body text).
+The default template is report_template.docx in this folder. Its cover
+page, header, footer and paragraph formats are used; its body text (if any)
+is replaced by the guide.
 
 Note: edits made directly in the .docx (in Word) are lost when it is rebuilt;
 make lasting changes in the Markdown file.
@@ -45,10 +46,10 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 from docx.text.paragraph import Paragraph
 
-DOCS = Path(__file__).resolve().parents[1]
-SOURCE = DOCS / "EXDA-UserGuide.md"
-OUTPUT = DOCS / "EXDA-UserGuide.docx"
-DEFAULT_TEMPLATE = DOCS / "user-guide" / "report_template.docx"
+GUIDE_DIR = Path(__file__).resolve().parent  # docs/EXDA-User-Guide
+SOURCE = GUIDE_DIR / "EXDA-UserGuide.md"
+OUTPUT = GUIDE_DIR / "EXDA-UserGuide.docx"
+DEFAULT_TEMPLATE = GUIDE_DIR / "report_template.docx"
 IMAGE_WIDTH = Cm(14.5)
 INLINE = re.compile(r"(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|\*[^*\s][^*]*\*)")
 TABLE_HEADER_FILL = "EEEEEE"  # same grey as the cover's information table
@@ -391,7 +392,7 @@ def build(template: Path, output: Path = OUTPUT):
             continue
         image = re.match(r"!\[([^\]]*)\]\(([^)]+)\)", stripped)
         if image:
-            doc.add_picture(str(DOCS / image.group(2)), width=IMAGE_WIDTH)
+            doc.add_picture(str(GUIDE_DIR / image.group(2)), width=IMAGE_WIDTH)
             picture = doc.paragraphs[-1]
             picture.alignment = WD_ALIGN_PARAGRAPH.CENTER
             picture.paragraph_format.space_before = Pt(6)
@@ -465,7 +466,7 @@ def drop_contents_section(lines):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--template", default=str(DEFAULT_TEMPLATE),
-                        help="Word report template (.docx) with a cover page; default: docs/user-guide/report_template.docx")
-    parser.add_argument("--output", default=str(OUTPUT), help="output .docx; default: docs/EXDA-UserGuide.docx")
+                        help="Word report template (.docx) with a cover page; default: report_template.docx next to this script")
+    parser.add_argument("--output", default=str(OUTPUT), help="output .docx; default: EXDA-UserGuide.docx next to this script")
     args = parser.parse_args()
     print(build(Path(args.template), Path(args.output)))
