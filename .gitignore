@@ -54,20 +54,17 @@ octave-workspace
 *.zip
 *.asd
 
-# Project data never goes into git (EXDA-Check D3). Only the empty Projects/
-# folder is kept (via .gitkeep) so the app has a place to create projects.
+# Project data never goes into git (EXDA-Check D3). Projects live outside the
+# app folder (e.g. ../EXDA-Projects, ../EXDA-Projects-Demo); these rules only
+# stop data that ends up inside the app folder from being committed.
 # Back up project folders separately; they hold the experiment records.
-Projects/*
-!Projects/.gitkeep
+Projects/
+Demo Projects/
 
 # Measurement data files anywhere in the repo.
 *.seq
 *.tpc5
 *.mf4
-
-# Exceptions below must stay AFTER the data rules above (later rules win).
-# Demo projects ship small sample TPC5 files.
-!Demo Projects/**/*.tpc5
 
 AppsExamples
 

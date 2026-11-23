@@ -11,11 +11,23 @@ def _app_root():
     """Return the repository root for the running backend."""
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+PROJECTS_FOLDER_NAME = "EXDA-Projects"
+
+
 def _projects_root_default():
-    """Return the configured projects root path or the repo-local Projects folder."""
+    """Return the default projects folder.
+
+    Project data lives outside the app folder, so app updates never touch it:
+    1. EXDA_PROJECTS_ROOT, if set;
+    2. an 'EXDA-Projects' folder next to the app folder, if it exists;
+    3. otherwise the app's own 'Projects' folder (older installations).
+    """
     configured = os.environ.get("EXDA_PROJECTS_ROOT")
     if configured:
         return configured
+    beside_app = os.path.join(os.path.dirname(_app_root()), PROJECTS_FOLDER_NAME)
+    if os.path.isdir(beside_app):
+        return beside_app
     return os.path.join(_app_root(), "Projects")
 
 

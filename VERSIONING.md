@@ -46,13 +46,15 @@ develop on <dev-branch> -> test -> commit -> merge into main -> bump version on 
 
 ## What Must Never Be Committed
 
-`.gitignore` excludes experiment data:
+Project data lives outside the app folder (for example `EXDA-Projects/` and
+`EXDA-Projects-Demo/` next to it), so app updates never touch it. `.gitignore`
+also excludes, in case data ends up inside the app folder:
 
-- `Projects/*/Raw_Data/`, `Projects/*/Clean_Data/`, `Projects/*/CFD_Data/`
-- `*.seq`, `*.tpc5`, `*.mf4` (except the small sample files in `Demo Projects/` and `Projects/WaterTest-Project/`)
+- `Projects/` and `Demo Projects/`
+- `*.seq`, `*.tpc5`, `*.mf4` anywhere
 
-Project records (`Projects/*/Plan/*.json`, `Projects/*/Reports/*`) are not ignored, but must
-not be staged as part of app changes or releases. The repository is public.
+Project records must never be staged as part of app changes or releases. The
+repository is public.
 
 Files that were tracked before these rules existed stay tracked; `.gitignore` only affects
 new files.
