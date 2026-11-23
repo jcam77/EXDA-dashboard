@@ -797,6 +797,8 @@ def _build_plan_export_rows(experiments, plan_meta=None):
             "p0": output_format.fmt_pressure_pa(meta.get("p0")),
             "t0": output_format.fmt_temp_k(meta.get("t0")),
             "recirc_stop_to_ignition_sec": str(meta.get("recircStopToIgnitionSec") or ""),
+            "actual_ignition_time": str(meta.get("actualIgnitionTime") or ""),
+            "actual_ignition_time_source": str(meta.get("actualIgnitionTimeSource") or ""),
             "cfd_hash": str(meta.get("cfdHash") or ""),
             "data_files_count": str(len(data_files)),
             "data_files": " | ".join(str(item) for item in data_files),
@@ -814,7 +816,7 @@ def _write_plan_csv(rows, target_path, plan_name=None, plan_meta=None):
     headers = [
         "Run Name", "Group", "Group Description", "Status", "Done", "Preparation", "Schedule", "Planned Date", "Planned Day",
         "H2 (%)", "H2 Injected (g)", "MFC Flow (SLPM)", "Ignition", "Vent", "Pressure P0 (Pa)", "Temperature T0 (K)",
-        "Recirc Stop To Ignition (s)", "Case ID / CFD Hash", "Data Files Count", "File Path (Raw_Data Folder)",
+        "Recirc Stop To Ignition (s)", "Actual Ignition Time", "Actual Ignition Time Source", "Case ID / CFD Hash", "Data Files Count", "File Path (Raw_Data Folder)",
         "Short Description", "Run Notes", "Error", "Error Note", "Canceled", "Canceled Note",
     ]
     with open(target_path, "w", encoding="utf-8-sig", newline="") as handle:
@@ -832,7 +834,7 @@ def _write_plan_csv(rows, target_path, plan_name=None, plan_meta=None):
             writer.writerow([
                 row["run_name"], row["group"], row["group_description"], row["run_status"], row["done"], row["preparation"], row["schedule"], row["planned_date"], row["planned_day"],
                 row["h2"], row["h2_injected_grams"], row["mfc_flow_slpm"], row["ignition"], row["vent"], row["p0"], row["t0"],
-                row["recirc_stop_to_ignition_sec"], row["cfd_hash"], row["data_files_count"], row["data_files"],
+                row["recirc_stop_to_ignition_sec"], row["actual_ignition_time"], row["actual_ignition_time_source"], row["cfd_hash"], row["data_files_count"], row["data_files"],
                 row["short_description"], row["notes"], row["error"], row["error_note"], row["canceled"], row["canceled_note"],
             ])
 
@@ -3263,6 +3265,90 @@ def analyze_pressure_file():
         return jsonify({"error": str(exc), "source": source}), 400
     result["processing"]["analysedAt"] = datetime.now(timezone.utc).isoformat()
     return jsonify(result)
+
+
+def _run_time_candidates(run_dir, project_root):
+    """Timestamps found in a run's instrument files (EXDA-Check C7). Read-only.
+
+    Each candidate states its source and time zone. None is applied
+    automatically: the user chooses which one (if any) is the ignition time.
+    """
+    candidates = []
+
+    def add(source, path, value, timezone_text, note):
+        candidates.append({
+            "source": source,
+            "file": _to_posix_rel_path(project_root, path),
+            "value": value,
+            "timezone": timezone_text,
+            "note": note,
+        })
+
+    for dirpath, _dirs, files in os.walk(run_dir):
+        for name in sorted(files):
+            path = os.path.join(dirpath, name)
+            lower = name.lower()
+            try:
+                if lower.endswith(".mf4") and daq_reader.MDF is not None:
+                    mdf = daq_reader.MDF(path)
+                    try:
+                        start = mdf.header.start_time
+                    finally:
+                        mdf.close()
+                    if start is not None:
+                        aware = start if start.tzinfo else start.replace(tzinfo=timezone.utc)
+                        add("MF4 recording start", path, aware.astimezone().isoformat(timespec="milliseconds"),
+                            f"converted from {aware.tzinfo} to the local zone of this computer",
+                            "Start of the recording (includes any pre-trigger time).")
+                elif lower.endswith(".tpc5") and daq_reader.h5py is not None:
+                    with daq_reader.h5py.File(path, "r") as handle:
+                        entries = daq_reader._tpc5_channel_entries(handle)
+                        if entries:
+                            block = entries[0]["block"]
+                            start = daq_reader._decode(block.attrs.get("startTime", "")) if "startTime" in block.attrs else ""
+                            fs = daq_reader._attr_float(block.attrs, "sampleRateHertz", float("nan"))
+                            trig = daq_reader._attr_float(block.attrs, "triggerSample", float("nan"))
+                            if start:
+                                offset = f" Trigger sample {int(trig)} at fs {fs:g} Hz = {trig / fs:.6f} s after this." \
+                                    if np.isfinite(fs) and fs > 0 and np.isfinite(trig) else ""
+                                add("TPC5 block startTime", path, start, "as stored in the file (offset included)",
+                                    "Acquisition start as stored by the DAQ. The same value can appear for "
+                                    "several runs of one session, so check it." + offset)
+                elif lower.endswith(".csv") and "bga" in lower:
+                    text = h2s_parser.read_text(path)
+                    stamps = [line.split(";", 1)[0].strip() for line in text.splitlines()
+                              if re.match(r"^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}", line.strip())]
+                    if stamps:
+                        add("BGA first logged time", path, stamps[0], "local time as logged; no zone in the file", "")
+                        add("BGA last logged time", path, stamps[-1], "local time as logged; no zone in the file", "")
+                elif lower.endswith(".txt"):
+                    text = h2s_parser.read_text(path)
+                    if h2s_parser.looks_like_h2s(text):
+                        for block in h2s_parser.block_summaries(h2s_parser.parse_h2s_text(text)):
+                            if block["rowCount"]:
+                                add(f"H2S recording {block['index'] + 1} end", path, block["timeEnd"],
+                                    "time of day as logged; no date or zone in the file",
+                                    f"Recording {block['timeStart']} to {block['timeEnd']}.")
+            except Exception as exc:
+                add("unreadable", path, "", "", f"Could not read timestamps: {exc}")
+    return candidates
+
+
+@state_bp.route('/run_time_candidates', methods=['GET'])
+def run_time_candidates():
+    """List timestamps from a run's instrument files to help fill the actual ignition time."""
+    project_root, err = project_manager.resolve_project_path(request.args.get('projectPath'))
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    run_name = str(request.args.get('runName') or '').strip()
+    if not run_name or "/" in run_name or "\\" in run_name or run_name in (".", ".."):
+        return jsonify({"success": False, "error": "Invalid run name"}), 400
+    run_dir = os.path.join(project_root, "Raw_Data", run_name)
+    if not project_manager.is_path_within(project_root, run_dir) or not os.path.isdir(run_dir):
+        return jsonify({"success": True, "runName": run_name, "candidates": [],
+                        "note": "No Raw_Data folder for this run."})
+    return jsonify({"success": True, "runName": run_name, "candidates": _run_time_candidates(run_dir, project_root),
+                    "localTimezone": datetime.now().astimezone().strftime("%Z (UTC%z)")})
 
 
 @state_bp.route('/inspect_project_file_structure', methods=['GET'])

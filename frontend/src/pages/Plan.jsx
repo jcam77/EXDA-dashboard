@@ -125,6 +125,27 @@ const PlanPage = ({
 }) => {
     const apiBaseUrl = getBackendBaseUrl();
     const { dialogModal, setDialogModal, showAlert, showConfirm } = useAppDialog();
+    // EXDA-Check C7: actual ignition time per run, with time zone and source.
+    const [ignitionCandidates, setIgnitionCandidates] = useState({ runName: '', items: [], error: '', loading: false });
+    const loadIgnitionCandidates = useCallback(async (runName) => {
+        const name = String(runName || '').trim();
+        if (!projectPath || !name) return;
+        setIgnitionCandidates({ runName: name, items: [], error: '', loading: true });
+        try {
+            const query = new URLSearchParams({ projectPath, runName: name });
+            const res = await fetch(`${apiBaseUrl}/run_time_candidates?${query.toString()}`);
+            const data = await res.json();
+            if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
+            setIgnitionCandidates({
+                runName: name,
+                items: Array.isArray(data.candidates) ? data.candidates : [],
+                error: data.note || '',
+                loading: false,
+            });
+        } catch (err) {
+            setIgnitionCandidates({ runName: name, items: [], error: err?.message || String(err), loading: false });
+        }
+    }, [apiBaseUrl, projectPath]);
     const [input, setInput] = useState({ group: "", run: "", h2: "", plannedDate: "", name: "", isPreparation: false });
     const [editingExp, setEditingExp] = useState(null);
     const [createError, setCreateError] = useState("");
@@ -1810,6 +1831,63 @@ const PlanPage = ({
                                             <input value={editingMirroredTchamberK} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Set in Gas Mixing'} />
                                         </div>
                                         <div><label className="text-[9px] text-zinc-500 font-bold mb-1 block whitespace-nowrap">Recirc stop → ignition time (s)</label><input value={editingExp.meta?.recircStopToIgnitionSec || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, recircStopToIgnitionSec:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 120"/></div>
+                                        <div className="md:col-span-2 lg:col-span-3 rounded border border-zinc-800 p-2">
+                                            <label className="text-[9px] text-zinc-500 font-bold mb-1 block">Actual ignition time (with time zone)</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                <input
+                                                    value={editingExp.meta?.actualIgnitionTime || ''}
+                                                    onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, actualIgnitionTime:e.target.value, actualIgnitionTimeSource: editingExp.meta?.actualIgnitionTimeSource || 'entered manually'}})}
+                                                    className="flex-1 min-w-[220px] bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                                    placeholder="e.g., 2026-07-02T18:50:35+02:00"
+                                                />
+                                                <input
+                                                    value={editingExp.meta?.actualIgnitionTimeSource || ''}
+                                                    onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, actualIgnitionTimeSource:e.target.value}})}
+                                                    className="flex-1 min-w-[220px] bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                                    placeholder="Source (e.g., logbook, MF4 recording start)"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => loadIgnitionCandidates(editingExp.name)}
+                                                    className="rounded border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300 hover:border-primary"
+                                                >
+                                                    {ignitionCandidates.loading ? 'Reading files…' : 'Suggest from instrument files'}
+                                                </button>
+                                            </div>
+                                            {String(editingExp.meta?.actualIgnitionTime || '').trim() !== ''
+                                                && !/(Z|[+-]\d{2}:?\d{2})$/.test(String(editingExp.meta?.actualIgnitionTime || '').trim()) && (
+                                                <div className="mt-1 text-[10px] text-amber-500">State the time zone, e.g. +02:00 (CEST) or Z (UTC).</div>
+                                            )}
+                                            {ignitionCandidates.runName === editingExp.name && (ignitionCandidates.items.length > 0 || ignitionCandidates.error) && (
+                                                <div className="mt-2 text-[10px] text-zinc-400 space-y-1">
+                                                    {ignitionCandidates.error && <div className="text-amber-500">{ignitionCandidates.error}</div>}
+                                                    {ignitionCandidates.items.map((c, idx) => (
+                                                        <div key={`${c.source}-${c.file}-${idx}`} className="flex flex-wrap items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                disabled={!c.value}
+                                                                onClick={() => setEditingExp({
+                                                                    ...editingExp,
+                                                                    meta: {
+                                                                        ...editingExp.meta,
+                                                                        actualIgnitionTime: c.value,
+                                                                        actualIgnitionTimeSource: `${c.source} (${c.file}); ${c.timezone}`,
+                                                                    },
+                                                                })}
+                                                                className="rounded border border-zinc-700 px-1.5 py-0.5 text-zinc-200 hover:border-primary disabled:opacity-40"
+                                                            >
+                                                                Use
+                                                            </button>
+                                                            <span className="font-mono text-zinc-200">{c.value || '-'}</span>
+                                                            <span>{c.source}; {c.timezone}</span>
+                                                            <span className="text-zinc-500">{c.file}</span>
+                                                            {c.note && <span className="text-zinc-500">{c.note}</span>}
+                                                        </div>
+                                                    ))}
+                                                    <div className="text-zinc-500">Nothing is filled in automatically: choose the stamp that matches the ignition, or type the logbook time.</div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div>

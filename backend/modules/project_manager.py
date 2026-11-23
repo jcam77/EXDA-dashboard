@@ -90,6 +90,12 @@ def read_project_status(base_path):
             return None
     return None
 
+PROJECT_PATH_NOTE = (
+    "Informational: folder where the project was last opened. "
+    "Not used to locate files."
+)
+
+
 def ensure_project_status(base_path):
     """Create/update project status file with default metadata."""
     if not base_path or not os.path.exists(base_path):
@@ -108,7 +114,11 @@ def ensure_project_status(base_path):
 
     status = {
         "project_name": existing.get("project_name") or os.path.basename(base_path),
-        "project_path": existing.get("project_path") or base_path,
+        # EXDA-Check C6: informational only. Updated to where the project was
+        # opened this time; never used to resolve files (the path the app was
+        # given is always used), so a copy on another PC still works.
+        "project_path": base_path,
+        "project_path_note": PROJECT_PATH_NOTE,
         "created_at": existing.get("created_at") or now,
         "updated_at": now,
         "last_opened_at": now,
