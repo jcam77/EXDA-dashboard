@@ -1,6 +1,7 @@
 """Calculation API routes for pressure, vent, flame, EWT, and plot interpolation."""
 
 import csv
+import re
 from pathlib import Path
 
 import numpy as np
@@ -347,10 +348,21 @@ def preview_multichannel():
                 inferred_units[idx] = header_unit_display.get(token, token)
                 inferred_roles[idx] = "trigger" if token in ("v", "mv") else "pressure"
                 from_header[idx] = True
+            elif re.match(r"^conc\d+_tc$", str(label).strip().lower()):
+                # BGA logger convention (EXDA-Check B7): Conc<n>_TC is logged in ppm
+                # (164670 ppm = 16.47 vol.%). Stated explicitly, not guessed from magnitude.
+                inferred_units[idx] = "ppm"
+                inferred_roles[idx] = "concentration"
+                from_header[idx] = "BGA Conc*_TC column (ppm)"
             elif str(label).strip().lower().endswith("[ppm]"):
                 inferred_units[idx] = "ppm"
                 inferred_roles[idx] = "concentration"
                 from_header[idx] = True
+            else:
+                other = re.search(r"\[([^\[\]]+)\]\s*$", str(label))
+                if other:  # any other unit stated in the header, kept as is (e.g. H2S "Output [%]")
+                    inferred_units[idx] = other.group(1).strip()
+                    from_header[idx] = True
 
         # 1) Direct name-based hints (only for channels without a unit in the header).
         trigger_keywords = ("trigger", "trig", "ign", "ttl", "volt", "voltage")
@@ -390,7 +402,7 @@ def preview_multichannel():
                     "key": f"ch_{idx}",
                     "label": label,
                     "unit": inferred_units[idx],
-                    "unitSource": "file header" if from_header[idx] else ("assumed" if inferred_units[idx] != "raw" else "unknown"),
+                    "unitSource": (from_header[idx] if isinstance(from_header[idx], str) else "file header") if from_header[idx] else ("assumed" if inferred_units[idx] != "raw" else "unknown"),
                     "role": inferred_roles[idx],
                 }
             )

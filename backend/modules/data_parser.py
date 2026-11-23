@@ -282,7 +282,7 @@ def _parse_semicolon_multichannel(lines: list[str], channel_index: int = 0):
 
     t_datetime = _parse_datetime_axis(time_tokens)
     if t_datetime is not None and len(t_datetime) == len(y):
-        idx = np.argsort(t_datetime)
+        idx = np.argsort(t_datetime, kind="stable")  # keep logged order of repeated stamps (B7)
         return t_datetime[idx], y[idx], None
 
     return None, None, "Could not infer time axis for multichannel waveform file"
@@ -362,7 +362,7 @@ def _parse_semicolon_multichannel_all(lines: list[str]):
 
     t_datetime = _parse_datetime_axis(time_tokens)
     if t_datetime is not None and len(t_datetime) == y.shape[0]:
-        idx = np.argsort(t_datetime)
+        idx = np.argsort(t_datetime, kind="stable")  # keep logged order of repeated stamps (B7)
         return t_datetime[idx], y[idx, :], channel_names, None
 
     return None, None, None, "Could not infer time axis for multichannel waveform file"

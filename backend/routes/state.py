@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from modules import daq_reader, data_parser, gas_mixing_checks, gas_mixing_store, mf4_parser, output_format, pressure_analysis, project_manager, tpc5_parser
+from modules import daq_reader, data_parser, gas_mixing_checks, h2s_parser, gas_mixing_store, mf4_parser, output_format, pressure_analysis, project_manager, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
@@ -3091,8 +3091,24 @@ def read_project_file():
             if parse_err:
                 return jsonify({"success": False, "error": parse_err}), 400
             return jsonify({"success": True, "content": content})
-        with open(target, 'r', encoding='utf-8') as f:
-            content = f.read()
+        raw_text = h2s_parser.read_text(target)
+        h2s_info = None
+        if h2s_parser.looks_like_h2s(raw_text):
+            # EXDA-Check B6: H2S logs are split into recordings; one is chosen,
+            # recordings are never concatenated.
+            try:
+                blocks = h2s_parser.parse_h2s_text(raw_text)
+                summaries = h2s_parser.block_summaries(blocks)
+                block = h2s_parser.select_block(blocks, request.args.get("block"))
+            except h2s_parser.H2SParseError as exc:
+                payload = {"success": False, "error": str(exc)}
+                if 'summaries' in locals():
+                    payload["h2sBlocks"] = summaries
+                return jsonify(payload), 409
+            content = h2s_parser.block_to_content(block)
+            h2s_info = {"h2sBlocks": summaries, "h2sBlock": block["index"]}
+        else:
+            content = raw_text
         content_windowed, parse_err = _apply_time_window_to_text_content(
             content,
             time_start=window_start,
@@ -3101,9 +3117,64 @@ def read_project_file():
         )
         if parse_err:
             return jsonify({"success": False, "error": parse_err}), 400
-        return jsonify({"success": True, "content": content_windowed})
+        response = {"success": True, "content": content_windowed}
+        if h2s_info:
+            response.update(h2s_info)
+        return jsonify(response)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@state_bp.route('/h2s_blocks', methods=['GET'])
+def h2s_blocks():
+    """List the recordings in an H2S log, with device metadata (EXDA-Check B6).
+
+    Also reports recordings whose data is identical to a recording in another
+    H2S file of the project (e.g. a file that starts with the previous run's
+    recording). Read-only.
+    """
+    project_root, err = project_manager.resolve_project_path(request.args.get('projectPath'))
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    file_path = request.args.get('path')
+    if not file_path:
+        return jsonify({"success": False, "error": "File path is required"}), 400
+    target = file_path if os.path.isabs(file_path) else os.path.join(project_root, file_path)
+    if not project_manager.is_path_within(project_root, target):
+        return jsonify({"success": False, "error": "File path not allowed"}), 403
+    if not os.path.isfile(target):
+        return jsonify({"success": False, "error": "File not found"}), 404
+    try:
+        blocks = h2s_parser.parse_h2s_text(h2s_parser.read_text(target))
+    except h2s_parser.H2SParseError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    summaries = h2s_parser.block_summaries(blocks)
+
+    wanted = {b["fingerprint"]: b["index"] for b in summaries if b.get("fingerprint")}
+    matches = {}
+    raw_root = os.path.join(project_root, "Raw_Data")
+    target_real = os.path.realpath(target)
+    if wanted and os.path.isdir(raw_root):
+        for dirpath, _dirs, files in os.walk(raw_root):
+            for name in files:
+                other = os.path.join(dirpath, name)
+                if not name.lower().endswith(".txt") or os.path.realpath(other) == target_real:
+                    continue
+                try:
+                    other_text = h2s_parser.read_text(other)
+                    if not h2s_parser.looks_like_h2s(other_text):
+                        continue
+                    for other_block in h2s_parser.parse_h2s_text(other_text):
+                        fp = other_block.get("fingerprint")
+                        if fp in wanted:
+                            matches.setdefault(wanted[fp], []).append(
+                                f"{_to_posix_rel_path(project_root, other)} (recording {other_block['index'] + 1})"
+                            )
+                except Exception:
+                    continue
+    for summary in summaries:
+        summary["identicalElsewhere"] = sorted(matches.get(summary["index"], []))
+    return jsonify({"success": True, "blocks": summaries})
 
 
 def _run_for_data_path(project_root, target):

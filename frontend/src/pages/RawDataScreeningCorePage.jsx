@@ -101,6 +101,10 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
   const [convertPpmToVolPercent, setConvertPpmToVolPercent] = useState(false);
   const [selectedChannelKeys, setSelectedChannelKeys] = useState([]);
   const [channelUnitOverrides, setChannelUnitOverrides] = useState({});
+  // H2S logs (EXDA-Check B6): one recording per file is chosen, never joined.
+  const [h2sBlockByPath, setH2sBlockByPath] = useState({});
+  const [h2sBlocksByPath, setH2sBlocksByPath] = useState({});
+  const h2sEnrichedRef = useRef(new Set());
   const [preview, setPreview] = useState(null);
   const [comparePreviews, setComparePreviews] = useState({});
   const [loading, setLoading] = useState(false);
@@ -128,6 +132,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
         restoredSelectedChannelKeysRef.current = true;
       }
       if (persisted.channelUnitOverrides && typeof persisted.channelUnitOverrides === 'object') setChannelUnitOverrides(persisted.channelUnitOverrides);
+      if (persisted.h2sBlockByPath && typeof persisted.h2sBlockByPath === 'object') setH2sBlockByPath(persisted.h2sBlockByPath);
     }
     setStateRestored(true);
   }, [stateStorageKey]);
@@ -150,6 +155,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
       convertPpmToVolPercent,
       selectedChannelKeys,
       channelUnitOverrides,
+      h2sBlockByPath,
     });
   }, [
     stateRestored,
@@ -169,6 +175,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
     convertPpmToVolPercent,
     selectedChannelKeys,
     channelUnitOverrides,
+    h2sBlockByPath,
   ]);
 
   useEffect(() => {
@@ -264,8 +271,28 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
         if (Number.isFinite(startNumeric)) fileQuery.set('windowStart', String(startNumeric));
         if (Number.isFinite(endNumeric)) fileQuery.set('windowEnd', String(endNumeric));
       }
+      const chosenBlock = h2sBlockByPath[pathValue];
+      if (chosenBlock !== undefined && chosenBlock !== null && chosenBlock !== '') {
+        fileQuery.set('block', String(chosenBlock));
+      }
       const fileRes = await fetch(`${apiBaseUrl}/read_project_file?${fileQuery.toString()}`);
       const fileJson = await fileRes.json();
+      if (Array.isArray(fileJson?.h2sBlocks)) {
+        const blocks = fileJson.h2sBlocks;
+        setH2sBlocksByPath((prev) => ({ ...prev, [pathValue]: prev[pathValue]?.enriched ? prev[pathValue] : { blocks } }));
+        if (!h2sEnrichedRef.current.has(pathValue)) {
+          h2sEnrichedRef.current.add(pathValue);
+          const infoQuery = new URLSearchParams({ path: pathValue, projectPath: projectPath || '' });
+          fetch(`${apiBaseUrl}/h2s_blocks?${infoQuery.toString()}`)
+            .then((res) => res.json())
+            .then((info) => {
+              if (info?.success && Array.isArray(info.blocks)) {
+                setH2sBlocksByPath((prev) => ({ ...prev, [pathValue]: { blocks: info.blocks, enriched: true } }));
+              }
+            })
+            .catch(() => {});
+        }
+      }
       if (!fileRes.ok || !fileJson?.success) {
         throw new Error(fileJson?.error || 'Failed to read file');
       }
@@ -285,7 +312,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
       }
       return previewJson;
     },
-    [apiBaseUrl, projectPath]
+    [apiBaseUrl, h2sBlockByPath, projectPath]
   );
 
   const requestPreview = useCallback(
@@ -478,13 +505,17 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
     if (!selectedChannels.length) return [];
     if (isConcentrationMode) {
       const sourceLabel = displayNameByPath.get(selectedPath) || formatFileName(selectedPath) || 'Concentration';
-      return selectedChannels.map((channel) => ({
-        ...channel,
-        label: sourceLabel,
-        sourceUnit: 'ppm',
-        unit: convertPpmToVolPercent ? 'Vol.%' : 'ppm',
-        role: 'concentration',
-      }));
+      return selectedChannels.map((channel) => {
+        const sourceUnit = channel.unit && channel.unit !== 'raw' ? channel.unit : 'unknown unit';
+        const isPpm = String(sourceUnit).toLowerCase() === 'ppm';
+        return {
+          ...channel,
+          label: sourceLabel,
+          sourceUnit,
+          unit: isPpm && convertPpmToVolPercent ? 'vol.%' : sourceUnit,
+          role: 'concentration',
+        };
+      });
     }
     return selectedChannels.map((channel) => ({
       ...channel,
@@ -504,8 +535,9 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
         const nextRow = { t: row.t };
         selectedChannels.forEach((channel) => {
           const rawValue = Number(row[channel.key]);
+          const isPpm = String(channel.unit || '').toLowerCase() === 'ppm';
           const value = Number.isFinite(rawValue)
-            ? (convertPpmToVolPercent ? rawValue / 10000 : rawValue)
+            ? (convertPpmToVolPercent && isPpm ? rawValue / 10000 : rawValue)
             : rawValue;
           nextRow[channel.key] = value;
         });
@@ -622,8 +654,9 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
         const channelKey = `ch_${channelIndex}`;
         const channelMeta = channelsList[channelIndex] || channelsList[0] || null;
         if (!rows.length) return null;
+        const concentrationIsPpm = String(channelMeta?.unit || '').toLowerCase() === 'ppm';
         const unitToken = isConcentrationMode
-          ? 'ppm'
+          ? (concentrationIsPpm ? 'ppm' : 'raw')
           : (compareUnitOverrides[path] && compareUnitOverrides[path] !== FROM_FILE_UNIT
               ? normalizeUnitToken(compareUnitOverrides[path])
               : normalizeUnitToken(channelMeta?.unit || 'raw'));
@@ -632,7 +665,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
           if (isConcentrationMode) {
             const raw = Number(v);
             if (!Number.isFinite(raw)) return raw;
-            return convertPpmToVolPercent ? raw / 10000 : raw;
+            return convertPpmToVolPercent && concentrationIsPpm ? raw / 10000 : raw;
           }
           if (unitToken === 'v' || roleToken === 'trigger' || (!convertToKpa && unitToken === 'kpa')) return Number(v);
           return convertValueByUnit(v, unitToken, convertToKpa);
@@ -647,7 +680,9 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
           label: uniqueLabel,
           sourceLabel: channelMeta?.label || `Channel ${channelIndex + 1}`,
           sourceUnit: isConcentrationMode
-            ? (convertPpmToVolPercent ? 'Vol.%' : 'ppm')
+            ? (concentrationIsPpm
+                ? (convertPpmToVolPercent ? 'vol.%' : 'ppm')
+                : (channelMeta?.unit && channelMeta.unit !== 'raw' ? channelMeta.unit : 'unknown unit'))
             : getChannelDisplayUnit(
                 { ...channelMeta, unit: unitToken || channelMeta?.unit || 'raw' },
                 unitToken || channelMeta?.unit || 'raw',
@@ -798,6 +833,34 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                   );
                 })}
               </select>
+              {h2sBlocksByPath[selectedPath]?.blocks?.length > 0 && (
+                <div className="mt-2">
+                  <label className="block text-xs text-muted-foreground font-semibold mb-1">
+                    Recording in this file
+                  </label>
+                  <select
+                    value={h2sBlockByPath[selectedPath] ?? ''}
+                    onChange={(event) =>
+                      setH2sBlockByPath((prev) => ({ ...prev, [selectedPath]: event.target.value }))
+                    }
+                    className="w-full max-w-full p-2 bg-background border border-border rounded-md text-xs text-foreground outline-none"
+                  >
+                    <option value="">Choose a recording…</option>
+                    {h2sBlocksByPath[selectedPath].blocks.map((block) => (
+                      <option key={block.index} value={String(block.index)} disabled={block.empty}>
+                        {`Recording ${block.index + 1}: ${block.empty ? 'empty' : `${block.timeStart}–${block.timeEnd}, ${block.rowCount} rows`}`}
+                        {block.duplicateOf !== null && block.duplicateOf !== undefined ? ` (same data as recording ${block.duplicateOf + 1})` : ''}
+                        {Array.isArray(block.identicalElsewhere) && block.identicalElsewhere.length > 0 ? ` (identical to ${block.identicalElsewhere.join('; ')})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    Device {h2sBlocksByPath[selectedPath].blocks[0]?.device?.['Device ID'] || '-'}
+                    {' / factory ID '}{h2sBlocksByPath[selectedPath].blocks[0]?.device?.['Factory Device ID'] || '-'}.
+                    Recordings are shown separately and never joined. Time is from the start of the recording.
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -862,7 +925,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                 onChange={(event) => setConvertPpmToVolPercent(event.target.checked)}
                 className="accent-blue-600 w-4 h-4"
               />
-              Convert concentration ppm to Vol.%
+              Convert ppm to vol.% (÷ 10,000; ppm channels only)
             </label>
           )}
           <label className="inline-flex items-center gap-2 text-xs text-foreground px-2 pb-2">
