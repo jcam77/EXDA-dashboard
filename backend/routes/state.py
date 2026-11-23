@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from modules import data_parser, gas_mixing_store, mf4_parser, project_manager, tpc5_parser
+from modules import data_parser, gas_mixing_checks, gas_mixing_store, mf4_parser, project_manager, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
@@ -3698,6 +3698,52 @@ def get_gas_mixing():
         })
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@state_bp.route('/check_gas_mixing_records', methods=['GET'])
+def check_gas_mixing_records():
+    """Read-only consistency report for gas mixing records (EXDA-Check item 7).
+
+    Reads gas_mixing.json and the latest plan; never writes, migrates or
+    corrects anything. ?format=csv returns the report as a CSV download.
+    """
+    project_path = request.args.get('projectPath')
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+
+    file_path = _resolve_existing_metadata_file(project_root, GAS_MIXING_FILENAME)
+    records = []
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except Exception as exc:
+            return jsonify({"success": False, "error": f"Could not read {file_path}: {exc}"}), 500
+        raw_records = payload.get("records") if isinstance(payload, dict) else None
+        records = raw_records if isinstance(raw_records, list) else []
+
+    plan_payload = _load_latest_plan_payload(project_root)
+    report = gas_mixing_checks.build_report(records, plan_payload.get("experiments"))
+    report.update({
+        "success": True,
+        "gasMixingPath": file_path if os.path.exists(file_path) else "",
+        "planPath": plan_payload.get("path", ""),
+        "checkedAt": datetime.now(timezone.utc).isoformat(),
+    })
+
+    if str(request.args.get("format") or "").lower() == "csv":
+        project_name = os.path.basename(os.path.normpath(project_root))
+        stamp = datetime.now().strftime("%Y-%m-%d")
+        return (
+            gas_mixing_checks.report_to_csv(report),
+            200,
+            {
+                "Content-Type": "text/csv; charset=utf-8",
+                "Content-Disposition": f'attachment; filename="{project_name}_Gas_Mixing_Check_{stamp}.csv"',
+            },
+        )
+    return jsonify(report)
 
 
 def _normalize_gas_record(item):

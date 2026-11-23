@@ -197,5 +197,77 @@ class GasMixingHistoryTests(unittest.TestCase):
         self.assertIn("dosage_model", [e["action"] for e in self.audit_lines()])
 
 
+class GasMixingConsistencyCheckTests(unittest.TestCase):
+    """Item 7: the check only reports; it never writes."""
+
+    def test_each_check_on_synthetic_records(self):
+        from modules import gas_mixing_checks
+
+        records = [
+            gas_record(run="A", tChamberK="295.25",
+                       results={"inputs": {"T_chamber_K": 293.15, "P_chamber_Pa": 101500, "H2_volPct": 16, "MFC_setpoint_SLPM": 20}},
+                       relativeHumidityPct="40"),
+            gas_record(run="B", pChamberPa="101325", relativeHumidityPct="40",
+                       results={"inputs": {"T_chamber_K": 295.25, "P_chamber_Pa": 101325, "H2_volPct": 16, "MFC_setpoint_SLPM": 20}}),
+            gas_record(run="C", relativeHumidityPct="", results=None),
+            gas_record(run="D", relativeHumidityPct="40", calibrationApplied="Yes", calibrationA="69.638",
+                       calibrationB="-0.2568", targetVol="20", mH2InjectedG="13.9",
+                       results={"inputs": {"T_chamber_K": 295.25, "P_chamber_Pa": 101500, "H2_volPct": 20, "MFC_setpoint_SLPM": 20}}),
+        ]
+        found = {(i["runName"].split("-")[-1], i["check"]) for i in gas_mixing_checks.check_gas_records(records)}
+        self.assertIn(("A", "inputs_mismatch"), found)
+        self.assertIn(("B", "possible_default_p"), found)
+        self.assertIn(("C", "results_missing"), found)
+        self.assertIn(("C", "missing_rh"), found)
+        self.assertIn(("D", "calibration_mismatch"), found)
+        self.assertNotIn(("B", "inputs_mismatch"), found)
+
+    def test_calibration_consistent_record_passes(self):
+        from modules import gas_mixing_checks
+
+        record = gas_record(relativeHumidityPct="40", calibrationApplied="Yes", calibrationA="69.638",
+                            calibrationB="-0.2568", targetVol="20", mH2InjectedG="13.670800000000002",
+                            results={"inputs": {"T_chamber_K": 295.25, "P_chamber_Pa": 101500, "H2_volPct": 20, "MFC_setpoint_SLPM": 20}})
+        self.assertEqual(gas_mixing_checks.check_gas_records([record]), [])
+
+    @unittest.skipUnless((REPO_ROOT / "Projects" / "VH2D-Project-Wk-27-2026" / "Reports" / "gas_mixing.json").exists(),
+                         "week-27 project data not present")
+    def test_week27_report_matches_review_and_changes_no_files(self):
+        import hashlib
+
+        project = REPO_ROOT / "Projects" / "VH2D-Project-Wk-27-2026"
+        watched = [project / "Reports" / "gas_mixing.json", *sorted((project / "Plan").glob("*.json"))]
+        before = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in watched}
+        listing_before = sorted(p.name for p in (project / "Reports").iterdir())
+
+        client = flask_app.test_client()
+        response = client.get("/check_gas_mixing_records", query_string={"projectPath": str(project)})
+        self.assertEqual(response.status_code, 200)
+        report = response.get_json()
+        found = {(i["source"], i["runName"].replace("VH2D-Wk27-", ""), i["check"], i["field"]) for i in report["issues"]}
+        expected = {
+            ("gas_mixing", "G01-01", "inputs_mismatch", "tChamberK"),
+            ("gas_mixing", "G01-08", "inputs_mismatch", "pChamberPa"),
+            ("gas_mixing", "G01-06", "possible_default_p", "pChamberPa"),
+            ("gas_mixing", "G01-12", "possible_default_p", "pChamberPa"),
+            ("gas_mixing", "G04-03", "possible_default_p", "pChamberPa"),
+            ("plan", "G01-06", "possible_default_p0", "p0"),
+            ("plan", "G01-12", "possible_default_p0", "p0"),
+            ("plan", "G04-03", "possible_default_p0", "p0"),
+            ("gas_mixing", "G00-01", "missing_rh", "relativeHumidityPct"),
+        }
+        self.assertEqual(found, expected)
+
+        csv_response = client.get("/check_gas_mixing_records",
+                                  query_string={"projectPath": str(project), "format": "csv"})
+        self.assertEqual(csv_response.status_code, 200)
+        self.assertIn("text/csv", csv_response.headers["Content-Type"])
+        self.assertEqual(len(csv_response.get_data(as_text=True).strip().splitlines()), 1 + len(expected))
+
+        after = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in watched}
+        self.assertEqual(before, after)
+        self.assertEqual(listing_before, sorted(p.name for p in (project / "Reports").iterdir()))
+
+
 if __name__ == "__main__":
     unittest.main()

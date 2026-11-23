@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlaskConical, Beaker, Gauge, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { FlaskConical, Beaker, ClipboardCheck, Gauge, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock, formatExdaDateTime } from '../utils/timezone';
 import UnifiedModal from '../components/UnifiedModal';
@@ -184,6 +184,8 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [busyFormat, setBusyFormat] = useState('');
   const [status, setStatus] = useState('');
+  const [checkReport, setCheckReport] = useState(null);
+  const [isChecking, setIsChecking] = useState(false);
   const { dialogModal, setDialogModal, showAlert, showConfirm } = useAppDialog();
   const visibleCorrectionColumns = useMemo(() => ({
     hotwire: records.some((item) => hasNonZeroValue(item?.hotwireAssemblyM3)),
@@ -579,6 +581,48 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       return;
     }
     setStatus(`Deleted record (${label}).`);
+  };
+
+  // Read-only consistency report (item 7): nothing is written or corrected.
+  const runRecordsCheck = async () => {
+    if (!projectPath) {
+      setStatus('No project selected.');
+      return;
+    }
+    setIsChecking(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/check_gas_mixing_records?projectPath=${encodeURIComponent(projectPath)}`);
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Check failed');
+      }
+      setCheckReport(payload);
+    } catch (err) {
+      setCheckReport(null);
+      setStatus(`Check failed: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const downloadCheckCsv = async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/check_gas_mixing_records?projectPath=${encodeURIComponent(projectPath)}&format=csv`);
+      if (!response.ok) throw new Error(`CSV download failed (${response.status})`);
+      const blob = await response.blob();
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="([^"]+)"/);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = match ? match[1] : 'Gas_Mixing_Check.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setStatus(`Check CSV failed: ${err?.message || 'Unknown error'}`);
+    }
   };
 
   const exportGasArtifact = async (format) => {
@@ -1150,13 +1194,79 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       <div className="rounded-xl border border-sidebar-border bg-card/60 p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-foreground">Saved Gas Mixing Records</h3>
-          <ExportFormatButtons
-            onExportCsv={() => exportGasArtifact('csv')}
-            onExportPdf={() => exportGasArtifact('pdf')}
-            busyFormat={busyFormat}
-            size="sm"
-          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={runRecordsCheck}
+              disabled={isChecking || !projectPath}
+              title="Read-only consistency check: reports problems, changes nothing"
+              className="inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60 disabled:opacity-60"
+            >
+              {isChecking ? <RefreshCw size={12} className="animate-spin" /> : <ClipboardCheck size={12} />}
+              Check records
+            </button>
+            <ExportFormatButtons
+              onExportCsv={() => exportGasArtifact('csv')}
+              onExportPdf={() => exportGasArtifact('pdf')}
+              busyFormat={busyFormat}
+              size="sm"
+            />
+          </div>
         </div>
+        {checkReport && (
+          <div className="mb-4 rounded border border-sidebar-border bg-background/50 p-3 text-xs">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold text-foreground">
+                Consistency check (read-only): {checkReport.issues?.length || 0} finding(s) in {checkReport.recordsChecked} record(s)
+                and {checkReport.planRunsChecked} plan run(s). Nothing was changed.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={downloadCheckCsv}
+                  className="rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+                >
+                  Download CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCheckReport(null)}
+                  className="rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            {checkReport.issues?.length ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-sidebar-border text-left text-muted-foreground">
+                      <th className="py-1 pr-3">Source</th>
+                      <th className="py-1 pr-3">Run/Test</th>
+                      <th className="py-1 pr-3">Check</th>
+                      <th className="py-1 pr-3">Field</th>
+                      <th className="py-1 pr-3">Detail</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {checkReport.issues.map((issue, idx) => (
+                      <tr key={`${issue.source}-${issue.runName}-${issue.check}-${issue.field}-${idx}`} className="border-b border-sidebar-border/40">
+                        <td className="py-1 pr-3">{issue.source === 'plan' ? 'Plan' : 'Gas Mixing'}</td>
+                        <td className="py-1 pr-3 font-semibold">{issue.runName || '-'}</td>
+                        <td className="py-1 pr-3">{issue.check}</td>
+                        <td className="py-1 pr-3 font-mono">{issue.field || '-'}</td>
+                        <td className="py-1 pr-3">{issue.detail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-emerald-300">No inconsistencies found.</p>
+            )}
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="min-w-full text-xs">
             <thead>
