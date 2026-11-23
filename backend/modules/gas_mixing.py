@@ -1,19 +1,24 @@
-"""Gas mixing calculations (MATLAB-equivalent H2 MFC fill model)."""
+"""Gas mixing calculations (MATLAB-equivalent H2 MFC fill model).
+
+Measured run inputs (chamber pressure and temperature, target H2 fraction,
+MFC setpoint, chamber geometry and volume corrections) are REQUIRED: a missing
+or blank value raises ValueError (HTTP 400). They are never replaced by a
+default, because a default would look like a recorded measurement
+(EXDA-Check section 0, rule 4).
+
+Only the documented physical/standard constants below may fall back to their
+defaults when omitted.
+"""
 
 from __future__ import annotations
 
 import numpy as np
 
-DEFAULT_RU = 8.314462618
+# Documented constants (not measurements). Used only when the caller omits them.
+DEFAULT_RU = 8.314462618  # J/(mol*K)
 DEFAULT_M_H2 = 2.01588e-3  # kg/mol
-DEFAULT_CHAMBER_VOLUME_M3 = 0.9 * 0.9 * 0.9
-DEFAULT_T_CHAMBER_K = 293.15
-DEFAULT_T_STD_K = 298.15
-DEFAULT_P_STD_PA = 101325.0
-DEFAULT_AMB_PRESSURE_BAR = 1.01325
-DEFAULT_L_M = 0.9
-DEFAULT_W_M = 0.9
-DEFAULT_H_M = 0.9
+DEFAULT_T_STD_K = 298.15  # MFC standard temperature
+DEFAULT_P_STD_PA = 101325.0  # MFC standard pressure
 
 
 def _is_blank(value) -> bool:
@@ -56,6 +61,14 @@ def _pick_value(payload: dict, *keys, default=None):
     return default
 
 
+def _require(payload: dict, var_name: str, *keys):
+    """Return the first non-blank value among keys, or raise ValueError."""
+    value = _pick_value(payload, *keys)
+    if value is None:
+        raise ValueError(f"{var_name} is required")
+    return value
+
+
 def _as_float(value, var_name: str) -> float:
     try:
         numeric = float(value)
@@ -75,13 +88,13 @@ def calculate_h2_mfc_fill(payload: dict) -> dict:
     H2_volPct = _as_1d_numeric(h2_raw, "Target H2 Vol %")
     n_cases = H2_volPct.size
 
-    L_m = _as_float(_pick_value(payload, "L_m", "lengthM", default=DEFAULT_L_M), "Length L (m)")
-    W_m = _as_float(_pick_value(payload, "W_m", "widthM", default=DEFAULT_W_M), "Width W (m)")
-    H_m = _as_float(_pick_value(payload, "H_m", "heightM", default=DEFAULT_H_M), "Height H (m)")
-    Vol_Pipes_m3 = _as_float(_pick_value(payload, "Vol_Pipes_m3", "volPipesM3", default=0.0), "Pipes volume (m^3)")
-    HotwireAssembly_m3 = _as_float(_pick_value(payload, "HotwireAssembly_m3", "hotwireAssemblyM3", default=0.0), "Hotwire assembly volume (m^3)")
-    WeldedParts_m3 = _as_float(_pick_value(payload, "WeldedParts_m3", "weldedPartsM3", default=0.0), "Welded parts volume (m^3)")
-    Bolts_m3 = _as_float(_pick_value(payload, "Bolts_m3", "boltsM3", default=0.0), "Bolts volume (m^3)")
+    L_m = _as_float(_require(payload, "Length L (m)", "L_m", "lengthM"), "Length L (m)")
+    W_m = _as_float(_require(payload, "Width W (m)", "W_m", "widthM"), "Width W (m)")
+    H_m = _as_float(_require(payload, "Height H (m)", "H_m", "heightM"), "Height H (m)")
+    Vol_Pipes_m3 = _as_float(_require(payload, "Pipes volume (m^3)", "Vol_Pipes_m3", "volPipesM3"), "Pipes volume (m^3)")
+    HotwireAssembly_m3 = _as_float(_require(payload, "Hotwire assembly volume (m^3)", "HotwireAssembly_m3", "hotwireAssemblyM3"), "Hotwire assembly volume (m^3)")
+    WeldedParts_m3 = _as_float(_require(payload, "Welded parts volume (m^3)", "WeldedParts_m3", "weldedPartsM3"), "Welded parts volume (m^3)")
+    Bolts_m3 = _as_float(_require(payload, "Bolts volume (m^3)", "Bolts_m3", "boltsM3"), "Bolts volume (m^3)")
 
     V_chamber_geom_m3 = L_m * W_m * H_m
     V_chamber_corrected_m3 = (
@@ -92,28 +105,29 @@ def calculate_h2_mfc_fill(payload: dict) -> dict:
         - Bolts_m3
     )
 
+    # An explicit chamber volume may be given; otherwise the corrected geometric
+    # volume is used. A non-positive volume is rejected below (no fallback).
     V_chamber_m3 = _expand_to_cases(
         _pick_value(
             payload,
             "V_chamber_m3",
             "V_chamberCorrected_m3",
             "chamberVolumeM3",
-            default=V_chamber_corrected_m3 if V_chamber_corrected_m3 > 0 else DEFAULT_CHAMBER_VOLUME_M3,
+            default=V_chamber_corrected_m3,
         ),
         n_cases,
         "V_chamber_m3",
     )
     T_chamber_K = _expand_to_cases(
-        _pick_value(payload, "T_chamber_K", "chamberTempK", default=DEFAULT_T_CHAMBER_K),
+        _require(payload, "Chamber temperature T_chamber_K", "T_chamber_K", "chamberTempK"),
         n_cases,
         "T_chamber_K",
     )
-
-    if not _is_blank(payload.get("P_chamber_Pa")):
-        P_chamber_Pa = _expand_to_cases(payload.get("P_chamber_Pa"), n_cases, "P_chamber_Pa")
-    else:
-        amb_pressure_bar = _pick_value(payload, "ambPressure", default=DEFAULT_AMB_PRESSURE_BAR)
-        P_chamber_Pa = _expand_to_cases(np.asarray(amb_pressure_bar, dtype=float) * 1e5, n_cases, "P_chamber_Pa")
+    P_chamber_Pa = _expand_to_cases(
+        _require(payload, "Chamber pressure P_chamber_Pa", "P_chamber_Pa"),
+        n_cases,
+        "P_chamber_Pa",
+    )
 
     T_std_K = _as_float(_pick_value(payload, "T_std_K", "stdTempK", default=DEFAULT_T_STD_K), "Standard temperature Tstd (K)")
     P_std_Pa = _as_float(_pick_value(payload, "P_std_Pa", "stdPressurePa", default=DEFAULT_P_STD_PA), "Standard pressure Pstd (Pa)")

@@ -595,8 +595,9 @@ const PlanPage = ({
                 isCanceled: false,
                 canceledNote: "",
                 shortDescription: "",
-                p0: "101325",
-                t0: "293",
+                // Measured on the day: start blank, never a default (EXDA-Check item 2).
+                p0: "",
+                t0: "",
                 ignition: "",
                 vent: "",
                 cfdHash: "",

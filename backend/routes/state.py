@@ -3793,6 +3793,13 @@ def save_gas_mixing():
             "vChamberCorrectedM3": str(item.get("vChamberCorrectedM3") or "").strip(),
             "injectionTimeS": str(item.get("injectionTimeS") or "").strip(),
             "injectionTimeMin": str(item.get("injectionTimeMin") or "").strip(),
+            # Unambiguous fill times (EXDA-Check item 6). injectionTimeS is kept
+            # for compatibility and equals the time applied on the MFC.
+            "fillTimeEstimated_s": str(item.get("fillTimeEstimated_s") or "").strip(),
+            "fillTimeCorrected_s": str(item.get("fillTimeCorrected_s") or "").strip(),
+            "fillTimeAppliedOnMfc": str(item.get("fillTimeAppliedOnMfc") or "").strip(),
+            "vChamberL": str(item.get("vChamberL") or "").strip(),
+            "vH2InjectedL": str(item.get("vH2InjectedL") or "").strip(),
             "calibrationModelType": str(item.get("calibrationModelType") or "").strip(),
             "calibrationTargetBasis": str(item.get("calibrationTargetBasis") or "").strip(),
             "calibrationEnabled": str(item.get("calibrationEnabled") or "").strip(),

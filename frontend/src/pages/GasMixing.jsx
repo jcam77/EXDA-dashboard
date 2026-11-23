@@ -5,6 +5,25 @@ import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock, formatExdaDateTime } from '../
 import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
 import { useAppDialog } from '../hooks/useAppDialog';
+import {
+  KELVIN_OFFSET,
+  PRESSURE_UNITS,
+  applyDosageModel,
+  buildCalcRequest,
+  celsiusToKelvin,
+  dosageModelsDiffer,
+  fillTimeFields,
+  findInputMismatches,
+  fromPa,
+  kelvinToCelsiusString,
+  normalizeDosageModel,
+  parseFiniteNumber,
+  planP0ToPa,
+  pressureRangeWarning,
+  recordDosageModel,
+  savedRecordResults,
+  toPa,
+} from '../utils/gasMixing';
 
 const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
 
@@ -38,29 +57,6 @@ const compareRunNames = (leftName, rightName) => {
   return left.raw.localeCompare(right.raw, undefined, { numeric: true, sensitivity: 'base' });
 };
 
-const p0ToPa = (p0Value) => {
-  const numeric = Number.parseFloat(String(p0Value ?? '').trim());
-  if (!Number.isFinite(numeric) || numeric <= 0) return 101325.0;
-  if (numeric < 2000) return numeric * 100000.0; // bar -> Pa
-  return numeric; // already Pa
-};
-
-const KELVIN_OFFSET = 273.15;
-const parseFiniteNumber = (value) => {
-  const normalized = String(value ?? '').trim().replace(',', '.');
-  const numeric = Number.parseFloat(normalized);
-  return Number.isFinite(numeric) ? numeric : null;
-};
-const celsiusToKelvin = (celsiusValue) => {
-  const celsius = parseFiniteNumber(celsiusValue);
-  if (celsius === null) return null;
-  return celsius + KELVIN_OFFSET;
-};
-const kelvinToCelsiusString = (kelvinValue, fallback = '') => {
-  const kelvin = parseFiniteNumber(kelvinValue);
-  if (kelvin === null) return fallback;
-  return (kelvin - KELVIN_OFFSET).toFixed(2);
-};
 const firstNonBlank = (...values) => {
   for (const value of values) {
     if (value !== undefined && value !== null && String(value).trim() !== '') {
@@ -87,67 +83,6 @@ const formatTempCWithK = (celsiusValue, kelvinValue) => {
     return `${(kelvin - KELVIN_OFFSET).toFixed(2)} (${kelvin.toFixed(2)} K)`;
   }
   return '-';
-};
-
-const normalizeDosageModel = (rawModel) => {
-  const source = rawModel && typeof rawModel === 'object' ? rawModel : {};
-  return {
-    enabled: Boolean(source.enabled),
-    modelType: 'linear_targetVol_to_mass',
-    targetBasis: String(source.targetBasis || 'fraction_0_1'),
-    a: String(source.a ?? ''),
-    b: String(source.b ?? '0'),
-    notes: String(source.notes ?? ''),
-  };
-};
-
-const applyDosageModel = (baseResults, targetVol, dosageModel) => {
-  if (!baseResults || typeof baseResults !== 'object') return baseResults;
-  const model = normalizeDosageModel(dosageModel);
-  const out = { ...baseResults };
-  const rawMass = parseFiniteNumber(baseResults.m_H2_injected_g);
-  const rawFillS = parseFiniteNumber(baseResults.InjectionTime_s);
-  const target = parseFiniteNumber(targetVol);
-  const targetForModel = target === null
-    ? null
-    : (model.targetBasis === 'fraction_0_1' ? (target / 100.0) : target);
-  const a = parseFiniteNumber(model.a);
-  const b = parseFiniteNumber(model.b);
-
-  if (!model.enabled || a === null || b === null || targetForModel === null) {
-    out.correction = { enabled: Boolean(model.enabled), applied: false, reason: 'disabled_or_incomplete' };
-    return out;
-  }
-
-  const correctedMass = (a * targetForModel) + b;
-  const equation = model.targetBasis === 'fraction_0_1'
-    ? 'H2_corrected_g = a * TargetVolFrac + b'
-    : 'H2_corrected_g = a * TargetVolPct + b';
-  if (!Number.isFinite(correctedMass) || correctedMass <= 0) {
-    out.correction = { enabled: true, applied: false, reason: 'non_positive_corrected_mass' };
-    return out;
-  }
-
-  const correctedFillS = (rawMass && rawMass > 0 && Number.isFinite(rawFillS))
-    ? (rawFillS * (correctedMass / rawMass))
-    : null;
-  const correctedFillMin = Number.isFinite(correctedFillS) ? (correctedFillS / 60.0) : null;
-
-  out.correction = {
-    enabled: true,
-    applied: true,
-    modelType: model.modelType,
-    targetBasis: model.targetBasis,
-    equation,
-    a,
-    b,
-    targetVolPct: target,
-    targetForModel,
-    correctedMassG: correctedMass,
-    correctedFillTimeS: correctedFillS,
-    correctedFillTimeMin: correctedFillMin,
-  };
-  return out;
 };
 
 const recordKey = (groupName, runName) => `${String(groupName || '').trim()}::${String(runName || '').trim()}`;
@@ -222,7 +157,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
     targetVol: '',
     relativeHumidityPct: '',
     pChamberPa: '',
-    tChamberC: '20.00',
+    tChamberC: '',
     mfcFlowSlpm: '',
     lM: '0.9',
     wM: '0.9',
@@ -238,18 +173,18 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
     notes: '',
   });
   const [baseResults, setBaseResults] = useState(null);
+  // 'record': results loaded from a saved record; 'calculation': from Calculate.
+  const [resultsSource, setResultsSource] = useState(null);
+  // Pressure is entered in an explicitly chosen unit; draft.pChamberPa is always Pa.
+  const [pressureUnit, setPressureUnit] = useState('Pa');
+  const [pressureInput, setPressureInput] = useState('');
   const [dosageModel, setDosageModel] = useState(() => normalizeDosageModel({ enabled: false, modelType: 'linear_targetVol_to_mass', targetBasis: 'fraction_0_1', a: '', b: '0', notes: '' }));
-  const [temperatureEdited, setTemperatureEdited] = useState({ tChamber: false, tStd: false });
   const [showAdvancedConstants, setShowAdvancedConstants] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [busyFormat, setBusyFormat] = useState('');
   const [status, setStatus] = useState('');
   const { dialogModal, setDialogModal, showAlert, showConfirm } = useAppDialog();
-  const results = useMemo(
-    () => applyDosageModel(baseResults, draft.targetVol, dosageModel),
-    [baseResults, draft.targetVol, dosageModel],
-  );
   const visibleCorrectionColumns = useMemo(() => ({
     hotwire: records.some((item) => hasNonZeroValue(item?.hotwireAssemblyM3)),
     welded: records.some((item) => hasNonZeroValue(item?.weldedPartsM3)),
@@ -297,8 +232,42 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
   }, [selectedExperiment]);
   const planPressurePa = useMemo(() => {
     const meta = selectedExperiment?.meta || {};
-    return String(p0ToPa(pickMetaValue(meta, ['p0', 'P0', 'p_0']))).trim();
+    return planP0ToPa(pickMetaValue(meta, ['p0', 'P0', 'p_0']));
   }, [selectedExperiment]);
+
+  // Saved records are shown with their own stored a, b and saved values (item 5).
+  const viewingSavedRecord = resultsSource === 'record' && Boolean(currentSavedRecord?.results);
+  const effectiveDosageModel = useMemo(
+    () => (viewingSavedRecord ? recordDosageModel(currentSavedRecord) : dosageModel),
+    [viewingSavedRecord, currentSavedRecord, dosageModel],
+  );
+  const results = useMemo(
+    () => (viewingSavedRecord
+      ? savedRecordResults(currentSavedRecord)
+      : applyDosageModel(baseResults, draft.targetVol, dosageModel)),
+    [viewingSavedRecord, currentSavedRecord, baseResults, draft.targetVol, dosageModel],
+  );
+  const savedModelDiffersFromGlobal = viewingSavedRecord
+    && (effectiveDosageModel.enabled || dosageModel.enabled)
+    && dosageModelsDiffer(effectiveDosageModel, dosageModel);
+
+  // Results are only valid for the exact inputs they were calculated with (item 1).
+  const staleMismatches = useMemo(
+    () => findInputMismatches(draft, baseResults),
+    [draft, baseResults],
+  );
+  const resultsAreStale = Boolean(baseResults) && staleMismatches.length > 0;
+  const pressureWarning = pressureRangeWarning(draft.pChamberPa);
+
+  const setPressureFromInput = (value, unit = pressureUnit) => {
+    setPressureInput(value);
+    const pa = unit === 'Pa' ? String(value ?? '').trim() : toPa(value, unit);
+    setDraft((prev) => ({ ...prev, pChamberPa: pa === null ? '' : String(pa) }));
+  };
+  const changePressureUnit = (nextUnit) => {
+    setPressureUnit(nextUnit);
+    setPressureInput(fromPa(draft.pChamberPa, nextUnit));
+  };
 
   useEffect(() => {
     if (!groupNames.length) {
@@ -365,16 +334,20 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
   useEffect(() => {
     const meta = selectedExperiment?.meta || {};
     const fallbackTarget = String(pickMetaValue(meta, ['h2', 'H2', 'h2Vol', 'h2_vol', 'h2Percent', 'h2_percent'])).trim();
-    const fallbackPressurePa = String(p0ToPa(pickMetaValue(meta, ['p0', 'P0', 'p_0'])));
+    const fallbackPressurePa = planP0ToPa(pickMetaValue(meta, ['p0', 'P0', 'p_0']));
     const fromRecord = currentSavedRecord || {};
+    const initialPressurePa = String(fromRecord?.pChamberPa ?? fallbackPressurePa ?? '');
 
+    setPressureUnit('Pa');
+    setPressureInput(initialPressurePa);
     setDraft({
       targetVol: String(fromRecord?.targetVol ?? fallbackTarget ?? ''),
       relativeHumidityPct: String(fromRecord?.relativeHumidityPct ?? ''),
-      pChamberPa: String(fromRecord?.pChamberPa ?? fallbackPressurePa ?? ''),
+      pChamberPa: initialPressurePa,
+      // No default temperature: blank unless recorded.
       tChamberC: String(firstNonBlank(
         fromRecord?.tChamberC,
-        kelvinToCelsiusString(fromRecord?.tChamberK, '20.00'),
+        kelvinToCelsiusString(fromRecord?.tChamberK),
       )),
       mfcFlowSlpm: String(fromRecord?.mfcFlowSlpm ?? ''),
       lM: String(fromRecord?.lM ?? '0.9'),
@@ -394,7 +367,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       notes: String(fromRecord?.notes ?? ''),
     });
     setBaseResults(fromRecord?.results || null);
-    setTemperatureEdited({ tChamber: false, tStd: false });
+    setResultsSource(fromRecord?.results ? 'record' : null);
   }, [selectedExperiment, currentSavedRecord]);
 
   const calculateInBackend = async () => {
@@ -405,8 +378,15 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
     const requiredInputs = [
       ['Target H2 Vol %', draft.targetVol],
       ['MFC Setpoint (SLPM)', draft.mfcFlowSlpm],
-      ['Chamber Pressure Pchamber (Pa)', draft.pChamberPa],
+      ['Chamber Pressure Pchamber', draft.pChamberPa],
       ['Chamber Temperature Tchamber (°C)', draft.tChamberC],
+      ['Length L (m)', draft.lM],
+      ['Width W (m)', draft.wM],
+      ['Height H (m)', draft.hM],
+      ['Pipes (m³)', draft.volPipesM3],
+      ['Hotwire Assembly (m³)', draft.hotwireAssemblyM3],
+      ['Welded Parts (m³)', draft.weldedPartsM3],
+      ['Bolts (m³)', draft.boltsM3],
     ];
     for (const [label, value] of requiredInputs) {
       if (String(value ?? '').trim() === '') {
@@ -426,27 +406,11 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
     setIsCalculating(true);
     setStatus('');
     try {
-      const tChamberKValue = celsiusToKelvin(draft.tChamberC);
-      const tStdKValue = celsiusToKelvin(draft.tStdC);
       const res = await fetch(`${apiBaseUrl}/calculate_gas_mix`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          H2_volPct: draft.targetVol,
-          P_chamber_Pa: draft.pChamberPa,
-          T_chamber_K: tChamberKValue === null ? '' : String(tChamberKValue),
-          MFC_setpoint_SLPM: draft.mfcFlowSlpm,
-          L_m: draft.lM,
-          W_m: draft.wM,
-          H_m: draft.hM,
-          Vol_Pipes_m3: draft.volPipesM3,
-          HotwireAssembly_m3: draft.hotwireAssemblyM3,
-          WeldedParts_m3: draft.weldedPartsM3,
-          Bolts_m3: draft.boltsM3,
-          T_std_K: tStdKValue === null ? '' : String(tStdKValue),
-          P_std_Pa: draft.pStdPa,
-          Ru: draft.ru,
-          M_H2: draft.mH2,
+          ...buildCalcRequest(draft),
           group: selectedGroup,
           runName: selectedRunName,
           projectPath,
@@ -457,7 +421,8 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
         throw new Error(data?.error || `Calculation failed (${res.status})`);
       }
       setBaseResults(data.results || null);
-      setStatus('Calculation completed.');
+      setResultsSource('calculation');
+      setStatus(pressureWarning ? `Calculation completed. Warning: ${pressureWarning}` : 'Calculation completed.');
     } catch (err) {
       setStatus(`Calculation failed: ${err?.message || 'Unknown error'}`);
     } finally {
@@ -510,12 +475,33 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       setStatus('Select a group and run first.');
       return;
     }
+    // Never save results that do not belong to the inputs on screen (item 1).
+    if (!baseResults) {
+      setStatus('Save blocked: no calculation results. Press Calculate before saving.');
+      await showAlert({
+        title: 'Save Blocked',
+        content: 'There are no calculation results for these inputs. Press Calculate before saving.',
+        type: 'error',
+      });
+      return;
+    }
+    if (resultsAreStale) {
+      const details = staleMismatches
+        .map((m) => `${m.label}: used ${m.used ?? '(missing)'}${m.unit ? ` ${m.unit}` : ''}, now ${m.current ?? '(blank)'}${m.unit ? ` ${m.unit}` : ''}`)
+        .join('\n');
+      setStatus('Save blocked: inputs changed since last calculation — recalculate before saving.');
+      await showAlert({
+        title: 'Inputs Changed Since Last Calculation',
+        content: `Recalculate before saving.\n\n${details}`,
+        type: 'error',
+      });
+      return;
+    }
+
     const nowStamp = new Date().toISOString();
-    const tChamberKValue = celsiusToKelvin(draft.tChamberC);
-    const tStdKValue = celsiusToKelvin(draft.tStdC);
-    const keepExistingTChamberK = !temperatureEdited.tChamber && String(currentSavedRecord?.tChamberK || '').trim() !== '';
-    const keepExistingTStdK = !temperatureEdited.tStd && String(currentSavedRecord?.tStdK || '').trim() !== '';
-    const estimatedH2MassG = results?.m_H2_injected_g ?? getRecordEstimatedH2MassG(currentSavedRecord);
+    const usedInputs = baseResults?.inputs || {};
+    const scalar = (value) => (Array.isArray(value) ? value[0] : value);
+    const estimatedH2MassG = results?.m_H2_injected_g;
     const nextRecord = {
       group: selectedGroup,
       runName: selectedRunName,
@@ -523,9 +509,8 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       relativeHumidityPct: String(draft.relativeHumidityPct || '').trim(),
       pChamberPa: String(draft.pChamberPa || '').trim(),
       tChamberC: String(draft.tChamberC || '').trim(),
-      tChamberK: keepExistingTChamberK
-        ? String(currentSavedRecord?.tChamberK || '').trim()
-        : (tChamberKValue === null ? '' : String(tChamberKValue)),
+      // Exactly the K used by the calculation (not re-derived or kept from an older save).
+      tChamberK: String(scalar(usedInputs.T_chamber_K) ?? ''),
       mfcFlowSlpm: String(draft.mfcFlowSlpm || '').trim(),
       lM: String(draft.lM || '').trim(),
       wM: String(draft.wM || '').trim(),
@@ -535,9 +520,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       weldedPartsM3: String(draft.weldedPartsM3 || '').trim(),
       boltsM3: String(draft.boltsM3 || '').trim(),
       tStdC: String(draft.tStdC || '').trim(),
-      tStdK: keepExistingTStdK
-        ? String(currentSavedRecord?.tStdK || '').trim()
-        : (tStdKValue === null ? '' : String(tStdKValue)),
+      tStdK: String(scalar(usedInputs.T_std_K) ?? ''),
       pStdPa: String(draft.pStdPa || '').trim(),
       ru: String(draft.ru || '').trim(),
       mH2: String(draft.mH2 || '').trim(),
@@ -550,14 +533,17 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
       injectionTimeMin: String(results?.correction?.applied ? (results?.correction?.correctedFillTimeMin ?? results?.InjectionTime_min) : results?.InjectionTime_min ?? ''),
       vChamberL: String(results?.V_chamber_L ?? ''),
       vChamberCorrectedM3: String(results?.V_chamber_corrected_m3 ?? ''),
+      ...fillTimeFields(results),
       results: baseResults || null,
-      calibrationModelType: String(dosageModel.modelType || 'linear_targetVol_to_mass'),
-      calibrationTargetBasis: String(dosageModel.targetBasis || 'fraction_0_1'),
-      calibrationEnabled: dosageModel.enabled ? 'Yes' : 'No',
+      // The model the shown results were computed with: the record's own model
+      // when re-saving a saved record, the current model after Calculate.
+      calibrationModelType: String(effectiveDosageModel.modelType || 'linear_targetVol_to_mass'),
+      calibrationTargetBasis: String(effectiveDosageModel.targetBasis || 'fraction_0_1'),
+      calibrationEnabled: effectiveDosageModel.enabled ? 'Yes' : 'No',
       calibrationApplied: results?.correction?.applied ? 'Yes' : 'No',
-      calibrationA: String(dosageModel.a || '').trim(),
-      calibrationB: String(dosageModel.b || '').trim(),
-      calibrationNotes: String(dosageModel.notes || '').trim(),
+      calibrationA: String(effectiveDosageModel.a || '').trim(),
+      calibrationB: String(effectiveDosageModel.b || '').trim(),
+      calibrationNotes: String(effectiveDosageModel.notes || '').trim(),
       notes: String(draft.notes || '').trim(),
       updatedAt: nowStamp,
     };
@@ -575,7 +561,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
     const label = `${groupName || '-'} / ${runName || '-'}`;
     const shouldDelete = await showConfirm({
       title: 'Delete Saved Record?',
-      content: `Delete saved gas mixing record for ${label}?`,
+      content: `Remove the gas mixing record for ${label} from the active list? It is archived in gas_mixing.json (archivedRecords) and logged in gas_mixing_audit.jsonl, not destroyed.`,
       type: 'error',
       confirmLabel: 'Delete',
       confirmVariant: 'destructive',
@@ -782,18 +768,40 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                   />
                 </label>
                 <label className="text-xs">
-                  <span className="mb-1 block font-semibold text-muted-foreground">Chamber Pressure Pchamber (Pa)</span>
-                  <input
-                    type="number"
-                    value={draft.pChamberPa}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, pChamberPa: e.target.value }))}
-                    className="w-full rounded border border-sidebar-border bg-background px-2 py-2 text-sm text-foreground"
-                  />
+                  <span className="mb-1 block font-semibold text-muted-foreground">Chamber Pressure Pchamber</span>
+                  <div className="flex gap-1">
+                    <input
+                      type="number"
+                      value={pressureInput}
+                      onChange={(e) => setPressureFromInput(e.target.value)}
+                      placeholder={pressureUnit === 'Pa' ? 'e.g. 101500' : ''}
+                      className="w-full min-w-0 rounded border border-sidebar-border bg-background px-2 py-2 text-sm text-foreground"
+                    />
+                    <select
+                      value={pressureUnit}
+                      onChange={(e) => changePressureUnit(e.target.value)}
+                      aria-label="Pressure unit"
+                      className="rounded border border-sidebar-border bg-background px-1 py-2 text-xs text-foreground"
+                    >
+                      {Object.entries(PRESSURE_UNITS).map(([unit, spec]) => (
+                        <option key={unit} value={unit}>{spec.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <span className="mt-1 block text-[11px] text-muted-foreground">
+                    Used in calculation: {draft.pChamberPa !== '' ? `${draft.pChamberPa} Pa` : '-'}
+                  </span>
+                  {pressureWarning && (
+                    <span className="mt-1 block text-[11px] font-semibold text-amber-300">{pressureWarning}</span>
+                  )}
                   <div className="mt-1 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-muted-foreground">Plan value: {planPressurePa || '-'}</span>
+                    <span className="text-[11px] text-muted-foreground">Plan value: {planPressurePa ? `${planPressurePa} Pa` : '-'}</span>
                     <button
                       type="button"
-                      onClick={() => setDraft((prev) => ({ ...prev, pChamberPa: planPressurePa || '' }))}
+                      onClick={() => {
+                        setPressureUnit('Pa');
+                        setPressureFromInput(planPressurePa || '', 'Pa');
+                      }}
                       className="rounded border border-sidebar-border bg-muted/30 px-2 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted/60"
                     >
                       Use Plan
@@ -805,10 +813,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                   <input
                     type="number"
                     value={draft.tChamberC}
-                    onChange={(e) => {
-                      setTemperatureEdited((prev) => ({ ...prev, tChamber: true }));
-                      setDraft((prev) => ({ ...prev, tChamberC: e.target.value }));
-                    }}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, tChamberC: e.target.value }))}
                     placeholder="e.g. 20"
                     className="w-full rounded border border-sidebar-border bg-background px-2 py-2 text-sm text-foreground"
                   />
@@ -954,7 +959,8 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
 
               {!showAdvancedConstants && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Hidden to reduce noise. Defaults are used unless you open this section.
+                  Documented constants, not measurements: Tstd = {draft.tStdC || '-'} °C, Pstd = {draft.pStdPa || '-'} Pa,
+                  Ru = {draft.ru || '-'} J/(mol·K), M_H2 = {draft.mH2 || '-'} kg/mol. Open to change them.
                 </p>
               )}
 
@@ -965,10 +971,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                     <input
                       type="number"
                       value={draft.tStdC}
-                      onChange={(e) => {
-                        setTemperatureEdited((prev) => ({ ...prev, tStd: true }));
-                        setDraft((prev) => ({ ...prev, tStdC: e.target.value }));
-                      }}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, tStdC: e.target.value }))}
                       className="w-full rounded border border-sidebar-border bg-background px-2 py-2 text-sm text-foreground"
                     />
                     <span className="mt-1 block text-[11px] text-muted-foreground">
@@ -1017,7 +1020,12 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
               type="button"
               onClick={saveCurrentRecord}
               disabled={isSaving || !selectedRunName}
-              className="inline-flex items-center gap-2 rounded border border-sidebar-border bg-muted/30 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/60 disabled:opacity-60"
+              title={resultsAreStale || !baseResults ? 'Recalculate before saving' : undefined}
+              className={`inline-flex items-center gap-2 rounded border px-3 py-2 text-xs font-semibold disabled:opacity-60 ${
+                resultsAreStale || !baseResults
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                  : 'border-sidebar-border bg-muted/30 text-foreground hover:bg-muted/60'
+              }`}
             >
               <Save size={14} />
               Save Run
@@ -1027,9 +1035,42 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
         </div>
 
         <div className="rounded-xl border border-sidebar-border bg-card/60 p-5">
-          <h3 className="mb-4 text-sm font-semibold text-foreground">Calculation Results</h3>
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
+            Calculation Results
+            {results && resultsAreStale && (
+              <span className="rounded-full border border-amber-500/50 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                Stale
+              </span>
+            )}
+            {results && viewingSavedRecord && !resultsAreStale && (
+              <span className="rounded-full border border-sidebar-border bg-muted/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                As saved
+              </span>
+            )}
+          </h3>
           {results ? (
             <div className="space-y-4">
+              {resultsAreStale && (
+                <div className="rounded border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  <p className="font-semibold">
+                    Inputs changed since last calculation — these results do not match the inputs above. Recalculate before saving.
+                  </p>
+                  <ul className="mt-1 list-disc pl-5">
+                    {staleMismatches.map((m) => (
+                      <li key={m.key}>
+                        {m.label}: used {m.used ?? '(missing)'}{m.unit ? ` ${m.unit}` : ''}, now {m.current ?? '(blank)'}{m.unit ? ` ${m.unit}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {savedModelDiffersFromGlobal && (
+                <div className="rounded border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+                  This record was saved with calibration {effectiveDosageModel.enabled ? 'enabled' : 'disabled'} (a = {effectiveDosageModel.a || '-'}, b = {effectiveDosageModel.b || '-'}).
+                  The current model is {dosageModel.enabled ? 'enabled' : 'disabled'} (a = {dosageModel.a || '-'}, b = {dosageModel.b || '-'}).
+                  Values below are as saved; press Calculate to apply the current model.
+                </div>
+              )}
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                 Rounded display for readability
               </p>
@@ -1048,7 +1089,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                 </div>
                 <div className="rounded-lg border border-primary/35 bg-primary/10 p-3">
                   <p className="text-[11px] uppercase tracking-wider text-primary/90">
-                    {results?.correction?.applied ? 'Estimated Fill Time (s) - Corrected' : 'Estimated Fill Time (s)'}
+                    {results?.correction?.applied ? 'Fill Time on MFC (s) - Corrected' : 'Fill Time on MFC (s) - Estimated (uncorrected)'}
                   </p>
                   <p className="mt-1 font-mono text-2xl font-semibold text-foreground">
                     {formatResultValue(results?.correction?.applied ? results?.correction?.correctedFillTimeS : results?.InjectionTime_s, 1)}
@@ -1056,7 +1097,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                 </div>
                 <div className="rounded-lg border border-primary/35 bg-primary/10 p-3">
                   <p className="text-[11px] uppercase tracking-wider text-primary/90">
-                    {results?.correction?.applied ? 'Estimated Fill Time (min) - Corrected' : 'Estimated Fill Time (min)'}
+                    {results?.correction?.applied ? 'Fill Time on MFC (min) - Corrected' : 'Fill Time on MFC (min) - Estimated (uncorrected)'}
                   </p>
                   <p className="mt-1 font-mono text-2xl font-semibold text-foreground">
                     {formatResultValue(results?.correction?.applied ? results?.correction?.correctedFillTimeMin : results?.InjectionTime_min, 1)}
@@ -1079,11 +1120,11 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                     <p className="mt-1 font-mono text-xl text-foreground">{formatResultValue(results?.m_H2_injected_g, 3)}</p>
                   </div>
                   <div className="rounded-lg border border-sidebar-border bg-background/50 p-3">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Before Correction: Fill Time (s)</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Estimated Fill Time (s) - uncorrected, not for MFC</p>
                     <p className="mt-1 font-mono text-xl text-foreground">{formatResultValue(results?.InjectionTime_s, 1)}</p>
                   </div>
                   <div className="rounded-lg border border-sidebar-border bg-background/50 p-3">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Before Correction: Fill Time (min)</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Estimated Fill Time (min) - uncorrected, not for MFC</p>
                     <p className="mt-1 font-mono text-xl text-foreground">{formatResultValue(results?.InjectionTime_min, 1)}</p>
                   </div>
                 </div>
@@ -1138,7 +1179,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                 <th className="py-2 pr-3">H2 corr. (g)</th>
                 <th className="py-2 pr-3">H2 inj. vol (L)</th>
                 <th className="py-2 pr-3">MFC (SLPM)</th>
-                <th className="py-2 pr-3">Fill time (s)</th>
+                <th className="py-2 pr-3" title="Fill time applied on the MFC: corrected when calibration was applied, otherwise estimated">Fill time on MFC (s)</th>
                 <th className="py-2 pr-3">Updated</th>
                 <th className="py-2 pr-3">Actions</th>
               </tr>
