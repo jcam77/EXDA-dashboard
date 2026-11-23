@@ -50,6 +50,20 @@ octave-workspace
 *.zip
 *.asd
 
+# Experiment data: never commit raw/derived measurement data (EXDA-Check D3).
+# Note: files that were tracked before these rules (e.g. Wk-22 Raw_Data) stay
+# tracked until removed with `git rm --cached`; .gitignore only affects new files.
+Projects/*/Raw_Data/
+Projects/*/Clean_Data/
+Projects/*/CFD_Data/
+*.seq
+*.tpc5
+*.mf4
+
+# Exceptions below must stay AFTER the data rules above (later rules win).
+# Demo projects ship small sample TPC5 files.
+!Demo Projects/**/*.tpc5
+
 # WaterTest dummy project: keep only TPC5 files (and expData README)
 Projects/WaterTest-Project/**
 !Projects/WaterTest-Project/Raw_Data/

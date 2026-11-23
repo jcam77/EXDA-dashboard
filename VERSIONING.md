@@ -10,25 +10,29 @@ This is the EXDA versioning workflow.
 
 ## Safe Rule
 
-- develop on `CODEX-Updates`
+- develop on a development branch named `<name>-Updates` (for example `CLAUDE-Updates` or `CODEX-Updates`)
 - release from `main`
 - create the release tag from `main`
+- never stage with `git add -A` or `git add .`: stage explicit paths only
+- never commit experiment data or project records under `Projects/`
+
+In the commands below, `<dev-branch>` means your development branch.
 
 ## Branch Meaning
 
-- `CODEX-Updates`: development branch
+- `<dev-branch>` (any `*-Updates` branch): development branch
 - `main`: stable branch for releases
 
 ## Main Workflow
 
 These are the steps:
 
-1. Make changes in `CODEX-Updates`.
-2. Test the changes in `CODEX-Updates`.
-3. If the changes work, commit and push them to `CODEX-Updates`.
+1. Make changes in `<dev-branch>`.
+2. Test the changes in `<dev-branch>`.
+3. If the changes work, commit them (explicit paths) and push them to `<dev-branch>`.
 4. When you are ready to release, switch to `main`.
 5. Pull the latest `main`.
-6. Merge `CODEX-Updates` into `main`.
+6. Merge `<dev-branch>` into `main`.
 7. Push `main`.
 8. Bump the version on `main`.
 9. Create the release tag from `main`.
@@ -37,30 +41,45 @@ These are the steps:
 Short version:
 
 ```text
-develop on CODEX-Updates -> test -> commit -> merge into main -> bump version on main -> tag on main
+develop on <dev-branch> -> test -> commit -> merge into main -> bump version on main -> tag on main
 ```
+
+## What Must Never Be Committed
+
+`.gitignore` excludes experiment data:
+
+- `Projects/*/Raw_Data/`, `Projects/*/Clean_Data/`, `Projects/*/CFD_Data/`
+- `*.seq`, `*.tpc5`, `*.mf4` (except the small sample files in `Demo Projects/` and `Projects/WaterTest-Project/`)
+
+Project records (`Projects/*/Plan/*.json`, `Projects/*/Reports/*`) are not ignored, but must
+not be staged as part of app changes or releases. The repository is public.
+
+Files that were tracked before these rules existed stay tracked; `.gitignore` only affects
+new files.
 
 ## Development Steps
 
 Use this while building features:
 
 ```bash
-git switch CODEX-Updates
+git switch <dev-branch>
 git status --short --branch
 ```
 
-Make your changes, test them, then commit and push:
+Make your changes, test them, then commit and push **explicit paths**:
 
 ```bash
-git add .
-git commit -m "update"
-git push origin CODEX-Updates
+git add -- frontend/src/... backend/...
+git status --short          # check nothing under Projects/ is staged
+git commit -m "Describe the change"
+git push origin <dev-branch>
 ```
 
 Important:
 
-- do not create the release tag from `CODEX-Updates`
-- do not make the public release from `CODEX-Updates`
+- do not use `git add -A` or `git add .`
+- do not create the release tag from `<dev-branch>`
+- do not make the public release from `<dev-branch>`
 
 ## Release Steps
 
@@ -74,18 +93,14 @@ Before switching branches:
 git status --short --branch
 ```
 
-If there are local edits, clean them first.
-
-If you want to discard all local unstaged changes:
-
-```bash
-git restore .
-```
+If there are local edits, commit (explicit paths) or move them first.
+Do **not** use `git restore .` or `git stash` while project records under `Projects/` are
+modified: both rewrite those files and the recorded values would be lost.
 
 Why this matters:
 
 - if `git switch main` fails, you stay on the current branch
-- if you stay on `CODEX-Updates`, the version bump and tag can be created from the wrong branch
+- if you stay on `<dev-branch>`, the version bump and tag can be created from the wrong branch
 
 ### 2. Switch to `main`
 
@@ -103,13 +118,11 @@ main
 
 If Git prints `Aborting`, stop there. You are not on `main`.
 
-### 3. Merge `CODEX-Updates` into `main`
-
-First switch to `main`, then merge `CODEX-Updates` into it:
+### 3. Merge `<dev-branch>` into `main`
 
 ```bash
 git switch main
-git merge CODEX-Updates
+git merge <dev-branch>
 git push origin main
 ```
 
@@ -126,17 +139,8 @@ If there are merge conflicts:
 
 ```bash
 npm version <semver> --no-git-tag-version
-git add package.json package-lock.json
+git add -- package.json package-lock.json
 git commit -m "Bump app version to <semver>"
-git push origin main
-```
-
-Example:
-
-```bash
-npm version 1.18.0 --no-git-tag-version
-git add package.json package-lock.json
-git commit -m "Bump app version to 1.18.0"
 git push origin main
 ```
 
@@ -157,14 +161,14 @@ main
 Use the format:
 
 ```text
-browser-vMAJOR.MINOR.PATCH
+browser-MVP-vMAJOR.MINOR.PATCH
 ```
 
 Example:
 
 ```bash
-git tag -a browser-v1.18.0 -m "browser-v1.18.0"
-git push origin browser-v1.18.0
+git tag -a browser-MVP-v3.12.0 -m "browser-MVP-v3.12.0"
+git push origin browser-MVP-v3.12.0
 ```
 
 ## Full Release Example
@@ -172,88 +176,97 @@ git push origin browser-v1.18.0
 If you run the commands manually (without `./versioning.sh`), update `## Current Release` in this file before committing on `main`.
 
 ```bash
-git switch CODEX-Updates
+git switch <dev-branch>
 git status --short --branch
-git add .
+git add -- <explicit app paths>
 git commit -m "Release-ready changes"
-git push origin CODEX-Updates
-git status --short --branch
-git restore .
+git push origin <dev-branch>
+git status --short --branch          # must be clean before switching
 git switch main
 git pull --ff-only origin main
 git branch --show-current
-git merge CODEX-Updates -m "Merge CODEX-Updates into main"
+git merge <dev-branch> -m "Merge <dev-branch> into main"
 git push origin main
-npm version 2.10.0 --no-git-tag-version
-git add package.json package-lock.json VERSIONING.md
-git commit -m "Prepare release 2.10.0 (browser-MVP-v2.10.0)"
+npm version 3.12.0 --no-git-tag-version
+git add -- package.json package-lock.json VERSIONING.md
+git commit -m "Prepare release 3.12.0 (browser-MVP-v3.12.0)"
 git push origin main
 git branch --show-current
-git tag -a browser-MVP-v2.10.0 -m "browser-MVP-v2.10.0"
-git push origin browser-MVP-v2.10.0
-git switch CODEX-Updates
+git tag -a browser-MVP-v3.12.0 -m "browser-MVP-v3.12.0"
+git push origin browser-MVP-v3.12.0
+git switch <dev-branch>
 git merge main
-git push origin CODEX-Updates
+git push origin <dev-branch>
 ```
 
 ## One-Command Release Script
 
-If you do not want to copy/paste all release commands every time, use:
-
-```bash
-./versioning.sh
-```
+If you do not want to copy/paste all release commands every time, use `./versioning.sh`
+from the repository root, **while on your development branch**.
 
 ### How to use `versioning.sh`
 
-Use one of these two methods:
-
-1. Interactive mode (script prompts for tag):
-
 ```bash
-./versioning.sh
+./versioning.sh [--dev-branch <name>] [--dry-run] [<release-tag>]
 ```
 
-2. Non-interactive mode (recommended in automated/remote terminals):
+- `<release-tag>`: must end with `vMAJOR.MINOR.PATCH`; prompted for if omitted.
+  The app version is taken from it (`browser-MVP-v2.30.1` -> `2.30.1`).
+- `--dev-branch <name>`: the development branch. Default: the `DEV_BRANCH` environment
+  variable, otherwise the current branch if it is not `main`. It must match `*-Updates`,
+  exist locally, and be the branch you are on.
+- `--dry-run`: run every check and list what would be staged, without changing anything.
+  Run this first.
+
+Examples:
 
 ```bash
-./versioning.sh browser-MVP-v3.11.0
+./versioning.sh --dry-run browser-MVP-v3.12.0
+./versioning.sh browser-MVP-v3.12.0
+DEV_BRANCH=CLAUDE-Updates ./versioning.sh browser-MVP-v3.12.0
 ```
 
-Important:
+### Safety checks
 
-- tag must end with `vMAJOR.MINOR.PATCH`
-- the script extracts app version from that tag
-- example: `browser-MVP-v2.30.1` -> app version `2.30.1`
-- if no tag is provided and no prompt is available, the script exits early
-- run from the repository root (same folder as `versioning.sh`)
+The script stops before staging anything if:
 
-The script will:
+- any file is modified, staged or untracked **outside the allow-list** (`ALLOWED_DIRS` and
+  `ALLOWED_FILES` at the top of `versioning.sh`: app code folders and the top-level app
+  files). `Projects/` is never allowed. The offending paths are listed.
+- any file to be staged is larger than 50 MB (change with `MAX_FILE_MB=<n>`).
 
-- show current branch, current version, and latest tag
-- ask only for the new release tag (must end with `vMAJOR.MINOR.PATCH`)
-- auto-detect the new app version from the tag
-- run the full release flow:
-  - commit/push `CODEX-Updates` changes
-  - merge `CODEX-Updates` into `main`
-  - bump version on `main` if needed
-  - update `VERSIONING.md` with latest release version, tag, and date
-  - create and push the tag from `main`
-  - merge `main` back into `CODEX-Updates`
+It stages only the allowed paths, by name (never `git add -A`), re-checks what was staged,
+shows `git diff --cached --stat`, and asks for confirmation:
+
+1. before committing and pushing on `<dev-branch>`;
+2. before merging into `main`, bumping, tagging and pushing.
+
+If no terminal is available to ask, it stops before making any change.
+
+### What the script does after confirmation
+
+- commits/pushes the allowed changes on `<dev-branch>`
+- merges `<dev-branch>` into `main`
+- bumps the version on `main` if needed
+- updates `VERSIONING.md` with latest release version, tag, and date
+- creates and pushes the tag from `main`
+- merges `main` back into `<dev-branch>` and pushes it
 
 ## What To Remember
 
-- Develop in `CODEX-Updates`
-- Test in `CODEX-Updates`
-- Commit to `CODEX-Updates`
+- Develop in `<dev-branch>`
+- Test in `<dev-branch>`
+- Commit explicit paths to `<dev-branch>`
 - Merge into `main`
 - Bump version on `main`
 - Tag on `main`
 
 ## What Not To Do
 
-- do not tag from `CODEX-Updates`
-- do not bump the public release version on `CODEX-Updates`
+- do not use `git add -A` or `git add .`
+- do not commit anything under `Projects/` together with app changes
+- do not tag from `<dev-branch>`
+- do not bump the public release version on `<dev-branch>`
 - do not continue if `git switch main` fails
 - do not ignore an `Aborting` message from Git
 - do not reuse an existing tag name unless you intentionally want to replace it
@@ -270,13 +283,8 @@ Check:
 git status --short --branch
 ```
 
-Then restore, commit, or stash the blocking changes.
-
-If you want to discard all local unstaged changes:
-
-```bash
-git restore .
-```
+Then commit (explicit paths) or move the blocking changes. Do not discard modified
+project records under `Projects/`.
 
 ### You created the version bump on the wrong branch
 
@@ -286,7 +294,7 @@ Check:
 git branch --show-current
 ```
 
-If it says `CODEX-Updates`, the version bump was created on the wrong branch.
+If it prints your development branch, the version bump was created on the wrong branch.
 
 ### You created the tag from the wrong branch
 
@@ -297,6 +305,15 @@ git show --no-patch --decorate <tag-name>
 ```
 
 If the tag was already pushed, be careful. In many cases, creating a new patch version is safer than rewriting a public tag.
+
+### Git prints `non-monotonic index .git/objects/pack/._pack-....idx`
+
+macOS created AppleDouble (`._*`) files inside `.git` (common on external or shared
+drives). They are not git data and can be deleted:
+
+```bash
+find .git -name '._*' -type f -delete
+```
 
 ## SemVer Notes
 
@@ -330,5 +347,5 @@ npm pkg get version
 List browser tags:
 
 ```bash
-git tag --list 'browser-v*'
+git tag --list 'browser-*'
 ```
