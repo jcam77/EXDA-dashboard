@@ -460,48 +460,34 @@ def is_multichannel_waveform_content(content: str) -> bool:
 
 
 def normalize_pressure_to_kpa(values, content: str = "", input_unit: str = "auto", convert_to_kpa: bool = True):
-    """Normalize pressure samples and return (values, note, output_unit)."""
+    """Convert pressure samples to kPa using an explicit unit. Returns (values, note, output_unit).
+
+    EXDA-Check B4/B5: no magnitude-based unit guessing and no fixed 101325 Pa
+    offset. Values are treated as gauge (as recorded); absolute -> gauge
+    conversion with the run's measured P0 is done in pressure_analysis.
+    'auto' means "use the unit in the column header"; without one, values
+    are returned unchanged. Voltage is never converted to pressure.
+    """
     arr = np.asarray(values, dtype=float)
     if arr.size == 0:
         return arr, None, "raw"
 
     unit = str(input_unit or "auto").strip().lower()
+    if unit == "auto":
+        from modules.pressure_analysis import channel_label_from_content, unit_from_channel_label
 
-    def _output_unit_from_input(input_name: str):
-        mapping = {
-            "bar": "bar",
-            "barg": "bar",
-            "kpa": "kPa",
-            "kpag": "kPa",
-            "pa": "Pa",
-            "pascal": "Pa",
-            "pascals": "Pa",
-            "v": "V",
-            "volt": "V",
-            "volts": "V",
-        }
-        return mapping.get(input_name, "raw")
+        unit = unit_from_channel_label(channel_label_from_content(content)) or "auto"
 
-    if not convert_to_kpa:
-        if unit == "auto":
-            return arr, "Raw units retained (no conversion applied).", "raw"
-        return arr, f"Raw units retained as {_output_unit_from_input(unit)} (no conversion applied).", _output_unit_from_input(unit)
+    factors = {"bar": 100.0, "barg": 100.0, "mbar": 0.1, "kpa": 1.0, "kpag": 1.0,
+               "pa": 1e-3, "pascal": 1e-3, "pascals": 1e-3, "hpa": 0.1, "mpa": 1000.0}
+    display = {"bar": "bar", "barg": "bar", "mbar": "mbar", "kpa": "kPa", "kpag": "kPa", "pa": "Pa",
+               "pascal": "Pa", "pascals": "Pa", "hpa": "hPa", "mpa": "MPa", "v": "V", "volt": "V", "volts": "V"}
 
-    if unit in ("bar", "barg"):
-        return arr * 100.0, "Pressure converted from bar to kPa (x100).", "kPa"
-    if unit in ("pa", "pascal", "pascals"):
-        return (arr - 101325.0) / 1000.0, "Pressure converted from Pa to kPa ((p-101325)/1000).", "kPa"
-    if unit in ("kpa", "kpag"):
-        return arr, None, "kPa"
     if unit in ("v", "volt", "volts"):
-        return arr, "Voltage channel kept in raw volts (no pressure conversion).", "V"
-
-    max_abs = float(np.max(np.abs(arr)))
-    if max_abs > 1000.0:
-        return (arr - 101325.0) / 1000.0, "Pressure converted from Pa to kPa ((p-101325)/1000).", "kPa"
-
-    # Acquisition waveform exports are typically in bar gauge; treat moderate values as bar.
-    if is_multichannel_waveform_content(content) and max_abs <= 50.0:
-        return arr * 100.0, "Pressure converted from bar to kPa (x100).", "kPa"
-
-    return arr, "Auto unit detection kept raw values (no conversion).", "raw"
+        return arr, "Voltage channel kept in volts (never converted to pressure).", "V"
+    if unit not in factors:
+        return arr, "Unit unknown: values not converted.", "raw"
+    if not convert_to_kpa or factors[unit] == 1.0:
+        return arr, f"Values in {display[unit]} as recorded (no conversion).", display[unit]
+    factor = factors[unit]
+    return arr * factor, f"Pressure converted from {display[unit]} to kPa (x{factor:g}); gauge, no P0 subtraction.", "kPa"

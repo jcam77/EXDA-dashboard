@@ -10,6 +10,21 @@ except Exception:  # pragma: no cover - optional dependency
     MDF = None
 
 
+def _channel_units(mdf):
+    """Map channel name -> unit stored in the MF4 file (EXDA-Check B5)."""
+    units = {}
+    try:
+        for group in mdf.groups:
+            for channel in group.channels:
+                name = str(channel.name).strip()
+                unit = str(getattr(channel, "unit", "") or "").strip()
+                if name and unit and name not in units:
+                    units[name] = unit
+    except Exception:
+        return {}
+    return units
+
+
 def mf4_to_content(
     file_path: str,
     max_channels: int = 64,
@@ -80,10 +95,12 @@ def mf4_to_content(
         t = t[idx]
         y = y[idx]
 
-    header = ["time"] + [
-        (str(col).strip() if str(col).strip() else f"Signal {idx + 1}")
-        for idx, col in enumerate(numeric_df.columns)
-    ]
+    units = _channel_units(mdf)
+    header = ["time"]
+    for idx, col in enumerate(numeric_df.columns):
+        name = str(col).strip() or f"Signal {idx + 1}"
+        unit = units.get(str(col).strip(), "")
+        header.append(f"{name} [{unit}]" if unit else name)
 
     lines = [",".join(header)]
     for ti, row in zip(t, y):

@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from modules import data_parser, gas_mixing_checks, gas_mixing_store, mf4_parser, output_format, project_manager, tpc5_parser
+from modules import daq_reader, data_parser, gas_mixing_checks, gas_mixing_store, mf4_parser, output_format, pressure_analysis, project_manager, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
@@ -3104,6 +3104,93 @@ def read_project_file():
         return jsonify({"success": True, "content": content_windowed})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _run_for_data_path(project_root, target):
+    """Return (run_name, experiment) for a file under Raw_Data/<run>/ or CFD_Data/<run>/."""
+    rel_parts = _to_posix_rel_path(project_root, target).split("/")
+    plan_payload = _load_latest_plan_payload(project_root)
+    experiments = plan_payload.get("experiments") or []
+    by_name = {}
+    for item in experiments:
+        if isinstance(item, dict):
+            name = str(item.get("name") or "").strip()
+            if name:
+                by_name[name] = item
+    for part in rel_parts[:-1]:
+        if part in by_name:
+            return part, by_name[part], plan_payload.get("path", "")
+    return None, None, plan_payload.get("path", "")
+
+
+@state_bp.route('/analyze_pressure_file', methods=['POST'])
+def analyze_pressure_file():
+    """Pressure analysis on a project data file at full resolution (EXDA-Check B1-B5).
+
+    Reads the selected channel directly from the file (no text round trip, no
+    decimation). The plot series is a min/max envelope for display only.
+    The result carries a complete processing record.
+    """
+    payload = request.json or {}
+    project_root, err = project_manager.resolve_project_path(payload.get("projectPath"))
+    if err:
+        return jsonify({"error": err}), 400
+    file_path = payload.get("path")
+    if not file_path:
+        return jsonify({"error": "File path is required"}), 400
+    target = file_path if os.path.isabs(file_path) else os.path.join(project_root, file_path)
+    if not project_manager.is_path_within(project_root, target):
+        return jsonify({"error": "File path not allowed"}), 403
+    if not os.path.isfile(target):
+        return jsonify({"error": "File not found"}), 404
+
+    try:
+        t, y, source = daq_reader.read_channel(target, payload.get("channelIndex", 0))
+    except daq_reader.DaqReadError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"Failed to read {os.path.basename(target)}: {exc}"}), 500
+    source["relativePath"] = _to_posix_rel_path(project_root, target)
+
+    reference = str(payload.get("pressureReference") or "gauge").strip().lower()
+    p0_pa = None
+    p0_source = None
+    run_name, experiment, plan_path = _run_for_data_path(project_root, target)
+    source["run"] = run_name
+    if reference == "absolute":
+        meta = (experiment or {}).get("meta") if isinstance((experiment or {}).get("meta"), dict) else {}
+        p0_pa = _to_float(meta.get("p0")) if meta else None
+        plan_name = os.path.basename(plan_path) if plan_path else "plan"
+        p0_source = f"plan {plan_name}, run {run_name}, p0" if run_name else None
+        if run_name is None:
+            return jsonify({
+                "error": "Absolute pressure selected, but this file is not inside a run folder listed in the plan, "
+                         "so the run's measured P0 is unknown.",
+            }), 400
+
+    try:
+        result = pressure_analysis.analyze_pressure_signal(
+            t,
+            y,
+            file_unit=source.get("fileUnit", ""),
+            input_unit=payload.get("pressureUnit", "auto"),
+            convert_to_kpa=payload.get("convertToKpa", True) is not False,
+            reference=reference,
+            p0_pa=p0_pa,
+            p0_source=p0_source,
+            baseline=payload.get("baseline"),
+            use_raw=bool(payload.get("useRaw", False)),
+            cutoff=payload.get("cutoff"),
+            order=payload.get("order"),
+            impulse_drop=payload.get("impulseDrop"),
+            window_start=_to_float(payload.get("windowStart")),
+            window_end=_to_float(payload.get("windowEnd")),
+            source=source,
+        )
+    except pressure_analysis.PressureAnalysisError as exc:
+        return jsonify({"error": str(exc), "source": source}), 400
+    result["processing"]["analysedAt"] = datetime.now(timezone.utc).isoformat()
+    return jsonify(result)
 
 
 @state_bp.route('/inspect_project_file_structure', methods=['GET'])

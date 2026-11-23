@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Shield } from 'lucide-react';
 import HighResMultiChannelPlot from '../components/HighResMultiChannelPlot';
-import { DEFAULT_INPUT_UNIT, UNIT_OPTIONS, convertValueByUnit, getChannelDisplayUnit, normalizeUnitToken } from '../utils/units';
+import { FROM_FILE_UNIT, UNIT_OPTIONS_WITH_FILE, convertValueByUnit, getChannelDisplayUnit, normalizeUnitToken } from '../utils/units';
 
 const CHANNEL_COLORS = [
   '#38bdf8',
@@ -449,7 +449,10 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
 
   const resolveUnitToken = useCallback(
     (channel) => {
-      return normalizeUnitToken(channelUnitOverrides[channel?.key] || DEFAULT_INPUT_UNIT);
+      // Unit from the file header unless the user overrides it (EXDA-Check B5).
+      const override = channelUnitOverrides[channel?.key];
+      if (override && override !== FROM_FILE_UNIT) return normalizeUnitToken(override);
+      return normalizeUnitToken(channel?.unit || 'raw');
     },
     [channelUnitOverrides]
   );
@@ -516,8 +519,6 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
       const unitToken = inferred;
       if (unitToken === 'v' || role === 'trigger' || (!convertToKpa && unitToken === 'kpa')) {
         conversionByKey[channel.key] = (v) => v;
-      } else if (unitToken === 'raw' && role === 'pressure') {
-        conversionByKey[channel.key] = (v) => convertValueByUnit(v, 'bar', convertToKpa);
       } else {
         conversionByKey[channel.key] = (v) => convertValueByUnit(v, unitToken, convertToKpa);
       }
@@ -623,7 +624,9 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
         if (!rows.length) return null;
         const unitToken = isConcentrationMode
           ? 'ppm'
-          : normalizeUnitToken(compareUnitOverrides[path] || DEFAULT_INPUT_UNIT);
+          : (compareUnitOverrides[path] && compareUnitOverrides[path] !== FROM_FILE_UNIT
+              ? normalizeUnitToken(compareUnitOverrides[path])
+              : normalizeUnitToken(channelMeta?.unit || 'raw'));
         const roleToken = normalizeUnitToken(channelMeta?.role);
         const convert = (v) => {
           if (isConcentrationMode) {
@@ -632,7 +635,6 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
             return convertPpmToVolPercent ? raw / 10000 : raw;
           }
           if (unitToken === 'v' || roleToken === 'trigger' || (!convertToKpa && unitToken === 'kpa')) return Number(v);
-          if (unitToken === 'raw' && roleToken === 'pressure') return convertValueByUnit(v, 'bar', convertToKpa);
           return convertValueByUnit(v, unitToken, convertToKpa);
         };
         const baseLabel = displayNameByPath.get(path) || formatFileName(path);
@@ -647,8 +649,8 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
           sourceUnit: isConcentrationMode
             ? (convertPpmToVolPercent ? 'Vol.%' : 'ppm')
             : getChannelDisplayUnit(
-                { ...channelMeta, unit: unitToken || channelMeta?.unit || DEFAULT_INPUT_UNIT },
-                unitToken || channelMeta?.unit || DEFAULT_INPUT_UNIT,
+                { ...channelMeta, unit: unitToken || channelMeta?.unit || 'raw' },
+                unitToken || channelMeta?.unit || 'raw',
                 convertToKpa
               ),
           points: rows
@@ -1071,7 +1073,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                         <span>/</span>
                         <span>Unit</span>
                         <select
-                          value={compareUnitOverrides[path] || DEFAULT_INPUT_UNIT}
+                          value={compareUnitOverrides[path] || FROM_FILE_UNIT}
                           onChange={(event) =>
                             setCompareUnitOverrides((prev) => ({
                               ...prev,
@@ -1081,7 +1083,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                           className="w-[84px] bg-background border border-border rounded px-1 py-0.5 text-[10px] text-foreground outline-none"
                           title="Per-test channel unit override"
                         >
-                          {UNIT_OPTIONS.map((option) => (
+                          {UNIT_OPTIONS_WITH_FILE.map((option) => (
                             <option key={`${path}-separate-unit-${option.value}`} value={option.value}>
                               {option.label}
                             </option>
@@ -1130,7 +1132,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                 <span>/</span>
                 <span>Unit</span>
                 <select
-                  value={compareUnitOverrides[path] || DEFAULT_INPUT_UNIT}
+                  value={compareUnitOverrides[path] || FROM_FILE_UNIT}
                   onChange={(event) =>
                     setCompareUnitOverrides((prev) => ({
                       ...prev,
@@ -1140,7 +1142,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                   className="w-[84px] bg-background border border-border rounded px-1 py-0.5 text-[10px] text-foreground outline-none"
                   title="Per-test channel unit override"
                 >
-                  {UNIT_OPTIONS.map((option) => (
+                  {UNIT_OPTIONS_WITH_FILE.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -1238,7 +1240,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                     <span>/</span>
                     <span>{getChannelDisplayUnit({ ...channel, unit: resolveUnitToken(channel) }, resolveUnitToken(channel), convertToKpa)}</span>
                     <select
-                      value={channelUnitOverrides[channel.key] || DEFAULT_INPUT_UNIT}
+                      value={channelUnitOverrides[channel.key] || FROM_FILE_UNIT}
                       onChange={(event) =>
                         setChannelUnitOverrides((prev) => ({
                           ...prev,
@@ -1248,7 +1250,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                       className="bg-background border border-border rounded px-1 py-0.5 text-[10px] text-foreground outline-none"
                       title="Per-channel unit override"
                     >
-                      {UNIT_OPTIONS.map((option) => (
+                      {UNIT_OPTIONS_WITH_FILE.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>

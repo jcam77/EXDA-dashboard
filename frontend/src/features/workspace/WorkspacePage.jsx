@@ -13,7 +13,7 @@ import PlanPickerModal from '../../components/PlanPickerModal';
 import { getBackendBaseUrl } from '../../utils/backendUrl';
 import { getPublicUrl } from '../../utils/assetUrl';
 import { recordRecentProject } from '../../utils/recentProjects';
-import { DEFAULT_INPUT_UNIT } from '../../utils/units';
+import { DEFAULT_INPUT_UNIT, FROM_FILE_UNIT } from '../../utils/units';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../../utils/timezone';
 import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
 import { useDataImportPipeline } from './hooks/useDataImportPipeline';
@@ -255,14 +255,20 @@ const WorkspacePage = () => {
     showVentLines: true, useShortNames: true,
     ewtMaxNumPeaks: 5, ewtNumModes: 5, ewtSelectedPath: '', ewtMaxPoints: 2000,
     pressureChannelIndex: 0, ewtChannelIndex: 0,
-    pressureInputUnit: DEFAULT_INPUT_UNIT, ewtInputUnit: DEFAULT_INPUT_UNIT,
+    pressureInputUnit: FROM_FILE_UNIT, ewtInputUnit: DEFAULT_INPUT_UNIT,
     pressureConvertToKpa: true, ewtConvertToKpa: true,
     pressureTickCount: 10, ewtTickCount: 10,
     showRawReference: true,
     experimentalUseRaw: false,
     experimentalCutoff: 100,
     experimentalOrder: 4,
-    analysisFullResolution: false,
+    // EXDA-Check B2/B4: explicit gauge/absolute choice; baseline is opt-in.
+    pressureReference: 'gauge',
+    simulationPressureReference: 'gauge',
+    baselineEnabled: false,
+    baselineMethod: 'mean',
+    baselineStart: '',
+    baselineEnd: '',
     analysisLimitTimeWindow: false,
     analysisWindowStart: '',
     analysisWindowEnd: '',

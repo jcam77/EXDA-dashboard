@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DEFAULT_INPUT_UNIT, normalizeUnitToken } from '../../../utils/units';
+import { DEFAULT_INPUT_UNIT, FROM_FILE_UNIT, normalizeUnitToken } from '../../../utils/units';
 
 const SERIES_COLORS = [
   'hsl(200, 80%, 60%)',
@@ -33,13 +33,15 @@ export const useAnalysisPipeline = ({
   const [analysisNonce, setAnalysisNonce] = useState(0);
   const lastProcessedNonceRef = useRef(0);
 
+  // EXDA-Check B8: if the file cannot be read, raise an error; never fall back
+  // to previously loaded (possibly stale or decimated) content.
   const readAnalysisContent = useCallback(
     async (fileObj) => {
       if (!fileObj?.path) return fileObj?.content || '';
       const query = new URLSearchParams({
         path: fileObj.path,
         projectPath: projectPath || '',
-        fullResolution: settings.analysisFullResolution ? '1' : '0',
+        fullResolution: '1',
       });
       if (settings.analysisLimitTimeWindow) {
         const start = Number(settings.analysisWindowStart);
@@ -47,17 +49,22 @@ export const useAnalysisPipeline = ({
         if (Number.isFinite(start)) query.set('windowStart', String(start));
         if (Number.isFinite(end)) query.set('windowEnd', String(end));
       }
-      const res = await fetch(`${apiBaseUrl}/read_project_file?${query.toString()}`);
-      const data = await res.json();
+      let res;
+      let data = null;
+      try {
+        res = await fetch(`${apiBaseUrl}/read_project_file?${query.toString()}`);
+        data = await res.json();
+      } catch (err) {
+        throw new Error(`Could not read ${fileObj.path}: ${err?.message || err}`);
+      }
       if (res.ok && data?.success && typeof data.content === 'string') {
         return data.content;
       }
-      return fileObj?.content || '';
+      throw new Error(`Could not read ${fileObj.path}: ${data?.error || `HTTP ${res.status}`}`);
     },
     [
       apiBaseUrl,
       projectPath,
-      settings.analysisFullResolution,
       settings.analysisLimitTimeWindow,
       settings.analysisWindowEnd,
       settings.analysisWindowStart,
@@ -103,25 +110,47 @@ export const useAnalysisPipeline = ({
             color: stringToColor(colorSeed),
           };
         }
-        const normalizedPressureUnit = normalizeUnitToken(settings.pressureInputUnit);
-        const pressureRequest = fetch(`${apiBaseUrl}/analyze_pressure`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: fileObj.content,
-            dataType: type,
-            cutoff: cutoffValue,
-            order: orderValue,
-            useRaw: useRawValue,
-            impulseDrop: settings.impulseDrop,
-            channelIndex: channelValue,
-            pressureUnit:
-              normalizedPressureUnit === 'auto' || !normalizedPressureUnit
-                ? DEFAULT_INPUT_UNIT
-                : normalizedPressureUnit,
-            convertToKpa: settings.pressureConvertToKpa !== false,
-          }),
-        }).then((res) => res.json());
+        // Pressure: files are analysed at full resolution on the backend
+        // (EXDA-Check B1). Every setting is sent explicitly and echoed back
+        // in result.processing.
+        const pressureUnit = String(settings.pressureInputUnit || FROM_FILE_UNIT);
+        const reference =
+          options.pressureReference || settings.pressureReference || 'gauge';
+        const baseline = options.baseline || null;
+        const commonBody = {
+          dataType: type,
+          cutoff: cutoffValue,
+          order: orderValue,
+          useRaw: useRawValue,
+          impulseDrop: settings.impulseDrop,
+          channelIndex: channelValue,
+          pressureUnit,
+          convertToKpa: settings.pressureConvertToKpa !== false,
+          pressureReference: reference,
+          baseline,
+        };
+        if (settings.analysisLimitTimeWindow) {
+          const start = Number(settings.analysisWindowStart);
+          const end = Number(settings.analysisWindowEnd);
+          if (String(settings.analysisWindowStart).trim() !== '' && Number.isFinite(start)) commonBody.windowStart = start;
+          if (String(settings.analysisWindowEnd).trim() !== '' && Number.isFinite(end)) commonBody.windowEnd = end;
+        }
+        const pressureRequest = (fileObj.path && type === 'pressure'
+          ? fetch(`${apiBaseUrl}/analyze_pressure_file`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...commonBody, projectPath: projectPath || '', path: fileObj.path }),
+            })
+          : fetch(`${apiBaseUrl}/analyze_pressure`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...commonBody, content: fileObj.content }),
+            })
+        ).then(async (res) => {
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok && !body.error) body.error = `HTTP ${res.status}`;
+          return body;
+        });
         const ventRequest =
           type === 'pressure' && includeVent && fileObj.ventContent
             ? fetch(`${apiBaseUrl}/analyze_vent`, {
@@ -145,15 +174,26 @@ export const useAnalysisPipeline = ({
           name: fileObj.name,
           displayName: name,
           metrics: d.metrics,
+          processing: d.processing || null,
           plotData: d.plot_data,
           color: stringToColor(colorSeed),
           ventTime,
         };
-      } catch {
-        return null;
+      } catch (err) {
+        // Shown to the user as an error row; never silently dropped.
+        const name = formatName(fileObj?.path || fileObj?.name || 'Series');
+        return {
+          name: fileObj?.name,
+          displayName: name,
+          error: err?.message || String(err),
+          metrics: null,
+          processing: null,
+          plotData: [],
+          color: stringToColor(fileObj?.path || fileObj?.name || name),
+        };
       }
     },
-    [apiBaseUrl, formatName, settings, stringToColor]
+    [apiBaseUrl, formatName, projectPath, settings, stringToColor]
   );
 
   const runAnalysis = useCallback(async () => {
@@ -174,9 +214,13 @@ export const useAnalysisPipeline = ({
       }
       const selected = candidates.find((c) => (c.path || c.name) === settings.ewtSelectedPath);
       if (selected) {
-        const resolvedContent = await readAnalysisContent(selected);
-        const r = await processFile({ ...selected, content: resolvedContent }, 'ewt');
-        if (r) res.push(r);
+        try {
+          const resolvedContent = await readAnalysisContent(selected);
+          const r = await processFile({ ...selected, content: resolvedContent }, 'ewt');
+          if (r) res.push(r);
+        } catch (err) {
+          res.push({ name: selected.name, displayName: formatName(selected.path || selected.name), error: err?.message || String(err), plotData: [] });
+        }
       }
       setAnalysisResults(res);
       setPlotData(res[0]?.plotData || []);
@@ -214,13 +258,25 @@ export const useAnalysisPipeline = ({
           const orderForCase = isExperimentalPressure ? experimentalOrder : settings.order;
           const shouldIncludeRawReference = Boolean(settings.showRawReference) && !useRawForCase;
           const includeVentForCase = activeTab === 'cfd_validation';
-          const resolvedContent = await readAnalysisContent(c);
-          const sourceCase = { ...c, content: resolvedContent };
+          const sourceCase = c;
+          const referenceForCase = isExperimentalPressure
+            ? settings.pressureReference || 'gauge'
+            : settings.simulationPressureReference || 'gauge';
+          const baselineForCase = isExperimentalPressure && settings.baselineEnabled
+            ? {
+                enabled: true,
+                method: settings.baselineMethod || 'mean',
+                start: settings.baselineStart,
+                end: settings.baselineEnd,
+              }
+            : null;
           const primaryPromise = processFile(sourceCase, 'pressure', {
             useRaw: useRawForCase,
             cutoff: cutoffForCase,
             order: orderForCase,
             includeVent: includeVentForCase,
+            pressureReference: referenceForCase,
+            baseline: baselineForCase,
           });
           const rawRefPromise = shouldIncludeRawReference
             ? processFile(sourceCase, 'pressure', {
@@ -228,10 +284,13 @@ export const useAnalysisPipeline = ({
                 cutoff: cutoffForCase,
                 order: orderForCase,
                 includeVent: false,
+                pressureReference: referenceForCase,
+                baseline: baselineForCase,
               })
             : Promise.resolve(null);
           const [r, rawRef] = await Promise.all([primaryPromise, rawRefPromise]);
           if (!r) return null;
+          if (r.error) return { ...r, sourceType: isExperimentalPressure ? 'experiment' : 'simulation', rawOverlayPlotData: null };
           return {
             ...r,
             sourceType: isExperimentalPressure ? 'experiment' : 'simulation',
@@ -265,7 +324,7 @@ export const useAnalysisPipeline = ({
         body: JSON.stringify({
           activeTab,
           preserveNativeTime: ['pressure_analysis', 'cfd_validation'].includes(activeTab),
-          series: uniqueResults.flatMap((item) => {
+          series: uniqueResults.filter((item) => !item.error).flatMap((item) => {
             const primary = [
               {
                 displayName: item.displayName,
@@ -297,7 +356,7 @@ export const useAnalysisPipeline = ({
       setPlotData([]);
     }
     setIsProcessing(false);
-  }, [activeTab, apiBaseUrl, experimentalData, experimentalFlameData, processFile, readAnalysisContent, selectedCases, settings]);
+  }, [activeTab, apiBaseUrl, experimentalData, experimentalFlameData, formatName, processFile, readAnalysisContent, selectedCases, settings]);
 
   const requestAnalysis = useCallback(() => {
     setAnalysisNonce((n) => n + 1);

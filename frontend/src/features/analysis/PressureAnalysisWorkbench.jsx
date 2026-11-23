@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Info, Download, Settings, Activity, FlaskConical } from 'lucide-react';
 import { deriveChannelOptionsFromCases } from '../../utils/channelOptions';
-import { DEFAULT_INPUT_UNIT, UNIT_OPTIONS, getDisplayUnitFromSetting } from '../../utils/units';
+import { FROM_FILE_UNIT, UNIT_OPTIONS_WITH_FILE } from '../../utils/units';
+import { describeProcessing, resultUnitLabel } from './processingSummary';
 import HighResMultiChannelPlot from '../../components/HighResMultiChannelPlot';
 
 const PressureAnalysis = ({
@@ -93,9 +94,13 @@ const PressureAnalysis = ({
     () => Array.from(new Set(analysisResults.map((item) => item?.metrics?.unitNote).filter(Boolean))),
     [analysisResults]
   );
-  const pressureDisplayUnit = useMemo(() => {
-    return getDisplayUnitFromSetting(settings.pressureInputUnit, settings.pressureConvertToKpa);
-  }, [settings.pressureConvertToKpa, settings.pressureInputUnit]);
+  // Unit label comes from the results themselves (file header based), not from
+  // the selector, so a V trigger channel is never labelled kPa (EXDA-Check B5).
+  const pressureDisplayUnit = useMemo(
+    () => resultUnitLabel(analysisResults.filter((item) => !item.error)),
+    [analysisResults]
+  );
+  const failedResults = useMemo(() => analysisResults.filter((item) => item.error), [analysisResults]);
   const channelOptions = useMemo(() => {
     const eligible = (Array.isArray(selectedCases) ? selectedCases : []).filter(
       (item) => item && item.content && item.type !== 'flame'
@@ -295,6 +300,18 @@ const PressureAnalysis = ({
                         className="bg-background border border-border rounded px-2 py-1 text-xs w-20 text-foreground"
                       />
                     </div>
+                    <div className="flex flex-col">
+                      <label className="text-[10px] text-muted-foreground uppercase font-bold">Pressure Reference</label>
+                      <select
+                        value={settings.simulationPressureReference || 'gauge'}
+                        onChange={(e) => setSettings({ ...settings, simulationPressureReference: e.target.value })}
+                        className="bg-background border border-border rounded px-2 py-1 text-xs w-56 text-foreground"
+                        title="Gauge: values used as recorded. Absolute: the run's measured P0 from the Plan is subtracted."
+                      >
+                        <option value="gauge">Gauge (use as recorded)</option>
+                        <option value="absolute">Absolute (subtract run P0 from Plan)</option>
+                      </select>
+                    </div>
                     <label className="flex items-center gap-2 text-xs text-muted-foreground">
                       <input
                         type="checkbox"
@@ -366,11 +383,12 @@ const PressureAnalysis = ({
                   <div className="flex flex-col">
                     <label className="text-[10px] text-muted-foreground uppercase font-bold">Input Unit</label>
                     <select
-                      value={String(settings.pressureInputUnit || '').toLowerCase() === 'auto' ? DEFAULT_INPUT_UNIT : (settings.pressureInputUnit || DEFAULT_INPUT_UNIT)}
+                      value={settings.pressureInputUnit || FROM_FILE_UNIT}
                       onChange={(e) => setSettings({ ...settings, pressureInputUnit: e.target.value })}
                       className="bg-background border border-border rounded px-2 py-1 text-xs w-28 text-foreground"
+                      title="From file: use the unit stored in the file. A different selection is only allowed when the file has no unit."
                     >
-                      {UNIT_OPTIONS.map((option) => (
+                      {UNIT_OPTIONS_WITH_FILE.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -386,6 +404,68 @@ const PressureAnalysis = ({
                     />
                     Convert to kPa
                   </label>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Pressure Reference</label>
+                    <select
+                      value={settings.pressureReference || 'gauge'}
+                      onChange={(e) => setSettings({ ...settings, pressureReference: e.target.value })}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-56 text-foreground"
+                      title="Gauge: values used as recorded. Absolute: the run's measured P0 from the Plan is subtracted (no 101325 Pa default)."
+                    >
+                      <option value="gauge">Gauge (use as recorded)</option>
+                      <option value="absolute">Absolute (subtract run P0 from Plan)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-end gap-3">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground" title="Off by default. When on, the mean or median of the window is subtracted and recorded with the result.">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(settings.baselineEnabled)}
+                      onChange={(e) => setSettings({ ...settings, baselineEnabled: e.target.checked })}
+                      className="rounded bg-muted border-border"
+                    />
+                    Baseline (zero-offset) correction
+                  </label>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Method</label>
+                    <select
+                      value={settings.baselineMethod || 'mean'}
+                      disabled={!settings.baselineEnabled}
+                      onChange={(e) => setSettings({ ...settings, baselineMethod: e.target.value })}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-24 text-foreground disabled:opacity-50"
+                    >
+                      <option value="mean">Mean</option>
+                      <option value="median">Median</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Window start (s)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={settings.baselineStart ?? ''}
+                      disabled={!settings.baselineEnabled}
+                      onChange={(e) => setSettings({ ...settings, baselineStart: e.target.value })}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-24 text-foreground disabled:opacity-50"
+                      placeholder="e.g. -0.1"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Window end (s)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={settings.baselineEnd ?? ''}
+                      disabled={!settings.baselineEnabled}
+                      onChange={(e) => setSettings({ ...settings, baselineEnd: e.target.value })}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs w-24 text-foreground disabled:opacity-50"
+                      placeholder="e.g. -0.001"
+                    />
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    Pre-trigger window (before t = 0). Off by default; when on, the offset is stored with each result.
+                  </span>
                 </div>
               </div>
               <div className="xl:col-span-2 rounded-lg border border-border/60 bg-card/40 p-3">
@@ -437,15 +517,9 @@ const PressureAnalysis = ({
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-end gap-3">
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(settings.analysisFullResolution)}
-                      onChange={(e) => setSettings({ ...settings, analysisFullResolution: e.target.checked })}
-                      className="rounded bg-muted border-border"
-                    />
-                    Use full-resolution input (slower)
-                  </label>
+                  <span className="text-[11px] text-muted-foreground">
+                    Metrics always use every sample of the file (full resolution). The plot shows a min/max envelope.
+                  </span>
                   <label className="flex items-center gap-2 text-xs text-muted-foreground">
                     <input
                       type="checkbox"
@@ -489,6 +563,16 @@ const PressureAnalysis = ({
                 0.5*P<sub>max</sub>, 95% = stop at 0.05*P<sub>max</sub>. Click Plot Selected to refresh.
               </span>
             </div>
+            {failedResults.length > 0 && (
+              <div className="mt-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-destructive">
+                <div className="font-semibold">Not analysed ({failedResults.length}):</div>
+                {failedResults.map((item, idx) => (
+                  <div key={`${item.displayName}-${idx}`}>
+                    <span className="font-mono">{item.displayName}</span>: {item.error}
+                  </div>
+                ))}
+              </div>
+            )}
             {unitNotes.length > 0 && (
               <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
                 <Info size={14} />
@@ -620,25 +704,51 @@ const PressureAnalysis = ({
                     <th className="pb-2 text-right">P<sub>max</sub></th>
                     <th className="pb-2 text-right">t<sub>peak</sub></th>
                     <th className="pb-2 text-right">Impulse</th>
+                    <th className="pb-2 text-right">Unit</th>
                     {isValidationMode && <th className="pb-2 text-right">t<sub>vent</sub></th>}
                   </tr>
                 </thead>
                 <tbody className="text-xs text-foreground/80">
                   {analysisResults.map((res, i) => (
-                    <tr key={i} className="border-b border-primary/15 hover:bg-primary/5 transition-colors">
+                    <React.Fragment key={i}>
+                    <tr className="border-b border-primary/15 hover:bg-primary/5 transition-colors">
                       <td className="py-3 font-mono truncate max-w-[140px]" title={res.displayName}>
                         <span className="w-2 h-2 inline-block rounded-full mr-2" style={{ backgroundColor: res.color }} />
                         {res.displayName}
                       </td>
+                      {res.error ? (
+                        <td colSpan={isValidationMode ? 5 : 4} className="py-3 text-right text-destructive" title={res.error}>
+                          Error: {res.error}
+                        </td>
+                      ) : (
+                        <>
                       <td className="py-3 text-right font-bold text-foreground">{res.metrics?.pMax || '-'}</td>
                       <td className="py-3 text-right text-muted-foreground">{res.metrics?.tMax || '-'}</td>
                       <td className="py-3 text-right text-muted-foreground">{res.metrics?.impulse || '-'}</td>
+                      <td className="py-3 text-right text-muted-foreground">{res.metrics?.pressureUnit || '-'}</td>
                       {isValidationMode && (
                         <td className="py-3 text-right text-muted-foreground">
                           {res.ventTime ? res.ventTime.toFixed(4) : '-'}
                         </td>
                       )}
+                        </>
+                      )}
                     </tr>
+                    {!res.error && res.processing && (
+                      <tr className="border-b border-primary/15">
+                        <td colSpan={isValidationMode ? 6 : 5} className="pb-2 text-[10px] text-muted-foreground">
+                          <details>
+                            <summary className="cursor-pointer">Processing record</summary>
+                            <ul className="mt-1 list-disc pl-4">
+                              {describeProcessing(res.processing).map((line) => (
+                                <li key={line}>{line}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

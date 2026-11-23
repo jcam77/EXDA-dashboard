@@ -99,10 +99,23 @@ class CalculationReferenceTests(unittest.TestCase):
             channel_index=0,
             input_unit="auto",
         )
+        # EXDA-Check B4/B5: no magnitude-based unit guessing. The header has no
+        # unit, so "auto" leaves the values unconverted ...
         self.assertNotIn("error", pressure_auto)
-        self.assertAlmostEqual(float(pressure_auto["metrics"]["pMax"]), 0.0621, places=4)
-        self.assertEqual(pressure_auto["metrics"].get("pressureUnit"), "kPa")
-        self.assertIn("bar to kPa", pressure_auto["metrics"].get("unitNote", ""))
+        self.assertAlmostEqual(float(pressure_auto["metrics"]["pMax"]), 0.0006, places=4)
+        self.assertEqual(pressure_auto["metrics"].get("pressureUnit"), "raw")
+        self.assertIn("Unit unknown", pressure_auto["metrics"].get("unitNote", ""))
+
+        # ... and an explicit unit converts.
+        pressure_bar = analyze_pressure_content(
+            MULTICHANNEL_WAVEFORM_SIGNAL,
+            use_raw=True,
+            channel_index=0,
+            input_unit="bar",
+        )
+        self.assertAlmostEqual(float(pressure_bar["metrics"]["pMax"]), 0.0621, places=4)
+        self.assertEqual(pressure_bar["metrics"].get("pressureUnit"), "kPa")
+        self.assertIn("bar", pressure_bar["metrics"].get("unitNote", ""))
 
     def test_api_pressure_matches_module_output(self):
         """Verify /analyze_pressure returns values consistent with module logic."""

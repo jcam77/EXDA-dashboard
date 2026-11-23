@@ -53,11 +53,8 @@ def _read_fixture_signal(csv_path: Path):
 
 
 def _normalize_pressure_units(values):
-    """Apply the same Pa->kPa normalization rule used by pressure analysis."""
-    arr = np.asarray(values, dtype=float)
-    if arr.size and float(np.max(np.abs(arr))) > 1000.0:
-        return (arr - 101325.0) / 1000.0
-    return arr
+    """Verification fixtures are stored in kPa; returned unchanged (no unit guessing)."""
+    return np.asarray(values, dtype=float)
 
 
 def _series_to_content(t, p):
@@ -184,6 +181,10 @@ def analyze():
             channel_index=channel_index,
             input_unit=pressure_unit,
             convert_to_kpa=convert_to_kpa,
+            reference=req.get('pressureReference', 'gauge'),
+            p0_pa=req.get('p0Pa'),
+            p0_source='request (p0Pa)' if req.get('p0Pa') not in (None, '') else None,
+            baseline=req.get('baseline'),
         )
         if result.get("error"):
             return jsonify({"error": result["error"]}), 400
@@ -212,6 +213,10 @@ def analyze_pressure():
             channel_index=channel_index,
             input_unit=pressure_unit,
             convert_to_kpa=convert_to_kpa,
+            reference=req.get('pressureReference', 'gauge'),
+            p0_pa=req.get('p0Pa'),
+            p0_source='request (p0Pa)' if req.get('p0Pa') not in (None, '') else None,
+            baseline=req.get('baseline'),
         )
         if result.get("error"):
             return jsonify({"error": result["error"]}), 400
@@ -332,10 +337,27 @@ def preview_multichannel():
         labels_lower = [str(label).strip().lower() for label in labels]
         is_waveform = data_parser.is_multichannel_waveform_content(content)
 
-        # 1) Direct name-based hints.
+        # 0) Unit stored in the file header wins (EXDA-Check B5), e.g. "A5 (0.A5) [V]".
+        header_unit_display = {"v": "V", "mv": "mV", "bar": "bar", "mbar": "mbar", "pa": "Pa",
+                               "hpa": "hPa", "kpa": "kPa", "mpa": "MPa", "psi": "psi"}
+        from_header = [False] * channel_count
+        for idx, label in enumerate(labels):
+            token = pressure_analysis.unit_from_channel_label(label)
+            if token:
+                inferred_units[idx] = header_unit_display.get(token, token)
+                inferred_roles[idx] = "trigger" if token in ("v", "mv") else "pressure"
+                from_header[idx] = True
+            elif str(label).strip().lower().endswith("[ppm]"):
+                inferred_units[idx] = "ppm"
+                inferred_roles[idx] = "concentration"
+                from_header[idx] = True
+
+        # 1) Direct name-based hints (only for channels without a unit in the header).
         trigger_keywords = ("trigger", "trig", "ign", "ttl", "volt", "voltage")
         concentration_keywords = ("conc", "ppm", "h2cm", "h2_conc", "hydrogen")
         for idx, label in enumerate(labels_lower):
+            if from_header[idx]:
+                continue
             if any(token in label for token in trigger_keywords):
                 inferred_units[idx] = "V"
                 inferred_roles[idx] = "trigger"
@@ -352,14 +374,7 @@ def preview_multichannel():
                 inferred_units[last_idx] = "V"
                 inferred_roles[last_idx] = "trigger"
 
-        # 2) Acquisition-layout heuristic: last channel is often trigger voltage.
-        if channel_count >= 4 and all(unit == "raw" for unit in inferred_units):
-            max_abs = np.max(np.abs(y), axis=0)
-            last_idx = channel_count - 1
-            median_other = float(np.median(max_abs[:-1])) if channel_count > 1 else 0.0
-            if median_other > 0.0 and float(max_abs[last_idx]) >= 10.0 * median_other:
-                inferred_units[last_idx] = "V"
-                inferred_roles[last_idx] = "trigger"
+        # (Magnitude-based trigger detection removed: EXDA-Check B5, no magnitude guessing.)
 
         # 3) Pressure channels default to bar for waveform exports when not trigger-like.
         if is_waveform:
@@ -375,6 +390,7 @@ def preview_multichannel():
                     "key": f"ch_{idx}",
                     "label": label,
                     "unit": inferred_units[idx],
+                    "unitSource": "file header" if from_header[idx] else ("assumed" if inferred_units[idx] != "raw" else "unknown"),
                     "role": inferred_roles[idx],
                 }
             )
