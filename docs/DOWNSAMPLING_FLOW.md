@@ -2,6 +2,20 @@
 
 This document explains where and why sample reduction happens in EXDA for raw data preview and plotting.
 
+## Pressure analysis is never decimated (EXDA-Check B1)
+
+Everything below applies to **preview and plotting only**.
+
+Pressure metrics (pMax, tMax, impulse) are computed by `POST /analyze_pressure_file`,
+which reads the selected channel directly from the TPC5/MF4/text file at full resolution
+(`backend/modules/daq_reader.py`) and processes every sample
+(`pressure_analysis.analyze_pressure_signal`). There is no "full-resolution" toggle for
+analysis any more. The plot series returned with the metrics is reduced with a
+**min/max envelope** (each of 2,000 time bins keeps its minimum and maximum sample), so
+peaks stay visible; index picking is not used there. Each result carries a `processing`
+record: samples analysed, fs, unit and its origin, gauge/absolute and P0, baseline,
+filter (type, order, cutoff, fs, applied, resampled) and warnings.
+
 It reflects the current `RawDataScreeningCorePage` flow for `.mf4`, `.tpc5`, and text-like files.
 
 ## Quick Answer (Method Used)
