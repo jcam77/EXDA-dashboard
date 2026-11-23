@@ -3900,7 +3900,7 @@ def check_gas_mixing_records():
         records = raw_records if isinstance(raw_records, list) else []
 
     plan_payload = _load_latest_plan_payload(project_root)
-    report = gas_mixing_checks.build_report(records, plan_payload.get("experiments"))
+    report = gas_mixing_checks.build_report(records, plan_payload.get("experiments"), plan_payload.get("meta"))
     report.update({
         "success": True,
         "gasMixingPath": file_path if os.path.exists(file_path) else "",
@@ -4927,10 +4927,19 @@ def sync_run_data_folders():
 
 @state_bp.route('/rename_run_data_folders', methods=['POST'])
 def rename_run_data_folders():
-    """Rename existing run folders across Raw_Data/Clean_Data/CFD_Data from old->new names."""
+    """Rename run folders across Raw_Data/Clean_Data/CFD_Data (EXDA-Check C2).
+
+    - ``dryRun: true`` returns the planned moves (with file counts) and any
+      conflicts without touching the disk, so the UI can ask for confirmation.
+    - The real rename is all-or-nothing: if any planned move conflicts,
+      nothing is moved; if a move fails part-way, the moves already done are
+      rolled back.
+    - Every move (and rollback) is written to History/change_log.jsonl.
+    """
     data = request.json or {}
     project_path = data.get('projectPath')
     rename_pairs = data.get('renamePairs') or []
+    dry_run = bool(data.get('dryRun'))
 
     project_root, err = project_manager.resolve_project_path(project_path)
     if err:
@@ -4943,13 +4952,6 @@ def rename_run_data_folders():
         "Clean_Data": os.path.join(project_root, "Clean_Data"),
         "CFD_Data": os.path.join(project_root, "CFD_Data"),
     }
-    for root_path in roots.values():
-        os.makedirs(root_path, exist_ok=True)
-
-    moved = []
-    created = []
-    conflicts = []
-    skipped = []
 
     def _sanitize_run_name(value):
         raw = str(value or "").strip()
@@ -4957,92 +4959,134 @@ def rename_run_data_folders():
             return ""
         return raw.replace("/", "-").replace("\\", "-").strip().strip(".")
 
+    def _count_files(path):
+        total = 0
+        for _dirpath, _dirs, files in os.walk(path):
+            total += len(files)
+        return total
+
+    planned = []      # {"root", "from", "to", "fromPath", "toPath", "files"}
+    to_create = []    # {"root", "run", "path"}
+    conflicts = []
+    skipped = []
+    targets_seen = set()
+
     for pair in rename_pairs:
         if not isinstance(pair, dict):
             skipped.append({"pair": pair, "reason": "invalid_pair"})
             continue
-
         old_original = str(pair.get("oldName") or "").strip()
         new_original = str(pair.get("newName") or "").strip()
         old_name = _sanitize_run_name(old_original)
         new_name = _sanitize_run_name(new_original)
-
         if not old_name or not new_name:
-            skipped.append({"oldName": old_original, "newName": new_original, "reason": "invalid_name"})
+            conflicts.append({"oldName": old_original, "newName": new_original, "reason": "invalid_name"})
             continue
         if old_name == new_name:
             skipped.append({"oldName": old_name, "newName": new_name, "reason": "same_name"})
             continue
-
-        run_conflict = False
         for root_key, root_path in roots.items():
             old_path = os.path.realpath(os.path.join(root_path, old_name))
             new_path = os.path.realpath(os.path.join(root_path, new_name))
-            if (
-                not project_manager.is_path_within(project_root, old_path)
-                or not project_manager.is_path_within(project_root, new_path)
-            ):
-                skipped.append({
-                    "oldName": old_name,
-                    "newName": new_name,
-                    "root": root_key,
-                    "reason": "unsafe_path",
-                })
-                run_conflict = True
+            if not (project_manager.is_path_within(project_root, old_path)
+                    and project_manager.is_path_within(project_root, new_path)):
+                conflicts.append({"oldName": old_name, "newName": new_name, "root": root_key, "reason": "unsafe_path"})
                 continue
-
             old_exists = os.path.exists(old_path)
             new_exists = os.path.exists(new_path)
-
+            if new_path in targets_seen:
+                conflicts.append({"oldName": old_name, "newName": new_name, "root": root_key, "reason": "duplicate_target"})
+                continue
+            targets_seen.add(new_path)
             if old_exists and new_exists and old_path != new_path:
-                conflicts.append({
-                    "oldName": old_name,
-                    "newName": new_name,
-                    "root": root_key,
-                    "reason": "target_exists",
+                conflicts.append({"oldName": old_name, "newName": new_name, "root": root_key, "reason": "target_exists"})
+            elif old_exists:
+                planned.append({
+                    "root": root_key, "from": old_name, "to": new_name,
+                    "fromPath": old_path, "toPath": new_path, "files": _count_files(old_path),
                 })
-                run_conflict = True
-                continue
+            elif not new_exists:
+                to_create.append({"root": root_key, "run": new_name, "path": new_path})
 
-            if old_exists and not new_exists:
-                try:
-                    shutil.move(old_path, new_path)
-                    moved.append({"root": root_key, "from": old_name, "to": new_name})
-                except Exception as exc:
-                    conflicts.append({
-                        "oldName": old_name,
-                        "newName": new_name,
-                        "root": root_key,
-                        "reason": f"move_failed: {exc}",
-                    })
-                    run_conflict = True
-                continue
+    def _public(items):
+        return [{k: v for k, v in item.items() if not k.endswith("Path") and k != "path"} for item in items]
 
-            if (not old_exists) and (not new_exists):
-                # Keep workflow resilient: create destination folder if source did not exist yet.
-                try:
-                    os.makedirs(new_path, exist_ok=True)
-                    created.append({"root": root_key, "run": new_name})
-                except Exception as exc:
-                    conflicts.append({
-                        "oldName": old_name,
-                        "newName": new_name,
-                        "root": root_key,
-                        "reason": f"create_failed: {exc}",
-                    })
-                    run_conflict = True
-                continue
+    summary = {
+        "planned": _public(planned),
+        "toCreate": _public(to_create),
+        "conflicts": conflicts,
+        "skipped": skipped,
+    }
+    if dry_run:
+        return jsonify({"success": True, "dryRun": True, **summary})
+    if conflicts:
+        return jsonify({
+            "success": False,
+            "error": f"{len(conflicts)} conflict(s); nothing was moved.",
+            **summary,
+        }), 409
 
-        if run_conflict:
-            # Keep per-root detail in conflicts/skipped; no extra action needed here.
+    moved = []
+    try:
+        for item in planned:
+            os.makedirs(os.path.dirname(item["toPath"]), exist_ok=True)
+            shutil.move(item["fromPath"], item["toPath"])
+            moved.append(item)
+    except Exception as exc:
+        rollback_errors = []
+        for item in reversed(moved):
+            try:
+                shutil.move(item["toPath"], item["fromPath"])
+            except Exception as rb_exc:
+                rollback_errors.append({"root": item["root"], "from": item["to"], "to": item["from"], "error": str(rb_exc)})
+        try:
+            project_store.append_change_log(project_root, {
+                "action": "rename_run_folders",
+                "kind": "failed_rolled_back",
+                "error": str(exc),
+                "attempted": _public(planned),
+                "rolledBack": _public(moved),
+                "rollbackErrors": rollback_errors,
+            })
+        except Exception:
             pass
+        return jsonify({
+            "success": False,
+            "error": f"Move failed ({exc}); {len(moved)} completed move(s) were rolled back."
+                     + (f" Rollback problems: {len(rollback_errors)}." if rollback_errors else ""),
+            "rolledBack": _public(moved),
+            "rollbackErrors": rollback_errors,
+            **summary,
+        }), 500
+
+    created = []
+    for item in to_create:
+        try:
+            os.makedirs(item["path"], exist_ok=True)
+            created.append({"root": item["root"], "run": item["run"]})
+        except Exception as exc:
+            skipped.append({"root": item["root"], "run": item["run"], "reason": f"create_failed: {exc}"})
+
+    log_warning = None
+    if moved or created:
+        try:
+            project_store.append_change_log(project_root, {
+                "action": "rename_run_folders",
+                "kind": "moved",
+                "moves": _public(moved),
+                "created": created,
+                "context": data.get("context") if isinstance(data.get("context"), dict) else None,
+            })
+        except Exception as exc:
+            log_warning = f"Folders were renamed, but the change log could not be written: {exc}"
 
     return jsonify({
         "success": True,
-        "moved": moved,
+        "moved": _public(moved),
         "created": created,
-        "conflicts": conflicts,
+        "conflicts": [],
         "skipped": skipped,
+        "logWarning": log_warning,
     })
 
 

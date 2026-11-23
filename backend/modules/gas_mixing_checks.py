@@ -21,6 +21,7 @@ Checks per plan run:
 from __future__ import annotations
 
 import csv
+import re
 import io
 
 KELVIN_OFFSET = 273.15
@@ -170,8 +171,31 @@ def check_plan_runs(experiments):
     return issues
 
 
-def build_report(gas_records, plan_experiments):
-    issues = check_gas_records(gas_records) + check_plan_runs(plan_experiments)
+RUN_GROUP_RE = re.compile(r"^(.*)-(\d+)(?:-[Rr]\d+)?$")
+
+
+def run_group(name):
+    match = RUN_GROUP_RE.match(str(name or "").strip())
+    return match.group(1) if match else str(name or "").strip()
+
+
+def check_plan_meta(plan_meta, experiments):
+    """Group objectives that belong to no run group (e.g. left over from a rename)."""
+    issues = []
+    objectives = (plan_meta or {}).get("groupObjectives") if isinstance(plan_meta, dict) else None
+    if not isinstance(objectives, dict):
+        return issues
+    groups = {run_group(e.get("name")) for e in experiments or [] if isinstance(e, dict)}
+    for key in sorted(objectives):
+        if key not in groups:
+            issues.append(_issue("plan", {"group": key}, "orphan_group_objective", "meta.groupObjectives", key,
+                                 detail=f"Group objective '{key}' matches no run group in the plan "
+                                        "(possibly left over from a group rename). Not changed."))
+    return issues
+
+
+def build_report(gas_records, plan_experiments, plan_meta=None):
+    issues = check_gas_records(gas_records) + check_plan_runs(plan_experiments) + check_plan_meta(plan_meta, plan_experiments)
     summary = {}
     for issue in issues:
         summary[issue["check"]] = summary.get(issue["check"], 0) + 1

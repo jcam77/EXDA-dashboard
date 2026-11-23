@@ -124,7 +124,7 @@ const PlanPage = ({
     projectPath = ""
 }) => {
     const apiBaseUrl = getBackendBaseUrl();
-    const { dialogModal, setDialogModal, showAlert } = useAppDialog();
+    const { dialogModal, setDialogModal, showAlert, showConfirm } = useAppDialog();
     const [input, setInput] = useState({ group: "", run: "", h2: "", plannedDate: "", name: "", isPreparation: false });
     const [editingExp, setEditingExp] = useState(null);
     const [createError, setCreateError] = useState("");
@@ -269,21 +269,25 @@ const PlanPage = ({
         }
     }, [apiBaseUrl, projectPath]);
 
-    const renameRunFolders = useCallback(async (renamePairs = []) => {
-        if (!projectPath || !Array.isArray(renamePairs) || renamePairs.length === 0) return null;
+    // EXDA-Check C2: dry run first (planned moves, conflicts), then an
+    // all-or-nothing rename. Returns the payload, including on failure.
+    const renameRunFolders = useCallback(async (renamePairs = [], { dryRun = false, context = null } = {}) => {
+        if (!projectPath || !Array.isArray(renamePairs) || renamePairs.length === 0) {
+            return { success: false, error: 'Nothing to rename.' };
+        }
         try {
             const response = await fetch(`${apiBaseUrl}/rename_run_data_folders`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectPath, renamePairs }),
+                body: JSON.stringify({ projectPath, renamePairs, dryRun, context }),
             });
-            const payload = await response.json();
+            const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload?.success) {
-                throw new Error(payload?.error || 'Could not rename run data folders');
+                return { ...payload, success: false, error: payload?.error || `HTTP ${response.status}` };
             }
             return payload;
-        } catch {
-            return null;
+        } catch (err) {
+            return { success: false, error: err?.message || 'Could not reach the backend.' };
         }
     }, [apiBaseUrl, projectPath]);
 
@@ -501,6 +505,66 @@ const PlanPage = ({
             newName: String(generatedNames[index] || '').trim(),
         }));
 
+        // EXDA-Check C2: show every folder that will move, refuse on conflicts,
+        // require an explicit override for completed runs, and only change
+        // the plan after the folders were renamed successfully.
+        const preview = await renameRunFolders(renamePairs, { dryRun: true });
+        if (!preview?.success) {
+            setGroupRenameErrors((prev) => ({ ...prev, [groupName]: `Rename check failed: ${preview?.error || 'unknown error'}` }));
+            return;
+        }
+        if (Array.isArray(preview.conflicts) && preview.conflicts.length > 0) {
+            const list = preview.conflicts
+                .map((c) => `${c.root ? `${c.root}/` : ''}${c.oldName} -> ${c.newName} (${c.reason})`)
+                .join('; ');
+            setGroupRenameErrors((prev) => ({ ...prev, [groupName]: `Rename blocked, nothing changed. Conflicts: ${list}` }));
+            return;
+        }
+        const planned = Array.isArray(preview.planned) ? preview.planned : [];
+        const completedRuns = affected.filter((exp) => Boolean(exp?.done));
+        const confirmed = await showConfirm({
+            title: `Rename group "${groupName}" to "${requestedName}"?`,
+            type: 'warning',
+            confirmLabel: 'Rename',
+            confirmVariant: 'primary',
+            content: (
+                <div className="space-y-2 text-left">
+                    <div>Runs: {renamePairs.map((p) => `${p.oldName} -> ${p.newName}`).join(', ')}</div>
+                    <div className="font-semibold">
+                        {planned.length > 0 ? `Folders that will be moved on disk (${planned.length}):` : 'No data folders exist yet for these runs; nothing will be moved.'}
+                    </div>
+                    {planned.length > 0 && (
+                        <ul className="max-h-48 overflow-auto font-mono text-xs list-disc pl-5">
+                            {planned.map((m) => (
+                                <li key={`${m.root}/${m.from}`}>{`${m.root}/${m.from} -> ${m.root}/${m.to} (${m.files} files)`}</li>
+                            ))}
+                        </ul>
+                    )}
+                    <div className="text-xs">All moves succeed together or none are kept. Every move is written to History/change_log.jsonl.</div>
+                </div>
+            ),
+        });
+        if (!confirmed) return;
+        if (completedRuns.length > 0) {
+            const override = await showConfirm({
+                title: 'Completed runs',
+                type: 'error',
+                confirmLabel: 'Override and rename completed runs',
+                content: `${completedRuns.length} of these runs are marked done (${completedRuns.map((e) => e.name).join(', ')}). Renaming changes the names of recorded test data folders. Continue only if the current names are wrong.`,
+            });
+            if (!override) return;
+        }
+        const renameResult = await renameRunFolders(renamePairs, {
+            context: { oldGroup: groupName, newGroup: requestedName, completedRunsOverride: completedRuns.map((e) => e.name) },
+        });
+        if (!renameResult?.success) {
+            setGroupRenameErrors((prev) => ({
+                ...prev,
+                [groupName]: `Folders were not renamed; the plan is unchanged. ${renameResult?.error || ''}`.trim(),
+            }));
+            return;
+        }
+
         const remapRunFilePath = (filePath, oldRunName, newRunName) => {
             const file = String(filePath || '');
             const oldPrefix = `${String(oldRunName || '').trim()}/`;
@@ -549,12 +613,8 @@ const PlanPage = ({
             return next;
         });
 
-        const renameResult = await renameRunFolders(renamePairs);
-        if (renameResult && Array.isArray(renameResult.conflicts) && renameResult.conflicts.length > 0) {
-            setFolderCheck({
-                status: 'warning',
-                message: `Some run folder renames conflicted (${renameResult.conflicts.length}). Review folder names and retry.`,
-            });
+        if (renameResult.logWarning) {
+            setFolderCheck({ status: 'warning', message: renameResult.logWarning });
         }
         const metadataResult = await renameRunMetadataReferences({
             renamePairs,
@@ -568,7 +628,7 @@ const PlanPage = ({
             });
         }
         await syncRunFolders(generatedNames);
-    }, [experiments, getRunGroupKey, groupRenameDrafts, normalizeRunName, renameRunFolders, renameRunMetadataReferences, setExperiments, setPlanMeta, syncRunFolders]);
+    }, [experiments, getRunGroupKey, groupRenameDrafts, normalizeRunName, renameRunFolders, renameRunMetadataReferences, setExperiments, setPlanMeta, showConfirm, syncRunFolders]);
 
     const addExp = async () => {
         const manualRunName = String(input.name || '').trim();

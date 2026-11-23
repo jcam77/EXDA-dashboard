@@ -255,6 +255,8 @@ class GasMixingConsistencyCheckTests(unittest.TestCase):
             ("plan", "G01-12", "possible_default_p0", "p0"),
             ("plan", "G04-03", "possible_default_p0", "p0"),
             ("gas_mixing", "G00-01", "missing_rh", "relativeHumidityPct"),
+            # EXDA-Check C2: leftover group objective from an earlier rename.
+            ("plan", "", "orphan_group_objective", "meta.groupObjectives"),
         }
         self.assertEqual(found, expected)
 
