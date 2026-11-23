@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { X, CheckCircle2, AlertTriangle } from 'lucide-react';
+import ModalPortal from './ModalPortal';
 
 const UnifiedModal = ({ modal, setModal }) => {
     const inputRef = useRef(null);
@@ -25,7 +26,8 @@ const UnifiedModal = ({ modal, setModal }) => {
     };
 
         return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-in fade-in duration-200">
+        <ModalPortal>
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[90] animate-in fade-in duration-200">
             <div className="bg-card p-6 rounded-xl border border-border w-[450px] shadow-sm flex flex-col gap-4 relative text-foreground">
                 <button onClick={closeModal} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X size={20}/></button>
                 <div className="flex items-start gap-4">
@@ -78,6 +80,7 @@ const UnifiedModal = ({ modal, setModal }) => {
                 </div>
             </div>
         </div>
+        </ModalPortal>
     );
 };
 

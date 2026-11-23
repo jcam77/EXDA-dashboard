@@ -11,6 +11,7 @@ import ExportFormatButtons from '../components/ExportFormatButtons';
 import IsoDateInput from '../components/IsoDateInput';
 import { useAppDialog } from '../hooks/useAppDialog';
 import { formatPressurePa, formatTempK } from '../utils/formatting';
+import ModalPortal from '../components/ModalPortal';
 
 const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
 const RUN_STATUS_COLORS = {
@@ -166,7 +167,8 @@ const PlanPage = ({
     const [collapsedGroups, setCollapsedGroups] = useState({});
     const [lastDeletedRun, setLastDeletedRun] = useState(null);
     const [folderCheck, setFolderCheck] = useState({ status: 'idle', message: '' });
-    const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 });
+    const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0, rect: null });
+    const runCardRef = useRef(null);
     const scheduleChartAreaRef = useRef(null);
     const scheduleDragRef = useRef({ runName: '', startDay: 1, startX: 0, currentX: 0, moved: false });
     const deleteUndoTimeoutRef = useRef(null);
@@ -1252,12 +1254,23 @@ const PlanPage = ({
     useEffect(() => {
         if (!isModalDragging) return undefined;
 
+        // Keep the card reachable: its title bar stays on screen and at least
+        // 160 px of its width stays visible, wherever it is dragged.
+        const MARGIN = 8;
+        const MIN_VISIBLE_X = 160;
+        const TITLE_BAR = 72;
+        const clamp = (value, low, high) => Math.min(Math.max(value, low), Math.max(low, high));
         const onMouseMove = (event) => {
-            const deltaX = event.clientX - dragStartRef.current.mouseX;
-            const deltaY = event.clientY - dragStartRef.current.mouseY;
+            const start = dragStartRef.current;
+            let deltaX = event.clientX - start.mouseX;
+            let deltaY = event.clientY - start.mouseY;
+            if (start.rect) {
+                deltaX = clamp(deltaX, MIN_VISIBLE_X - start.rect.right, window.innerWidth - MIN_VISIBLE_X - start.rect.left);
+                deltaY = clamp(deltaY, MARGIN - start.rect.top, window.innerHeight - TITLE_BAR - start.rect.top);
+            }
             setModalOffset({
-                x: dragStartRef.current.startX + deltaX,
-                y: dragStartRef.current.startY + deltaY,
+                x: start.startX + deltaX,
+                y: start.startY + deltaY,
             });
         };
 
@@ -1310,13 +1323,20 @@ const PlanPage = ({
         syncEditorModesWithCard();
     }, [editingExpId]);
 
+    // Drag the run card by its title area (or the grab button). Pressing on a
+    // field or button inside the title area keeps its normal behaviour.
     const beginModalDrag = (event) => {
         if (event.button !== 0) return;
+        const onControl = event.target.closest?.('input, select, textarea, a, button:not([data-drag-handle])');
+        if (onControl) return;
+        event.preventDefault();
+        const rect = runCardRef.current?.getBoundingClientRect() || null;
         dragStartRef.current = {
             mouseX: event.clientX,
             mouseY: event.clientY,
             startX: modalOffset.x,
             startY: modalOffset.y,
+            rect: rect && { left: rect.left, right: rect.right, top: rect.top },
         };
         setIsModalDragging(true);
     };
@@ -1771,12 +1791,18 @@ const PlanPage = ({
 
             {/* RUN CARD MODAL */}
             {editingExp && (
-                <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-50 px-4 py-4 backdrop-blur-md overflow-y-auto">
+                <ModalPortal>
+                <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-[70] px-4 py-4 backdrop-blur-md overflow-y-auto">
                     <div
+                        ref={runCardRef}
                         className="bg-zinc-950 p-5 rounded-2xl border border-primary/30 w-full max-w-5xl shadow-2xl max-h-[76vh] overflow-hidden ring-1 ring-white/5 font-sans flex flex-col"
                         style={{ transform: `translate(${modalOffset.x}px, ${modalOffset.y}px)` }}
                     >
-                        <div className="flex justify-between items-start mb-5 border-b border-zinc-800 pb-4">
+                        <div
+                            className={`flex justify-between items-start mb-5 border-b border-zinc-800 pb-4 select-none ${isModalDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                            onMouseDown={beginModalDrag}
+                            title="Drag to move the run card"
+                        >
                             <div className="min-w-0 flex-1">
                                 <h3 className="text-white font-bold text-xl flex items-center gap-3 tracking-tight">
                                     <Beaker size={24} className="text-primary"/> Run Metadata Card
@@ -1797,7 +1823,7 @@ const PlanPage = ({
                             <div className="ml-4 flex items-center gap-2">
                                 <button
                                     type="button"
-                                    onMouseDown={beginModalDrag}
+                                    data-drag-handle
                                     className={`text-zinc-500 hover:text-zinc-200 bg-zinc-900 p-2 rounded-full transition-all ${isModalDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                                     title="Drag card"
                                 >
@@ -2109,6 +2135,7 @@ const PlanPage = ({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
             <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
         </div>

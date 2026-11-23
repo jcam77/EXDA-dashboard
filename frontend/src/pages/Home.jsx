@@ -20,6 +20,7 @@ import { getBackendBaseUrl } from '../utils/backendUrl';
 import { getPublicUrl } from '../utils/assetUrl';
 import { getRecentProjects, replaceRecentProjects } from '../utils/recentProjects';
 import { formatExdaDate } from '../utils/timezone';
+import ModalPortal from '../components/ModalPortal';
 
 const HomePage = ({
   onSelectTab,
@@ -875,6 +876,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
       </section>
 
       {showLicenseModal && (
+        <ModalPortal>
         <div
           className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setShowLicenseModal(false)}
@@ -902,9 +904,11 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             </pre>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {showPrivacyModal && (
+        <ModalPortal>
         <div
           className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setShowPrivacyModal(false)}
@@ -932,6 +936,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             </pre>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

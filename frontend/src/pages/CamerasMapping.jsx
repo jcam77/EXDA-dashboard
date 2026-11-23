@@ -6,6 +6,7 @@ import ExportFormatButtons from '../components/ExportFormatButtons';
 import { useAppDialog } from '../hooks/useAppDialog';
 import RunOverridePanel from '../components/RunOverridePanel';
 import { baseVersionFor, rememberVersion, FILE_KINDS } from '../utils/fileVersions';
+import ModalPortal from '../components/ModalPortal';
 
 const COORDINATE_UNIT_OPTIONS = ['m', 'mm'];
 const DEFAULT_COORDINATE_ORIGIN = '((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.';
@@ -945,6 +946,7 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
       )}
 
       {editorOpen && (
+        <ModalPortal>
         <div className={`fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-background/80 px-4 py-4 backdrop-blur-md ${editorDragging ? 'select-none' : ''}`}>
           <div
             className="flex max-h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-primary/30 bg-zinc-950 p-5 font-sans shadow-2xl ring-1 ring-white/5 md:p-6"
@@ -1040,6 +1042,7 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
       <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
     </div>

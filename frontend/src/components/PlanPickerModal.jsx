@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
+import ModalPortal from './ModalPortal';
 
 const PlanPickerModal = ({ isOpen, projectPath, onClose, onSelect }) => {
   const apiBaseUrl = getBackendBaseUrl();
@@ -40,6 +41,7 @@ const PlanPickerModal = ({ isOpen, projectPath, onClose, onSelect }) => {
   if (!isOpen) return null;
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-lg rounded-2xl border border-sidebar-border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
@@ -97,6 +99,7 @@ const PlanPickerModal = ({ isOpen, projectPath, onClose, onSelect }) => {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

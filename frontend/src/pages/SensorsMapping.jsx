@@ -8,6 +8,7 @@ import { useAppDialog } from '../hooks/useAppDialog';
 import RunOverridePanel from '../components/RunOverridePanel';
 import { rememberVersion, FILE_KINDS } from '../utils/fileVersions';
 import { applySensorTypeRules, validateSensorAgainstList } from '../utils/sensorValidation';
+import ModalPortal from '../components/ModalPortal';
 
 const QUANTITY_OPTIONS = [
   'pressure',
@@ -1099,6 +1100,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
       )}
 
       {editorOpen && (
+        <ModalPortal>
         <div className={`fixed inset-0 z-[70] bg-background/80 flex items-center justify-center px-4 py-4 backdrop-blur-md overflow-y-auto ${editorDragging ? 'select-none' : ''}`}>
           <div
             className="w-full max-w-3xl rounded-2xl border border-primary/30 bg-zinc-950 p-5 md:p-6 shadow-2xl max-h-[76vh] overflow-hidden ring-1 ring-white/5 font-sans flex flex-col"
@@ -1213,6 +1215,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
       <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
     </div>

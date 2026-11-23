@@ -7,6 +7,7 @@ import ExportFormatButtons from '../components/ExportFormatButtons';
 import IsoDateInput from '../components/IsoDateInput';
 import { useAppDialog } from '../hooks/useAppDialog';
 import { baseVersionFor, rememberVersion, FILE_KINDS } from '../utils/fileVersions';
+import ModalPortal from '../components/ModalPortal';
 
 const createDefaultDaq = () => ({
   id: `daq-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -395,6 +396,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
       </div>
 
       {editorOpen && (
+        <ModalPortal>
         <div className="fixed inset-0 z-[70] bg-background/80 flex items-center justify-center px-4 py-4 backdrop-blur-md">
           <div className="w-full max-w-2xl rounded-2xl border border-primary/30 bg-zinc-950 p-5 md:p-6 shadow-2xl ring-1 ring-white/5">
             <div className="flex items-center justify-between">
@@ -469,6 +471,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
       <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
     </div>
