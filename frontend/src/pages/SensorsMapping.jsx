@@ -5,6 +5,8 @@ import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
 import IsoDateInput from '../components/IsoDateInput';
 import { useAppDialog } from '../hooks/useAppDialog';
+import RunOverridePanel from '../components/RunOverridePanel';
+import { applySensorTypeRules, validateSensorAgainstList } from '../utils/sensorValidation';
 
 const QUANTITY_OPTIONS = [
   'pressure',
@@ -41,7 +43,7 @@ const normalizeTriggerMethodValue = (value) => {
 
 const normalizeSensitivityUnitValue = (value) => {
   const text = String(value || '').trim();
-  if (!text) return 'pC/bar';
+  if (!text) return ''; // missing stays missing (EXDA-Check C5)
   const lower = text.toLowerCase();
   if (lower === 'pc/bar' || lower === 'pc per bar') return 'pC/bar';
   if (lower === 'pc/kpa' || lower === 'pc per kpa') return 'pC/kPa';
@@ -73,14 +75,14 @@ const createDefaultSensor = (id = '') => ({
   model: '',
   serialNumber: '',
   sensitivity: '',
-  sensitivityUnit: 'pC/bar',
+  sensitivityUnit: '',
   locationLabel: '',
   x: '',
   y: '',
   z: '',
   coordinateUnit: 'm',
   coordinateOrigin: DEFAULT_COORDINATE_ORIGIN,
-  mountingMethod: 'flush',
+  mountingMethod: '',
   isActive: true,
   isBlindSensor: false,
   isTriggerChannel: false,
@@ -108,44 +110,6 @@ const listGroupsFromExperiments = (experiments) => {
 };
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
-const isNumeric = (value) => value !== '' && Number.isFinite(Number(value));
-const validateSensorAgainstList = (sensor, allSensors, currentId = null) => {
-  const errors = [];
-  const warnings = [];
-  const isTrigger = sensor.isTriggerChannel === true;
-
-  if (!String(sensor.sensorId || '').trim()) errors.push('Sensor ID missing');
-  if (String(sensor.isActive) === 'true' || sensor.isActive === true) {
-    if (!String(sensor.daqSystem || '').trim()) errors.push('DAQ system missing');
-    if (!String(sensor.daqChannel || '').trim()) errors.push('DAQ channel missing');
-  }
-  if (!isTrigger) {
-    if (!String(sensor.serialNumber || '').trim()) errors.push('Serial number missing');
-    if (!isNumeric(sensor.sensitivity)) errors.push('Sensitivity missing or not numeric');
-    else if (Number(sensor.sensitivity) === 0) errors.push('Sensitivity cannot be zero');
-    if (!String(sensor.sensitivityUnit || '').trim()) errors.push('Sensitivity unit missing');
-    if (!String(sensor.locationLabel || '').trim()) errors.push('Location label missing');
-    if (!isNumeric(sensor.x) || !isNumeric(sensor.y) || !isNumeric(sensor.z)) errors.push('Coordinates x/y/z must be numeric');
-    if (!String(sensor.coordinateOrigin || '').trim()) errors.push('Coordinate origin missing');
-    if (!String(sensor.mountingMethod || '').trim()) errors.push('Mounting method missing');
-  }
-
-  const duplicateSensorId = allSensors.some((other) => {
-    if (currentId && other.id === currentId) return false;
-    return normalize(other.sensorId) === normalize(sensor.sensorId) && normalize(sensor.sensorId) !== '';
-  });
-  if (duplicateSensorId) errors.push('Duplicate sensor ID');
-
-  if (!isTrigger) {
-    if (!String(sensor.calibrationDate || '').trim()) warnings.push('Calibration date missing');
-  }
-  if (sensor.isActive && sensor.isBlindSensor) warnings.push('Sensor is active and blind/control');
-  if (isTrigger && normalize(sensor.measuredQuantity) !== 'voltage') warnings.push('Trigger channel is usually measured as voltage');
-  if (isTrigger && !String(sensor.triggerMethod || '').trim()) warnings.push('Trigger method missing');
-
-  return { errors, warnings };
-};
-
 const normalizeSensorsStatePayload = (payload) => {
   if (Array.isArray(payload)) {
     const fallbackGroup = 'Imported';
@@ -201,6 +165,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
   const [showAllGroups, setShowAllGroups] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [planGroups, setPlanGroups] = useState([]);
+  const [planRuns, setPlanRuns] = useState([]);
   const [newGroupName, setNewGroupName] = useState('');
   const [groupError, setGroupError] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
@@ -376,6 +341,30 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
     return `${base}-${Date.now()}`;
   }, [availableGroups]);
 
+  // EXDA-Check C4: per-run override = a mapping named exactly like the run,
+  // pre-filled from the run's group mapping. The group mapping is not changed.
+  const createRunOverride = (runName) => {
+    const run = String(runName || '').trim();
+    if (!run) return;
+    if (Object.prototype.hasOwnProperty.call(mappingsByGroup, run)) {
+      setSelectedGroup(run);
+      return;
+    }
+    const group = getGroupFromRunName(run);
+    const source = mappingsByGroup[group] || [];
+    const cloned = source.map((entry) => ({
+      ...entry,
+      id: `sensor-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    }));
+    setMappingsByGroup((prev) => ({ ...prev, [run]: cloned }));
+    setGroupNotes((prev) => ({
+      ...prev,
+      [run]: `Run override for ${run} (copied from ${group || 'no group'} on ${new Date().toISOString().slice(0, 10)}). Edit what differs for this run.`,
+    }));
+    setSelectedGroup(run);
+    setGroupError('');
+  };
+
   const duplicateGroup = async (sourceGroup) => {
     const source = String(sourceGroup || '').trim();
     if (!source) return;
@@ -529,6 +518,11 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
         }
         const groups = listGroupsFromExperiments(payload?.plan?.experiments || []);
         if (!cancelled) setPlanGroups(groups);
+        if (!cancelled) {
+          setPlanRuns((payload?.plan?.experiments || [])
+            .map((exp) => String(exp?.name || '').trim())
+            .filter(Boolean));
+        }
       } catch {
         if (!cancelled) setPlanGroups([]);
       }
@@ -1023,6 +1017,14 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
             <span className="text-[11px] text-destructive">{groupError}</span>
           )}
         </div>
+        <RunOverridePanel
+          planRuns={planRuns}
+          mappingKeys={Object.keys(mappingsByGroup || {})}
+          getGroupFromRunName={getGroupFromRunName}
+          onCreateOverride={createRunOverride}
+          onSelectMapping={(key) => { setShowAllGroups(false); setSelectedGroup(key); }}
+          itemLabel="sensors"
+        />
       </div>
 
       <div className="w-full max-w-3xl rounded-xl border border-sidebar-border bg-card/60 p-4">
@@ -1150,7 +1152,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
 
             <div className="mt-4 flex-1 overflow-y-auto pr-1 px-1 md:px-2 grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="text-xs">Sensor ID<input value={editingSensor.sensorId} onChange={(e) => setEditingSensor((prev) => ({ ...prev, sensorId: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
-              <label className="text-xs">Measured Quantity<select value={editingSensor.measuredQuantity} onChange={(e) => setEditingSensor((prev) => ({ ...prev, measuredQuantity: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{QUANTITY_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
+              <label className="text-xs">Measured Quantity<select value={editingSensor.measuredQuantity} onChange={(e) => setEditingSensor((prev) => applySensorTypeRules(prev, { measuredQuantity: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{QUANTITY_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
               <label className="text-xs">DAQ System<input value={editingSensor.daqSystem} onChange={(e) => setEditingSensor((prev) => ({ ...prev, daqSystem: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">DAQ Channel<input value={editingSensor.daqChannel} onChange={(e) => setEditingSensor((prev) => ({ ...prev, daqChannel: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Manufacturer<input value={editingSensor.manufacturer} onChange={(e) => setEditingSensor((prev) => ({ ...prev, manufacturer: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
@@ -1159,7 +1161,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
               <label className="text-xs">Last Calibration Date<IsoDateInput value={editingSensor.calibrationDate || ''} onValueChange={(next) => setEditingSensor((prev) => ({ ...prev, calibrationDate: next }))} placeholder="YYYY-MM-DD" className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5 pr-9" /></label>
               <label className="text-xs">Calibration Certificate ID<input value={editingSensor.calibrationCertificateId || ''} onChange={(e) => setEditingSensor((prev) => ({ ...prev, calibrationCertificateId: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Sensitivity<input value={editingSensor.sensitivity} onChange={(e) => setEditingSensor((prev) => ({ ...prev, sensitivity: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
-              <label className="text-xs">Sensitivity Unit<select value={editingSensor.sensitivityUnit} onChange={(e) => setEditingSensor((prev) => ({ ...prev, sensitivityUnit: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{SENSITIVITY_UNIT_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
+              <label className="text-xs">Sensitivity Unit<select value={editingSensor.sensitivityUnit} onChange={(e) => setEditingSensor((prev) => ({ ...prev, sensitivityUnit: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5"><option value="">(not set)</option>{SENSITIVITY_UNIT_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
               <label className="text-xs">Location Label<input value={editingSensor.locationLabel} onChange={(e) => setEditingSensor((prev) => ({ ...prev, locationLabel: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">X<input value={editingSensor.x} onChange={(e) => setEditingSensor((prev) => ({ ...prev, x: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
               <label className="text-xs">Y<input value={editingSensor.y} onChange={(e) => setEditingSensor((prev) => ({ ...prev, y: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5" /></label>
@@ -1194,10 +1196,10 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
                   />
                 )}
               </div>
-              <label className="text-xs">Mounting Method<select value={editingSensor.mountingMethod} onChange={(e) => setEditingSensor((prev) => ({ ...prev, mountingMethod: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{MOUNTING_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
+              <label className="text-xs">Mounting Method<select value={editingSensor.mountingMethod} onChange={(e) => setEditingSensor((prev) => ({ ...prev, mountingMethod: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5"><option value="">(not set)</option>{MOUNTING_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select></label>
               <label className="inline-flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={!!editingSensor.isActive} onChange={(e) => setEditingSensor((prev) => ({ ...prev, isActive: e.target.checked }))} /> Active Sensor</label>
               <label className="inline-flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={!!editingSensor.isBlindSensor} onChange={(e) => setEditingSensor((prev) => ({ ...prev, isBlindSensor: e.target.checked }))} /> Blind / Control Sensor</label>
-              <label className="inline-flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={!!editingSensor.isTriggerChannel} onChange={(e) => setEditingSensor((prev) => ({ ...prev, isTriggerChannel: e.target.checked }))} /> Trigger Channel (metadata exception)</label>
+              <label className="inline-flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={!!editingSensor.isTriggerChannel} onChange={(e) => setEditingSensor((prev) => applySensorTypeRules(prev, { isTriggerChannel: e.target.checked }))} /> Trigger Channel (metadata exception)</label>
               <label className="text-xs md:col-span-2">Trigger Method<select value={editingSensor.triggerMethod || ''} onChange={(e) => setEditingSensor((prev) => ({ ...prev, triggerMethod: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5">{TRIGGER_METHOD_OPTIONS.map((opt) => <option key={opt || 'blank'} value={opt}>{opt || 'Select trigger method'}</option>)}</select></label>
               <label className="text-xs md:col-span-2">Notes<textarea value={editingSensor.notes} onChange={(e) => setEditingSensor((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full rounded border border-sidebar-border bg-background px-2 py-1.5 min-h-20" /></label>
             </div>

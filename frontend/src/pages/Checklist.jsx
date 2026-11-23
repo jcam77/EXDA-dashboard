@@ -1,7 +1,26 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ShieldCheck, AlertTriangle, Wind, Warehouse, HardHat, Cog, Activity, ClipboardList, UserCheck, GraduationCap } from 'lucide-react';
 
-const ChecklistPage = ({ checklistState = {}, setChecklistState = () => {} }) => {
+const ChecklistPage = ({
+    checklistState = {},
+    setChecklistState = () => {},
+    apiBaseUrl = '',
+    projectPath = '',
+    experiments = [],
+}) => {
+    // EXDA-Check C3: a timestamped snapshot of the checklist is stored per run.
+    const runNames = useMemo(
+        () => (Array.isArray(experiments) ? experiments : [])
+            .map((exp) => String(exp?.name || '').trim())
+            .filter(Boolean),
+        [experiments]
+    );
+    const [snapshotRun, setSnapshotRun] = useState('');
+    const [snapshotNote, setSnapshotNote] = useState('');
+    const [runSnapshots, setRunSnapshots] = useState([]);
+    const [snapshotMessage, setSnapshotMessage] = useState({ type: '', text: '' });
+    const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
+
 
     const toggleItem = (id) => {
         setChecklistState(prev => ({ ...prev, [id]: !prev[id] }));
@@ -67,6 +86,67 @@ const ChecklistPage = ({ checklistState = {}, setChecklistState = () => {} }) =>
     const hasResponsible = Boolean((checklistState['resp_name'] || '').trim()) && Boolean((checklistState['inst_init'] || '').trim());
     const isAllChecked = completedItems === totalItems && totalItems > 0;
     const isReady = isAllChecked && checklistState['final_confirm'] && hasResponsible;
+
+    const loadRunSnapshots = useCallback(async (runName) => {
+        if (!apiBaseUrl || !projectPath || !runName) {
+            setRunSnapshots([]);
+            return;
+        }
+        try {
+            const query = new URLSearchParams({ projectPath, runName });
+            const res = await fetch(`${apiBaseUrl}/get_checklist_snapshots?${query.toString()}`);
+            const data = await res.json();
+            if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
+            setRunSnapshots(Array.isArray(data.snapshots) ? data.snapshots : []);
+        } catch (err) {
+            setRunSnapshots([]);
+            setSnapshotMessage({ type: 'error', text: `Could not load snapshots: ${err?.message || err}` });
+        }
+    }, [apiBaseUrl, projectPath]);
+
+    useEffect(() => {
+        loadRunSnapshots(snapshotRun);
+    }, [loadRunSnapshots, snapshotRun]);
+
+    const saveRunSnapshot = async () => {
+        if (!snapshotRun) {
+            setSnapshotMessage({ type: 'error', text: 'Choose the run this checklist belongs to.' });
+            return;
+        }
+        setIsSavingSnapshot(true);
+        setSnapshotMessage({ type: '', text: '' });
+        try {
+            const items = checklistGroups.flatMap((group) => group.items.map((item) => ({
+                id: item.id,
+                text: item.text,
+                checked: Boolean(checklistState[item.id]),
+            })));
+            const res = await fetch(`${apiBaseUrl}/save_checklist_snapshot`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectPath,
+                    runName: snapshotRun,
+                    items,
+                    note: snapshotNote,
+                    signOff: {
+                        responsibleName: checklistState['resp_name'] || '',
+                        initials: checklistState['inst_init'] || '',
+                        finalConfirm: Boolean(checklistState['final_confirm']),
+                    },
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
+            setSnapshotMessage({ type: 'success', text: `Snapshot saved for ${snapshotRun} at ${data.snapshot?.savedAt}.` });
+            setSnapshotNote('');
+            await loadRunSnapshots(snapshotRun);
+        } catch (err) {
+            setSnapshotMessage({ type: 'error', text: `Snapshot not saved: ${err?.message || err}` });
+        } finally {
+            setIsSavingSnapshot(false);
+        }
+    };
 
     const setAllItems = (value) => {
         setChecklistState(prev => {
@@ -224,6 +304,87 @@ const ChecklistPage = ({ checklistState = {}, setChecklistState = () => {} }) =>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Per-run snapshot (EXDA-Check C3) */}
+            <div className="mb-8 rounded-xl border border-sidebar-border bg-card/60 p-5">
+                <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-3">
+                    Record this checklist for a run
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                    <label className="text-xs text-muted-foreground">
+                        Run
+                        <select
+                            value={snapshotRun}
+                            onChange={(e) => setSnapshotRun(e.target.value)}
+                            className="mt-1 block w-56 bg-background border border-border rounded-lg p-2 text-xs text-foreground"
+                            disabled={!runNames.length}
+                        >
+                            <option value="">{runNames.length ? 'Choose a run…' : 'No runs in the plan'}</option>
+                            {runNames.map((name) => (
+                                <option key={name} value={name}>{name}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="text-xs text-muted-foreground flex-1 min-w-[200px]">
+                        Note (optional)
+                        <input
+                            type="text"
+                            value={snapshotNote}
+                            onChange={(e) => setSnapshotNote(e.target.value)}
+                            className="mt-1 block w-full bg-background border border-border rounded-lg p-2 text-xs text-foreground"
+                            placeholder="e.g. checks done before ignition"
+                        />
+                    </label>
+                    <button
+                        type="button"
+                        onClick={saveRunSnapshot}
+                        disabled={!snapshotRun || isSavingSnapshot || !projectPath}
+                        className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-primary hover:bg-primary/20 disabled:opacity-50"
+                    >
+                        {isSavingSnapshot ? 'Saving…' : 'Save snapshot for this run'}
+                    </button>
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                    Stores the current ticks, sign-off and item texts with the date and time. Earlier snapshots are kept.
+                </div>
+                {snapshotMessage.text && (
+                    <div className={`mt-2 text-[11px] ${snapshotMessage.type === 'error' ? 'text-destructive' : 'text-primary'}`}>
+                        {snapshotMessage.text}
+                    </div>
+                )}
+                {snapshotRun && (
+                    <div className="mt-3">
+                        <div className="text-[11px] font-semibold text-foreground mb-1">
+                            Snapshots for {snapshotRun}: {runSnapshots.length || 'none yet'}
+                        </div>
+                        {runSnapshots.length > 0 && (
+                            <table className="w-full text-[11px]">
+                                <thead>
+                                    <tr className="text-muted-foreground text-left">
+                                        <th className="py-1">Saved at</th>
+                                        <th className="py-1">Completed</th>
+                                        <th className="py-1">Sign-off</th>
+                                        <th className="py-1">Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {runSnapshots.map((snap, idx) => (
+                                        <tr key={`${snap.savedAt}-${idx}`} className="border-t border-border/60">
+                                            <td className="py-1 font-mono">{snap.savedAt}</td>
+                                            <td className="py-1">{snap.completed}/{snap.total}{snap.allChecked ? ' (all)' : ''}</td>
+                                            <td className="py-1">
+                                                {[snap.responsibleName, snap.initials].filter(Boolean).join(' / ') || '-'}
+                                                {snap.finalConfirm ? ', confirmed' : ''}
+                                            </td>
+                                            <td className="py-1">{snap.note || ''}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

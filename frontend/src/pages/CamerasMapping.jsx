@@ -4,6 +4,7 @@ import { getBackendBaseUrl } from '../utils/backendUrl';
 import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
 import { useAppDialog } from '../hooks/useAppDialog';
+import RunOverridePanel from '../components/RunOverridePanel';
 
 const COORDINATE_UNIT_OPTIONS = ['m', 'mm'];
 const DEFAULT_COORDINATE_ORIGIN = '((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.';
@@ -210,6 +211,7 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
   const [showAllGroups, setShowAllGroups] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [planGroups, setPlanGroups] = useState([]);
+  const [planRuns, setPlanRuns] = useState([]);
   const [newGroupName, setNewGroupName] = useState('');
   const [groupError, setGroupError] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
@@ -268,6 +270,11 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
         if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load project state');
         const groups = listGroupsFromExperiments(payload?.plan?.experiments || []);
         if (!cancelled) setPlanGroups(groups);
+        if (!cancelled) {
+          setPlanRuns((payload?.plan?.experiments || [])
+            .map((exp) => String(exp?.name || '').trim())
+            .filter(Boolean));
+        }
       } catch {
         if (!cancelled) setPlanGroups([]);
       }
@@ -484,6 +491,30 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
     }
     return `${base}-${Date.now()}`;
   }, [availableGroups]);
+
+  // EXDA-Check C4: per-run override = a mapping named exactly like the run,
+  // pre-filled from the run's group mapping. The group mapping is not changed.
+  const createRunOverride = (runName) => {
+    const run = String(runName || '').trim();
+    if (!run) return;
+    if (Object.prototype.hasOwnProperty.call(mappingsByGroup, run)) {
+      setSelectedGroup(run);
+      return;
+    }
+    const group = getGroupFromRunName(run);
+    const source = mappingsByGroup[group] || [];
+    const cloned = source.map((entry) => ({
+      ...entry,
+      id: `camera-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    }));
+    setMappingsByGroup((prev) => ({ ...prev, [run]: cloned }));
+    setGroupNotes((prev) => ({
+      ...prev,
+      [run]: `Run override for ${run} (copied from ${group || 'no group'} on ${new Date().toISOString().slice(0, 10)}). Edit what differs for this run.`,
+    }));
+    setSelectedGroup(run);
+    setGroupError('');
+  };
 
   const duplicateGroup = async (sourceGroup) => {
     const source = String(sourceGroup || '').trim();
@@ -868,6 +899,14 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
           <ExportFormatButtons onExportCsv={() => exportCamerasArtifact('csv')} onExportPdf={() => exportCamerasArtifact('pdf')} busyFormat={busyFormat} size="sm" />
           {groupError && <span className="text-[11px] text-destructive">{groupError}</span>}
         </div>
+        <RunOverridePanel
+          planRuns={planRuns}
+          mappingKeys={Object.keys(mappingsByGroup || {})}
+          getGroupFromRunName={getGroupFromRunName}
+          onCreateOverride={createRunOverride}
+          onSelectMapping={(key) => { setShowAllGroups(false); setSelectedGroup(key); }}
+          itemLabel="cameras"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

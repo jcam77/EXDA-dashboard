@@ -32,6 +32,7 @@ SENSORS_MAPPING_FILENAME = "sensors_mapping.json"
 CAMERAS_MAPPING_FILENAME = "cameras_mapping.json"
 GAS_MIXING_FILENAME = "gas_mixing.json"
 CHECKLIST_STATE_FILENAME = "checklist_state.json"
+CHECKLIST_RUNS_FILENAME = "checklist_runs.json"
 EXDA_DISPLAY_TIMEZONE = "Europe/Stockholm"
 DEFAULT_GAS_VERIFY_FILE_A = "scripts/GasMixingVerificationFiles/H2_MFC_Fill_Calculator_v000.m"
 DEFAULT_GAS_VERIFY_FILE_B = "scripts/GasMixingVerificationFiles/AuxFcn_H2_MFC_FillCalculator_000.m"
@@ -4084,6 +4085,93 @@ def save_gas_mixing():
     return jsonify(response)
 
 
+def _load_checklist_runs(project_root):
+    path = os.path.join(project_root, "Reports", CHECKLIST_RUNS_FILENAME)
+    if not os.path.exists(path):
+        return path, {"snapshotsByRun": {}}
+    with open(path, "r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict) or not isinstance(payload.get("snapshotsByRun"), dict):
+        raise ValueError(f"{CHECKLIST_RUNS_FILENAME} has an unexpected structure")
+    return path, payload
+
+
+@state_bp.route('/get_checklist_snapshots', methods=['GET'])
+def get_checklist_snapshots():
+    """Checklist snapshots recorded per run (EXDA-Check C3). Read-only."""
+    project_root, err = project_manager.resolve_project_path(request.args.get('projectPath'), require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    try:
+        _path, payload = _load_checklist_runs(project_root)
+    except Exception as exc:
+        return jsonify({"success": False, "error": f"Could not read {CHECKLIST_RUNS_FILENAME}: {exc}"}), 500
+    run_name = str(request.args.get('runName') or '').strip()
+    snapshots = payload["snapshotsByRun"]
+    if run_name:
+        return jsonify({"success": True, "runName": run_name, "snapshots": snapshots.get(run_name, [])})
+    return jsonify({"success": True, "snapshotsByRun": snapshots})
+
+
+@state_bp.route('/save_checklist_snapshot', methods=['POST'])
+def save_checklist_snapshot():
+    """Append a timestamped checklist snapshot to a run (EXDA-Check C3).
+
+    Snapshots are append-only: existing snapshots are never edited or
+    removed by the app. Each stores the item texts, so it stays readable if
+    the checklist wording changes later.
+    """
+    payload = request.json or {}
+    project_root, err = project_manager.resolve_project_path(payload.get("projectPath"), require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    run_name = str(payload.get("runName") or "").strip()
+    if not run_name:
+        return jsonify({"success": False, "error": "Choose the run this checklist belongs to."}), 400
+    items = payload.get("items")
+    if not isinstance(items, list) or not items:
+        return jsonify({"success": False, "error": "items must be a non-empty list"}), 400
+
+    clean_items = []
+    for item in items:
+        if not isinstance(item, dict) or not str(item.get("id") or "").strip():
+            return jsonify({"success": False, "error": "Each item needs an id"}), 400
+        clean_items.append({
+            "id": str(item.get("id")).strip(),
+            "text": str(item.get("text") or ""),
+            "checked": bool(item.get("checked")),
+        })
+    completed = sum(1 for item in clean_items if item["checked"])
+    now_local = datetime.now().astimezone()
+    sign_off = payload.get("signOff") if isinstance(payload.get("signOff"), dict) else {}
+    snapshot = {
+        "savedAt": now_local.isoformat(timespec="seconds"),
+        "timezone": str(now_local.tzname() or ""),
+        "responsibleName": str(sign_off.get("responsibleName") or ""),
+        "initials": str(sign_off.get("initials") or ""),
+        "finalConfirm": bool(sign_off.get("finalConfirm")),
+        "completed": completed,
+        "total": len(clean_items),
+        "allChecked": completed == len(clean_items),
+        "note": str(payload.get("note") or ""),
+        "items": clean_items,
+    }
+    try:
+        path, data = _load_checklist_runs(project_root)
+    except Exception as exc:
+        return jsonify({"success": False, "error": f"Could not read {CHECKLIST_RUNS_FILENAME}; nothing saved: {exc}"}), 500
+    data["snapshotsByRun"].setdefault(run_name, []).append(snapshot)
+    data["updatedAt"] = now_local.isoformat(timespec="seconds")
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        project_store.save_json_tracked(project_root, path, data, action="save_checklist_snapshot",
+                                        context={"runName": run_name})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+    return jsonify({"success": True, "runName": run_name, "snapshot": snapshot,
+                    "count": len(data["snapshotsByRun"][run_name])})
+
+
 @state_bp.route('/save_checklist_state', methods=['POST'])
 def save_checklist_state():
     """Persist checklist state in Reports/checklist_state.json."""
@@ -5332,5 +5420,35 @@ def rename_run_metadata_references():
             _write_json(cameras_path, cameras_payload)
             result["camerasMappingUpdated"] = True
             result["camerasGroupsRenamed"] = renamed_group_count
+
+    # --- Per-run override mappings (EXDA-Check C4): keys named after a run follow the run rename ---
+    result["runOverridesRenamed"] = 0
+    for mapping_path in (sensors_path, cameras_path):
+        mapping_payload = _load_json_dict(mapping_path)
+        if not mapping_payload:
+            continue
+        mappings_by_group = mapping_payload.get("mappingsByGroup")
+        group_notes = mapping_payload.get("groupNotes")
+        if not isinstance(mappings_by_group, dict):
+            continue
+        if not isinstance(group_notes, dict):
+            group_notes = {}
+        touched = False
+        for key in list(mappings_by_group.keys()):
+            new_key = run_rename_lookup.get(_fold(key))
+            if not new_key or new_key == key or _find_case_key(mappings_by_group, new_key) is not None:
+                continue
+            mappings_by_group[new_key] = mappings_by_group.pop(key)
+            if key in group_notes:
+                group_notes[new_key] = group_notes.pop(key)
+            if _clean(mapping_payload.get("selectedGroup")) == key:
+                mapping_payload["selectedGroup"] = new_key
+            touched = True
+            result["runOverridesRenamed"] += 1
+        if touched:
+            mapping_payload["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            mapping_payload["mappingsByGroup"] = mappings_by_group
+            mapping_payload["groupNotes"] = group_notes
+            _write_json(mapping_path, mapping_payload)
 
     return jsonify(result)

@@ -1641,7 +1641,13 @@ const WorkspacePage = () => {
               {activeTab === 'checklist' && (
                   <SafeComponent>
                       <Suspense fallback={<TabFallback />}>
-                          <ChecklistPage checklistState={checklistState} setChecklistState={setChecklistState} />
+                          <ChecklistPage
+                              checklistState={checklistState}
+                              setChecklistState={setChecklistState}
+                              apiBaseUrl={apiBaseUrl}
+                              projectPath={projectPath}
+                              experiments={experiments}
+                          />
                       </Suspense>
                   </SafeComponent>
               )}
