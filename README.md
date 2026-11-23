@@ -87,7 +87,7 @@ npm install
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
-# Optional extras:
+# Optional extras (AiRA / local LLM):
 # pip install -r backend/requirements-optional.txt
 ```
 

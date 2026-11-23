@@ -6,3 +6,6 @@ requests
 pymupdf
 pywavelets
 ewtpy
+# DAQ readers: required to read DAQ-1 (TPC5) and DAQ-2/3 (MF4) data.
+h5py
+asammdf
