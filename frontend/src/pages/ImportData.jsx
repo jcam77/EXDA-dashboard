@@ -222,7 +222,7 @@ const ImportDataPage = (props) => {
             return next;
         });
         setInspectionBusy(false);
-    }, [apiBaseUrl, inspectorCandidates, inspectorPath, projectPath, readStructureForPath]);
+    }, [apiBaseUrl, inspectorCandidates, projectPath, readStructureForPath]);
 
     const runSelectAll = (files, type, e) => {
         files.forEach((f) => {

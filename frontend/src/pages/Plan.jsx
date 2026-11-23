@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { 
     Save, Upload, Plus, CheckSquare, Square, PenTool, Trash2, Calendar, 
     Clock, Target, GripVertical, Layers, FlaskConical, X, 
@@ -377,15 +377,6 @@ const PlanPage = ({
         const prefix = `${cleanName}/`;
         return rawDataFiles.filter((filePath) => String(filePath || '').startsWith(prefix));
     }, [rawDataFiles]);
-
-    const areStringArraysEqual = useCallback((left, right) => {
-        if (!Array.isArray(left) || !Array.isArray(right)) return false;
-        if (left.length !== right.length) return false;
-        for (let idx = 0; idx < left.length; idx += 1) {
-            if (String(left[idx]) !== String(right[idx])) return false;
-        }
-        return true;
-    }, []);
 
     const buildRunName = useCallback((groupValue, runValue) => {
         const cleanGroup = String(groupValue || '').trim().replace(/[/\\]/g, '-');
@@ -1286,12 +1277,21 @@ const PlanPage = ({
         refreshGasMixingMirror();
     }, [refreshGasMixingMirror]);
 
-    useEffect(() => {
+    // The two effects below run when a different run card is opened (its id
+    // changes), not on every edit inside the open card. useEffectEvent lets
+    // them read the card's current values without re-running on each edit
+    // (re-running would, e.g., reset a just-chosen "Custom" ignition field).
+    const editingExpId = editingExp?.id;
+
+    const onRunCardOpened = useEffectEvent(() => {
         if (!editingExp) return;
         refreshGasMixingMirror();
-    }, [editingExp?.id, refreshGasMixingMirror]);
-
+    });
     useEffect(() => {
+        onRunCardOpened();
+    }, [editingExpId]);
+
+    const syncEditorModesWithCard = useEffectEvent(() => {
         if (!editingExp) {
             setIgnitionEditorMode('');
             setVentEditorMode('');
@@ -1305,7 +1305,10 @@ const PlanPage = ({
         setVentEditorMode(
             !ventValue ? '' : (VENT_PRESET_OPTIONS.includes(ventValue) ? ventValue : CUSTOM_OPTION_VALUE)
         );
-    }, [editingExp?.id]);
+    });
+    useEffect(() => {
+        syncEditorModesWithCard();
+    }, [editingExpId]);
 
     const beginModalDrag = (event) => {
         if (event.button !== 0) return;
