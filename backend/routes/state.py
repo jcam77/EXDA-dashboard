@@ -663,6 +663,26 @@ def _sanitize_export_stem(value, fallback="Experiment_Plan"):
     return cleaned or fallback
 
 
+EXPORT_TIMESTAMP_FORMAT = "%Y-%m-%d_%H%M%S"
+
+
+def _unique_export_path(directory, stem, extension, now=None):
+    """Return a path for a new export that never overwrites an existing file.
+
+    Name: <stem>_<YYYY-MM-DD_HHMMSS>.<ext> (local time, no colons so it is valid
+    on Windows). If that name is already taken (two exports in the same
+    second), _2, _3, ... is appended. Existing files are never renamed.
+    """
+    stamp = (now or datetime.now()).strftime(EXPORT_TIMESTAMP_FORMAT)
+    base = f"{stem}_{stamp}"
+    candidate = os.path.join(directory, f"{base}.{extension}")
+    counter = 2
+    while os.path.exists(candidate):
+        candidate = os.path.join(directory, f"{base}_{counter}.{extension}")
+        counter += 1
+    return candidate
+
+
 def _parse_run_name_order(name):
     clean = str(name or "").strip()
     match = RUN_NAME_ORDER_RE.match(clean)
@@ -3213,7 +3233,9 @@ def latest_report_artifact():
     if not candidates:
         return jsonify({"success": True, "found": False})
 
-    latest_path = max(candidates, key=lambda p: os.path.getmtime(p))
+    # Newest by modification time; for files written in the same second the
+    # timestamped name (<stem>_YYYY-MM-DD_HHMMSS[_n]) breaks the tie.
+    latest_path = max(candidates, key=lambda p: (os.path.getmtime(p), os.path.basename(p)))
     relative_path = _to_posix_rel_path(project_root, latest_path)
     return jsonify({
         "success": True,
@@ -3735,7 +3757,7 @@ def check_gas_mixing_records():
 
     if str(request.args.get("format") or "").lower() == "csv":
         project_name = os.path.basename(os.path.normpath(project_root))
-        stamp = datetime.now().strftime("%Y-%m-%d")
+        stamp = datetime.now().strftime(EXPORT_TIMESTAMP_FORMAT)
         return (
             gas_mixing_checks.report_to_csv(report),
             200,
@@ -4338,10 +4360,8 @@ def export_metadata_report_artifact():
         return jsonify({"success": False, "error": "Invalid reports path"}), 400
 
     project_name = os.path.basename(project_root.rstrip(os.sep)) or "Project"
-    date_stamp = datetime.now().strftime("%Y-%m-%d")
     stem = _sanitize_export_stem(f"{project_name}_Metadata_Report", "Metadata_Report")
-    target_name = f"{stem}_{date_stamp}.{export_format}"
-    target_path = os.path.join(reports_dir, target_name)
+    target_path = _unique_export_path(reports_dir, stem, export_format)
     if not project_manager.is_path_within(reports_dir, target_path):
         return jsonify({"success": False, "error": "Invalid export filename"}), 400
 
@@ -4515,10 +4535,8 @@ def export_daq_artifact():
     os.makedirs(reports_dir, exist_ok=True)
 
     project_name = os.path.basename(project_root.rstrip(os.sep)) or "Project"
-    date_stamp = datetime.now().strftime("%Y-%m-%d")
     stem = _sanitize_export_stem(f"{project_name}_DAQ_Systems", "DAQ_Systems")
-    target_name = f"{stem}_{date_stamp}.{export_format}"
-    target_path = os.path.join(reports_dir, target_name)
+    target_path = _unique_export_path(reports_dir, stem, export_format)
     if not project_manager.is_path_within(reports_dir, target_path):
         return jsonify({"success": False, "error": "Invalid export filename"}), 400
 
@@ -4557,10 +4575,8 @@ def export_sensors_mapping_artifact():
     os.makedirs(reports_dir, exist_ok=True)
 
     project_name = os.path.basename(project_root.rstrip(os.sep)) or "Project"
-    date_stamp = datetime.now().strftime("%Y-%m-%d")
     stem = _sanitize_export_stem(f"{project_name}_Sensors_Mapping", "Sensors_Mapping")
-    target_name = f"{stem}_{date_stamp}.{export_format}"
-    target_path = os.path.join(reports_dir, target_name)
+    target_path = _unique_export_path(reports_dir, stem, export_format)
     if not project_manager.is_path_within(reports_dir, target_path):
         return jsonify({"success": False, "error": "Invalid export filename"}), 400
 
@@ -4603,10 +4619,8 @@ def export_cameras_mapping_artifact():
     os.makedirs(reports_dir, exist_ok=True)
 
     project_name = os.path.basename(project_root.rstrip(os.sep)) or "Project"
-    date_stamp = datetime.now().strftime("%Y-%m-%d")
     stem = _sanitize_export_stem(f"{project_name}_Cameras_Mapping", "Cameras_Mapping")
-    target_name = f"{stem}_{date_stamp}.{export_format}"
-    target_path = os.path.join(reports_dir, target_name)
+    target_path = _unique_export_path(reports_dir, stem, export_format)
     if not project_manager.is_path_within(reports_dir, target_path):
         return jsonify({"success": False, "error": "Invalid export filename"}), 400
 
@@ -4648,10 +4662,8 @@ def export_gas_mixing_artifact():
     os.makedirs(reports_dir, exist_ok=True)
 
     project_name = os.path.basename(project_root.rstrip(os.sep)) or "Project"
-    date_stamp = datetime.now().strftime("%Y-%m-%d")
     stem = _sanitize_export_stem(f"{project_name}_Gas_Mixing", "Gas_Mixing")
-    target_name = f"{stem}_{date_stamp}.{export_format}"
-    target_path = os.path.join(reports_dir, target_name)
+    target_path = _unique_export_path(reports_dir, stem, export_format)
     if not project_manager.is_path_within(reports_dir, target_path):
         return jsonify({"success": False, "error": "Invalid export filename"}), 400
 
@@ -4689,10 +4701,8 @@ def export_plan_artifact():
     plan_dir = os.path.join(project_root, "Plan")
     os.makedirs(plan_dir, exist_ok=True)
 
-    date_stamp = datetime.now().strftime("%Y-%m-%d")
     stem = _sanitize_export_stem(plan_name, "Experiment_Plan")
-    target_name = f"{stem}_{date_stamp}.{export_format}"
-    target_path = os.path.join(plan_dir, target_name)
+    target_path = _unique_export_path(plan_dir, stem, export_format)
     if not project_manager.is_path_within(plan_dir, target_path):
         return jsonify({"success": False, "error": "Invalid export filename"}), 400
 
