@@ -50,12 +50,13 @@ octave-workspace
 *.zip
 *.asd
 
-# Experiment data: never commit raw/derived measurement data (EXDA-Check D3).
-# Note: files that were tracked before these rules (e.g. Wk-22 Raw_Data) stay
-# tracked until removed with `git rm --cached`; .gitignore only affects new files.
-Projects/*/Raw_Data/
-Projects/*/Clean_Data/
-Projects/*/CFD_Data/
+# Project data never goes into git (EXDA-Check D3). Only the empty Projects/
+# folder is kept (via .gitkeep) so the app has a place to create projects.
+# Back up project folders separately; they hold the experiment records.
+Projects/*
+!Projects/.gitkeep
+
+# Measurement data files anywhere in the repo.
 *.seq
 *.tpc5
 *.mf4
@@ -64,13 +65,6 @@ Projects/*/CFD_Data/
 # Demo projects ship small sample TPC5 files.
 !Demo Projects/**/*.tpc5
 
-# WaterTest dummy project: keep only TPC5 files (and expData README)
-Projects/WaterTest-Project/**
-!Projects/WaterTest-Project/Raw_Data/
-!Projects/WaterTest-Project/Raw_Data/expData/
-!Projects/WaterTest-Project/Raw_Data/expData/**/
-!Projects/WaterTest-Project/Raw_Data/expData/**/*.tpc5
-!Projects/WaterTest-Project/Raw_Data/expData/README.md
 AppsExamples
 
 # EXDA project lock (one writer per project); never commit
