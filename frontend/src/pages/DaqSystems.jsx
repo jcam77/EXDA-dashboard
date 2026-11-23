@@ -6,6 +6,7 @@ import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
 import IsoDateInput from '../components/IsoDateInput';
 import { useAppDialog } from '../hooks/useAppDialog';
+import { baseVersionFor, rememberVersion, FILE_KINDS } from '../utils/fileVersions';
 
 const createDefaultDaq = () => ({
   id: `daq-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -82,6 +83,7 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || `Request failed (${res.status})`);
       }
+      rememberVersion(projectPath, FILE_KINDS.daq, data.version);
       const normalized = (Array.isArray(data.daqSystems) ? data.daqSystems : []).map((item) => ({
         ...item,
         owner: String(item?.owner || item?.location || '').trim(),
@@ -109,12 +111,17 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
       const res = await fetch(`${apiBaseUrl}/save_daq_systems`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectPath, daqSystems: nextSystems }),
+        body: JSON.stringify({
+          projectPath,
+          daqSystems: nextSystems,
+          baseVersion: baseVersionFor(projectPath, FILE_KINDS.daq),
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || `Request failed (${res.status})`);
       }
+      rememberVersion(projectPath, FILE_KINDS.daq, data.version);
       setSaveInfo(`${successMessage} (${formatExdaClock(new Date())} ${EXDA_DISPLAY_TIME_ZONE})`);
     } catch (saveError) {
       setError(saveError?.message || 'Failed to save DAQ systems.');

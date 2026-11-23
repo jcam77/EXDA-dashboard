@@ -72,3 +72,6 @@ Projects/WaterTest-Project/**
 !Projects/WaterTest-Project/Raw_Data/expData/**/*.tpc5
 !Projects/WaterTest-Project/Raw_Data/expData/README.md
 AppsExamples
+
+# EXDA project lock (one writer per project); never commit
+.exda.lock

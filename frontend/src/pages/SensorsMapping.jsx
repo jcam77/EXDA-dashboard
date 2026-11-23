@@ -6,6 +6,7 @@ import ExportFormatButtons from '../components/ExportFormatButtons';
 import IsoDateInput from '../components/IsoDateInput';
 import { useAppDialog } from '../hooks/useAppDialog';
 import RunOverridePanel from '../components/RunOverridePanel';
+import { rememberVersion, FILE_KINDS } from '../utils/fileVersions';
 import { applySensorTypeRules, validateSensorAgainstList } from '../utils/sensorValidation';
 
 const QUANTITY_OPTIONS = [
@@ -198,6 +199,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
         if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load sensors mapping');
         const serverState = normalizeSensorsStatePayload(payload);
         if (cancelled) return;
+        rememberVersion(projectPath, FILE_KINDS.sensors, payload.version);
         // For project-backed workspaces we always trust filesystem JSON from backend.
         // This prevents stale browser-local cache from diverging across macOS/Linux/Windows.
         setMappingsByGroup(serverState.mappingsByGroup || {});

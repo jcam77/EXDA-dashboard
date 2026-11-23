@@ -130,6 +130,8 @@ def ensure_project_status(base_path):
     try:
         project_store.save_json_tracked(base_path, status_file, status, action="ensure_project_status")
         return status
+    except project_store.ProjectLockedError:
+        return status  # read-only: another app has the project open for editing
     except Exception:
         return None
 
@@ -491,7 +493,7 @@ def copy_project(project_path, new_project_name):
 
     return True, "Project copied successfully", target_path
 
-def save_plan_to_project(project_path, filename, content):
+def save_plan_to_project(project_path, filename, content, expected_version=None):
     """Write plan content into the project's Plan directory."""
     resolved_path, err = resolve_project_path(project_path)
     if err:
@@ -506,7 +508,10 @@ def save_plan_to_project(project_path, filename, content):
     if not is_path_within(target_dir, full_path):
         return False, "Invalid filename"
     try:
-        project_store.save_text_tracked(resolved_path, full_path, content, action="save_plan")
+        project_store.save_text_tracked(resolved_path, full_path, content, action="save_plan",
+                                        expected_version=expected_version)
         return True, full_path
+    except project_store.StoreConflict:
+        raise
     except Exception as e:
         return False, str(e)

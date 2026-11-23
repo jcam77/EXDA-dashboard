@@ -5,6 +5,7 @@ import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock, formatExdaDateTime } from '../
 import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
 import { useAppDialog } from '../hooks/useAppDialog';
+import { baseVersionFor, rememberVersion, FILE_KINDS } from '../utils/fileVersions';
 import {
   KELVIN_OFFSET,
   PRESSURE_UNITS,
@@ -312,6 +313,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
           throw new Error(payload?.error || 'Failed to load gas mixing state');
         }
         if (cancelled) return;
+        rememberVersion(projectPath, FILE_KINDS.gas, payload.version);
         const loadedRecords = Array.isArray(payload?.records) ? payload.records : [];
         setRecords(loadedRecords);
         const loadedVerification = payload?.verificationMeta && typeof payload.verificationMeta === 'object'
@@ -450,12 +452,14 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
           records: nextRecords,
           verificationMeta,
           dosageModel,
+          baseVersion: baseVersionFor(projectPath, FILE_KINDS.gas),
         }),
       });
       const payload = await response.json();
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Could not save gas mixing state');
       }
+      rememberVersion(projectPath, FILE_KINDS.gas, payload.version);
       setStatus(`Saved (${formatExdaClock(new Date())} ${EXDA_DISPLAY_TIME_ZONE})`);
       return { success: true, path: payload.path };
     } catch (err) {

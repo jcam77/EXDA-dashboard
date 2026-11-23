@@ -3025,9 +3025,14 @@ def get_project_state():
         except Exception:
             checklist_state = {}
 
+    plan_file = os.path.basename(latest_plan_path) if plan_data is not None and 'latest_plan_path' in locals() else ""
     return jsonify({
         "success": True,
         "plan": plan_data,
+        "planFile": plan_file,
+        "planVersion": project_store.file_version(os.path.join(plan_dir, plan_file)) if plan_file else "",
+        "checklistVersion": _reports_version(project_root, CHECKLIST_STATE_FILENAME),
+        "lock": project_store.lock_status(project_root),
         "project_status": project_status,
         "checklist_state": checklist_state,
         "data_files": data_files,
@@ -3400,6 +3405,8 @@ def inspect_project_file_structure():
             }
         )
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -3473,6 +3480,8 @@ def latest_report_artifact():
             if os.path.isfile(candidate_path):
                 candidates.append(candidate_path)
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
     if not candidates:
@@ -3616,11 +3625,20 @@ def load_plan_dialog():
 @state_bp.route('/save_plan', methods=['POST'])
 def save_plan():
     """Persist a plan file in the project's Plan directory."""
-    data = request.json
-    success, result = project_manager.save_plan_to_project(
-        data.get('projectPath'), data.get('filename'), data.get('content')
-    )
-    return jsonify({"success": success, "path": result})
+    data = request.json or {}
+    try:
+        success, result = project_manager.save_plan_to_project(
+            data.get('projectPath'), data.get('filename'), data.get('content'),
+            expected_version=_base_version(data),
+        )
+    except project_store.StoreConflict as exc:
+        return _store_error_response(exc)
+    response = {"success": success, "path": result}
+    if success:
+        response["version"] = project_store.file_version(result)
+    else:
+        response["error"] = result
+    return jsonify(response)
 
 
 @state_bp.route('/get_daq_systems', methods=['GET'])
@@ -3636,7 +3654,7 @@ def get_daq_systems():
     file_path = _resolve_existing_metadata_file(project_root, DAQ_SYSTEMS_FILENAME)
 
     if not os.path.exists(file_path):
-        return jsonify({"success": True, "daqSystems": [], "path": file_path})
+        return jsonify({"success": True, "version": _reports_version(project_root, DAQ_SYSTEMS_FILENAME), "daqSystems": [], "path": file_path})
 
     try:
         with open(file_path, "r", encoding="utf-8") as handle:
@@ -3662,8 +3680,10 @@ def get_daq_systems():
             except Exception:
                 migrated = False
 
-        return jsonify({"success": True, "daqSystems": daq_systems, "path": file_path, "migratedToReports": migrated})
+        return jsonify({"success": True, "version": _reports_version(project_root, DAQ_SYSTEMS_FILENAME), "daqSystems": daq_systems, "path": file_path, "migratedToReports": migrated})
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -3691,9 +3711,12 @@ def save_daq_systems():
             "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "daqSystems": daq_systems,
         }
-        project_store.save_json_tracked(project_root, file_path, data, action="save_daq_systems")
-        return jsonify({"success": True, "path": file_path, "count": len(daq_systems)})
+        saved = project_store.save_json_tracked(project_root, file_path, data, action="save_daq_systems",
+                                          expected_version=_base_version(request.json))
+        return jsonify({"success": True, "path": file_path, "count": len(daq_systems), "version": saved["version"]})
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -3751,14 +3774,18 @@ def save_sensors_mapping():
             "groupNotes": safe_notes,
             "mappingsByGroup": safe_groups,
         }
-        project_store.save_json_tracked(project_root, file_path, data, action="save_sensors_mapping")
+        saved = project_store.save_json_tracked(project_root, file_path, data, action="save_sensors_mapping",
+                                          expected_version=_base_version(request.json))
         return jsonify({
             "success": True,
             "path": file_path,
             "groupCount": len(safe_groups),
             "sensorCount": total_sensors,
+            "version": saved["version"],
         })
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -3776,6 +3803,7 @@ def get_sensors_mapping():
     if not os.path.exists(file_path):
         return jsonify({
             "success": True,
+            "version": _reports_version(project_root, SENSORS_MAPPING_FILENAME),
             "path": reports_path,
             "selectedGroup": "",
             "groupNotes": {},
@@ -3792,12 +3820,15 @@ def get_sensors_mapping():
         selected_group = str(payload.get("selectedGroup") or "").strip()
         return jsonify({
             "success": True,
+            "version": _reports_version(project_root, SENSORS_MAPPING_FILENAME),
             "path": file_path,
             "selectedGroup": selected_group,
             "groupNotes": group_notes,
             "mappingsByGroup": mappings_by_group,
         })
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -3848,14 +3879,18 @@ def save_cameras_mapping():
             "groupNotes": safe_notes,
             "mappingsByGroup": safe_groups,
         }
-        project_store.save_json_tracked(project_root, file_path, data, action="save_cameras_mapping")
+        saved = project_store.save_json_tracked(project_root, file_path, data, action="save_cameras_mapping",
+                                          expected_version=_base_version(request.json))
         return jsonify({
             "success": True,
             "path": file_path,
             "groupCount": len(safe_groups),
             "cameraCount": total_cameras,
+            "version": saved["version"],
         })
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -3873,6 +3908,7 @@ def get_cameras_mapping():
     if not os.path.exists(file_path):
         return jsonify({
             "success": True,
+            "version": _reports_version(project_root, CAMERAS_MAPPING_FILENAME),
             "path": reports_path,
             "selectedGroup": "",
             "groupNotes": {},
@@ -3889,12 +3925,15 @@ def get_cameras_mapping():
         selected_group = str(payload.get("selectedGroup") or "").strip()
         return jsonify({
             "success": True,
+            "version": _reports_version(project_root, CAMERAS_MAPPING_FILENAME),
             "path": file_path,
             "selectedGroup": selected_group,
             "groupNotes": group_notes,
             "mappingsByGroup": mappings_by_group,
         })
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -3913,6 +3952,7 @@ def get_gas_mixing():
     if not os.path.exists(file_path):
         return jsonify({
             "success": True,
+            "version": _reports_version(project_root, GAS_MIXING_FILENAME),
             "path": reports_path,
             "verificationMeta": _normalize_gas_verification_meta({}),
             "dosageModel": _normalize_gas_dosage_model({}),
@@ -3951,6 +3991,7 @@ def get_gas_mixing():
 
         return jsonify({
             "success": True,
+            "version": _reports_version(project_root, GAS_MIXING_FILENAME),
             "path": file_path,
             "verificationMeta": verification_meta,
             "dosageModel": dosage_model,
@@ -3960,6 +4001,8 @@ def get_gas_mixing():
             "migratedToReports": migrated,
         })
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -4154,8 +4197,11 @@ def save_gas_mixing():
         }
         if archived_records:
             data["archivedRecords"] = archived_records
-        project_store.save_json_tracked(project_root, file_path, data, action="save_gas_mixing")
+        saved = project_store.save_json_tracked(project_root, file_path, data, action="save_gas_mixing",
+                                          expected_version=_base_version(request.json))
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
     response = {
@@ -4163,12 +4209,30 @@ def save_gas_mixing():
         "path": file_path,
         "count": len(merged_records),
         "auditEntries": len([entry for entry in audit_entries if entry]),
+        "version": saved["version"],
     }
     try:
         gas_mixing_store.append_audit(reports_dir, audit_entries)
     except Exception as exc:
         response["auditWarning"] = f"Saved, but the audit log could not be written: {exc}"
     return jsonify(response)
+
+
+def _reports_version(project_root, filename):
+    """Version of Reports/<filename> as saves will see it ('' if it does not exist yet)."""
+    return project_store.file_version(os.path.join(project_root, "Reports", filename))
+
+
+def _store_error_response(exc):
+    """409 for an outdated copy, 423 for a project open for editing elsewhere."""
+    return jsonify(exc.to_payload()), exc.http_status
+
+
+def _base_version(payload):
+    """baseVersion sent by the client (None = not sent, no check)."""
+    if not isinstance(payload, dict) or "baseVersion" not in payload or payload.get("baseVersion") is None:
+        return None
+    return str(payload.get("baseVersion"))
 
 
 def _load_checklist_runs(project_root):
@@ -4180,6 +4244,35 @@ def _load_checklist_runs(project_root):
     if not isinstance(payload, dict) or not isinstance(payload.get("snapshotsByRun"), dict):
         raise ValueError(f"{CHECKLIST_RUNS_FILENAME} has an unexpected structure")
     return path, payload
+
+
+@state_bp.route('/project_lock', methods=['GET', 'POST'])
+def project_lock():
+    """One writer per project. POST action: acquire | heartbeat | release (force=true to take over)."""
+    data = request.json if request.method == 'POST' and request.is_json else {}
+    if request.method == 'POST' and not data:
+        try:
+            data = json.loads(request.get_data(as_text=True) or "{}")  # navigator.sendBeacon
+        except Exception:
+            data = {}
+    project_path = (data or {}).get("projectPath") or request.args.get("projectPath")
+    project_root, err = project_manager.resolve_project_path(project_path, require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    action = str((data or {}).get("action") or "status").strip().lower()
+    client = str((data or {}).get("client") or "")[:120] or None
+    try:
+        if action == "acquire":
+            status = project_store.acquire_lock(project_root, force=bool(data.get("force")), client=client)
+        elif action == "heartbeat":
+            status = project_store.heartbeat_lock(project_root, client=client)
+        elif action == "release":
+            status = project_store.release_lock(project_root)
+        else:
+            status = project_store.lock_status(project_root)
+    except Exception as exc:
+        return jsonify({"success": False, "error": f"Could not update the project lock: {exc}"}), 500
+    return jsonify({"success": True, **status})
 
 
 @state_bp.route('/get_checklist_snapshots', methods=['GET'])
@@ -4253,6 +4346,8 @@ def save_checklist_snapshot():
         project_store.save_json_tracked(project_root, path, data, action="save_checklist_snapshot",
                                         context={"runName": run_name})
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
     return jsonify({"success": True, "runName": run_name, "snapshot": snapshot,
                     "count": len(data["snapshotsByRun"][run_name])})
@@ -4294,13 +4389,17 @@ def save_checklist_state():
             "updatedAt": _now_display_str(include_seconds=True),
             "checklistState": safe_state,
         }
-        project_store.save_json_tracked(project_root, file_path, data, action="save_checklist_state")
+        saved = project_store.save_json_tracked(project_root, file_path, data, action="save_checklist_state",
+                                          expected_version=_base_version(request.json))
         return jsonify({
             "success": True,
             "path": file_path,
             "count": len(safe_state),
+            "version": saved["version"],
         })
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -4839,6 +4938,8 @@ def export_metadata_report_artifact():
 
         return jsonify({"success": True, "path": target_path, "format": "pdf"})
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -4877,6 +4978,8 @@ def export_daq_artifact():
             return jsonify({"success": False, "error": result}), 500
         return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -4921,6 +5024,8 @@ def export_sensors_mapping_artifact():
             return jsonify({"success": False, "error": result}), 500
         return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -4965,6 +5070,8 @@ def export_cameras_mapping_artifact():
             return jsonify({"success": False, "error": result}), 500
         return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -5004,6 +5111,8 @@ def export_gas_mixing_artifact():
             return jsonify({"success": False, "error": result}), 500
         return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -5043,6 +5152,8 @@ def export_plan_artifact():
             return jsonify({"success": False, "error": result}), 500
         return jsonify({"success": True, "path": result, "format": "pdf", "rows": len(rows)})
     except Exception as exc:
+        if isinstance(exc, project_store.StoreConflict):
+            return _store_error_response(exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -5193,6 +5304,10 @@ def rename_run_data_folders():
     }
     if dry_run:
         return jsonify({"success": True, "dryRun": True, **summary})
+    try:
+        project_store.assert_can_write(project_root)
+    except project_store.StoreConflict as exc:
+        return _store_error_response(exc)
     if conflicts:
         return jsonify({
             "success": False,
@@ -5278,6 +5393,10 @@ def rename_run_metadata_references():
         return jsonify({"success": False, "error": err}), 400
     if not isinstance(rename_pairs, list):
         return jsonify({"success": False, "error": "renamePairs must be a list"}), 400
+    try:
+        project_store.assert_can_write(project_root)
+    except project_store.StoreConflict as exc:
+        return _store_error_response(exc)
 
     reports_dir = os.path.join(project_root, "Reports")
     os.makedirs(reports_dir, exist_ok=True)

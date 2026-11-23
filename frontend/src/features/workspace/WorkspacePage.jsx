@@ -15,6 +15,7 @@ import { getPublicUrl } from '../../utils/assetUrl';
 import { recordRecentProject } from '../../utils/recentProjects';
 import { DEFAULT_INPUT_UNIT, FROM_FILE_UNIT } from '../../utils/units';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../../utils/timezone';
+import { FILE_KINDS, baseVersionFor, forgetVersions, isStoreConflict, rememberVersion } from '../../utils/fileVersions';
 import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
 import { useDataImportPipeline } from './hooks/useDataImportPipeline';
 /* global __EXDA_MVP_MODE__, __EXDA_MVP_UNLOCK_PASSWORD__ */
@@ -474,6 +475,8 @@ const WorkspacePage = () => {
 
               if (state.success) {
                   setProjectPath(savedPath);
+                  if (state.planFile) rememberVersion(savedPath, FILE_KINDS.plan(state.planFile), state.planVersion);
+                  rememberVersion(savedPath, FILE_KINDS.checklist, state.checklistVersion);
                   // Always start a loaded project on the first workspace tab
                   // unless a more specific pending tab was already requested.
                   if (!localStorage.getItem('pendingTab')) {
@@ -565,6 +568,69 @@ const WorkspacePage = () => {
   const notify = useCallback((type, title, content) => {
       setModal({ show: true, type, title, content });
   }, []);
+
+  // A refused save (changed elsewhere / project open in another app) is shown
+  // even during silent auto-save, once per message until the next success.
+  const shownConflictsRef = useRef(new Set());
+  const reportStoreConflict = useCallback((message) => {
+      const text = String(message || 'Not saved: the file changed elsewhere.');
+      if (shownConflictsRef.current.has(text)) return;
+      shownConflictsRef.current.add(text);
+      notify('error', 'Not saved', text);
+  }, [notify]);
+
+  // One writer per project: this window holds the project lock, or is read-only.
+  const [projectLock, setProjectLock] = useState({ owned: null, holder: null });
+  const isReadOnly = projectLock.owned === false;
+  const callProjectLock = useCallback(async (action, extra = {}) => {
+      if (!projectPath) return null;
+      try {
+          const res = await fetch(`${apiBaseUrl}/project_lock`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ projectPath, action, client: 'EXDA window', ...extra }),
+              keepalive: action === 'release',
+          });
+          const data = await res.json();
+          if (!res.ok || !data?.success) return null;
+          return data;
+      } catch {
+          return null;
+      }
+  }, [apiBaseUrl, projectPath]);
+
+  useEffect(() => {
+      if (!projectPath) {
+          setProjectLock({ owned: null, holder: null });
+          return undefined;
+      }
+      let cancelled = false;
+      const apply = (data) => {
+          if (cancelled || !data) return;
+          setProjectLock({ owned: Boolean(data.owned), holder: data.holder || null });
+      };
+      callProjectLock('acquire').then(apply);
+      const timer = window.setInterval(() => {
+          callProjectLock('heartbeat').then(apply);
+      }, 30000);
+      const releaseOnUnload = () => {
+          try {
+              // text/plain: a beacon cannot send a CORS preflight; the backend parses the body as JSON.
+              const blob = new Blob([JSON.stringify({ projectPath, action: 'release' })], { type: 'text/plain' });
+              navigator.sendBeacon(`${apiBaseUrl}/project_lock`, blob);
+          } catch {
+              // best effort; a stale lock expires after 2 minutes
+          }
+      };
+      window.addEventListener('beforeunload', releaseOnUnload);
+      return () => {
+          cancelled = true;
+          window.clearInterval(timer);
+          window.removeEventListener('beforeunload', releaseOnUnload);
+          callProjectLock('release');
+          forgetVersions(projectPath);
+      };
+  }, [apiBaseUrl, callProjectLock, projectPath]);
 
   const confirmWithModal = ({
       title,
@@ -796,14 +862,25 @@ const WorkspacePage = () => {
           return { success: false, error: 'No project selected' };
       }
       let content = JSON.stringify({ planName, experiments, meta: planMeta }, null, 2);
+      const filename = `${planName}.${saveFormat}`;
       try {
           const res = await fetch(`${apiBaseUrl}/save_plan`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ projectPath, filename: `${planName}.${saveFormat}`, content })
+              body: JSON.stringify({
+                  projectPath,
+                  filename,
+                  content,
+                  baseVersion: baseVersionFor(projectPath, FILE_KINDS.plan(filename)),
+              })
           });
           const d = await res.json();
+          if (isStoreConflict(res, d)) {
+              reportStoreConflict(d.error);
+              return { success: false, error: d.error, conflict: true };
+          }
           if(d.success) {
+              rememberVersion(projectPath, FILE_KINDS.plan(filename), d.version);
               setLastSavedAt(new Date());
               if (!silent) notify('success', 'Plan Saved', d.path);
               return { success: true, path: d.path };
@@ -815,7 +892,7 @@ const WorkspacePage = () => {
           if (!silent) notify('error', 'Network Error', 'Save failed');
           return { success: false, error: 'Network error' };
       }
-  }, [apiBaseUrl, experiments, notify, planMeta, planName, projectPath, saveFormat]);
+  }, [apiBaseUrl, experiments, notify, planMeta, planName, projectPath, reportStoreConflict, saveFormat]);
 
   const normalizeSensorsStateForSave = useCallback((payload) => {
       if (!payload || typeof payload !== 'object') {
@@ -857,6 +934,12 @@ const WorkspacePage = () => {
           if (!silent) notify('error', 'Save Failed', 'No project selected');
           return { success: false, error: 'No project selected' };
       }
+      if (isReadOnly) {
+          const holder = projectLock.holder || {};
+          const message = `Read-only: this project is open for editing on ${holder.host || 'another computer'} by ${holder.user || 'another user'}. Nothing was saved.`;
+          if (!silent) notify('error', 'Read-only', message);
+          return { success: false, error: message, readOnly: true };
+      }
 
       const planResult = await savePlan({ silent: true });
       if (!planResult?.success) {
@@ -883,9 +966,12 @@ const WorkspacePage = () => {
               body: JSON.stringify({
                   projectPath,
                   daqSystems,
+                  baseVersion: loadPayload.version,
               }),
           });
           const savePayload = await saveRes.json();
+          if (isStoreConflict(saveRes, savePayload)) reportStoreConflict(savePayload.error);
+          if (saveRes.ok && savePayload?.success) rememberVersion(projectPath, FILE_KINDS.daq, savePayload.version);
           if (!saveRes.ok || !savePayload?.success) {
               throw new Error(savePayload?.error || 'Could not save DAQ systems');
           }
@@ -918,9 +1004,12 @@ const WorkspacePage = () => {
                   selectedGroup,
                   selectedRunName,
                   verificationMeta,
+                  baseVersion: loadPayload.version,
               }),
           });
           const savePayload = await saveRes.json();
+          if (isStoreConflict(saveRes, savePayload)) reportStoreConflict(savePayload.error);
+          if (saveRes.ok && savePayload?.success) rememberVersion(projectPath, FILE_KINDS.gas, savePayload.version);
           if (!saveRes.ok || !savePayload?.success) {
               throw new Error(savePayload?.error || 'Could not save Gas Mixing');
           }
@@ -937,9 +1026,14 @@ const WorkspacePage = () => {
               body: JSON.stringify({
                   projectPath,
                   checklistState,
+                  baseVersion: baseVersionFor(projectPath, FILE_KINDS.checklist),
               }),
           });
           const saveChecklistPayload = await saveChecklistRes.json();
+          if (isStoreConflict(saveChecklistRes, saveChecklistPayload)) reportStoreConflict(saveChecklistPayload.error);
+          if (saveChecklistRes.ok && saveChecklistPayload?.success) {
+              rememberVersion(projectPath, FILE_KINDS.checklist, saveChecklistPayload.version);
+          }
           if (!saveChecklistRes.ok || !saveChecklistPayload?.success) {
               throw new Error(saveChecklistPayload?.error || 'Could not save checklist state');
           }
@@ -961,6 +1055,8 @@ const WorkspacePage = () => {
           }
 
           let serverSensorsState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+          const pageSensorsVersion = baseVersionFor(projectPath, FILE_KINDS.sensors);
+          let serverSensorsVersion;
           try {
               const getSensorsRes = await fetch(`${apiBaseUrl}/get_sensors_mapping?projectPath=${encodeURIComponent(projectPath)}`);
               const getSensorsPayload = await getSensorsRes.json();
@@ -968,6 +1064,7 @@ const WorkspacePage = () => {
                   throw new Error(getSensorsPayload?.error || 'Could not load sensors mapping');
               }
               serverSensorsState = normalizeSensorsStateForSave(getSensorsPayload);
+              serverSensorsVersion = getSensorsPayload.version;
           } catch {
               serverSensorsState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
           }
@@ -975,9 +1072,12 @@ const WorkspacePage = () => {
           const localHasState = hasSensorsStateForSave(localSensorsState);
           const serverHasState = hasSensorsStateForSave(serverSensorsState);
           let sensorsStateToSave = serverSensorsState;
+          let sensorsBaseVersion = serverSensorsVersion;
 
           if (activeTab === 'sensors_mapping' && localHasState) {
               sensorsStateToSave = localSensorsState;
+              // The local copy was edited from the version the page loaded.
+              sensorsBaseVersion = pageSensorsVersion ?? serverSensorsVersion;
           } else if (serverHasState) {
               sensorsStateToSave = serverSensorsState;
           } else if (localHasState) {
@@ -992,9 +1092,12 @@ const WorkspacePage = () => {
                   mappingsByGroup: sensorsStateToSave.mappingsByGroup || {},
                   groupNotes: sensorsStateToSave.groupNotes || {},
                   selectedGroup: String(sensorsStateToSave.selectedGroup || ''),
+                  baseVersion: sensorsBaseVersion,
               }),
           });
           const payload = await response.json();
+          if (isStoreConflict(response, payload)) reportStoreConflict(payload.error);
+          if (response.ok && payload?.success) rememberVersion(projectPath, FILE_KINDS.sensors, payload.version);
           if (!response.ok || !payload?.success) {
               throw new Error(payload?.error || 'Could not save sensors mapping');
           }
@@ -1016,6 +1119,8 @@ const WorkspacePage = () => {
           }
 
           let serverCamerasState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
+          const pageCamerasVersion = baseVersionFor(projectPath, FILE_KINDS.cameras);
+          let serverCamerasVersion;
           try {
               const getCamerasRes = await fetch(`${apiBaseUrl}/get_cameras_mapping?projectPath=${encodeURIComponent(projectPath)}`);
               const getCamerasPayload = await getCamerasRes.json();
@@ -1023,6 +1128,7 @@ const WorkspacePage = () => {
                   throw new Error(getCamerasPayload?.error || 'Could not load cameras mapping');
               }
               serverCamerasState = normalizeSensorsStateForSave(getCamerasPayload);
+              serverCamerasVersion = getCamerasPayload.version;
           } catch {
               serverCamerasState = { selectedGroup: '', mappingsByGroup: {}, groupNotes: {} };
           }
@@ -1030,9 +1136,12 @@ const WorkspacePage = () => {
           const localHasState = hasSensorsStateForSave(localCamerasState);
           const serverHasState = hasSensorsStateForSave(serverCamerasState);
           let camerasStateToSave = serverCamerasState;
+          let camerasBaseVersion = serverCamerasVersion;
 
           if (activeTab === 'cameras_mapping' && localHasState) {
               camerasStateToSave = localCamerasState;
+              // The local copy was edited from the version the page loaded.
+              camerasBaseVersion = pageCamerasVersion ?? serverCamerasVersion;
           } else if (serverHasState) {
               camerasStateToSave = serverCamerasState;
           } else if (localHasState) {
@@ -1047,9 +1156,12 @@ const WorkspacePage = () => {
                   mappingsByGroup: camerasStateToSave.mappingsByGroup || {},
                   groupNotes: camerasStateToSave.groupNotes || {},
                   selectedGroup: String(camerasStateToSave.selectedGroup || ''),
+                  baseVersion: camerasBaseVersion,
               }),
           });
           const payload = await response.json();
+          if (isStoreConflict(response, payload)) reportStoreConflict(payload.error);
+          if (response.ok && payload?.success) rememberVersion(projectPath, FILE_KINDS.cameras, payload.version);
           if (!response.ok || !payload?.success) {
               throw new Error(payload?.error || 'Could not save cameras mapping');
           }
@@ -1087,9 +1199,10 @@ const WorkspacePage = () => {
               </ul>
           </div>
       );
+      shownConflictsRef.current.clear();
       if (!silent) notify('success', 'Project Saved', details);
       return { success: true, savedItems };
-  }, [activeTab, apiBaseUrl, checklistState, hasSensorsStateForSave, normalizeSensorsStateForSave, notify, projectPath, savePlan]);
+  }, [activeTab, apiBaseUrl, checklistState, hasSensorsStateForSave, isReadOnly, normalizeSensorsStateForSave, notify, projectLock.holder, projectPath, reportStoreConflict, savePlan]);
 
   const handleCloseProject = async () => {
       const confirmClose = await confirmWithModal({
@@ -1607,6 +1720,33 @@ const WorkspacePage = () => {
                     </header>
 
           <div className={`w-full p-6 flex-1 animate-in fade-in slide-in-from-bottom-2 duration-700 relative z-0 ${activeTab === 'home' ? 'overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
+              {isReadOnly && (
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-500">
+                      <span>
+                          <strong>Read-only.</strong> This project is open for editing on{' '}
+                          <strong>{projectLock.holder?.host || 'another computer'}</strong> by{' '}
+                          <strong>{projectLock.holder?.user || 'another user'}</strong>
+                          {projectLock.holder?.acquiredAt ? ` since ${projectLock.holder.acquiredAt}` : ''}. Changes made here are not saved.
+                      </span>
+                      <button
+                          type="button"
+                          className="rounded border border-amber-500/50 px-3 py-1 font-semibold hover:bg-amber-500/20"
+                          onClick={async () => {
+                              const ok = await confirmWithModal({
+                                  title: 'Take over editing?',
+                                  content: `Only do this if EXDA on ${projectLock.holder?.host || 'the other computer'} is closed or crashed. The other window becomes read-only and its unsaved changes are lost. Reload this window afterwards so it shows the latest saved data.`,
+                                  confirmLabel: 'Take over',
+                                  type: 'error',
+                              });
+                              if (!ok) return;
+                              const data = await callProjectLock('acquire', { force: true });
+                              if (data) setProjectLock({ owned: Boolean(data.owned), holder: data.holder || null });
+                          }}
+                      >
+                          Take over editing
+                      </button>
+                  </div>
+              )}
               {activeTab === 'home' && (
                   <SafeComponent>
                       <Suspense fallback={<TabFallback />}>

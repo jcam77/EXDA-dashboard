@@ -13,6 +13,18 @@ Every project JSON save goes through ``save_json_tracked`` / ``save_text_tracked
   fields with old -> new values.
 - A save whose content is identical (ignoring bookkeeping fields such as
   updatedAt) writes nothing new to History.
+
+Concurrent edits (outdated copies):
+- ``file_version`` is a hash of a file's content (bookkeeping fields such as
+  updatedAt ignored). Load endpoints return it; saves send it back as
+  ``baseVersion``. If the file changed in between, the save is refused with
+  StaleWriteError instead of overwriting the other change.
+
+One writer per project:
+- ``<project>/.exda.lock`` records which running app (instance id, user,
+  host, pid, heartbeat) is writing. While another app holds a fresh lock,
+  every tracked save raises ProjectLockedError, so a second app (another PC,
+  the host of a VM shared folder, an old window) can only read.
 """
 
 from __future__ import annotations
@@ -23,6 +35,10 @@ import os
 import shutil
 import socket
 import tempfile
+import threading
+import time
+import uuid
+import hashlib
 from datetime import datetime, timezone
 
 HISTORY_DIRNAME = "History"
@@ -30,6 +46,48 @@ CHANGE_LOG_FILENAME = "change_log.jsonl"
 BOOKKEEPING_KEYS = frozenset({"updatedAt", "updated_at", "last_opened_at"})
 MAX_LOGGED_CHANGES = 200
 MAX_VALUE_CHARS = 300
+LOCK_FILENAME = ".exda.lock"
+LOCK_STALE_SECONDS = 120
+INSTANCE_ID = uuid.uuid4().hex
+_WRITE_LOCK = threading.RLock()
+
+
+class StoreConflict(Exception):
+    """Base class for saves refused to protect data written by someone else."""
+
+    http_status = 409
+
+    def to_payload(self):
+        return {"success": False, "error": str(self)}
+
+
+class StaleWriteError(StoreConflict):
+    http_status = 409
+
+    def __init__(self, path, expected, current):
+        self.path, self.expected, self.current = path, expected, current
+        super().__init__(
+            f"{os.path.basename(path)} was changed elsewhere (another window or computer) after you opened it. "
+            "Your changes were not saved. Reload to see the current version."
+        )
+
+    def to_payload(self):
+        return {**super().to_payload(), "conflict": True, "currentVersion": self.current}
+
+
+class ProjectLockedError(StoreConflict):
+    http_status = 423
+
+    def __init__(self, holder):
+        self.holder = holder or {}
+        super().__init__(
+            "Read-only: this project is open for editing on "
+            f"{self.holder.get('host') or 'another computer'} by {self.holder.get('user') or 'another user'} "
+            f"(since {self.holder.get('acquiredAt') or '?'}). Nothing was saved."
+        )
+
+    def to_payload(self):
+        return {**super().to_payload(), "locked": True, "holder": public_lock(self.holder)}
 
 
 def _now():
@@ -81,6 +139,162 @@ def write_text_atomic(path: str, text: str) -> None:
 
 def write_json_atomic(path: str, payload) -> None:
     write_text_atomic(path, json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+def content_version(data) -> str:
+    """Version of a file's content; bookkeeping fields (updatedAt ...) ignored."""
+    if data is None:
+        return ""
+    raw = data.encode("utf-8") if isinstance(data, str) else data
+    try:
+        parsed = json.loads(raw.decode("utf-8-sig"))
+        canonical = json.dumps(_strip_bookkeeping(parsed), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+        raw = canonical.encode("utf-8")
+    except Exception:
+        pass
+    return hashlib.sha256(raw).hexdigest()[:20]
+
+
+def file_version(path: str) -> str:
+    """'' when the file does not exist."""
+    if not path or not os.path.exists(path):
+        return ""
+    with open(path, "rb") as handle:
+        return content_version(handle.read())
+
+
+# ---------------------------------------------------------------- project lock
+
+def _lock_path(project_root):
+    return os.path.join(project_root, LOCK_FILENAME)
+
+
+def read_lock(project_root):
+    try:
+        with open(_lock_path(project_root), "r", encoding="utf-8") as handle:
+            lock = json.load(handle)
+        return lock if isinstance(lock, dict) else None
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
+def public_lock(lock):
+    lock = lock or {}
+    return {k: lock.get(k) for k in ("user", "host", "pid", "acquiredAt", "heartbeatAt", "client")}
+
+
+def _pid_alive(pid):
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+            if handle:
+                ctypes.windll.kernel32.CloseHandle(handle)
+                return True
+            return False
+        except Exception:
+            return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except Exception:
+        return True
+    return True
+
+
+def lock_is_active(lock) -> bool:
+    if not lock:
+        return False
+    try:
+        age = time.time() - float(lock.get("heartbeatEpoch") or 0)
+    except (TypeError, ValueError):
+        return False
+    if age > LOCK_STALE_SECONDS:
+        return False
+    if lock.get("host") == _actor()["host"] and lock.get("instanceId") != INSTANCE_ID \
+            and not _pid_alive(lock.get("pid")):
+        return False  # app on this computer that is no longer running
+    return True
+
+
+def lock_status(project_root):
+    lock = read_lock(project_root)
+    active = lock_is_active(lock)
+    mine = bool(lock) and lock.get("instanceId") == INSTANCE_ID
+    return {"locked": active, "owned": active and mine, "holder": public_lock(lock) if active else None}
+
+
+def _write_lock(project_root, previous=None, client=None):
+    now = _now()
+    lock = {
+        "instanceId": INSTANCE_ID,
+        **_actor(),
+        "pid": os.getpid(),
+        "client": client or (previous or {}).get("client"),
+        "acquiredAt": (previous or {}).get("acquiredAt") if previous and previous.get("instanceId") == INSTANCE_ID
+        else now.isoformat(timespec="seconds"),
+        "heartbeatAt": now.isoformat(timespec="seconds"),
+        "heartbeatEpoch": time.time(),
+        "note": "Written by EXDA while this project is open for editing. Safe to delete if no EXDA is running.",
+    }
+    write_json_atomic(_lock_path(project_root), lock)
+    return lock
+
+
+def acquire_lock(project_root, force=False, client=None):
+    """Take the project lock. Returns lock_status(); 'owned' False if someone else holds it."""
+    with _WRITE_LOCK:
+        lock = read_lock(project_root)
+        if lock_is_active(lock) and lock.get("instanceId") != INSTANCE_ID and not force:
+            return lock_status(project_root)
+        previous_holder = public_lock(lock) if (lock and lock.get("instanceId") != INSTANCE_ID) else None
+        _write_lock(project_root, lock, client)
+        if force and previous_holder and lock_is_active(lock):
+            try:
+                append_change_log(project_root, {"action": "project_lock_taken_over", "previousHolder": previous_holder})
+            except Exception:
+                pass
+        return lock_status(project_root)
+
+
+def heartbeat_lock(project_root, client=None):
+    with _WRITE_LOCK:
+        lock = read_lock(project_root)
+        if lock and lock.get("instanceId") == INSTANCE_ID:
+            _write_lock(project_root, lock, client)
+            return lock_status(project_root)
+        if not lock_is_active(lock):
+            return acquire_lock(project_root, client=client)
+        return lock_status(project_root)
+
+
+def release_lock(project_root):
+    with _WRITE_LOCK:
+        lock = read_lock(project_root)
+        if lock and lock.get("instanceId") == INSTANCE_ID:
+            try:
+                os.remove(_lock_path(project_root))
+            except FileNotFoundError:
+                pass
+        return lock_status(project_root)
+
+
+def assert_can_write(project_root):
+    lock = read_lock(project_root)
+    if lock_is_active(lock) and lock.get("instanceId") != INSTANCE_ID:
+        raise ProjectLockedError(lock)
 
 
 def _strip_bookkeeping(value):
@@ -193,8 +407,25 @@ def _rel(project_root, path):
     return os.path.relpath(os.path.abspath(path), os.path.abspath(project_root)).replace(os.sep, "/")
 
 
-def save_text_tracked(project_root: str, path: str, text: str, action: str = "save", context=None) -> dict:
-    """Atomically write text, keeping the previous version and logging the change."""
+def save_text_tracked(project_root: str, path: str, text: str, action: str = "save", context=None,
+                      expected_version=None) -> dict:
+    """Atomically write text, keeping the previous version and logging the change.
+
+    expected_version: the version the caller loaded ('' = file did not exist).
+    None skips the check (internal callers, old clients).
+    """
+    with _WRITE_LOCK:
+        assert_can_write(project_root)
+        if expected_version is not None:
+            current = file_version(path)
+            if str(expected_version) != current:
+                raise StaleWriteError(path, str(expected_version), current)
+        result = _save_text_tracked_unlocked(project_root, path, text, action, context)
+        result["version"] = content_version(text)
+        return result
+
+
+def _save_text_tracked_unlocked(project_root, path, text, action, context):
     previous_bytes = None
     if os.path.exists(path):
         with open(path, "rb") as handle:
@@ -252,8 +483,10 @@ def save_text_tracked(project_root: str, path: str, text: str, action: str = "sa
     return {"changed": True, "historyCopy": history_copy, "changeCount": len(changes)}
 
 
-def save_json_tracked(project_root: str, path: str, payload, action: str = "save", context=None) -> dict:
-    return save_text_tracked(project_root, path, json.dumps(payload, indent=2, ensure_ascii=False), action, context)
+def save_json_tracked(project_root: str, path: str, payload, action: str = "save", context=None,
+                      expected_version=None) -> dict:
+    return save_text_tracked(project_root, path, json.dumps(payload, indent=2, ensure_ascii=False), action, context,
+                             expected_version=expected_version)
 
 
 def find_project_root(path: str):

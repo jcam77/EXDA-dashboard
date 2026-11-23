@@ -5,6 +5,7 @@ import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
 import { useAppDialog } from '../hooks/useAppDialog';
 import RunOverridePanel from '../components/RunOverridePanel';
+import { baseVersionFor, rememberVersion, FILE_KINDS } from '../utils/fileVersions';
 
 const COORDINATE_UNIT_OPTIONS = ['m', 'mm'];
 const DEFAULT_COORDINATE_ORIGIN = '((0,0,0)) is defined at the centre of the internal back wall, at floor level. Positions are measured from this point inside the chamber.';
@@ -243,6 +244,7 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
         if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load cameras mapping');
         const serverState = normalizeCamerasStatePayload(payload);
         if (cancelled) return;
+        rememberVersion(projectPath, FILE_KINDS.cameras, payload.version);
         setMappingsByGroup(serverState.mappingsByGroup || {});
         setSelectedGroup(serverState.selectedGroup || '');
         setGroupNotes(serverState.groupNotes || {});
@@ -298,7 +300,7 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
     }
     const timerId = window.setTimeout(async () => {
       try {
-        await fetch(`${apiBaseUrl}/save_cameras_mapping`, {
+        const response = await fetch(`${apiBaseUrl}/save_cameras_mapping`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -306,8 +308,16 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
             mappingsByGroup,
             groupNotes,
             selectedGroup: String(selectedGroup || ''),
+            baseVersion: baseVersionFor(projectPath, FILE_KINDS.cameras),
           }),
         });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload?.success) {
+          rememberVersion(projectPath, FILE_KINDS.cameras, payload.version);
+        } else if (response.status === 409 || response.status === 423) {
+          // Not silent: an outdated copy or a read-only project must be visible.
+          setGroupError(payload?.error || 'Not saved: the file changed elsewhere.');
+        }
       } catch {
         // Continuous save is intentionally silent. Manual Save Now still reports errors.
       }
