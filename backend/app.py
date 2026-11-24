@@ -5,6 +5,15 @@ from flask_cors import CORS
 import os
 import sys
 
+# Windows writes console/log output in the legacy code page (cp1252) when output
+# is redirected, which cannot encode characters such as emoji and crashes print().
+# Always write UTF-8 and replace anything that still cannot be written.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from routes.projects import projects_bp
