@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Shield } from 'lucide-react';
 import HighResMultiChannelPlot from '../components/HighResMultiChannelPlot';
-import { FROM_FILE_UNIT, UNIT_OPTIONS_WITH_FILE, convertValueByUnit, getChannelDisplayUnit, normalizeUnitToken } from '../utils/units';
+import PeakTable from '../components/PeakTable';
+import { FROM_FILE_UNIT, UNIT_OPTIONS_WITH_FILE, convertValueByUnit, getChannelDisplayUnit, isVoltageOrTrigger, normalizeUnitToken } from '../utils/units';
 
 const CHANNEL_COLORS = [
   '#38bdf8',
@@ -87,6 +88,9 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
   const [stateRestored, setStateRestored] = useState(false);
   const restoredSelectedChannelKeysRef = useRef(false);
   const [selectedPath, setSelectedPath] = useState('');
+  // Peak table (screen only): time range and ticked channels per file.
+  const [peakRangeByPath, setPeakRangeByPath] = useState({});
+  const [peakIncludedByPath, setPeakIncludedByPath] = useState({});
   const [viewMode, setViewMode] = useState('single');
   const [comparePaths, setComparePaths] = useState([]);
   const [compareChannelByPath, setCompareChannelByPath] = useState({});
@@ -133,6 +137,8 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
       }
       if (persisted.channelUnitOverrides && typeof persisted.channelUnitOverrides === 'object') setChannelUnitOverrides(persisted.channelUnitOverrides);
       if (persisted.h2sBlockByPath && typeof persisted.h2sBlockByPath === 'object') setH2sBlockByPath(persisted.h2sBlockByPath);
+      if (persisted.peakRangeByPath && typeof persisted.peakRangeByPath === 'object') setPeakRangeByPath(persisted.peakRangeByPath);
+      if (persisted.peakIncludedByPath && typeof persisted.peakIncludedByPath === 'object') setPeakIncludedByPath(persisted.peakIncludedByPath);
     }
     setStateRestored(true);
   }, [stateStorageKey]);
@@ -156,6 +162,8 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
       selectedChannelKeys,
       channelUnitOverrides,
       h2sBlockByPath,
+      peakRangeByPath,
+      peakIncludedByPath,
     });
   }, [
     stateRestored,
@@ -176,6 +184,8 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
     selectedChannelKeys,
     channelUnitOverrides,
     h2sBlockByPath,
+    peakRangeByPath,
+    peakIncludedByPath,
   ]);
 
   useEffect(() => {
@@ -304,6 +314,8 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
           content: fileJson.content,
           maxPoints: Number.isFinite(Number(pointsValue)) ? Number(pointsValue) : 2000,
           fullResolution: Boolean(fullResValue),
+          // Real sample count and sampling rate when the reader already reduced the file.
+          sourceInfo: fileJson.sampleInfo || null,
         }),
       });
       const previewJson = await previewRes.json();
@@ -527,6 +539,29 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
       ),
     }));
   }, [selectedChannels, isConcentrationMode, convertPpmToVolPercent, convertToKpa, displayNameByPath, resolveUnitToken, selectedPath]);
+
+  const peakRange = peakRangeByPath[selectedPath] || { start: '', end: '' };
+  const peakBand = useMemo(() => {
+    const start = String(peakRange.start ?? '').trim() === '' ? NaN : Number(peakRange.start);
+    const end = String(peakRange.end ?? '').trim() === '' ? NaN : Number(peakRange.end);
+    return Number.isFinite(start) && Number.isFinite(end) && end > start ? { start, end } : null;
+  }, [peakRange.start, peakRange.end]);
+  // Unit token of a converted channel from its recorded unit (or the user's override),
+  // not from its display unit: a display unit of "kPa" may stand for recorded bar.
+  const sourceUnitToken = useCallback(
+    (channel) => resolveUnitToken({ ...channel, unit: channel.sourceUnit ?? channel.unit }),
+    [resolveUnitToken]
+  );
+  const peakIncluded = useMemo(() => {
+    const stored = peakIncludedByPath[selectedPath] || {};
+    const next = {};
+    convertedChannels.forEach((channel) => {
+      next[channel.key] = typeof stored[channel.key] === 'boolean'
+        ? stored[channel.key]
+        : !isVoltageOrTrigger(channel, sourceUnitToken(channel));
+    });
+    return next;
+  }, [convertedChannels, peakIncludedByPath, sourceUnitToken, selectedPath]);
 
   const convertedPlotData = useMemo(() => {
     if (!plotData.length || !selectedChannels.length) return [];
@@ -1033,13 +1068,10 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
           </p>
         )}
         <p className="mt-1 text-xs text-muted-foreground">
-          Downsampling flow: when Full Resolution is off, rows are decimated once at read stage to the Display limit target using uniform index picking (no filtering/interpolation). A hidden hard cap remains only as an emergency safety guard.
+          {fullResolution
+            ? 'Full resolution: every sample is plotted.'
+            : 'Fast preview: the signal is split into short intervals and each interval keeps its lowest and highest sample per channel, so peaks and clipping are always visible. Use Full Resolution or a time window to see the exact waveform between those points.'}
         </p>
-        {!fullResolution && (
-          <p className="mt-1 text-xs text-amber-300">
-            Warning: fast downsampling can miss narrow peaks and shift apparent transient timing. Use Full Resolution (or a tight time window) for final timing/amplitude checks.
-          </p>
-        )}
       </div>
 
       {error && (
@@ -1240,16 +1272,18 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
               <div className="text-foreground font-semibold">{convertedChannels.length}</div>
             </div>
             <div className="bg-background/70 border border-border rounded-lg px-3 py-2 text-xs">
-              <div className="text-muted-foreground">Loaded samples</div>
-              <div className="text-foreground font-semibold">{summary.sampleCount ?? plotData.length}</div>
+              <div className="text-muted-foreground">{limitTimeWindow ? 'Samples in window' : 'Samples in file'}</div>
+              <div className="text-foreground font-semibold">{Number(summary.totalSamples ?? summary.sampleCount ?? plotData.length).toLocaleString()}</div>
             </div>
             <div className="bg-background/70 border border-border rounded-lg px-3 py-2 text-xs">
               <div className="text-muted-foreground">Displayed samples</div>
-              <div className="text-foreground font-semibold">{summary.plottedCount ?? plotData.length}</div>
+              <div className="text-foreground font-semibold">{Number(summary.plottedCount ?? plotData.length).toLocaleString()}</div>
             </div>
             <div className="bg-background/70 border border-border rounded-lg px-3 py-2 text-xs">
               <div className="text-muted-foreground">Mode</div>
-              <div className="text-foreground font-semibold">{summary.fullResolution ? 'Full resolution' : 'Downsampled'}</div>
+              <div className="text-foreground font-semibold">
+                {summary.reduction && summary.reduction !== 'none' ? 'Peaks kept (min/max)' : 'All samples'}
+              </div>
             </div>
             <div className="bg-background/70 border border-border rounded-lg px-3 py-2 text-xs">
               <div className="text-muted-foreground">Sampling rate</div>
@@ -1337,6 +1371,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                 channels={convertedChannels}
                 height={476}
                 colors={CHANNEL_COLORS}
+                highlightRange={isConcentrationMode ? null : peakBand}
               />
             </div>
           ) : (
@@ -1353,10 +1388,31 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                     channels={[channel]}
                     height={260}
                     colors={[CHANNEL_COLORS[idx % CHANNEL_COLORS.length]]}
+                    highlightRange={isConcentrationMode ? null : peakBand}
                   />
                 </div>
               ))}
             </div>
+          )}
+
+          {!isConcentrationMode && !!selectedPath && convertedChannels.length > 0 && (
+            <PeakTable
+              key={selectedPath}
+              apiBaseUrl={apiBaseUrl}
+              projectPath={projectPath}
+              filePath={selectedPath}
+              channels={convertedChannels}
+              unitTokenFor={sourceUnitToken}
+              convertToKpa={convertToKpa}
+              range={peakRange}
+              onRangeChange={(next) => setPeakRangeByPath((prev) => ({ ...prev, [selectedPath]: next }))}
+              included={peakIncluded}
+              onIncludedChange={(key, value) => setPeakIncludedByPath((prev) => ({
+                ...prev,
+                [selectedPath]: { ...(prev[selectedPath] || {}), [key]: value },
+              }))}
+              plotWindow={limitTimeWindow ? { start: timeWindowStart, end: timeWindowEnd } : null}
+            />
           )}
 
           {!!channels.length && !isConcentrationMode && (

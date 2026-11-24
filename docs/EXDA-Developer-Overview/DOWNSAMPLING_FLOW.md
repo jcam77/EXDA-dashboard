@@ -20,21 +20,26 @@ It reflects the current `RawDataScreeningCorePage` flow for `.mf4`, `.tpc5`, and
 
 ## Quick Answer (Method Used)
 
-When EXDA reduces sample count, it uses **index-based decimation** (uniform row picking), not filtering and not interpolation.
+When EXDA reduces sample count for the preview, it uses a **min/max envelope**
+(`backend/modules/signal_reduction.py`), not uniform index picking, filtering or interpolation.
 
-- No low-pass anti-alias filter is applied.
-- No interpolation is applied.
-- Rows are selected from existing samples using evenly spaced indices.
+- The signal is split into equal intervals; in every interval each channel keeps its
+  lowest and its highest sample (existing samples only, no new values).
+- Peaks and clipped plateaus are therefore always visible, and the plotted maximum
+  equals the true maximum of the file (checked on a real 1 MHz DAQ-1 file: uniform
+  picking showed peaks up to 46 % too low; the envelope matched exactly).
+- No low-pass filter and no interpolation are applied.
+- The first and last sample are always kept.
 
-## Important Warning
+The readers also report the **real** sample count and sampling rate (before reduction)
+in `sampleInfo` (`/read_project_file`), and `/preview_multichannel` shows them in its
+summary (`totalSamples`, `samplingRateHz`, `reduction`). Before, the sampling rate was
+computed from the reduced rows and was wrong in fast preview.
 
-This method is optimized for speed, not waveform fidelity.
+## What the envelope does not show
 
-- It can miss narrow peaks/transients.
-- It can shift apparent transient timing in the reduced view.
-- It can show aliasing-like visual artifacts.
-
-Use reduced preview for navigation, then confirm timing/amplitude conclusions with Full Resolution (or a tight time window).
+Between the kept points the line is drawn straight, so the exact waveform shape (and
+fine timing between extremes) needs Full Resolution or a tight time window.
 
 ## Per-channel or total?
 
@@ -55,16 +60,16 @@ Read + optional time window
 Full Resolution?
   |-- YES --> Keep all rows
   |
-  |-- NO  --> One-step decimation at read stage
-              target rows = min(maxPoints, safety_cap)
-              idx = linspace(0, N-1, target)
+  |-- NO  --> One-step reduction at read stage (TPC5 / MF4)
+              min/max envelope, about maxPoints rows
+              (at most ~2 x maxPoints for many channels)
 
   |
   v
 /preview_multichannel parse
   |
   v
-If rows > maxPoints (fallback only): decimate to maxPoints
+If rows > maxPoints (text files): min/max envelope to about maxPoints
 Else: keep rows
   |
   v
@@ -102,22 +107,17 @@ This means reduced plotting data is usually prepared in one step before preview 
 
 ### Fallback Step (preview stage)
 
-`/preview_multichannel` still has a defensive fallback:
+`/preview_multichannel` reduces text files (read in full) the same way:
 
-- If incoming `sampleCount > maxPoints`, it decimates again to `maxPoints`.
-- In normal one-step flow this should rarely trigger.
+- If `sampleCount > maxPoints`, it keeps a min/max envelope of about `maxPoints` rows.
+- TPC5/MF4 content arrives already reduced; its real `totalSamples` and
+  `samplingRateHz` come from the reader via `sourceInfo`.
 
-### Integer rule used in code
+### All reduction paths use the same envelope
 
-Two integer-selection paths still exist in code:
-
-1. `.mf4`/`.tpc5`/preview decimation path:
-   - `idx = np.linspace(0, N-1, K, dtype=int)`
-   - Uniform spacing + integer conversion.
-
-2. Text window helper path (`_apply_time_window_to_text_content`):
-   - `pick_i = round(i * (N-1) / (K-1))`, for `i = 0..K-1`
-   - Explicit nearest-integer rounding.
+`signal_reduction.envelope_row_indices` is used by the TPC5 reader, the MF4 reader,
+the text-file time window (`_apply_time_window_to_text_content`) and
+`/preview_multichannel`. No path picks evenly spaced samples any more.
 
 ### Rounding note (Python)
 

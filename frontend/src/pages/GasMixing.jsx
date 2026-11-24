@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import PageHeader from '../components/PageHeader';
 import { FlaskConical, Beaker, ClipboardCheck, Gauge, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock, formatExdaDateTime } from '../utils/timezone';
@@ -146,7 +147,6 @@ const hasNonZeroValue = (value) => {
 
 const GasMixingPage = ({ projectPath, experiments = [] }) => {
   const apiBaseUrl = getBackendBaseUrl();
-  const projectName = String(projectPath || '').split(/[/\\]/).filter(Boolean).pop() || 'No project selected';
 
   const [records, setRecords] = useState([]);
   const [verificationMeta, setVerificationMeta] = useState({
@@ -676,26 +676,23 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
   };
 
   return (
-    <div className="flex flex-col bg-background p-6 animate-in fade-in duration-500 overflow-y-auto custom-scrollbar space-y-4">
+    <div className="flex flex-col bg-background animate-in fade-in duration-500 overflow-y-auto custom-scrollbar space-y-4">
+      <PageHeader
+        icon={FlaskConical}
+        title="Gas Mixing"
+        subtitle="Mixture preparation per campaign group and run, with the calculation inputs kept for each run."
+        className="!mb-2"
+      >
+        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+          verificationMeta.isMatlabVerified
+            ? 'border-primary/40 bg-primary/10 text-primary'
+            : 'border-warning/40 bg-warning/10 text-warning'
+        }`}>
+          {verificationMeta.isMatlabVerified ? 'MATLAB Verified' : 'MATLAB Not Verified'}
+        </span>
+      </PageHeader>
       <div className="rounded-xl border border-sidebar-border bg-card/80 p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <FlaskConical size={18} className="text-primary" />
-          <h2 className="text-lg font-bold text-foreground">Gas Mixing</h2>
-          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-            verificationMeta.isMatlabVerified
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-              : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-          }`}>
-            {verificationMeta.isMatlabVerified ? 'MATLAB Verified' : 'MATLAB Not Verified'}
-          </span>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Grouped by campaign group and run/test. Core calculation model can now be expanded per run.
-        </p>
-        <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
-          Project: <span className="text-foreground">{projectName}</span>
-        </p>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <label className="text-xs">
             <span className="mb-1 block font-semibold text-muted-foreground">Verification Reference File A</span>
             <input

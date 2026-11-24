@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import PageHeader from '../components/PageHeader';
 import { FileText, Construction, Database } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../utils/timezone';
@@ -10,10 +11,6 @@ const ReportPage = ({
   planName = '',
 }) => {
   const apiBaseUrl = useMemo(() => getBackendBaseUrl(), []);
-  const projectName = useMemo(
-    () => String(projectPath || '').split(/[/\\]/).filter(Boolean).pop() || 'No project selected',
-    [projectPath],
-  );
   const [status, setStatus] = useState('');
   const [busyFormat, setBusyFormat] = useState('');
   const [metadataPdf, setMetadataPdf] = useState({ found: false, filename: '', relativePath: '' });
@@ -131,19 +128,13 @@ const ReportPage = ({
 
   return (
     <div className="w-full space-y-4">
-      <div className="rounded-xl border border-sidebar-border bg-card/80 p-5">
-        <div className="flex items-center gap-2">
-          <FileText size={18} className="text-primary" />
-          <h2 className="text-lg font-bold text-foreground">Report</h2>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Generate structured project reports for delivery and traceability.
-        </p>
-        <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
-          Project: <span className="text-foreground">{projectName}</span>
-          {planName ? <span className="ml-4">Plan: <span className="text-foreground">{planName}</span></span> : null}
-        </p>
-      </div>
+      <PageHeader icon={FileText} title="Report" subtitle="Structured project reports for delivery and traceability." className="!mb-2">
+        {planName ? (
+          <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
+            Plan: <span className="text-foreground">{planName}</span>
+          </span>
+        ) : null}
+      </PageHeader>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <section className="rounded-xl border border-sidebar-border bg-card/60 p-5">

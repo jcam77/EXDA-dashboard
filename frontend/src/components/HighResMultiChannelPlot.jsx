@@ -61,6 +61,8 @@ const HighResMultiChannelPlot = ({
   xAxisLabel = 'Time (s)',
   xAxisMode = 'time',
   spanGaps = false,
+  // Optional { start, end } on the x axis, drawn as a shaded band behind the curves.
+  highlightRange = null,
 }) => {
   const mountRef = useRef(null);
   const chartRef = useRef(null);
@@ -69,6 +71,9 @@ const HighResMultiChannelPlot = ({
   const [width, setWidth] = useState(800);
 
   const xValues = useMemo(() => plotData.map((row) => Number(row.t)), [plotData]);
+  const bandStart = Number(highlightRange?.start);
+  const bandEnd = Number(highlightRange?.end);
+  const hasBand = Number.isFinite(bandStart) && Number.isFinite(bandEnd) && bandEnd > bandStart;
   const dataSeries = useMemo(() => {
     const base = [xValues];
     channels.forEach((channel) => {
@@ -217,6 +222,26 @@ const HighResMultiChannelPlot = ({
         show: showLegend,
         live: true,
       },
+      hooks: hasBand
+        ? {
+            // Drawn after the canvas is cleared and before the curves.
+            drawClear: [
+              (u) => {
+                const { left, top, width: plotWidth, height: plotHeight } = u.bbox;
+                const x0 = u.valToPos(bandStart, 'x', true);
+                const x1 = u.valToPos(bandEnd, 'x', true);
+                const from = Math.max(left, Math.min(x0, x1));
+                const to = Math.min(left + plotWidth, Math.max(x0, x1));
+                if (!(to > from)) return;
+                const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+                u.ctx.save();
+                u.ctx.fillStyle = primary ? `hsl(${primary} / 0.12)` : 'rgba(56, 189, 248, 0.12)';
+                u.ctx.fillRect(from, top, to - from, plotHeight);
+                u.ctx.restore();
+              },
+            ],
+          }
+        : {},
     };
 
     const chart = new uPlot(options, dataSeries, mountRef.current);
@@ -310,7 +335,7 @@ const HighResMultiChannelPlot = ({
       chart.destroy();
       chartRef.current = null;
     };
-  }, [channels, clampXRange, colors, dataSeries, handleResetZoom, height, primaryLabel, secondaryLabel, showLegend, spanGaps, useDualAxis, width, xAxisLabel, xAxisMode, xValues]);
+  }, [bandEnd, bandStart, channels, clampXRange, colors, dataSeries, handleResetZoom, hasBand, height, primaryLabel, secondaryLabel, showLegend, spanGaps, useDualAxis, width, xAxisLabel, xAxisMode, xValues]);
 
   return (
     <div className="w-full relative" style={{ height: `${height}px` }}>

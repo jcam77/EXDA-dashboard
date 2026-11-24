@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertTriangle, ClipboardList, ListChecks, Pencil, UserCheck } from 'lucide-react';
 import ProceduresPanel, { ProceduresBadge } from '../components/ProceduresPanel';
 import ChecklistEditor from '../components/ChecklistEditor';
+import PageHeader from '../components/PageHeader';
 import ChecklistGroupIcon from '../components/ChecklistGroupIcon';
 import UnifiedModal from '../components/UnifiedModal';
 import { useProcedures } from '../hooks/useProcedures';
@@ -116,19 +117,15 @@ const ChecklistPage = ({
     };
 
     return (
-        <div className="flex flex-col h-full w-full p-6 animate-in fade-in duration-500 overflow-y-auto custom-scrollbar bg-background text-foreground">
-            <div className="flex items-center justify-between mb-8 border-b border-border pb-4">
-                <div className="flex items-center gap-3">
-                    <ClipboardList className="text-primary" size={24} />
-                    <h1 className="text-xl font-bold tracking-tight uppercase">Pre-Experiment Checklist</h1>
-                </div>
+        <div className="flex flex-col h-full w-full animate-in fade-in duration-500 overflow-y-auto custom-scrollbar bg-background text-foreground">
+            <PageHeader icon={ClipboardList} title="Pre-Experiment Checklist" subtitle="Safety and readiness checks to complete before each test.">
                 <ProceduresBadge
                     count={procedures.documents.length}
                     missingSections={procedures.missingSections}
                     loading={procedures.loading}
                     onClick={scrollToProcedures}
                 />
-            </div>
+            </PageHeader>
 
 
             {/* Progress + sign-off */}

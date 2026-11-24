@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { 
     Save, Upload, Plus, CheckSquare, Square, PenTool, Trash2, Calendar, 
-    Clock, Target, GripVertical, Layers, FlaskConical, X, 
+    Clock, GripVertical, Layers, FlaskConical, X, 
     AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge, ChevronRight, ChevronDown, Wrench, Undo2
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, LabelList } from 'recharts';
@@ -159,7 +159,6 @@ const PlanPage = ({
     const [ventEditorMode, setVentEditorMode] = useState('');
     const [modalOffset, setModalOffset] = useState({ x: 0, y: 40 });
     const [isModalDragging, setIsModalDragging] = useState(false);
-    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const [busyFormat, setBusyFormat] = useState('');
     const [rawDataFiles, setRawDataFiles] = useState([]);
     const [gasMixingByRun, setGasMixingByRun] = useState({});
@@ -1363,14 +1362,14 @@ const PlanPage = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
             {/* LEFT: LIST & RUN CARDS (30%) */}
             <div className="lg:col-span-4 bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl flex flex-col h-full overflow-hidden">
-                <div className="flex justify-between items-center mb-4 gap-2">
-                   <div className="flex items-center gap-2 flex-1">
+                <div className="mb-4 space-y-2">
+                   <div className="flex items-center gap-2">
                        <FlaskConical size={16} className="text-primary shrink-0"/>
-                       <input value={planName} onChange={e=>setPlanName(e.target.value)} className="bg-transparent border-b border-zinc-800 text-sm font-bold w-full outline-none focus:border-primary text-white"/>
+                       <input value={planName} onChange={e=>setPlanName(e.target.value)} aria-label="Plan name" title="Plan name" className="bg-transparent border-b border-zinc-800 text-sm font-bold w-full min-w-0 outline-none focus:border-primary text-white"/>
                    </div>
-                   <div className="flex gap-1">
-                       <button onClick={handleSavePlan} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Save size={18}/></button>
-                       <button onClick={onImport} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Upload size={18}/></button>
+                   <div className="flex flex-wrap items-center justify-end gap-1">
+                       <button onClick={handleSavePlan} title="Save plan" aria-label="Save plan" className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Save size={18}/></button>
+                       <button onClick={onImport} title="Load a plan file" aria-label="Load a plan file" className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Upload size={18}/></button>
                        <ExportFormatButtons
                            onExportCsv={exportPlanAsCsv}
                            onExportPdf={exportPlanAsPdf}
@@ -1613,86 +1612,34 @@ const PlanPage = ({
 
             {/* RIGHT: CHARTS & PROJECT STATS (70%) */}
             <div className="lg:col-span-8 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {/* OBJECTIVE CARD */}
-                    <div className="lg:col-span-2 bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl">
-                        <div className="flex justify-between items-center mb-3">
-                            <div className="flex items-center gap-2 text-primary font-bold text-xs tracking-wide"><Target size={16}/> Project Objectives</div>
-                            <div className="flex gap-4 bg-black/40 p-2 rounded-lg border border-zinc-800/50">
-                                <div className="flex flex-col">
-                                    <span className="text-[8px] text-zinc-500 font-bold text-center">Start</span>
-                                    <IsoDateInput value={planMeta.startDate} onValueChange={next=>setPlanMeta({...planMeta, startDate: next})} placeholder="YYYY-MM-DD" iconSize={11} className="bg-transparent text-[10px] text-zinc-400 border-none p-0 pr-6 outline-none w-24 cursor-text text-center"/>
-                                </div>
-                                <div className="w-px bg-zinc-800 h-6 mx-1"></div>
-                                <div className="flex flex-col">
-                                    <span className="text-[8px] text-zinc-500 font-bold text-center">Deadline</span>
-                                    <IsoDateInput value={planMeta.deadline} onValueChange={next=>setPlanMeta({...planMeta, deadline: next})} placeholder="YYYY-MM-DD" iconSize={11} className="bg-transparent text-[10px] text-primary border-none p-0 pr-6 outline-none w-24 cursor-text font-bold text-center"/>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] tracking-wide text-zinc-500 font-bold">
-                                Objective (one line)
-                            </label>
-                            <input
-                                value={planMeta.objective}
-                                onChange={e=>setPlanMeta({...planMeta, objective:e.target.value})}
-                                className="w-full bg-black/30 text-xs px-3 py-2 rounded-lg outline-none border border-zinc-800 text-zinc-300 focus:border-primary"
-                                placeholder="Primary objective (one line)"
-                            />
-                        </div>
-                        <div className="mt-3 space-y-2">
-                            <div className="flex items-center justify-between gap-2">
-                                <label className="text-[10px] tracking-wide text-zinc-500 font-bold">
-                                    Description (details)
-                                </label>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsDescriptionExpanded((value) => !value)}
-                                    className="text-[10px] font-semibold text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded px-2 py-1 transition-colors"
-                                >
-                                    {isDescriptionExpanded ? 'Collapse' : 'Expand'}
-                                </button>
-                            </div>
-                            <textarea
-                                value={planMeta.description}
-                                onChange={e=>setPlanMeta({...planMeta, description:e.target.value})}
-                                className={`w-full bg-black/30 text-xs p-3 rounded-lg outline-none border border-zinc-800 text-zinc-300 resize-y focus:border-primary transition-all ${isDescriptionExpanded ? 'h-56' : 'h-20'}`}
-                                placeholder="Add a longer description, scope, and notes..."
-                            />
-                        </div>
+                {/* KPIs. The objective, description, start and deadline are edited in the
+                    Project Description tab (same plan data, saved with the plan). */}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-zinc-300 leading-none mb-1">{stats.daysLeft}</div>
+                        <div className="text-[9px] text-zinc-500 font-bold">Days until Deadline</div>
                     </div>
-
-                    {/* KPI GRID */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                            <div className="text-xl font-bold text-zinc-300 leading-none mb-1">{stats.daysLeft}</div>
-                            <div className="text-[9px] text-zinc-500 font-bold">Days until Deadline</div>
-                        </div>
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                            <div className="text-xl font-bold text-primary leading-none mb-1">{stats.pace || '--'}</div>
-                            <div className="text-[9px] text-zinc-500 font-bold">Pace (Runs/Day)</div>
-                        </div>
-                        <div className="col-span-2 grid grid-cols-3 gap-2">
-                            <div className="bg-zinc-900/50 border border-orange-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                                <div className="text-xl font-bold text-orange-400 leading-none mb-1">{stats.canceled}</div>
-                                <div className="text-[9px] text-zinc-500 font-bold">Canceled Runs</div>
-                            </div>
-                            <div className="bg-zinc-900/50 border border-red-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                                <div className="text-xl font-bold text-red-400 leading-none mb-1">{stats.errors}</div>
-                                <div className="text-[9px] text-zinc-500 font-bold">Error Runs</div>
-                            </div>
-                            <div className="bg-zinc-900/50 border border-yellow-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                                <div className="text-xl font-bold text-yellow-300 leading-none mb-1">{stats.preparation}</div>
-                                <div className="text-[9px] text-zinc-500 font-bold">Preparation Runs</div>
-                            </div>
-                        </div>
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center col-span-2">
-                            <div className="text-xl font-bold text-white leading-none mb-1">{stats.completionPercent}%</div>
-                            <div className="text-[9px] text-zinc-500 font-bold">Completion ({stats.done}/{stats.total})</div>
-                            <div className="mt-2 h-1 w-full max-w-[120px] rounded-full bg-zinc-800 overflow-hidden">
-                                <div className="h-full bg-primary" style={{ width: `${stats.completionPercent}%` }} />
-                            </div>
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-primary leading-none mb-1">{stats.pace || '--'}</div>
+                        <div className="text-[9px] text-zinc-500 font-bold">Pace (Runs/Day)</div>
+                    </div>
+                    <div className="bg-zinc-900/50 border border-orange-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-orange-400 leading-none mb-1">{stats.canceled}</div>
+                        <div className="text-[9px] text-zinc-500 font-bold">Canceled Runs</div>
+                    </div>
+                    <div className="bg-zinc-900/50 border border-red-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-red-400 leading-none mb-1">{stats.errors}</div>
+                        <div className="text-[9px] text-zinc-500 font-bold">Error Runs</div>
+                    </div>
+                    <div className="bg-zinc-900/50 border border-yellow-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-yellow-300 leading-none mb-1">{stats.preparation}</div>
+                        <div className="text-[9px] text-zinc-500 font-bold">Preparation Runs</div>
+                    </div>
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-white leading-none mb-1">{stats.completionPercent}%</div>
+                        <div className="text-[9px] text-zinc-500 font-bold">Completion ({stats.done}/{stats.total})</div>
+                        <div className="mt-2 h-1 w-full max-w-[120px] rounded-full bg-zinc-800 overflow-hidden">
+                            <div className="h-full bg-primary" style={{ width: `${stats.completionPercent}%` }} />
                         </div>
                     </div>
                 </div>

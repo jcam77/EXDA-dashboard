@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { HardDrive, Plus, Pencil, Trash2, Save, X } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../utils/timezone';
 import UnifiedModal from '../components/UnifiedModal';
@@ -42,7 +43,6 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
       url: `${baseUrl}MixtureSampling_Sub-System_000.pdf`,
     },
   ];
-  const projectName = String(projectPath || '').split(/[/\\]/).filter(Boolean).pop() || 'No project selected';
   const [daqSystems, setDaqSystems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -225,18 +225,12 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
 
   return (
     <div className="w-full space-y-4">
-      <div className="rounded-xl border border-sidebar-border bg-card/80 p-5">
-        <div className="flex items-center gap-2">
-          <HardDrive size={18} className="text-primary" />
-          <h2 className="text-lg font-bold text-foreground">DAQ Systems</h2>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Define and manage DAQ hardware used in this project. Sensors Mapping can then reference these systems.
-        </p>
-        <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
-          Project: <span className="text-foreground">{projectName}</span>
-        </p>
-      </div>
+      <PageHeader
+        icon={HardDrive}
+        title="DAQ Systems"
+        subtitle="Data acquisition hardware used in this project. Sensors Mapping refers to these systems."
+        className="!mb-2"
+      />
 
       <div className="w-full rounded-xl border border-sidebar-border bg-card/60 p-4">
         <div className="mb-2 flex items-center justify-between">

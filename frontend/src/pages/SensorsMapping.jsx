@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MapPinned, Plus, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, GripVertical, X, ChevronRight, ChevronDown } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
+import { Layers, MapPinned, Plus, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, GripVertical, X, ChevronRight, ChevronDown } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import UnifiedModal from '../components/UnifiedModal';
 import ExportFormatButtons from '../components/ExportFormatButtons';
@@ -156,7 +157,6 @@ const readSensorsFromStorage = (storageKey) => {
 
 const SensorsMappingPage = ({ projectPath = '' }) => {
   const apiBaseUrl = getBackendBaseUrl();
-  const projectName = String(projectPath || '').split(/[/\\]/).filter(Boolean).pop() || 'No project selected';
   const storageKey = `exda:sensors-mapping:${projectPath || 'global'}`;
   const sensorLocationDiagramUrl = `${import.meta.env.BASE_URL}SensorMountingLocation-000.pdf`;
 
@@ -921,18 +921,9 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
 
   return (
     <div className="w-full space-y-4">
+      <PageHeader icon={Layers} title="Sensors Mapping" subtitle="Sensors, DAQ channels, positions, mounting and calibration: traceable per campaign group." className="!mb-2" />
       <div className="rounded-xl border border-sidebar-border bg-card/80 p-5">
-        <div className="flex items-center gap-2">
-          <MapPinned size={18} className="text-primary" />
-          <h2 className="text-lg font-bold text-foreground">Sensors Mapping &amp; Traceability</h2>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Map physical sensors to DAQ channels, spatial locations, mounting configurations, and calibration metadata.
-        </p>
-        <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
-          Project: <span className="text-foreground">{projectName}</span>
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="text-[11px] uppercase tracking-widest text-muted-foreground">Mapping Group</label>
           <select
             value={selectedGroup || ''}

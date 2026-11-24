@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from modules import signal_reduction
+
 try:
     import h5py
 except Exception:  # pragma: no cover - optional dependency
@@ -98,8 +100,14 @@ def tpc5_to_content(
     max_samples: int = 200000,
     time_start: float | None = None,
     time_end: float | None = None,
+    info: dict | None = None,
 ):
-    """Return TPC5 as CSV-like text content compatible with existing parsers."""
+    """Return TPC5 as CSV-like text content compatible with existing parsers.
+
+    Above max_samples the rows are reduced with a min/max envelope (peaks and
+    clipping stay visible). If `info` is given it receives the real sample
+    count and sampling rate (see signal_reduction.reduction_info).
+    """
     if h5py is None:
         return None, (
             "TPC5 support requires optional dependency 'h5py'. "
@@ -145,9 +153,12 @@ def tpc5_to_content(
         if sample_idx.size == 0:
             return None, "TPC5 time window has no samples."
 
-    if max_samples > 0 and sample_idx.size > max_samples:
-        pick = np.linspace(0, sample_idx.size - 1, max_samples, dtype=np.int64)
-        sample_idx = sample_idx[pick]
+    total_in_window = int(sample_idx.size)
+    reduced = max_samples > 0 and sample_idx.size > max_samples
+    if reduced:
+        window_values = np.column_stack([ch["values"][sample_idx] for ch in channels])
+        sample_idx = sample_idx[signal_reduction.envelope_row_indices(window_values, max_samples)]
+        del window_values
 
     t = (
         sample_idx.astype(float) - float(ref["trigger_sample"])
@@ -162,6 +173,9 @@ def tpc5_to_content(
 
     t = t[finite_mask]
     matrix = np.column_stack([ch["values"][finite_mask] for ch in channels])
+
+    if info is not None:
+        info.update(signal_reduction.reduction_info(total_in_window, len(t), ref["sample_rate"], reduced))
 
     header = ["time"] + [ch["name"] for ch in channels]
     lines = [",".join(header)]

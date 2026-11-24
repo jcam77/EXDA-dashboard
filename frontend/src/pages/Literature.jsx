@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import PageHeader from '../components/PageHeader';
 import { BookOpen, Upload, FileText, CheckCircle, Trash2, Loader2, ExternalLink, Search, Folder } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import UnifiedModal from '../components/UnifiedModal';
@@ -77,17 +78,9 @@ const LiteraturePage = ({ projectPath }) => {
     };
 
     return (
-        <div className="flex flex-col h-[75vh] bg-background p-6 animate-in fade-in duration-500">
+        <div className="flex flex-col h-[75vh] bg-background animate-in fade-in duration-500">
             {/* Header Section */}
-            <div className="flex items-center justify-between mb-6 border-b border-border pb-4">
-                <div className="flex items-center gap-3">
-                    <BookOpen className="text-muted-foreground" size={24} />
-                    <h1 className="text-xl font-bold text-foreground uppercase tracking-tight">Research Library</h1>
-                    <span className="bg-card text-muted-foreground text-[10px] px-2 py-0.5 rounded-full border border-border font-mono">
-                        {papers.length} DOCUMENTS
-                    </span>
-                </div>
-                
+            <PageHeader icon={BookOpen} title="Literature" subtitle={`Research library of this project · ${papers.length} ${papers.length === 1 ? 'document' : 'documents'}`}>
                 <div className="flex items-center gap-4">
                     {/* Integrated Search Bar */}
                     <div className="relative">
@@ -107,7 +100,7 @@ const LiteraturePage = ({ projectPath }) => {
                         <input type="file" className="hidden" accept=".pdf" disabled={isUploading} />
                     </label>
                 </div>
-            </div>
+            </PageHeader>
 
             {/* Table UI */}
             <div className="grid grid-cols-12 px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border bg-background">

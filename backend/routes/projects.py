@@ -5,7 +5,7 @@ import os
 import string
 import sys
 
-from modules import project_manager
+from modules import project_description, project_manager
 
 projects_bp = Blueprint("projects", __name__)
 
@@ -360,6 +360,8 @@ def list_projects():
             "group": group,
             "status": status,
             "plan": project_manager.get_project_plan_summary(full),
+            # Filled-in description values, so the Projects page can search them.
+            "descriptionText": project_description.search_text(project_description.load_quietly(full)),
         })
     return jsonify({"success": True, "path": os.path.abspath(root), "projects": projects})
 

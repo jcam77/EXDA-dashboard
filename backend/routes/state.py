@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from modules import checklist_definition, daq_reader, data_parser, gas_mixing_checks, h2s_parser, gas_mixing_store, mf4_parser, output_format, pressure_analysis, procedures, project_manager, project_store, tpc5_parser
+from modules import checklist_definition, daq_reader, data_parser, gas_mixing_checks, h2s_parser, gas_mixing_store, mf4_parser, output_format, pressure_analysis, procedures, project_manager, project_store, screening_peaks, signal_reduction, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
@@ -145,7 +145,8 @@ def _render_multichannel_content(t, y, channel_names):
     return "\n".join(lines)
 
 
-def _apply_time_window_to_text_content(content, time_start=None, time_end=None, max_samples=200000):
+def _apply_time_window_to_text_content(content, time_start=None, time_end=None, max_samples=200000, info=None):
+    """Cut text data to a time window; above max_samples keep a min/max envelope (peaks stay visible)."""
     if time_start is None and time_end is None:
         return content, None
 
@@ -170,12 +171,17 @@ def _apply_time_window_to_text_content(content, time_start=None, time_end=None, 
     if not indices:
         return None, "Selected time window has no samples."
 
-    if max_samples and max_samples > 0 and len(indices) > max_samples:
-        picks = [int(round(i * (len(indices) - 1) / (max_samples - 1))) for i in range(max_samples)]
-        indices = [indices[p] for p in picks]
+    indices = np.asarray(indices, dtype=np.int64)
+    total_in_window = int(indices.size)
+    sampling_rate_hz = signal_reduction.median_sampling_rate(t[indices])
+    reduced = bool(max_samples and max_samples > 0 and indices.size > max_samples)
+    if reduced:
+        indices = indices[signal_reduction.envelope_row_indices(y[indices], max_samples)]
 
     t_selected = t[indices]
     y_selected = y[indices]
+    if info is not None:
+        info.update(signal_reduction.reduction_info(total_in_window, indices.size, sampling_rate_hz, reduced))
     return _render_multichannel_content(t_selected, y_selected, channel_names), None
 
 
@@ -2971,7 +2977,7 @@ def get_project_state():
         plan_candidates = [
             os.path.join(plan_dir, f)
             for f in os.listdir(plan_dir)
-            if f.endswith('.json') and f != project_manager.STATUS_FILENAME
+            if project_manager.is_plan_json_name(f)
         ]
 
         # Prefer files that look like actual experiment plans (contain an experiments array).
@@ -3080,25 +3086,29 @@ def read_project_file():
     try:
         lower_target = target.lower()
         if lower_target.endswith(".mf4"):
+            sample_info = {}
             content, parse_err = mf4_parser.mf4_to_content(
                 target,
                 max_samples=max_samples,
                 time_start=window_start,
                 time_end=window_end,
+                info=sample_info,
             )
             if parse_err:
                 return jsonify({"success": False, "error": parse_err}), 400
-            return jsonify({"success": True, "content": content})
+            return jsonify({"success": True, "content": content, "sampleInfo": sample_info})
         if lower_target.endswith(".tpc5"):
+            sample_info = {}
             content, parse_err = tpc5_parser.tpc5_to_content(
                 target,
                 max_samples=max_samples,
                 time_start=window_start,
                 time_end=window_end,
+                info=sample_info,
             )
             if parse_err:
                 return jsonify({"success": False, "error": parse_err}), 400
-            return jsonify({"success": True, "content": content})
+            return jsonify({"success": True, "content": content, "sampleInfo": sample_info})
         raw_text = h2s_parser.read_text(target)
         h2s_info = None
         if h2s_parser.looks_like_h2s(raw_text):
@@ -3117,15 +3127,19 @@ def read_project_file():
             h2s_info = {"h2sBlocks": summaries, "h2sBlock": block["index"]}
         else:
             content = raw_text
+        sample_info = {}
         content_windowed, parse_err = _apply_time_window_to_text_content(
             content,
             time_start=window_start,
             time_end=window_end,
             max_samples=max_samples,
+            info=sample_info,
         )
         if parse_err:
             return jsonify({"success": False, "error": parse_err}), 400
         response = {"success": True, "content": content_windowed}
+        if sample_info:
+            response["sampleInfo"] = sample_info
         if h2s_info:
             response.update(h2s_info)
         return jsonify(response)
@@ -3200,6 +3214,69 @@ def _run_for_data_path(project_root, target):
         if part in by_name:
             return part, by_name[part], plan_payload.get("path", "")
     return None, None, plan_payload.get("path", "")
+
+
+@state_bp.route('/channel_peaks', methods=['POST'])
+def channel_peaks():
+    """Max and time of max per channel inside a time range, at full resolution.
+
+    For the screening tab. Raw recorded values (no filter, no baseline, no unit
+    change); the time range is required. Only the channels listed in
+    channelIndices are calculated (for example pressure channels, not the
+    trigger). Nothing is written to the project.
+    """
+    payload = request.json or {}
+    project_root, err = project_manager.resolve_project_path(payload.get("projectPath"))
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    file_path = payload.get("path")
+    if not file_path:
+        return jsonify({"success": False, "error": "File path is required"}), 400
+    target = file_path if os.path.isabs(file_path) else os.path.join(project_root, file_path)
+    if not project_manager.is_path_within(project_root, target):
+        return jsonify({"success": False, "error": "File path not allowed"}), 403
+    if not os.path.isfile(target):
+        return jsonify({"success": False, "error": "File not found"}), 404
+    try:
+        start, end = screening_peaks.parse_range(payload.get("windowStart"), payload.get("windowEnd"))
+    except screening_peaks.PeakRangeError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    requested = payload.get("channelIndices")
+    if not isinstance(requested, list) or not requested:
+        return jsonify({"success": False, "error": "Select at least one channel for the peak table."}), 400
+    try:
+        wanted = sorted({int(value) for value in requested})
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "Invalid channel selection."}), 400
+    try:
+        signals = daq_reader.read_all_channels(target)
+    except daq_reader.DaqReadError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "error": f"Failed to read {os.path.basename(target)}: {exc}"}), 500
+
+    channels = []
+    for index in wanted:
+        if index < 0 or index >= len(signals):
+            return jsonify({"success": False, "error": f"Channel {index + 1} does not exist (file has {len(signals)} channels)."}), 400
+        t, values, info = signals[index]
+        peak = screening_peaks.peak_in_range(t, values, start, end)
+        channels.append({
+            "index": index,
+            "key": f"ch_{index}",
+            "name": info.get("channelName", f"Channel {index + 1}"),
+            "fileUnit": info.get("fileUnit", ""),
+            "samplingRateHz": info.get("fsHz"),
+            **peak,
+        })
+    return jsonify({
+        "success": True,
+        "file": _to_posix_rel_path(project_root, target),
+        "windowStart": start,
+        "windowEnd": end,
+        "fullResolution": True,
+        "channels": channels,
+    })
 
 
 @state_bp.route('/analyze_pressure_file', methods=['POST'])
@@ -3587,11 +3664,7 @@ def list_plan_files():
         return jsonify({"success": False, "error": "Plan path is not a directory"}), 400
     files = []
     for name in os.listdir(plan_dir):
-        if name.startswith('.'):
-            continue
-        if not name.lower().endswith('.json'):
-            continue
-        if name == project_manager.STATUS_FILENAME:
+        if not project_manager.is_plan_json_name(name):
             continue
         full = os.path.join(plan_dir, name)
         if not os.path.isfile(full):
@@ -3626,7 +3699,7 @@ def load_plan_dialog():
             candidates = [
                 os.path.join(plan_dir, f)
                 for f in os.listdir(plan_dir)
-                if f.lower().endswith(".json") and not f.startswith(".") and f != project_manager.STATUS_FILENAME
+                if project_manager.is_plan_json_name(f)
             ]
             if candidates:
                 file_path = max(candidates, key=lambda p: os.path.getmtime(p))
@@ -4493,7 +4566,7 @@ def _load_latest_plan_payload(project_root):
     plan_candidates = [
         os.path.join(plan_dir, name)
         for name in os.listdir(plan_dir)
-        if name.lower().endswith(".json") and name != project_manager.STATUS_FILENAME and not name.startswith(".")
+        if project_manager.is_plan_json_name(name)
     ]
     valid = []
     for candidate in plan_candidates:

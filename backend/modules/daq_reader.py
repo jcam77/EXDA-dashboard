@@ -229,3 +229,89 @@ def read_channel(path, channel_index=0):
     info["file"] = os.path.basename(path)
     info["fullResolution"] = True
     return t, y, info
+
+
+def read_all_channels(path):
+    """Every channel of a file at full resolution, in the same order as the preview.
+
+    Returns a list of (t, values, info) like read_channel. Used where all
+    channels are needed at once (screening peak table); reading them one by one
+    would open and parse the file once per channel.
+    """
+    ext = os.path.splitext(path)[1].lower()
+    results = []
+    if ext == ".tpc5":
+        if h5py is None:
+            raise DaqReadError("TPC5 support requires 'h5py' (see backend/requirements.txt).")
+        with h5py.File(path, "r") as handle:
+            count = len(_tpc5_channel_entries(handle))
+        if not count:
+            raise DaqReadError("TPC5 file has no readable channels.")
+        results = [_read_tpc5(path, index) for index in range(count)]
+    elif ext == ".mf4":
+        if MDF is None:
+            raise DaqReadError("MF4 support requires 'asammdf' (see backend/requirements.txt).")
+        mdf = MDF(path)
+        try:
+            # Same channel selection and time origin as _read_mf4, in one pass.
+            signals = []
+            first_stamps = []
+            for entry in _mf4_channel_entries(mdf):
+                sig = mdf.get(group=entry["group"], index=entry["index"])
+                samples = np.asarray(sig.samples)
+                if samples.ndim != 1 or samples.dtype.kind not in "iuf" or samples.size == 0:
+                    continue
+                stamps = np.asarray(sig.timestamps, dtype=float)
+                if stamps.size:
+                    first_stamps.append(float(stamps[0]))
+                signals.append((entry, sig))
+            if not signals:
+                raise DaqReadError("MF4 file has no numeric channels.")
+            t0 = min(first_stamps) if first_stamps else 0.0
+            for index, (entry, sig) in enumerate(signals):
+                t = np.asarray(sig.timestamps, dtype=float) - t0
+                values = np.asarray(sig.samples, dtype=float)
+                dt = np.diff(t)
+                positive = dt[dt > 0]
+                results.append((t, values, {
+                    "fileType": "mf4",
+                    "channelIndex": index,
+                    "channelName": entry["name"],
+                    "fileUnit": str(getattr(sig, "unit", "") or entry["unit"] or "").strip(),
+                    "fsHz": float(1.0 / np.median(positive)) if positive.size else None,
+                    "samples": int(values.size),
+                    "group": entry["group"],
+                }))
+        finally:
+            try:
+                mdf.close()
+            except Exception:
+                pass
+    else:
+        with open(path, "r", encoding="utf-8", errors="strict") as handle:
+            content = handle.read()
+        t, y, names, err = data_parser.parse_multichannel_content(content)
+        if err:
+            raise DaqReadError(err)
+        if t is None or y is None or y.size == 0:
+            raise DaqReadError("No numeric data parsed.")
+        from modules.pressure_analysis import unit_from_channel_label
+
+        t = np.asarray(t, dtype=float)
+        dt = np.diff(t)
+        positive = dt[dt > 0]
+        fs = float(1.0 / np.median(positive)) if positive.size else None
+        labels = names or [f"Channel {i + 1}" for i in range(y.shape[1])]
+        for index in range(y.shape[1]):
+            results.append((t, np.asarray(y[:, index], dtype=float), {
+                "fileType": "text",
+                "channelIndex": index,
+                "channelName": labels[index] if index < len(labels) else f"Channel {index + 1}",
+                "fileUnit": unit_from_channel_label(labels[index]) if index < len(labels) else "",
+                "fsHz": fs,
+                "samples": int(t.size),
+            }))
+    for _t, _y, info in results:
+        info["file"] = os.path.basename(path)
+        info["fullResolution"] = True
+    return results

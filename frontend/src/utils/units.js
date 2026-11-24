@@ -73,3 +73,9 @@ export const getDisplayUnitFromSetting = (inputUnit, convertToKpa) => {
   if (selected === 'v') return 'V';
   return 'raw';
 };
+
+// Trigger / voltage channel (by resolved unit token or by its role). Such
+// channels are never converted to pressure and are not ticked by default in
+// the screening peak table.
+export const isVoltageOrTrigger = (channel, unitToken) =>
+  unitToken === 'v' || unitToken === 'mv' || normalizeUnitToken(channel?.role) === 'trigger';

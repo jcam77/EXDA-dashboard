@@ -21,6 +21,7 @@ from routes.state import state_bp
 from routes.calculation_api_routes import calculation_api_bp
 from routes.ai import ai_bp
 from routes.literature import literature_bp
+from routes.project_description import project_description_bp
 
 app = Flask(__name__)
 
@@ -103,6 +104,7 @@ app.register_blueprint(state_bp)
 app.register_blueprint(calculation_api_bp)
 app.register_blueprint(ai_bp)
 app.register_blueprint(literature_bp)
+app.register_blueprint(project_description_bp)
 
 if __name__ == '__main__':
     print("🚀 EXDA DASHBOARD ENGINE READY")

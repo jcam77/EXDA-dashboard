@@ -370,6 +370,7 @@ const ProjectsPage = ({
         id: project.path,
         name: project.name,
         group: project.group || '',
+        descriptionText: project.descriptionText || '',
         path: project.path,
         status: statusValue,
         objective: objectiveText,
@@ -391,6 +392,7 @@ const ProjectsPage = ({
         const matchesSearch =
           project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           project.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          project.descriptionText.toLowerCase().includes(searchQuery.toLowerCase()) ||
           project.description.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = selectedStatus === 'all' || project.status === selectedStatus;
         return matchesSearch && matchesStatus;
@@ -867,7 +869,7 @@ const ProjectsPage = ({
             />
             <input
               type="text"
-              placeholder="Search projects by name or objective..."
+              placeholder="Search projects by name, objective or description (methods, facility, keywords…)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-lg border border-border bg-card px-10 py-3 text-sm text-foreground placeholder:text-muted-foreground"

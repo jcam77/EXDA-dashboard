@@ -3,11 +3,13 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
     FlaskConical, AudioLines, ClipboardList, FileSpreadsheet, 
     Folder, Activity, Flame, FolderOpen, BrainCircuit, Droplets,
-    FileText, Beaker, BookOpen, Home, Layers, Camera, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck, Save, HardDrive
+    FileText, Beaker, BookOpen, Home, Layers, Camera, Sun, Moon, FolderPlus, RefreshCw, X, Import, ShieldCheck, Save, HardDrive,
+    ScrollText
 } from 'lucide-react';
 
 // --- MODULAR IMPORTS ---
 import UnifiedModal from '../../components/UnifiedModal';
+import PageHeader from '../../components/PageHeader';
 import ProjectPickerModal from '../../components/ProjectPickerModal';
 import PlanPickerModal from '../../components/PlanPickerModal';
 import { getBackendBaseUrl } from '../../utils/backendUrl';
@@ -62,6 +64,7 @@ const HomePage = lazy(() => import('../../pages/Home'));
 const ProjectsPage = lazy(() => import('../../pages/Projects'));
 const AppCalculationsVerificationPage = lazy(() => import('../../pages/AppCalculationsVerification'));
 const ChecklistPage = lazy(() => import('../../pages/Checklist'));
+const ProjectDescriptionPage = lazy(() => import('../../pages/ProjectDescription'));
 const PlanPage = lazy(() => import('../../pages/Plan'));
 const DaqSystemsPage = lazy(() => import('../../pages/DaqSystems'));
 const SensorsMappingPage = lazy(() => import('../../pages/SensorsMapping'));
@@ -85,6 +88,7 @@ const TAB_PATHS = {
     verification: '/verification',
     checklist: '/checklist',
     plan: '/plan',
+    project_description: '/description',
     daq_systems: '/daq-systems',
     sensors_mapping: '/sensors-mapping',
     cameras_mapping: '/cameras-mapping',
@@ -104,6 +108,7 @@ const TAB_PATHS = {
 
 const HEADER_SHORTCUT_TABS = ['home', 'projects', 'verification', 'ai'];
 const PROJECT_WORKSPACE_TABS = [
+    {id:'project_description', l:'Project Description', i:ScrollText, to: TAB_PATHS.project_description},
     {id:'checklist', l:'Checklist', i:ClipboardList, to: TAB_PATHS.checklist},
     {id:'plan', l:'Plan', i:FileSpreadsheet, to: TAB_PATHS.plan},
     {id:'daq_systems', l:'DAQ Systems', i:HardDrive, to: TAB_PATHS.daq_systems},
@@ -130,7 +135,29 @@ const HEADER_ACTIONS = {
     ai: { icon: BrainCircuit, title: 'AiRA' },
 };
 const PROJECT_STATUS_OPTIONS = ['planning', 'active', 'archived'];
-const DEFAULT_PROJECT_TAB = 'checklist';
+const DEFAULT_PROJECT_TAB = 'project_description';
+
+// Title bar for tabs whose page has no title of its own (the others render
+// PageHeader themselves). The icon comes from the tab bar, so both always match.
+const TAB_HEADERS = {
+    plan: { title: 'Experiment Plan', subtitle: 'Runs, groups and schedule of the test campaign.' },
+    data: { title: 'Import Data', subtitle: 'Select the experiment and simulation data to screen and analyse.' },
+    data_preprocessing: { title: 'Data Preprocessing', subtitle: 'Check raw signals and choose channels and time windows before analysis.' },
+    raw_pressure_analysis: { title: 'Raw Data Screening — Pressure', subtitle: 'Quick look at the raw pressure signals after each test.' },
+    raw_h2_concentration_analysis: { title: 'Raw Data Screening — H2 Concentration', subtitle: 'Quick look at the measured hydrogen concentration after each test.' },
+    ewt: { title: 'EWT', subtitle: 'Empirical Wavelet Transform of the pressure signals.' },
+    pressure_analysis: { title: 'Pressure Analysis', subtitle: 'Pressure-time analysis of the selected experiments and simulations.' },
+    cfd_validation: { title: 'CFD Validation', subtitle: 'Compare simulation results with the measured pressure data.' },
+    flame_speed: { title: 'Flame Speed Analysis', subtitle: 'Flame arrival and flame speed from the probe data.' },
+    ai: { title: 'AiRA', subtitle: 'AI research assistant for literature and project context.' },
+};
+
+const WorkspaceTabHeader = ({ id }) => {
+    const header = TAB_HEADERS[id];
+    if (!header) return null;
+    const icon = PROJECT_WORKSPACE_TABS.find((tab) => tab.id === id)?.i;
+    return <PageHeader icon={icon} title={header.title} subtitle={header.subtitle} />;
+};
 
 const resolveTabFromPath = (pathname) => {
     if (pathname === '/' || pathname === '/home') return 'home';
@@ -138,6 +165,7 @@ const resolveTabFromPath = (pathname) => {
     if (pathname.startsWith('/verification')) return 'verification';
     if (pathname.startsWith('/checklist')) return 'checklist';
     if (pathname.startsWith('/plan')) return 'plan';
+    if (pathname.startsWith('/description')) return 'project_description';
     if (pathname.startsWith('/daq-systems')) return 'daq_systems';
     if (pathname.startsWith('/sensors-mapping')) return 'sensors_mapping';
     if (pathname.startsWith('/cameras-mapping')) return 'cameras_mapping';
@@ -230,6 +258,8 @@ const WorkspacePage = () => {
     const navigate = useNavigate();
   const [aiChatHistory, setAiChatHistory] = useState([]); 
   const [checklistState, setChecklistState] = useState({});
+  // Save function of the Project Description tab while it is open (see ProjectDescriptionPage).
+  const descriptionSaveRef = useRef(null);
     const [projectsRefreshKey, setProjectsRefreshKey] = useState(0);
     const [isLight, setIsLight] = useState(() => {
             if (typeof window === 'undefined') return false;
@@ -343,7 +373,7 @@ const WorkspacePage = () => {
   const renderMvpModeButton = useCallback(() => (
       <button
           onClick={handleMvpModeToggle}
-          className={`inline-flex h-10 items-center justify-center rounded-md border px-3 text-[10px] font-semibold uppercase tracking-widest transition ${isMvpMode ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
+          className={`inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-md border px-3 text-[10px] font-semibold uppercase tracking-widest transition ${isMvpMode ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
           aria-pressed={isMvpMode}
           title={isMvpMode ? 'Disable MVP mode (password protected when configured)' : 'Enable MVP mode'}
       >
@@ -1226,7 +1256,17 @@ const WorkspacePage = () => {
           return { success: false, error: error?.message || 'Could not save cameras mapping' };
       }
 
+      // Project Description: pending changes in the open tab (otherwise already saved).
+      if (descriptionSaveRef.current) {
+          const descriptionResult = await descriptionSaveRef.current();
+          if (!descriptionResult?.ok) {
+              if (!silent) notify('error', 'Partial Save', `The other modules were saved, but Project Description could not be saved.${descriptionResult?.error ? ` ${descriptionResult.error}` : ''}`);
+              return { success: false, error: descriptionResult?.error || 'Could not save the project description' };
+          }
+      }
+
       const savedItems = [
+          { label: 'Project Description', ok: true },
           { label: 'Checklist', ok: Boolean(checklistPath) },
           { label: 'Plan', ok: Boolean(planResult?.path) },
           { label: 'DAQ Systems', ok: Boolean(daqPath) },
@@ -1855,6 +1895,22 @@ const WorkspacePage = () => {
                   </SafeComponent>
               )}
 
+              {activeTab === 'project_description' && (
+                  <SafeComponent>
+                      <Suspense fallback={<TabFallback />}>
+                          <ProjectDescriptionPage
+                              apiBaseUrl={apiBaseUrl}
+                              projectPath={projectPath}
+                              readOnly={isReadOnly}
+                              planMeta={planMeta}
+                              setPlanMeta={setPlanMeta}
+                              saveRef={descriptionSaveRef}
+                          />
+                      </Suspense>
+                  </SafeComponent>
+              )}
+
+              {activeTab === 'plan' && FLAGS.ENABLE_PLAN && <WorkspaceTabHeader id="plan" />}
               {activeTab === 'plan' && FLAGS.ENABLE_PLAN && (
                   <SafeComponent>
                       <Suspense fallback={<TabFallback />}>
@@ -1907,6 +1963,7 @@ const WorkspacePage = () => {
                   </SafeComponent>
               )}
 
+              {activeTab === 'data' && FLAGS.ENABLE_SOURCES && <WorkspaceTabHeader id="data" />}
               {activeTab === 'data' && FLAGS.ENABLE_SOURCES && (
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
@@ -1943,6 +2000,7 @@ const WorkspacePage = () => {
                                         />
                                     </SafeComponent>
               )}
+              {activeTab === 'data_preprocessing' && FLAGS.ENABLE_SOURCES && isTabAllowed('data_preprocessing') && <WorkspaceTabHeader id="data_preprocessing" />}
               {activeTab === 'data_preprocessing' && FLAGS.ENABLE_SOURCES && isTabAllowed('data_preprocessing') && (
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
@@ -1954,6 +2012,7 @@ const WorkspacePage = () => {
                                         </Suspense>
                                     </SafeComponent>
               )}
+              {activeTab === 'raw_pressure_analysis' && FLAGS.ENABLE_SOURCES && isTabAllowed('raw_pressure_analysis') && <WorkspaceTabHeader id="raw_pressure_analysis" />}
               {activeTab === 'raw_pressure_analysis' && FLAGS.ENABLE_SOURCES && isTabAllowed('raw_pressure_analysis') && (
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
@@ -1965,6 +2024,7 @@ const WorkspacePage = () => {
                                         </Suspense>
                                     </SafeComponent>
               )}
+              {activeTab === 'raw_h2_concentration_analysis' && FLAGS.ENABLE_SOURCES && isTabAllowed('raw_h2_concentration_analysis') && <WorkspaceTabHeader id="raw_h2_concentration_analysis" />}
               {activeTab === 'raw_h2_concentration_analysis' && FLAGS.ENABLE_SOURCES && isTabAllowed('raw_h2_concentration_analysis') && (
                                     <SafeComponent>
                                         <Suspense fallback={<TabFallback />}>
@@ -1977,6 +2037,7 @@ const WorkspacePage = () => {
                                     </SafeComponent>
               )}
 
+                             {activeTab === 'ewt' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('ewt') && <WorkspaceTabHeader id="ewt" />}
                              {activeTab === 'ewt' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('ewt') && (
                                  <SafeComponent>
                                      <Suspense fallback={<TabFallback />}>
@@ -1993,6 +2054,7 @@ const WorkspacePage = () => {
                                      </Suspense>
                                  </SafeComponent>
                              )}
+                             {activeTab === 'pressure_analysis' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('pressure_analysis') && <WorkspaceTabHeader id="pressure_analysis" />}
                              {activeTab === 'pressure_analysis' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('pressure_analysis') && (
                                  <SafeComponent>
                                      <Suspense fallback={<TabFallback />}>
@@ -2011,6 +2073,7 @@ const WorkspacePage = () => {
                                      </Suspense>
                                  </SafeComponent>
                              )}
+                             {activeTab === 'cfd_validation' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('cfd_validation') && <WorkspaceTabHeader id="cfd_validation" />}
                              {activeTab === 'cfd_validation' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('cfd_validation') && (
                                  <SafeComponent>
                                      <Suspense fallback={<TabFallback />}>
@@ -2029,6 +2092,7 @@ const WorkspacePage = () => {
                                      </Suspense>
                                  </SafeComponent>
                              )}
+                             {activeTab === 'flame_speed' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('flame_speed') && <WorkspaceTabHeader id="flame_speed" />}
                              {activeTab === 'flame_speed' && FLAGS.ENABLE_ANALYSIS && isTabAllowed('flame_speed') && (
                                  <SafeComponent>
                                      <Suspense fallback={<TabFallback />}>
@@ -2044,6 +2108,7 @@ const WorkspacePage = () => {
                                  </SafeComponent>
                              )}
 
+              {activeTab === 'ai' && <WorkspaceTabHeader id="ai" />}
               {activeTab === 'ai' && (
                   <SafeComponent>
                       <Suspense fallback={<TabFallback />}>

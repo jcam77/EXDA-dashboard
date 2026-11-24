@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import PageHeader from '../components/PageHeader';
 import { Camera, Plus, Pencil, Trash2, Copy, CheckCircle2, AlertTriangle, GripVertical, X, ChevronRight, ChevronDown } from 'lucide-react';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import UnifiedModal from '../components/UnifiedModal';
@@ -203,7 +204,6 @@ const validateCameraAgainstList = (camera, allCameras, currentId = null) => {
 
 const CamerasMappingPage = ({ projectPath = '' }) => {
   const apiBaseUrl = getBackendBaseUrl();
-  const projectName = String(projectPath || '').split(/[/\\]/).filter(Boolean).pop() || 'No project selected';
   const storageKey = `exda:cameras-mapping:${projectPath || 'global'}`;
   const initialState = useMemo(() => readCamerasFromStorage(storageKey), [storageKey]);
 
@@ -851,18 +851,9 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
 
   return (
     <div className="w-full space-y-4">
+      <PageHeader icon={Camera} title="Cameras Mapping" subtitle="High-speed and infrared cameras: optics, exposure, triggering and calibration per campaign group." className="!mb-2" />
       <div className="rounded-xl border border-sidebar-border bg-card/80 p-5">
-        <div className="flex items-center gap-2">
-          <Camera size={18} className="text-primary" />
-          <h2 className="text-lg font-bold text-foreground">Cameras Mapping &amp; Traceability</h2>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Track high-speed and infrared cameras, optical geometry, exposure settings, trigger mode/synchronization notes, and calibration references per campaign group.
-        </p>
-        <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
-          Project: <span className="text-foreground">{projectName}</span>
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="text-[11px] uppercase tracking-widest text-muted-foreground">Mapping Group</label>
           <select
             value={selectedGroup || ''}

@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from flask import Blueprint, jsonify, request
 
-from modules import data_parser, ewt_analysis, flame_analysis, gas_mixing, plot_interpolation, pressure_analysis
+from modules import data_parser, ewt_analysis, flame_analysis, gas_mixing, plot_interpolation, pressure_analysis, signal_reduction
 
 calculation_api_bp = Blueprint("calculation_api", __name__)
 TESTS_DIR = Path(__file__).resolve().parents[1] / "tests"
@@ -306,12 +306,26 @@ def preview_multichannel():
         channel_count = int(y.shape[1])
         plotted_count = sample_count
 
+        # Real sampling rate and sample count: from the reader when it already
+        # reduced the file (TPC5/MF4), otherwise from the full parsed signal.
+        source_info = req.get('sourceInfo') if isinstance(req.get('sourceInfo'), dict) else {}
+        sampling_rate_hz = signal_reduction.median_sampling_rate(t)
+        source_rate = source_info.get('samplingRateHz')
+        if isinstance(source_rate, (int, float)) and np.isfinite(source_rate) and source_rate > 0:
+            sampling_rate_hz = float(source_rate)
+        total_samples = sample_count
+        source_total = source_info.get('totalSamples')
+        if isinstance(source_total, (int, float)) and source_total >= sample_count:
+            total_samples = int(source_total)
+        reduction = str(source_info.get('reduction') or 'none')
+
         if (not full_resolution) and sample_count > max_points:
-            idx = np.linspace(0, sample_count - 1, max_points, dtype=int)
-            idx = np.unique(idx)
+            # Peak-preserving: every interval keeps each channel's min and max.
+            idx = signal_reduction.envelope_row_indices(y, max_points)
             t_plot = t[idx]
             y_plot = y[idx, :]
             plotted_count = int(len(idx))
+            reduction = signal_reduction.ENVELOPE_METHOD
         else:
             t_plot = t
             y_plot = y
@@ -323,13 +337,6 @@ def preview_multichannel():
                 key = f"ch_{col_idx}"
                 row[key] = float(y_plot[row_idx, col_idx])
             plot_data.append(row)
-
-        sampling_rate_hz = None
-        if sample_count > 1:
-            dt = np.diff(t)
-            dt = dt[np.isfinite(dt) & (dt > 0)]
-            if dt.size > 0:
-                sampling_rate_hz = float(1.0 / np.median(dt))
 
         channels = []
         inferred_units = ["raw"] * channel_count
@@ -414,9 +421,11 @@ def preview_multichannel():
                 "summary": {
                     "sampleCount": sample_count,
                     "plottedCount": plotted_count,
+                    "totalSamples": total_samples,
+                    "reduction": reduction,
                     "channelCount": channel_count,
                     "samplingRateHz": sampling_rate_hz,
-                    "downsampleApplied": plotted_count < sample_count,
+                    "downsampleApplied": plotted_count < total_samples,
                     "fullResolution": full_resolution,
                     "hasMixedUnits": len(set(inferred_units)) > 1,
                 },

@@ -199,6 +199,20 @@ def ensure_project_status(base_path):
     except Exception:
         return None
 
+# JSON files EXDA keeps in Plan/ that are not experiment plans.
+NON_PLAN_FILENAMES = frozenset({STATUS_FILENAME, "project_description.json"})
+
+
+def is_plan_json_name(name):
+    """True for a JSON file name in Plan/ that may hold an experiment plan."""
+    return (
+        bool(name)
+        and name.lower().endswith(".json")
+        and not name.startswith(".")
+        and name not in NON_PLAN_FILENAMES
+    )
+
+
 def _latest_plan_file(plan_dir):
     """Return newest plan JSON file in a Plan directory."""
     if not plan_dir or not os.path.exists(plan_dir):
@@ -206,7 +220,7 @@ def _latest_plan_file(plan_dir):
     plan_files = [
         os.path.join(plan_dir, f)
         for f in os.listdir(plan_dir)
-        if f.endswith(".json") and not f.startswith('.') and f != STATUS_FILENAME
+        if is_plan_json_name(f)
     ]
     if not plan_files:
         return None
