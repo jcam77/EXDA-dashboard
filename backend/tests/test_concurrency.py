@@ -20,13 +20,14 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app import app as flask_app  # noqa: E402
-from modules import project_store  # noqa: E402
+from modules import project_manager, project_store  # noqa: E402
 
 
 def make_project():
     root = Path(tempfile.mkdtemp(prefix="exda_conc_test_"))
     for folder in ("Plan", "Reports", "Raw_Data"):
         (root / folder).mkdir()
+    project_manager.write_project_marker(str(root))
     return root
 
 

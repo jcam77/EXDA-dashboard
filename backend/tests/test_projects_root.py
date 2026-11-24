@@ -91,11 +91,22 @@ class ProjectFoldersTests(unittest.TestCase):
         self.assertEqual(sop.read_bytes(), b"%PDF-1.4 existing")
         self.assertEqual([p.name for p in (old / "Procedures" / "RAMS").iterdir()], [])
 
-    def test_folder_with_only_procedures_counts_as_project(self):
+    def test_standard_folder_names_alone_do_not_make_a_project(self):
         from modules import project_manager
 
         (self.base / "P" / "Procedures").mkdir(parents=True)
-        self.assertTrue(project_manager.is_project_folder(str(self.base / "P")))
+        (self.base / "P" / "Reports").mkdir()
+        self.assertFalse(project_manager.is_project_folder(str(self.base / "P")))
+
+    def test_new_project_has_the_marker_file(self):
+        from modules import project_manager
+
+        ok, _msg, path = project_manager.create_project_structure(str(self.base), "Marked")
+        self.assertTrue(ok)
+        marker = project_manager.read_project_marker(path)
+        self.assertEqual(marker["schema"], "exda-project/1")
+        self.assertEqual(marker["name"], "Marked")
+        self.assertTrue(project_manager.is_project_folder(path))
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app import app as flask_app  # noqa: E402
-from modules import project_store  # noqa: E402
+from modules import project_manager, project_store  # noqa: E402
 
 
 class ProjectStoreTests(unittest.TestCase):
@@ -89,6 +89,7 @@ class EndpointHistoryTests(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp(prefix="exda_store_ep_"))
         for folder in ("Plan", "Reports", "Raw_Data"):
             (self.root / folder).mkdir()
+        project_manager.write_project_marker(str(self.root))
 
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)

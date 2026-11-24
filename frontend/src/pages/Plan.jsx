@@ -1538,7 +1538,7 @@ const PlanPage = ({
                                         <span
                                             title={String(e.name || '')}
                                             className={`text-[13px] leading-snug flex-1 min-w-0 pr-2 font-mono font-semibold break-all ${
-                                                e.done ? 'line-through text-zinc-600' : 'text-zinc-300'
+                                                e.done ? 'text-zinc-400' : 'text-zinc-300'
                                             }`}
                                         >
                                             {e.name}

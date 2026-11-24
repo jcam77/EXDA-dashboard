@@ -16,6 +16,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app import app as flask_app  # noqa: E402
+from modules import project_manager  # noqa: E402
 
 
 class ChecklistSnapshotTests(unittest.TestCase):
@@ -23,6 +24,7 @@ class ChecklistSnapshotTests(unittest.TestCase):
         self.client = flask_app.test_client()
         self.root = Path(tempfile.mkdtemp(prefix="exda_checklist_test_"))
         (self.root / "Reports").mkdir()
+        project_manager.write_project_marker(str(self.root))
 
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)
@@ -67,6 +69,7 @@ class RunOverrideRenameTests(unittest.TestCase):
         self.client = flask_app.test_client()
         self.root = Path(tempfile.mkdtemp(prefix="exda_override_test_"))
         (self.root / "Reports").mkdir()
+        project_manager.write_project_marker(str(self.root))
         mapping = {
             "selectedGroup": "G04-01",
             "groupNotes": {"G04-01": "P7 re-mounted"},

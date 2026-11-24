@@ -828,12 +828,39 @@ const WorkspacePage = () => {
           return fromPath || fallbackProjectTab;
       })();
       try {
-          const res = await fetch(`${apiBaseUrl}/open_project_path`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ projectPath: projectPathValue })
-          });
-          const d = await res.json();
+          const requestOpen = async (createStructure) => {
+              const res = await fetch(`${apiBaseUrl}/open_project_path`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ projectPath: projectPathValue, createStructure })
+              });
+              return res.json();
+          };
+          let d = await requestOpen(false);
+          if (!d.success && d.needsSetup) {
+              // Never turn an ordinary folder into a project without asking.
+              const folderName = String(projectPathValue).split(/[\\/]/).filter(Boolean).pop() || projectPathValue;
+              const create = await confirmWithModal({
+                  title: 'Not an EXDA project yet',
+                  content: (
+                      <div className="space-y-2">
+                          <p>
+                              <span className="font-semibold text-foreground">{folderName}</span> has no EXDA project folders.
+                          </p>
+                          <p>
+                              Create them here (Plan, Raw_Data, Clean_Data, Reports, Procedures, …) and open it as a project?
+                              If you meant a folder that contains projects, cancel and open one of the projects inside it.
+                          </p>
+                      </div>
+                  ),
+                  confirmLabel: 'Create project folders',
+                  cancelLabel: 'Cancel',
+                  type: 'question',
+                  confirmVariant: 'primary',
+              });
+              if (!create) return;
+              d = await requestOpen(true);
+          }
               if (d.success) {
                   setProjectPath(d.path);
                   localStorage.setItem('currentProjectPath', d.path);
@@ -1527,6 +1554,7 @@ const WorkspacePage = () => {
                       loadPlanFromPath(file.path, file.name);
                   }}
               />
+              <UnifiedModal modal={modal} setModal={setModal} />
               {showShortcuts && (
                   <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
                       <div className="bg-card border border-border rounded-xl w-[420px] p-6 shadow-sm">

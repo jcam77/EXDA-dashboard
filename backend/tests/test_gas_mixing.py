@@ -18,7 +18,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app import app as flask_app  # noqa: E402
-from modules import gas_mixing  # noqa: E402
+from modules import gas_mixing, project_manager  # noqa: E402
 
 
 def full_calc_payload(**overrides):
@@ -114,6 +114,7 @@ class GasMixingHistoryTests(unittest.TestCase):
         self.client = flask_app.test_client()
         self.project = Path(tempfile.mkdtemp(prefix="exda_gas_test_"))
         (self.project / "Reports").mkdir()
+        project_manager.write_project_marker(str(self.project))
         self.gas_file = self.project / "Reports" / "gas_mixing.json"
         self.audit_file = self.project / "Reports" / "gas_mixing_audit.jsonl"
 

@@ -219,15 +219,16 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
         for (const rootPath of uniqueRoots) {
           try {
             const listRes = await fetch(
-              `${apiBaseUrl}/list_directories?path=${encodeURIComponent(rootPath)}&includeStatus=1`
+              `${apiBaseUrl}/list_projects?path=${encodeURIComponent(rootPath)}`
             );
             const listData = await listRes.json();
             if (!listData.success) continue;
-            (listData.directories || []).forEach((project) => {
+            (listData.projects || []).forEach((project) => {
               const status = project.status || {};
               const lastOpened = status.last_opened_at || status.updated_at || status.created_at || '';
               backendProjects.push({
                 name: project.name,
+                group: project.group || '',
                 path: normalizePath(project.path),
                 status: status.status || 'planning',
                 lastOpened,
@@ -511,6 +512,11 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
+                        {project.group && (
+                          <p className="truncate text-[11px] text-muted-foreground" title={project.group}>
+                            {project.group.split('/').join(' › ')} ›
+                          </p>
+                        )}
                         <p className="text-sm font-semibold text-foreground" title={project.path}>
                           {project.name}
                         </p>

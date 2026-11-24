@@ -106,6 +106,7 @@ class ChecklistRouteTests(unittest.TestCase):
         self.root = self.base / "Old-Project"
         (self.root / "Reports").mkdir(parents=True)
         (self.root / "Plan").mkdir()
+        project_manager.write_project_marker(str(self.root))
 
     def tearDown(self):
         shutil.rmtree(self.base, ignore_errors=True)

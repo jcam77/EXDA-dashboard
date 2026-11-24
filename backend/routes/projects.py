@@ -2,6 +2,8 @@
 
 from flask import Blueprint, jsonify, request
 import os
+import string
+import sys
 
 from modules import project_manager
 
@@ -45,11 +47,24 @@ def select_project_folder():
 
 @projects_bp.route('/open_project_path', methods=['POST'])
 def open_project_path():
-    """Open an existing project path and ensure required folders exist."""
+    """Open a project folder and add any missing standard folders.
+
+    A folder that is not an EXDA project yet is never set up silently: the
+    response asks for confirmation (needsSetup), and the folders are created
+    only when the request is sent again with createStructure=true.
+    """
     data = request.json or {}
     project_path = (data.get('projectPath') or '').strip()
-    if not project_path or not os.path.exists(project_path):
+    if not project_path or not os.path.isdir(project_path):
         return jsonify({"success": False, "error": "Invalid project path"}), 400
+
+    if not project_manager.is_project_folder(project_path) and not data.get('createStructure'):
+        return jsonify({
+            "success": False,
+            "needsSetup": True,
+            "path": project_path,
+            "error": "This folder is not an EXDA project yet.",
+        }), 409
 
     success, msg = project_manager.initialize_project_structure(project_path)
     if success:
@@ -168,24 +183,97 @@ def update_project_status():
     return jsonify({"success": False, "error": result}), 500
 
 
+def _quick_places():
+    """Common starting folders for the folder picker (only those that exist)."""
+    places = []
+    seen = set()
+
+    def add(label, path, kind="drive"):
+        if not path or not os.path.isdir(path):
+            return
+        key = os.path.normcase(os.path.abspath(path))
+        if key in seen:
+            return
+        seen.add(key)
+        places.append({"label": label, "path": os.path.abspath(path), "kind": kind})
+
+    home = os.path.expanduser("~")
+    add("EXDA projects", _projects_root_default(), "projects")
+    add("Home", home, "home")
+    add("Desktop", os.path.join(home, "Desktop"), "desktop")
+    add("Desktop", os.path.join(home, "OneDrive", "Desktop"), "desktop")
+    add("Documents", os.path.join(home, "Documents"), "documents")
+    add("Documents", os.path.join(home, "OneDrive", "Documents"), "documents")
+    if os.name == "nt":
+        listdrives = getattr(os, "listdrives", None)  # Python 3.12+
+        drives = listdrives() if listdrives else [f"{letter}:\\" for letter in string.ascii_uppercase]
+        for drive in drives:
+            add(drive.rstrip("\\"), drive)
+    elif sys.platform == "darwin":
+        try:
+            for name in sorted(os.listdir("/Volumes")):
+                if not name.startswith("."):
+                    add(name, os.path.join("/Volumes", name))
+        except OSError:
+            pass
+    else:
+        for base in ("/media", "/mnt"):
+            try:
+                for name in sorted(os.listdir(base)):
+                    add(name, os.path.join(base, name))
+            except OSError:
+                pass
+    return places
+
+
+def _nearest_existing_folder(path):
+    """The folder itself if it exists, otherwise its closest existing parent."""
+    current = os.path.abspath(path)
+    while current and not os.path.isdir(current):
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+        current = parent
+    return current or None
+
+
 @projects_bp.route('/list_directories', methods=['GET'])
 def list_directories():
-    """List child directories for navigation and project selection."""
-    path = request.args.get('path') or _projects_root_default()
+    """List child directories for navigation and project selection.
+
+    With fallback=nearest (the folder picker), a missing folder is not an error:
+    the nearest existing parent is shown (or the home folder), with a notice, so
+    the picker never gets stuck. Without it, a missing folder returns 404, so
+    pages that list projects never mistake another folder for a projects folder.
+    """
+    requested = (request.args.get('path') or '').strip()
     include_status = (request.args.get('includeStatus') or '').lower() in ['1', 'true', 'yes']
-    if not os.path.exists(path):
-        return jsonify({"success": False, "error": "Path not found"}), 404
+    allow_fallback = (request.args.get('fallback') or '').lower() == 'nearest'
+    notice = ''
+    path = requested or _projects_root_default()
     if not os.path.isdir(path):
-        return jsonify({"success": False, "error": "Not a directory"}), 400
+        if not allow_fallback:
+            return jsonify({"success": False, "error": "Path not found"}), 404
+        fallback = _nearest_existing_folder(path) if requested else None
+        if not fallback:
+            fallback = os.path.expanduser("~")
+        if requested:
+            notice = f"Folder not found: {requested}. Showing the nearest existing folder."
+        path = fallback
+    path = os.path.abspath(path)
 
     try:
         entries = []
         for name in os.listdir(path):
-            if name.startswith('.'):
+            if name.startswith('.') or name.startswith('$'):
                 continue
             full = os.path.join(path, name)
-            if os.path.isdir(full):
-                entry = {"name": name, "path": full}
+            try:
+                is_dir = os.path.isdir(full)
+            except OSError:
+                continue
+            if is_dir:
+                entry = {"name": name, "path": full, "isProject": project_manager.is_project_folder(full)}
                 if include_status:
                     status = project_manager.read_project_status(full)
                     if not status and project_manager.is_project_folder(full):
@@ -195,18 +283,85 @@ def list_directories():
                 entries.append(entry)
         entries.sort(key=lambda x: x["name"].lower())
 
-        parent = os.path.dirname(path.rstrip(os.sep))
-        if parent == path:
+        parent = os.path.dirname(path)
+        if os.path.normcase(parent) == os.path.normcase(path):
             parent = None
 
         return jsonify({
             "success": True,
             "path": path,
             "parent": parent,
-            "directories": entries
+            "directories": entries,
+            "isProject": project_manager.is_project_folder(path),
+            "notice": notice,
+            "quickPlaces": _quick_places(),
         })
+    except PermissionError:
+        return jsonify({"success": False, "error": "No permission to open this folder", "quickPlaces": _quick_places()}), 403
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e), "quickPlaces": _quick_places()}), 500
+
+
+PROJECT_SEARCH_DEPTH = 3
+
+
+def find_projects(root, max_depth=PROJECT_SEARCH_DEPTH):
+    """Find EXDA projects below root, including inside group folders.
+
+    A project is a folder with the EXDA project marker file (see
+    project_manager.is_project_folder). Any other folder is a group (for example
+    a bigger project holding several test campaigns) and is searched, up to
+    max_depth levels below root. Project folders themselves are never searched.
+    Returns (path, group) pairs; group is the folder path between root and the
+    project, joined with '/', or '' for projects directly in root.
+    """
+    found = []
+    if project_manager.is_project_folder(root):
+        return [(os.path.abspath(root), "")]
+
+    def walk(folder, parts, depth):
+        try:
+            names = sorted(os.listdir(folder), key=str.lower)
+        except OSError:
+            return
+        for name in names:
+            if name.startswith(('.', '$', '~')):
+                continue
+            full = os.path.join(folder, name)
+            try:
+                if not os.path.isdir(full) or os.path.islink(full):
+                    continue
+            except OSError:
+                continue
+            if project_manager.is_project_folder(full):
+                found.append((full, "/".join(parts)))
+            elif depth < max_depth:
+                walk(full, parts + [name], depth + 1)
+
+    walk(root, [], 1)
+    return found
+
+
+@projects_bp.route('/list_projects', methods=['GET'])
+def list_projects():
+    """List the projects below a projects root, including projects inside group folders."""
+    root = (request.args.get('path') or '').strip() or _projects_root_default()
+    if not os.path.isdir(root):
+        return jsonify({"success": False, "error": "Path not found"}), 404
+    projects = []
+    for full, group in find_projects(root):
+        project_manager.write_project_marker(full)  # older projects get the marker once
+        status = project_manager.read_project_status(full)
+        if not status:
+            status = project_manager.ensure_project_status(full)
+        projects.append({
+            "name": os.path.basename(full),
+            "path": full,
+            "group": group,
+            "status": status,
+            "plan": project_manager.get_project_plan_summary(full),
+        })
+    return jsonify({"success": True, "path": os.path.abspath(root), "projects": projects})
 
 
 @projects_bp.route('/projects_overview', methods=['GET'])
@@ -220,12 +375,8 @@ def projects_overview():
 
     try:
         lines = []
-        for name in sorted(os.listdir(projects_root)):
-            if name.startswith('.'):
-                continue
-            full = os.path.join(projects_root, name)
-            if not os.path.isdir(full):
-                continue
+        for full, group in find_projects(projects_root):
+            name = f"{group}/{os.path.basename(full)}" if group else os.path.basename(full)
             plan = project_manager.get_project_plan_summary(full) or {}
             status = plan.get('status') or 'planning'
             objective = (plan.get('objective') or '').strip()

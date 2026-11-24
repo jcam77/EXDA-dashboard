@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { X, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
 import ModalPortal from './ModalPortal';
 
 const UnifiedModal = ({ modal, setModal }) => {
@@ -31,8 +31,16 @@ const UnifiedModal = ({ modal, setModal }) => {
             <div className="bg-card p-6 rounded-xl border border-border w-[450px] shadow-sm flex flex-col gap-4 relative text-foreground">
                 <button onClick={closeModal} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X size={20}/></button>
                 <div className="flex items-start gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border ${modal.type === 'success' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-500' : 'bg-destructive/15 border-destructive/30 text-destructive'}`}>
-                        {modal.type === 'success' ? <CheckCircle2 size={20}/> : <AlertTriangle size={20}/>}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border ${
+                        modal.type === 'question'
+                            ? 'bg-primary/15 border-primary/30 text-primary'
+                            : modal.type === 'success'
+                                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-500'
+                                : 'bg-destructive/15 border-destructive/30 text-destructive'
+                    }`}>
+                        {modal.type === 'question'
+                            ? <HelpCircle size={20}/>
+                            : modal.type === 'success' ? <CheckCircle2 size={20}/> : <AlertTriangle size={20}/>}
                     </div>
                     <div className="flex-1">
                         <h3 className="text-lg font-bold">{modal.title}</h3>

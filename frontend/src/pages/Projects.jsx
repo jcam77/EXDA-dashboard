@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FolderPlus, Folder, FolderOpen, Trash2, Search, RefreshCw, Home, Pencil, Copy } from 'lucide-react';
+import { ChevronDown, FolderPlus, Folder, FolderOpen, Folders, Trash2, Search, RefreshCw, Home, Pencil, Copy } from 'lucide-react';
 import ProjectPickerModal from '../components/ProjectPickerModal';
 import UnifiedModal from '../components/UnifiedModal';
 import { getBackendBaseUrl } from '../utils/backendUrl';
@@ -18,6 +18,27 @@ const ProjectsPage = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  // Folded project groups (by group folder path), remembered in this browser.
+  const [collapsedGroups, setCollapsedGroups] = useState(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('projectsCollapsedGroups') || '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleGroup = (key) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        localStorage.setItem('projectsCollapsedGroups', JSON.stringify([...next]));
+      } catch {
+        // Folding still works for this visit without storage.
+      }
+      return next;
+    });
+  };
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [basePickerOpen, setBasePickerOpen] = useState(false);
   const [basePickerMode, setBasePickerMode] = useState('root');
@@ -97,12 +118,12 @@ const ProjectsPage = ({
 
   const locateDefaultProjectsRoot = useCallback(async () => {
     try {
+      // Without a path the backend answers for the default projects folder
+      // (EXDA-Projects next to the app, or EXDA_PROJECTS_ROOT); 404 if it is missing.
       const res = await fetch(`${apiBaseUrl}/list_directories`);
       const data = await res.json();
-      if (!data.success) return null;
-      const projectsDir = (data.directories || []).find((dir) => dir.name === 'Projects');
-      if (!projectsDir?.path) return null;
-      return { path: projectsDir.path, mode: 'root' };
+      if (!data.success || !data.path) return null;
+      return { path: data.path, mode: 'root' };
     } catch {
       return null;
     }
@@ -124,11 +145,11 @@ const ProjectsPage = ({
       }
 
       const res = await fetch(
-        `${apiBaseUrl}/list_directories?path=${encodeURIComponent(path)}`
+        `${apiBaseUrl}/list_projects?path=${encodeURIComponent(path)}`
       );
       const data = await res.json();
       if (!data.success) return 0;
-      return Array.isArray(data.directories) ? data.directories.length : 0;
+      return Array.isArray(data.projects) ? data.projects.length : 0;
     } catch {
       return 0;
     }
@@ -170,24 +191,19 @@ const ProjectsPage = ({
       const allEntries = [];
       for (const item of pathList) {
         const path = item.path || item;
-        const mode = item.mode || 'root';
         if (!path) continue;
-        if (mode === 'project') {
-          const parts = String(path).split('/').filter(Boolean);
-          const name = parts[parts.length - 1] || path;
-          allEntries.push({ name, path });
-          continue;
-        }
+        // Projects in the root and inside group folders (e.g. a bigger project
+        // holding several test campaigns); see /list_projects in the backend.
+        // A single project folder lists only itself; a folder that is not an
+        // EXDA project (no exda-project.json) is never shown as a project.
         const res = await fetch(
-          `${apiBaseUrl}/list_directories?path=${encodeURIComponent(
-            path
-          )}&includeStatus=1&_ts=${cacheBuster}`
+          `${apiBaseUrl}/list_projects?path=${encodeURIComponent(path)}&_ts=${cacheBuster}`
         );
         const data = await res.json();
         if (!data.success) {
           continue;
         }
-        (data.directories || []).forEach((entry) => {
+        (data.projects || []).forEach((entry) => {
           allEntries.push(entry);
         });
       }
@@ -277,6 +293,13 @@ const ProjectsPage = ({
           return;
         }
       }
+      // An empty saved list means the user cleared the folders on purpose (Clear All
+      // or removing the last folder). Only a first visit (nothing saved yet) adds
+      // the default projects folder automatically.
+      if (savedFoldersRaw !== null && Array.isArray(savedFolders) && savedFolders.length === 0) {
+        setError('Select a project folder to get started.');
+        return;
+      }
       const preferredFolders = await resolvePreferredProjectFolders(savedFolders);
       if (preferredFolders.length > 0) {
         setProjectFolders(preferredFolders);
@@ -346,6 +369,7 @@ const ProjectsPage = ({
       return {
         id: project.path,
         name: project.name,
+        group: project.group || '',
         path: project.path,
         status: statusValue,
         objective: objectiveText,
@@ -366,11 +390,12 @@ const ProjectsPage = ({
       .filter((project) => {
         const matchesSearch =
           project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          project.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
           project.description.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = selectedStatus === 'all' || project.status === selectedStatus;
         return matchesSearch && matchesStatus;
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
   }, [normalizedProjects, searchQuery, selectedStatus, activeProjectPath]);
 
   const getStatusColor = (status) => {
@@ -583,6 +608,142 @@ const ProjectsPage = ({
     }
   };
 
+  // Projects grouped by the folder that holds them (e.g. a bigger project with
+  // several campaigns); projects directly in a root come first, without a block.
+  const projectSections = (() => {
+    // Keyed by the group's folder path, so equal group names under two roots stay apart.
+    const sections = [];
+    const byGroup = new Map();
+    filteredProjects.forEach((project) => {
+      const key = project.group ? String(project.path).replace(/[\\/][^\\/]+[\\/]?$/, '') : '';
+      if (!byGroup.has(key)) {
+        const section = { key, group: project.group, projects: [] };
+        byGroup.set(key, section);
+        sections.push(section);
+      }
+      byGroup.get(key).projects.push(project);
+    });
+    return sections;
+  })();
+
+  const renderProjectCard = (project) => (
+      <div
+        key={project.id}
+        className="group overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
+      >
+        <div className="border-b border-border bg-gradient-to-r from-primary/10 to-secondary/10 p-6">
+          <div className="mb-3 flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
+                <Folder className="text-primary" size={20} />
+              </div>
+              <span className="mt-1 text-2xl">{getStatusIcon(project.status)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={project.status}
+                onChange={(e) => handleStatusChange(project, e.target.value)}
+                className={`rounded-md border px-2 py-1 text-[10px] font-semibold uppercase ${getStatusColor(
+                  project.status
+                )}`}
+              >
+                <option value="planning">Planning</option>
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          <h3 className="text-lg font-bold text-foreground transition-colors group-hover:text-primary">
+            {project.name}
+          </h3>
+        </div>
+
+        <div className="space-y-4 p-6">
+          <div className="space-y-2">
+            {project.objective ? (
+              <p className="text-sm text-foreground">
+                <span className="text-xs font-semibold uppercase text-muted-foreground">
+                  Objective
+                </span>
+                <br />
+                <span className="line-clamp-2 text-sm text-foreground">
+                  {project.objective}
+                </span>
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No objective yet.</p>
+            )}
+            {project.description && project.description !== project.objective && (
+              <p className="text-xs text-muted-foreground line-clamp-2">
+                <span className="font-semibold uppercase">Description</span>: {project.description}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Progress</span>
+              <span className="text-xs font-bold text-primary">{project.progress}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
+                style={{ width: `${project.progress}%` }}
+              ></div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 border-t border-border pt-4">
+            <div>
+              <p className="mb-1 text-xs text-muted-foreground">Experiments</p>
+              <p className="text-lg font-bold text-primary">{project.experiments}</p>
+            </div>
+            <div>
+              <p className="mb-1 text-xs text-muted-foreground">Start</p>
+              <p className="text-sm font-medium text-foreground">
+                {formatDate(project.startDate)}
+              </p>
+            </div>
+            <div>
+              <p className="mb-1 text-xs text-muted-foreground">Finish</p>
+              <p className="text-sm font-medium text-foreground">
+                {formatDate(project.finishDate)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 border-t border-border pt-4">
+            <button
+              onClick={() => onOpenProject?.(project.path)}
+              className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary/20 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/30"
+            >
+              <FolderOpen size={14} /> Open
+            </button>
+            <button
+              onClick={() => handleRenameProject(project)}
+              className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+              title="Rename project"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              onClick={() => handleCopyProject(project)}
+              className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+              title="Copy project"
+            >
+              <Copy size={14} />
+            </button>
+            <button
+              onClick={() => handleDeleteProject(project)}
+              className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+  );
+
   return (
     <div className="w-full bg-background">
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -639,7 +800,7 @@ const ProjectsPage = ({
                 onClick={() => {
                   setProjectFolders([]);
                   setSelectedFolder('all');
-                  localStorage.removeItem('projectsFoldersList');
+                  localStorage.setItem('projectsFoldersList', '[]');
                   setProjects([]);
                   setError('');
                 }}
@@ -743,123 +904,50 @@ const ProjectsPage = ({
               Loading projects...
             </div>
           ) : filteredProjects.length > 0 ? (
-            filteredProjects.map((project) => (
-              <div
-                key={project.id}
-                className="group overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
-              >
-                <div className="border-b border-border bg-gradient-to-r from-primary/10 to-secondary/10 p-6">
-                  <div className="mb-3 flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
-                        <Folder className="text-primary" size={20} />
-                      </div>
-                      <span className="mt-1 text-2xl">{getStatusIcon(project.status)}</span>
+            projectSections.map((section) => {
+              if (!section.group) return section.projects.map(renderProjectCard);
+              // A search shows every match, so groups unfold while searching.
+              const folded = collapsedGroups.has(section.key) && !searchQuery.trim();
+              const statusSummary = ['active', 'planning', 'archived']
+                .map((status) => [status, section.projects.filter((p) => p.status === status).length])
+                .filter(([, count]) => count > 0)
+                .map(([status, count]) => `${count} ${status}`)
+                .join(' · ');
+              return (
+                <section
+                  key={section.key}
+                  className={`col-span-full rounded-2xl border border-primary/25 bg-primary/[0.03] ${folded ? 'px-4 py-2.5 sm:px-5' : 'p-4 sm:p-5'}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(section.key)}
+                    aria-expanded={!folded}
+                    title={folded ? 'Show the projects in this group' : 'Fold this group'}
+                    className={`flex w-full items-center gap-2 rounded-lg text-left ${folded ? '' : 'mb-4'}`}
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15">
+                      <Folders className="text-primary" size={16} />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={project.status}
-                        onChange={(e) => handleStatusChange(project, e.target.value)}
-                        className={`rounded-md border px-2 py-1 text-[10px] font-semibold uppercase ${getStatusColor(
-                          project.status
-                        )}`}
-                      >
-                        <option value="planning">Planning</option>
-                        <option value="active">Active</option>
-                        <option value="archived">Archived</option>
-                      </select>
+                    <h2 className="truncate text-base font-bold text-foreground" title={section.key}>
+                      {section.group.split('/').join(' › ')}
+                    </h2>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {section.projects.length} {section.projects.length === 1 ? 'project' : 'projects'}
+                      {folded && statusSummary ? ` · ${statusSummary}` : ''}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`ml-auto shrink-0 text-muted-foreground transition-transform ${folded ? '-rotate-90' : ''}`}
+                    />
+                  </button>
+                  {!folded && (
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {section.projects.map(renderProjectCard)}
                     </div>
-                  </div>
-                  <h3 className="text-lg font-bold text-foreground transition-colors group-hover:text-primary">
-                    {project.name}
-                  </h3>
-                </div>
-
-                <div className="space-y-4 p-6">
-                  <div className="space-y-2">
-                    {project.objective ? (
-                      <p className="text-sm text-foreground">
-                        <span className="text-xs font-semibold uppercase text-muted-foreground">
-                          Objective
-                        </span>
-                        <br />
-                        <span className="line-clamp-2 text-sm text-foreground">
-                          {project.objective}
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No objective yet.</p>
-                    )}
-                    {project.description && project.description !== project.objective && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        <span className="font-semibold uppercase">Description</span>: {project.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-muted-foreground">Progress</span>
-                      <span className="text-xs font-bold text-primary">{project.progress}%</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
-                        style={{ width: `${project.progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3 border-t border-border pt-4">
-                    <div>
-                      <p className="mb-1 text-xs text-muted-foreground">Experiments</p>
-                      <p className="text-lg font-bold text-primary">{project.experiments}</p>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-xs text-muted-foreground">Start</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {formatDate(project.startDate)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-xs text-muted-foreground">Finish</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {formatDate(project.finishDate)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 border-t border-border pt-4">
-                    <button
-                      onClick={() => onOpenProject?.(project.path)}
-                      className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary/20 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/30"
-                    >
-                      <FolderOpen size={14} /> Open
-                    </button>
-                    <button
-                      onClick={() => handleRenameProject(project)}
-                      className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
-                      title="Rename project"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleCopyProject(project)}
-                      className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
-                      title="Copy project"
-                    >
-                      <Copy size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteProject(project)}
-                      className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
+                  )}
+                </section>
+              );
+            })
           ) : (
             <div className="col-span-full rounded-xl border border-border bg-card p-12 text-center">
               <Folder className="mx-auto mb-4 text-muted-foreground" size={48} />

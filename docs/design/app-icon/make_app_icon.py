@@ -9,6 +9,9 @@ Writes:
   docs/design/app-icon/exda-icon-1024.png   source image
   EXDA.app/Contents/Resources/EXDA.icns     macOS launcher icon
   scripts/EXDA.ico                          Windows shortcut icon (made by Setup-EXDA-WIN.bat)
+  frontend/public/favicon.ico               browser tab icon
+  frontend/public/exda-icon-192.png         browser / home-screen icon
+  frontend/public/apple-touch-icon.png      Safari / iOS icon (180 px)
 
 Usage (from the repository root):
   python3 docs/design/app-icon/make_app_icon.py
@@ -25,6 +28,7 @@ OUT_PNG = Path(__file__).resolve().parent / "exda-icon-1024.png"
 OUT_ICNS = ROOT / "EXDA.app/Contents/Resources/EXDA.icns"
 OUT_ICO = ROOT / "scripts/EXDA.ico"
 ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+PUBLIC = ROOT / "frontend/public"
 
 SCALE = 4
 SIZE = 1024 * SCALE
@@ -85,6 +89,9 @@ def main():
     OUT_ICNS.parent.mkdir(parents=True, exist_ok=True)
     icon.save(OUT_ICNS)
     icon.save(OUT_ICO, sizes=ICO_SIZES)
+    icon.save(PUBLIC / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
+    icon.resize((192, 192), Image.LANCZOS).save(PUBLIC / "exda-icon-192.png")
+    icon.resize((180, 180), Image.LANCZOS).save(PUBLIC / "apple-touch-icon.png")
     print(OUT_PNG)
     print(OUT_ICNS)
     print(OUT_ICO)

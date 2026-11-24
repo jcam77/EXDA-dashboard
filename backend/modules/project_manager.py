@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import json
+import uuid
 
 from modules import project_store
 import shutil
@@ -63,12 +64,75 @@ def _safe_mtime_iso(path):
     except Exception:
         return None
 
-def is_project_folder(base_path):
-    """Check whether path looks like an initialized project folder."""
-    if not base_path or not os.path.exists(base_path):
+# Every EXDA project folder holds this file. It marks the folder as a project,
+# so EXDA never treats an ordinary folder (for example a folder that only groups
+# several projects) as a project. A file only counts when its contents match
+# (JSON with this exact schema and a project id), not just its name.
+PROJECT_MARKER = "exda-project.json"
+PROJECT_MARKER_SCHEMA = "exda-project/1"
+
+
+def project_marker_path(base_path):
+    return os.path.join(base_path, PROJECT_MARKER)
+
+
+def _is_legacy_project(base_path):
+    """Projects made before the marker file existed.
+
+    Recognised only by strong evidence: a Plan folder holding an EXDA status
+    file or experiment plan. Folder names alone (Reports, Literature, ...) are
+    not enough, because ordinary folders use them too.
+    """
+    plan_dir = os.path.join(base_path, "Plan")
+    if not os.path.isdir(plan_dir):
         return False
-    expected = ["Plan", "Raw_Data", "Clean_Data", "CFD_Data", "aiChat", "Reports", "Literature", "Procedures"]
-    return any(os.path.exists(os.path.join(base_path, f)) for f in expected)
+    if os.path.isfile(os.path.join(plan_dir, STATUS_FILENAME)) or os.path.isfile(os.path.join(base_path, STATUS_FILENAME)):
+        return True
+    try:
+        return any(name.startswith("Experiment_Plan") and name.endswith(".json") for name in os.listdir(plan_dir))
+    except OSError:
+        return False
+
+
+def read_project_marker(base_path):
+    """The project marker's contents, or None when missing or not a genuine EXDA marker."""
+    path = project_marker_path(base_path)
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or data.get("schema") != PROJECT_MARKER_SCHEMA or not data.get("projectId"):
+        return None
+    return data
+
+
+def is_project_folder(base_path):
+    """True for an EXDA project folder: a genuine marker file, or an older project."""
+    if not base_path or not os.path.isdir(base_path):
+        return False
+    return read_project_marker(base_path) is not None or _is_legacy_project(base_path)
+
+
+def write_project_marker(base_path):
+    """Write the project marker file if it is missing. Returns True when written.
+
+    An existing file with this name is never overwritten, even if it is not a
+    genuine marker; such a folder is then simply not treated as a project.
+    """
+    path = project_marker_path(base_path)
+    if os.path.exists(path):
+        return False
+    project_store.write_json_atomic(path, {
+        "schema": PROJECT_MARKER_SCHEMA,
+        "projectId": uuid.uuid4().hex,
+        "name": os.path.basename(os.path.normpath(base_path)),
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "note": "This file marks this folder as an EXDA project. Keep it; EXDA uses it to find projects.",
+    })
+    return True
 
 def read_project_status(base_path):
     """Read project status JSON from canonical or legacy location."""
@@ -296,28 +360,16 @@ def open_folder(path):
         return False, str(exc)
 
 def select_folder_dialog(initial_dir=None):
+    """Show the operating system's folder dialog (see modules/folder_dialog.py).
+
+    Returns the chosen folder, "" when the user cancels, None when no dialog
+    can be shown on this computer.
     """
-    Consolidated version:
-    1. Supports the 'Umbrella' (initial_dir=None)
-    2. Supports the 'Data Tab' (initial_dir=project_path)
-    3. Uses the 'Subprocess' method you know works.
-    """
+    from modules import folder_dialog
+
     try:
-        # Prepare the path just like you did for the file dialog
-        clean_dir = initial_dir.replace('"', '\\"') if initial_dir else ""
-        
-        script = (
-            "import tkinter as tk; "
-            "from tkinter import filedialog; "
-            "root = tk.Tk(); "
-            "root.withdraw(); "
-            "root.attributes('-topmost', True); "
-            f"path = filedialog.askdirectory(initialdir='{clean_dir}', title='Select Folder'); "
-            "print(path)"
-        )
-        result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=True)
-        return result.stdout.strip()
-    except Exception as e:
+        return folder_dialog.choose_folder(initial_dir)
+    except folder_dialog.FolderDialogUnavailable as e:
         print(f"Dialog Error: {e}")
         return None
 
@@ -368,6 +420,7 @@ def initialize_project_structure(base_path):
             if not os.path.exists(path):
                 os.makedirs(path)
                 created.append(f)
+        write_project_marker(base_path)
         ensure_project_status(base_path)
         return True, f"Project Initialized. Folders created: {', '.join(created)}"
     except Exception as e:
