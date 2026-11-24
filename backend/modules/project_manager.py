@@ -67,7 +67,7 @@ def is_project_folder(base_path):
     """Check whether path looks like an initialized project folder."""
     if not base_path or not os.path.exists(base_path):
         return False
-    expected = ["Plan", "Raw_Data", "Clean_Data", "CFD_Data", "aiChat", "Reports", "Literature"]
+    expected = ["Plan", "Raw_Data", "Clean_Data", "CFD_Data", "aiChat", "Reports", "Literature", "Procedures"]
     return any(os.path.exists(os.path.join(base_path, f)) for f in expected)
 
 def read_project_status(base_path):
@@ -344,15 +344,20 @@ def select_file_dialog(initial_dir):
 def initialize_project_structure(base_path):
     """
     Creates the PhD project folder hierarchy.
-    Updated: includes Clean_Data plus Literature subdirectories.
+    Missing folders are created (also when an existing project is opened);
+    existing folders and files are never changed.
     """
     if not base_path or not os.path.exists(base_path): return False, "Invalid path"
-    
+
     # Primary project folders
-    folders = ["Plan", "Raw_Data", "Clean_Data", "CFD_Data", "aiChat", "Reports", "Literature"]
-    
-    # Specific Literature subcategories as requested
-    sub_resources = [os.path.join("Literature", "Books"), os.path.join("Literature", "Papers"),os.path.join("Literature","Standards")]
+    folders = ["Plan", "Raw_Data", "Clean_Data", "CFD_Data", "aiChat", "Reports", "Literature", "Procedures"]
+
+    # Subfolders: literature by type; procedures for the campaign's safety
+    # documents (risk assessment and method statements, appendices, SOPs).
+    sub_resources = [
+        os.path.join("Literature", "Books"), os.path.join("Literature", "Papers"), os.path.join("Literature", "Standards"),
+        os.path.join("Procedures", "RAMS"), os.path.join("Procedures", "RAMS-Appendices"), os.path.join("Procedures", "SOPs"),
+    ]
     
     all_targets = folders + sub_resources
     created = []

@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from modules import daq_reader, data_parser, gas_mixing_checks, h2s_parser, gas_mixing_store, mf4_parser, output_format, pressure_analysis, project_manager, project_store, tpc5_parser
+from modules import daq_reader, data_parser, gas_mixing_checks, h2s_parser, gas_mixing_store, mf4_parser, output_format, pressure_analysis, procedures, project_manager, project_store, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
@@ -3437,6 +3437,40 @@ def project_artifact_file():
         mimetype=mime_type or "application/octet-stream",
         conditional=True,
     )
+
+
+@state_bp.route('/list_procedures', methods=['GET'])
+def list_procedures():
+    """Procedure documents in <project>/Procedures (RAMS, appendices, SOPs). Read only."""
+    project_root, err = project_manager.resolve_project_path(request.args.get("projectPath"))
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    try:
+        return jsonify({"success": True, **procedures.list_procedures(project_root)})
+    except Exception as exc:
+        return jsonify({"success": False, "error": f"Could not list procedures: {exc}"}), 500
+
+
+@state_bp.route('/open_project_item', methods=['POST'])
+def open_project_item():
+    """Open a file (in its default program) or folder (in the file manager) of
+    the project, on the computer that runs EXDA. Restricted to the project folder."""
+    data = request.json or {}
+    project_root, err = project_manager.resolve_project_path(data.get("projectPath"))
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    item = str(data.get("path") or "").strip()
+    if not item:
+        return jsonify({"success": False, "error": "Path is required"}), 400
+    target = item if os.path.isabs(item) else os.path.join(project_root, item)
+    if not project_manager.is_path_within(project_root, target):
+        return jsonify({"success": False, "error": "Path not allowed"}), 403
+    if not os.path.exists(target):
+        return jsonify({"success": False, "error": "Not found: " + os.path.relpath(target, project_root)}), 404
+    success, msg = project_manager.open_folder(target)
+    if not success:
+        return jsonify({"success": False, "error": msg}), 500
+    return jsonify({"success": True, "message": msg})
 
 
 @state_bp.route('/latest_report_artifact', methods=['GET'])

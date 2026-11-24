@@ -53,5 +53,50 @@ class ProjectsRootTests(unittest.TestCase):
         self.assertEqual(projects_routes._projects_root_default(), str(self.app_dir / "Projects"))
 
 
+class ProjectFoldersTests(unittest.TestCase):
+    """Standard project folders, including Procedures/ for safety documents."""
+
+    PROCEDURES = ("Procedures/RAMS", "Procedures/RAMS-Appendices", "Procedures/SOPs")
+
+    def setUp(self):
+        self.base = Path(tempfile.mkdtemp(prefix="exda_folders_test_"))
+
+    def tearDown(self):
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    def test_new_project_has_procedures_folders(self):
+        from modules import project_manager
+
+        ok, _msg, path = project_manager.create_project_structure(str(self.base), "New-Campaign")
+        self.assertTrue(ok)
+        for sub in self.PROCEDURES:
+            self.assertTrue((Path(path) / sub).is_dir(), sub)
+
+    def test_opening_older_project_adds_empty_procedures_and_keeps_files(self):
+        from modules import project_manager
+
+        old = self.base / "Old-Campaign"
+        (old / "Plan").mkdir(parents=True)
+        plan = old / "Plan" / "Experiment_Plan_v000.json"
+        plan.write_text('{"planName": "Old"}', encoding="utf-8")
+        (old / "Procedures" / "SOPs").mkdir(parents=True)
+        sop = old / "Procedures" / "SOPs" / "SOP-01.pdf"
+        sop.write_bytes(b"%PDF-1.4 existing")
+
+        ok, _msg = project_manager.initialize_project_structure(str(old))
+        self.assertTrue(ok)
+        for sub in self.PROCEDURES:
+            self.assertTrue((old / sub).is_dir(), sub)
+        self.assertEqual(plan.read_text(encoding="utf-8"), '{"planName": "Old"}')
+        self.assertEqual(sop.read_bytes(), b"%PDF-1.4 existing")
+        self.assertEqual([p.name for p in (old / "Procedures" / "RAMS").iterdir()], [])
+
+    def test_folder_with_only_procedures_counts_as_project(self):
+        from modules import project_manager
+
+        (self.base / "P" / "Procedures").mkdir(parents=True)
+        self.assertTrue(project_manager.is_project_folder(str(self.base / "P")))
+
+
 if __name__ == "__main__":
     unittest.main()
