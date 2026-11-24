@@ -6,7 +6,7 @@ rem EXDA setup for Windows.
 rem  - Checks Node.js (20.19+ or 22.12+) and Python (3.10+); offers to install them with winget.
 rem  - Creates the Windows Python environment .venv-win and installs the Python packages.
 rem  - Installs the frontend packages (npm install).
-rem  - Adds an "EXDA" shortcut with the EXDA icon to the Desktop and the Start menu.
+rem  - Adds an "EXDA" shortcut with the EXDA icon to the Desktop, the Start menu and this folder.
 rem Run-EXDA-WIN.bat calls this automatically (with --from-launcher) when something is missing.
 
 set "REPO_ROOT=%~dp0"
@@ -225,13 +225,14 @@ start "" "%~3"
 exit /b 1
 
 
-rem Desktop and Start menu shortcuts "EXDA" with the EXDA icon.
+rem "EXDA" shortcuts with the EXDA icon: Desktop, Start menu and the EXDA folder itself
+rem (EXDA.lnk there is ignored by git, because a shortcut stores this PC's full path).
 :make_shortcuts
 set "SHORTCUT_ICON=%REPO_ROOT%scripts\EXDA.ico"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; foreach ($dir in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) { $lnk = $ws.CreateShortcut((Join-Path $dir 'EXDA.lnk')); $lnk.TargetPath = '%REPO_ROOT%Run-EXDA-WIN.bat'; $lnk.WorkingDirectory = '%REPO_ROOT%'; $lnk.IconLocation = '%SHORTCUT_ICON%,0'; $lnk.Description = 'EXDA - EXperimental DAta'; $lnk.Save() }" >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; foreach ($dir in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'), '%REPO_ROOT:~0,-1%')) { $lnk = $ws.CreateShortcut((Join-Path $dir 'EXDA.lnk')); $lnk.TargetPath = '%REPO_ROOT%Run-EXDA-WIN.bat'; $lnk.WorkingDirectory = '%REPO_ROOT%'; $lnk.IconLocation = '%SHORTCUT_ICON%,0'; $lnk.Description = 'EXDA - EXperimental DAta'; $lnk.Save() }" >nul 2>nul
 if errorlevel 1 (
   echo Note: could not create the EXDA shortcut. You can still start EXDA with Run-EXDA-WIN.bat.
 ) else (
-  echo The EXDA shortcut is on your Desktop and in the Start menu.
+  echo The EXDA shortcut is on your Desktop, in the Start menu and in the EXDA folder.
 )
 exit /b 0

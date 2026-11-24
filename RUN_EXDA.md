@@ -7,7 +7,7 @@ EXDA is now documented as a browser-first app.
 Double-click the launcher for your operating system:
 
 - <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [EXDA.app](EXDA.app) (opens Terminal and runs [Run-EXDA-MAC.command](Run-EXDA-MAC.command))
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat), or the **EXDA** shortcut on the Desktop / Start menu that the first start creates
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat), or the **EXDA** shortcut (Desktop, Start menu or the EXDA folder) that the first start creates
 - <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: run [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh) once, then [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
 
 Install once per computer: Node.js 22 LTS (20.19+ or 22.12+), Python 3.10+ (3.12 recommended) and Git. On macOS and Windows the setup offers to install Node.js and Python if they are missing (macOS: Homebrew, Windows: `winget`). Otherwise it opens the download page.
@@ -29,7 +29,7 @@ Setup:
 - creates the Python environment, or moves a broken one aside to `.venv-*.broken-<id>`
 - runs `npm install`, and reinstalls `node_modules` if the packages for this operating system are incomplete
 - installs `backend/requirements.txt` and `backend/requirements-optional.txt`
-- on Windows, creates the **EXDA** shortcut (icon: [scripts/EXDA.ico](scripts/EXDA.ico)) on the Desktop and in the Start menu
+- on Windows, creates the **EXDA** shortcut (icon: [scripts/EXDA.ico](scripts/EXDA.ico)) on the Desktop, in the Start menu and in the EXDA folder (not stored in git, since a shortcut holds the PC's full path)
 
 Each operating system keeps its own Python environment, so one EXDA folder (for example on an external drive) can be used from macOS and Windows. `node_modules` is shared: npm keeps the native packages for each system side by side. An older shared `.venv` folder is no longer used on macOS or Windows and can be deleted.
 

@@ -32,7 +32,7 @@ On Windows and macOS the launcher checks for Node.js and Python. If either is mi
 Double-click the launcher for your operating system:
 
 - <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [EXDA.app](EXDA.app) (opens Terminal and runs [Run-EXDA-MAC.command](Run-EXDA-MAC.command))
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat); after the first start, use the **EXDA** shortcut on the Desktop or in the Start menu
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat); after the first start, use the **EXDA** shortcut on the Desktop, in the Start menu or in the EXDA folder
 - <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: run [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh) once, then [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
 
 **First start** on a computer (macOS and Windows): the launcher finds that EXDA is not set up yet and runs the setup script ([Setup-EXDA-MAC.command](Setup-EXDA-MAC.command) / [Setup-EXDA-WIN.bat](Setup-EXDA-WIN.bat)) automatically. This takes a few minutes and needs an internet connection. Setup:
@@ -40,7 +40,7 @@ Double-click the launcher for your operating system:
 - checks the Node.js and Python versions
 - creates the Python environment for this operating system inside the EXDA folder (`.venv-mac` on macOS, `.venv-win` on Windows, `.venv` on Linux) and installs the Python packages
 - installs the frontend packages (`npm install`)
-- on Windows, adds an **EXDA** shortcut with the EXDA icon to the Desktop and Start menu
+- on Windows, adds an **EXDA** shortcut with the EXDA icon to the Desktop, the Start menu and the EXDA folder
 
 Then EXDA starts.
 

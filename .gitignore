@@ -76,3 +76,6 @@ AppsExamples
 
 # EXDA project lock (one writer per project); never commit
 .exda.lock
+
+# Windows shortcut created by Setup-EXDA-WIN.bat (holds this PC's full path)
+EXDA.lnk
