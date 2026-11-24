@@ -331,6 +331,14 @@ def parse_title(lines):
     return title.strip(), subtitle.strip(), version.group(1) if version else ""
 
 
+def _drop_unused_hyperlinks(doc):
+    """Remove hyperlink relationships the text no longer uses (left over from the template's old body)."""
+    xml = doc.part.element.xml
+    for rel_id, rel in list(doc.part.rels.items()):
+        if "hyperlink" in rel.reltype and f'"{rel_id}"' not in xml:
+            del doc.part.rels[rel_id]
+
+
 def build(template: Path, output: Path = OUTPUT):
     lines = SOURCE.read_text(encoding="utf-8").splitlines()
     title, subtitle, version = parse_title(lines)
@@ -340,10 +348,17 @@ def build(template: Path, output: Path = OUTPUT):
     cover, prototypes = split_template(doc)
     page2_title = cover[-1]
     template_title = text_of(page2_title).strip()
+    # Cover subtitle: the report template's placeholder, or the subtitle of an
+    # earlier guide built from this template (e.g. "MVP mode (version 4.0.0)").
+    subtitles = {"(2026-2028)": subtitle}
+    for element in cover:
+        text = text_of(element).strip() if element.tag == qn("w:p") else ""
+        if re.search(r"\(version\s+[\d.]+\)$", text):
+            subtitles[text] = subtitle
     fill_cover(cover, {
         "paragraphs": {
             template_title: title,                         # cover title and page-2 title
-            "(2026-2028)": subtitle,                       # cover subtitle
+            **subtitles,                                   # cover subtitle
         },
         "table": {
             "Document": "EXDA-UserGuide",
@@ -445,6 +460,7 @@ def build(template: Path, output: Path = OUTPUT):
         raise SystemExit("No sections (## headings) found in the guide.")
     doc.core_properties.title = f"{title} — {subtitle}" if subtitle else title
     doc.core_properties.subject = f"EXDA {version}".strip()
+    _drop_unused_hyperlinks(doc)
     doc.save(str(output))
     return output
 

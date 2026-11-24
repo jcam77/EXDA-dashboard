@@ -5,10 +5,29 @@ verified today, and what to improve before the calculations are extended.
 
 - **Audience:** developers working on EXDA (not end users; see
   [EXDA-UserGuide.md](../EXDA-User-Guide/EXDA-UserGuide.md) for those).
-- **State described:** release 4.0.0 plus the commits after it on
-  `CLAUDE-Updates` (November 2026).
+- **State described:** release 4.0.11 plus the changes prepared for 4.0.12
+  on `CLAUDE-Updates` (24 November 2026). Sections 1–4, 7, 8 and 10 were
+  updated for this state. The findings in section 6 were first written for
+  4.0.0. The calculation modules they refer to (`pressure_analysis`,
+  `ewt_analysis`, `gas_mixing`, `flame_analysis`, `useAnalysisPipeline`)
+  have not changed since, so F1–F16 still apply. F17–F19 come from the
+  "no default values" audit of November 2026.
 - **Evidence:** every finding in section 6 was checked against the code;
   the numbers quoted were reproduced by running the current code.
+
+## Changes since 4.0.0 that matter for developers
+
+| Area | Change | Where |
+|---|---|---|
+| Preview reduction | Min/max envelope instead of keeping every k-th sample; readers report the true sample count and rate (`sampleInfo`) | [signal_reduction.py](../../backend/modules/signal_reduction.py), [DOWNSAMPLING_FLOW.md](DOWNSAMPLING_FLOW.md) |
+| Screening peak table | Max and time of max per selected channel in a required time range, read at full resolution, not saved | [screening_peaks.py](../../backend/modules/screening_peaks.py), `/channel_peaks` in [state.py](../../backend/routes/state.py#L3220), [PeakTable.jsx](../../frontend/src/components/PeakTable.jsx) |
+| Project marker | New projects get `exda-project.json`; older projects are still recognised by their `Plan/` content | [project_manager.py:71](../../backend/modules/project_manager.py#L71) |
+| Project Description | New first tab, stored in `Plan/project_description.json` (own blueprint) | [project_description.py](../../backend/modules/project_description.py), [routes/project_description.py](../../backend/routes/project_description.py) |
+| Plan file selection | `project_description.json` and the status file are never picked as the plan | `NON_PLAN_FILENAMES` in [project_manager.py:203](../../backend/modules/project_manager.py#L203) |
+| Projects page | Folder picker styled like the app, project groups, collapsible | [ProjectPickerModal.jsx](../../frontend/src/components/ProjectPickerModal.jsx), [Projects.jsx](../../frontend/src/pages/Projects.jsx) |
+| Page headers | One `PageHeader` component for every tab | [PageHeader.jsx](../../frontend/src/components/PageHeader.jsx) |
+| Launchers | `Setup-EXDA-*` installs requirements on first start; `Run-EXDA-*` only checks and starts | repository root |
+| User guide | Media regenerated from synthetic demo projects by two scripts | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) |
 
 ---
 
@@ -36,27 +55,30 @@ the record.
 
 ```mermaid
 flowchart LR
-  subgraph Browser["Browser (React 18 + Vite)"]
+  subgraph Browser["Browser (React 19 + Vite 7)"]
     WS["WorkspacePage.jsx<br/>shell, tabs, project state, lock"]
-    Pages["pages/*.jsx<br/>Plan, Gas Mixing, Mappings,<br/>Import, Screening, Report …"]
-    Utils["utils/*.js<br/>gasMixing, units, fileVersions,<br/>clientId, sensorValidation"]
+    Pages["pages/*.jsx<br/>Project Description, Plan, Gas Mixing,<br/>Mappings, Import, Screening, Report …"]
+    Utils["utils/*.js<br/>gasMixing, units, peakFormat,<br/>fileVersions, clientId, sensorValidation"]
     WS --> Pages --> Utils
   end
   subgraph API["Flask API (backend/app.py)"]
-    R1["routes/state.py<br/>project files, saves, exports, lock"]
+    R1["routes/state.py<br/>project files, saves, exports, lock,<br/>channel peaks"]
     R2["routes/calculation_api_routes.py<br/>analysis + gas mixing"]
-    R3["routes/projects.py<br/>create/open/list projects"]
+    R3["routes/projects.py<br/>create/open/list projects, folder picker"]
+    R5["routes/project_description.py"]
     R4["routes/ai.py, literature.py"]
   end
   subgraph Modules["backend/modules"]
-    Calc["gas_mixing, pressure_analysis,<br/>ewt_analysis, flame_analysis"]
-    IO["data_parser, daq_reader,<br/>tpc5/mf4/h2s parsers"]
-    Store["project_store, project_manager,<br/>gas_mixing_store"]
+    Calc["gas_mixing, pressure_analysis,<br/>screening_peaks, ewt_analysis, flame_analysis"]
+    IO["data_parser, daq_reader, signal_reduction,<br/>tpc5/mf4/h2s parsers"]
+    Store["project_store, project_manager,<br/>project_description, gas_mixing_store"]
   end
   Disk[("Project folder<br/>EXDA-Projects/&lt;project&gt;/")]
   Browser -- "fetch + X-EXDA-Client header" --> API
   R1 --> Store
   R1 --> IO
+  R1 --> Calc
+  R5 --> Store
   R2 --> Calc
   R2 --> IO
   Store --> Disk
@@ -65,10 +87,10 @@ flowchart LR
 
 | Layer | Technology | Entry point |
 |---|---|---|
-| Frontend | React 18, Vite, Tailwind, Recharts, vitest | [frontend/src/main.jsx](../../frontend/src/main.jsx) → [AppShell.jsx](../../frontend/src/app/AppShell.jsx) → [WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) |
-| Backend | Python 3, Flask (5 blueprints), NumPy, SciPy, h5py, asammdf, ewtpy, PyWavelets | [backend/app.py](../../backend/app.py) |
+| Frontend | React 19, Vite 7 (Node ^20.19 or ≥ 22.12), Tailwind, uPlot (screening plots), Recharts, vitest | [frontend/src/main.jsx](../../frontend/src/main.jsx) → [AppShell.jsx](../../frontend/src/app/AppShell.jsx) → [WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) |
+| Backend | Python 3, Flask (6 blueprints), NumPy, SciPy, h5py, asammdf, ewtpy, PyWavelets | [backend/app.py](../../backend/app.py) |
 | Desktop build | Electron (starts the packaged backend) | [electron/main.cjs](../../electron/main.cjs) |
-| Launchers | Shell/batch scripts start backend + Vite and open the browser | `Run-EXDA-*.{sh,command,bat}` |
+| Launchers | First start: `Setup-EXDA-*` creates the Python environment (`.venv`, `.venv-mac`, `.venv-win`; never committed) and installs npm packages. Later starts: `Run-EXDA-*` checks the requirements, starts backend + Vite and opens the browser | `Setup-EXDA-*.{sh,command,bat}`, `Run-EXDA-*.{sh,command,bat}` |
 | Configuration | Host/port defaults | [config/exda-defaults.env](../../config/exda-defaults.env), env vars `EXDA_*` |
 
 Key design rules (from [EXDA-Check.md](EXDA-Check.md), section 0) that every
@@ -90,42 +112,55 @@ Sizes are lines of code (tracked files, November 2026).
 
 | File | Lines | Role |
 |---|---:|---|
-| [routes/state.py](../../backend/routes/state.py) | 5 663 | 35 routes: project state, plan/mapping/gas saves, exports (PDF/CSV), raw-file reading, lock, run renames |
-| [routes/ai.py](../../backend/routes/ai.py) | 2 038 | AiRA assistant (Ollama), repository context |
-| [routes/calculation_api_routes.py](../../backend/routes/calculation_api_routes.py) | 598 | `/analyze`, `/analyze_pressure`, `/analyze_vent`, `/analyze_ewt`, `/preview_multichannel`, `/aggregate_plot`, `/calculate_gas_mix`, `/calculation_verification` |
-| [routes/projects.py](../../backend/routes/projects.py) | 254 | Create, open, rename, copy, delete, list projects; default projects folder |
+| [routes/state.py](../../backend/routes/state.py) | 5 813 | 40 routes: project state, plan/mapping/gas/checklist saves, exports (PDF/CSV), raw-file reading, channel peaks, procedures, lock, run renames |
+| [routes/ai.py](../../backend/routes/ai.py) | 2 040 | AiRA assistant (Ollama), repository context |
+| [routes/calculation_api_routes.py](../../backend/routes/calculation_api_routes.py) | 607 | `/analyze`, `/analyze_pressure`, `/analyze_vent`, `/analyze_ewt`, `/preview_multichannel`, `/aggregate_plot`, `/calculate_gas_mix`, `/calculation_verification` |
+| [routes/projects.py](../../backend/routes/projects.py) | 407 | Create, open, rename, copy, delete, list projects; projects overview and plan summary; folder listing for the picker; default projects folder |
+| [routes/project_description.py](../../backend/routes/project_description.py) | 108 | `/get_project_description`, `/save_project_description`, `/project_description_suggestions` |
+| [modules/project_manager.py](../../backend/modules/project_manager.py) | 594 | Project folder structure, project marker, plan save/load, status |
 | [modules/pressure_analysis.py](../../backend/modules/pressure_analysis.py) | 580 | Pressure processing chain and metrics (pMax, tMax, impulse), vent time |
 | [modules/project_store.py](../../backend/modules/project_store.py) | 579 | Atomic writes, history copies, change log, content versions (409), project lock (423) |
-| [modules/project_manager.py](../../backend/modules/project_manager.py) | 517 | Project folder structure, plan save/load, status |
 | [modules/data_parser.py](../../backend/modules/data_parser.py) | 493 | Text/CSV parsing (two-column, tables, multichannel waveform), unit conversion for EWT |
+| [modules/daq_reader.py](../../backend/modules/daq_reader.py) | 317 | Full-resolution channel reads (TPC5, MF4, text): one channel (`read_channel`) or all (`read_all_channels`) |
 | [modules/ewt_analysis.py](../../backend/modules/ewt_analysis.py) | 276 | Empirical wavelet transform, mode energies, filter-cutoff suggestion |
 | [modules/gas_mixing.py](../../backend/modules/gas_mixing.py) | 261 | H₂ fill model (ideal gas + MFC timing) |
-| [modules/daq_reader.py](../../backend/modules/daq_reader.py) | 231 | Full-resolution channel reads (TPC5, MF4, text) for analysis |
 | [modules/gas_mixing_checks.py](../../backend/modules/gas_mixing_checks.py) | 216 | Read-only consistency checks of saved gas/plan records |
 | [modules/h2s_parser.py](../../backend/modules/h2s_parser.py) | 196 | H₂ sensor logs: block splitting, duplicates |
-| [modules/tpc5_parser.py](../../backend/modules/tpc5_parser.py), [mf4_parser.py](../../backend/modules/mf4_parser.py) | 172, 110 | Preview content (decimated) from TPC5/MF4 |
+| [modules/folder_dialog.py](../../backend/modules/folder_dialog.py) | 196 | Native folder dialog fallback (per OS) |
+| [modules/tpc5_parser.py](../../backend/modules/tpc5_parser.py), [mf4_parser.py](../../backend/modules/mf4_parser.py) | 186, 123 | Preview content from TPC5/MF4, reduced with the min/max envelope |
+| [modules/project_description.py](../../backend/modules/project_description.py) | 183 | Project Description schema (`exda-project-description/1`), validation, suggestions from other projects |
+| [modules/checklist_definition.py](../../backend/modules/checklist_definition.py), [procedures.py](../../backend/modules/procedures.py) | 166, 84 | Editable checklist definition; list of campaign safety documents |
 | [modules/gas_mixing_store.py](../../backend/modules/gas_mixing_store.py) | 163 | Gas record history and audit |
 | [modules/plot_interpolation.py](../../backend/modules/plot_interpolation.py) | 152 | Merging series for overlay plots (display only) |
 | [modules/flame_analysis.py](../../backend/modules/flame_analysis.py) | 85 | Flame speed from probe crossing times |
+| [modules/signal_reduction.py](../../backend/modules/signal_reduction.py) | 69 | Min/max envelope row selection, `reduction_info`, median sampling rate |
 | [modules/output_format.py](../../backend/modules/output_format.py) | 56 | Fixed-precision formatting for exports |
+| [modules/screening_peaks.py](../../backend/modules/screening_peaks.py) | 44 | Required time range, max and time of max in that range |
 | [modules/aira_multi_role.py](../../backend/modules/aira_multi_role.py) | 266 | Not imported anywhere (candidate for removal) |
-| [tests/](../../backend/tests) | ~1 700 | unittest suites, reference data, Octave comparison scripts, third-party EWT toolbox |
+| [tests/](../../backend/tests) | 18 files | unittest suites, reference data, Octave comparison scripts, third-party EWT toolbox |
 
 ### Frontend ([frontend/src/](../../frontend/src))
 
 | File | Lines | Role |
 |---|---:|---|
-| [pages/Plan.jsx](../../frontend/src/pages/Plan.jsx) | 2 115 | Campaign plan, run cards, renames, actual ignition time |
-| [features/workspace/WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) | 2 081 | App shell: tabs, routing, project open/save, versions, lock, read-only banner |
-| [pages/RawDataScreeningCorePage.jsx](../../frontend/src/pages/RawDataScreeningCorePage.jsx) | 1 390 | Pressure and H₂ screening plots; unit and ppm conversions for display |
-| [pages/GasMixing.jsx](../../frontend/src/pages/GasMixing.jsx) | 1 369 | Gas mixing form, calculate/save, calibration, record checks |
-| [pages/SensorsMapping.jsx](../../frontend/src/pages/SensorsMapping.jsx), [CamerasMapping.jsx](../../frontend/src/pages/CamerasMapping.jsx) | 1 222, 1 049 | Sensor/camera mappings, per-run overrides |
+| [features/workspace/WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) | 2 174 | App shell: tabs, tab headers, routing, project open/save, versions, lock, read-only banner |
+| [pages/Plan.jsx](../../frontend/src/pages/Plan.jsx) | 2 092 | Campaign plan, run cards, renames, actual ignition time |
+| [pages/RawDataScreeningCorePage.jsx](../../frontend/src/pages/RawDataScreeningCorePage.jsx) | 1 446 | Pressure and H₂ screening plots; unit and ppm conversions for display; peak range and channel choice (kept in localStorage) |
+| [pages/GasMixing.jsx](../../frontend/src/pages/GasMixing.jsx) | 1 366 | Gas mixing form, calculate/save, calibration, record checks |
+| [pages/SensorsMapping.jsx](../../frontend/src/pages/SensorsMapping.jsx), [CamerasMapping.jsx](../../frontend/src/pages/CamerasMapping.jsx) | 1 216, 1 043 | Sensor/camera mappings, per-run overrides |
+| [pages/Projects.jsx](../../frontend/src/pages/Projects.jsx), [Home.jsx](../../frontend/src/pages/Home.jsx) | 988, 972 | Projects overview (groups, collapsible), home page |
+| [pages/ImportData.jsx](../../frontend/src/pages/ImportData.jsx) | 851 | Raw data folders per run and DAQ |
+| [components/HighResMultiChannelPlot.jsx](../../frontend/src/components/HighResMultiChannelPlot.jsx) | 361 | uPlot multichannel plot; draws the peak-table time range |
+| [components/ProjectPickerModal.jsx](../../frontend/src/components/ProjectPickerModal.jsx) | 307 | Folder picker in the app style (breadcrumbs from [pathCrumbs.js](../../frontend/src/utils/pathCrumbs.js)) |
+| [pages/ProjectDescription.jsx](../../frontend/src/pages/ProjectDescription.jsx) | 292 | Project Description tab (with [useProjectDescription.js](../../frontend/src/hooks/useProjectDescription.js), [TagInput.jsx](../../frontend/src/components/TagInput.jsx)) |
+| [components/PeakTable.jsx](../../frontend/src/components/PeakTable.jsx) | 194 | Peak pressures table: range, channel choice, calls `/channel_peaks`; values formatted by [peakFormat.js](../../frontend/src/utils/peakFormat.js) |
+| [components/PageHeader.jsx](../../frontend/src/components/PageHeader.jsx) | 19 | Title bar used by every tab |
 | [features/analysis/PressureAnalysisWorkbench.jsx](../../frontend/src/features/analysis/PressureAnalysisWorkbench.jsx) | 766 | Pressure analysis and CFD-validation UI (advanced mode) |
 | [pages/AppCalculationsVerification.jsx](../../frontend/src/pages/AppCalculationsVerification.jsx) | 651 | In-app verification page (Python vs Octave) |
 | [pages/EwtAnalysis.jsx](../../frontend/src/pages/EwtAnalysis.jsx) | 475 | EWT UI |
 | [features/workspace/hooks/useAnalysisPipeline.js](../../frontend/src/features/workspace/hooks/useAnalysisPipeline.js) | 398 | Calls the analysis endpoints |
 | [utils/gasMixing.js](../../frontend/src/utils/gasMixing.js) | 287 | Unit conversion, request building, stale detection, **calibration correction** |
-| [utils/units.js](../../frontend/src/utils/units.js) | 75 | Unit tokens and display conversion |
+| [utils/units.js](../../frontend/src/utils/units.js) | 81 | Unit tokens, display conversion, `isVoltageOrTrigger` |
 
 Placeholders: [FlameSpeedAnalysis.jsx](../../frontend/src/pages/FlameSpeedAnalysis.jsx)
 (13 lines, no UI). [CFDValidation.jsx](../../frontend/src/pages/CFDValidation.jsx)
@@ -137,7 +172,7 @@ reuses the pressure workbench.
 |---|---|
 | [tests/e2e/](../../tests/e2e) | Playwright end-to-end tests |
 | [scripts/](../../scripts) | Packaging/maintenance scripts |
-| [docs/](..) | `EXDA-User-Guide/` (guide, Word version, screenshots, videos, build script), `EXDA-Developer-Overview/` (this overview, EXDA-Check.md review brief, downsampling notes), `design/` (architecture animation sources), `assets/` (icons used by the README) |
+| [docs/](..) | `EXDA-User-Guide/` (guide, Word version, screenshots, videos, build script, and `tools/` with the demo-project generator and the Playwright media recorder), `EXDA-Developer-Overview/` (this overview, EXDA-Check.md review brief, downsampling notes), `design/` (architecture animation sources), `assets/` (icons used by the README) |
 | [versioning.sh](../../versioning.sh), [VERSIONING.md](../../VERSIONING.md) | Release assistant (allow-listed staging, tag, merge) |
 
 ---
@@ -178,14 +213,45 @@ sequenceDiagram
 
 ### 3.3 Screening and EWT (preview path)
 
-Screening and EWT use **preview content**: the file is read by
-`/read_project_file`, which decimates TPC5/MF4 to at most 200 000 samples by
-index picking ([tpc5_parser.py:149](../../backend/modules/tpc5_parser.py#L149)),
-and returned as text. Screening converts units **in the browser**
-([units.js](../../frontend/src/utils/units.js)); EWT sends the text back to
-`/analyze_ewt`. See findings F4 and F5.
+Screening and EWT use **preview content**. `/read_project_file` reads the
+file and, in fast preview, reduces TPC5/MF4/text to a row limit with a
+**min/max envelope**
+([signal_reduction.envelope_row_indices](../../backend/modules/signal_reduction.py#L18)):
+each interval keeps the lowest and highest sample of every channel, so plotted
+peaks equal the true peaks. The content is returned as text, together with
+`sampleInfo` (true sample count, true sampling rate, reduction method).
+`/preview_multichannel` passes `sourceInfo` through to its summary. Screening
+converts units **in the browser**
+([units.js](../../frontend/src/utils/units.js)). EWT sends the text back to
+`/analyze_ewt`. See findings F4 and F5. Details:
+[DOWNSAMPLING_FLOW.md](DOWNSAMPLING_FLOW.md).
 
-### 3.4 Saves, versions and the lock
+### 3.4 Screening peak table (full resolution)
+
+```mermaid
+sequenceDiagram
+  participant UI as PeakTable.jsx
+  participant API as /channel_peaks (state.py)
+  participant R as daq_reader.read_all_channels
+  participant P as screening_peaks
+  UI->>API: projectPath, path, windowStart, windowEnd, channelIndices
+  API->>P: parse_range(start, end)  (required, end > start, else 400)
+  API->>R: read every channel at full resolution
+  API->>P: peak_in_range(t, values, start, end) per selected channel
+  P-->>UI: index, name, fileUnit, samplingRateHz, max, tMax, samples
+```
+
+- The values are the raw recorded values in the file unit: no filter, no
+  baseline, no unit change. The browser converts them for display only.
+- The user picks the channels (trigger and voltage channels are left out by
+  default, via `isVoltageOrTrigger`).
+- Nothing is written to the project. The range and the channel choice are
+  kept per file in `localStorage`.
+- The values are cleared whenever the range or the channel choice changes,
+  so the table never mixes old and new results.
+- The range is drawn on the plots (`highlightRange` prop).
+
+### 3.5 Saves, versions and the lock
 
 Every save goes through [project_store](../../backend/modules/project_store.py):
 the old file is copied to `History/`, the change is appended to
@@ -200,10 +266,12 @@ header (set by a fetch wrapper in [clientId.js](../../frontend/src/utils/clientI
 ## 4. Project data on disk
 
 ```
-EXDA-Projects/<project>/
-├── Plan/            <plan>.json (experiments, meta), project_status.json, exported plan CSV/PDF
+EXDA-Projects/[<group folder>/]<project>/
+├── exda-project.json   project marker: {"schema": "exda-project/1", "projectId": …}
+├── Plan/            <plan>.json (experiments, meta), project_status.json,
+│                    project_description.json, exported plan CSV/PDF
 ├── Raw_Data/<run>/<DAQ>/   instrument files (read only for EXDA)
-├── Clean_Data/, CFD_Data/, Literature/
+├── Clean_Data/, CFD_Data/, Literature/, aiChat/
 ├── Procedures/      RAMS/, RAMS-Appendices/, SOPs/ (campaign safety documents)
 ├── Reports/         daq_systems.json, sensors_mapping.json, cameras_mapping.json,
 │                    gas_mixing.json, checklist_state.json, checklist_runs.json,
@@ -215,7 +283,21 @@ EXDA-Projects/<project>/
 
 The default projects folder is `EXDA_PROJECTS_ROOT`, else `EXDA-Projects`
 next to the app folder, else `<app>/Projects`
-([projects.py](../../backend/routes/projects.py)).
+([projects.py](../../backend/routes/projects.py#L18)).
+
+**What counts as a project.** A folder is a project if it holds a valid
+`exda-project.json`, or, for projects made before the marker existed, a
+`Plan/` folder with a status file or an `Experiment_Plan*.json`
+([project_manager.py:79–116](../../backend/modules/project_manager.py#L79)).
+Folders without either are treated as **groups**: they can hold several
+projects, and the Projects page shows them as one collapsible block. Opening
+a folder that is not a project asks before any project folders are created.
+
+**Plan file selection.** Several places pick "the" plan JSON in `Plan/`.
+They all go through `is_plan_json_name`, which skips `NON_PLAN_FILENAMES`
+(`project_status.json`, `project_description.json`). A regression test covers
+this, because picking the description as the plan made a finished project
+look empty.
 
 ---
 
@@ -236,9 +318,10 @@ tolerance; **T** unit-tested (behaviour, not independent values);
 | C7 | Vent opening time | [pressure_analysis.py:555](../../backend/modules/pressure_analysis.py#L555) | – |
 | C8 | EWT modes, energies, cutoff suggestion | [ewt_analysis.py:119](../../backend/modules/ewt_analysis.py#L119) | shape only; **disagrees** with Octave |
 | C9 | Flame speed | [flame_analysis.py:42](../../backend/modules/flame_analysis.py#L42) | – |
-| C10 | Preview decimation and display unit conversion | [tpc5_parser.py](../../backend/modules/tpc5_parser.py), [units.js](../../frontend/src/utils/units.js) | T (units) |
+| C10 | Preview reduction (min/max envelope) and display unit conversion | [signal_reduction.py](../../backend/modules/signal_reduction.py), [units.js](../../frontend/src/utils/units.js) | T (envelope keeps every extreme, first/last row, sample info; units) |
 | C11 | ppm → vol.% for BGA/H₂ (÷ 10 000) | [RawDataScreeningCorePage.jsx](../../frontend/src/pages/RawDataScreeningCorePage.jsx) | – |
 | C12 | Plot merging/interpolation (display only) | [plot_interpolation.py](../../backend/modules/plot_interpolation.py) | T |
+| C13 | Screening peak table: max and time of max in a required range, full resolution | [screening_peaks.py:32](../../backend/modules/screening_peaks.py#L32), `/channel_peaks` | T (range rules, late spike outside the range, empty range, gaps; route: channel selection, required inputs, paths outside the project refused); display formatting T (vitest) |
 
 ### C1 H₂ fill model
 
@@ -298,6 +381,16 @@ energy reaches 95%. The physical labels per mode use fixed thresholds
 Crossing time of 0.5 per probe → `v = |Δx/Δt|` between neighbouring probes,
 with `x` measured from a fixed ignition position of 2.4 m.
 
+### C13 Screening peak in a range
+
+`parse_range` requires both ends and `end > start`; there is no "whole
+record" default, because a single electrical spike outside the event
+would otherwise be reported as the peak. Inside `start ≤ t ≤ end`,
+`peak_in_range` uses every finite sample and returns `max`, the time of the
+first sample at that maximum, and the number of samples used (`None` and 0
+when the range holds no samples). The values are in the file unit. The table
+shows them in the user's display unit and notes the recorded unit.
+
 ---
 
 ## 6. Findings: calculations
@@ -331,12 +424,14 @@ data at 0.05 kPa (a small drift) raises the impulse from 0.4109 to
 upward crossing of `f·pMax` / 0 before the peak), report it in `processing`,
 and test it with a shifted window.
 
-**F4 — EWT runs on decimated preview data without an anti-aliasing filter.**
-Preview content keeps every k-th sample
-([tpc5_parser.py:149](../../backend/modules/tpc5_parser.py#L149)), and EWT then
-analyses that signal. Content above the new Nyquist frequency folds into the
-analysed band, and the EWT `fs` differs from the analysis `fs`. The suggested
-cutoff can therefore point at an aliased peak.
+**F4 — EWT runs on reduced preview data.** In fast preview the content is
+now a min/max envelope (since 4.0.11; before, every k-th sample). That is
+right for display, but it is no basis for a spectrum. The envelope rows are
+extremes, not a filtered signal, and they are not evenly spaced in time. EWT
+resamples them to a uniform grid and analyses the result, so the energy
+moves to frequencies that are not in the recording, and the EWT `fs` differs
+from the true rate (which `sampleInfo` now reports). The suggested cutoff
+can therefore point at a peak that is not real.
 *Fix:* give EWT the full-resolution channel via `daq_reader` (as the pressure
 analysis does), or decimate with `scipy.signal.decimate` (filtered), and
 record `fs` and the decimation factor.
@@ -395,7 +490,11 @@ and checked, not changed silently:
   `x/(1−x) · n_air`, which is larger (+19% at 16 vol.%).
 - **Standard conditions must match the MFC calibration.** 25 °C (current
   constant) vs 0 °C ("normal" litres) changes the fill time by 9.2%
-  (298.15/273.15).
+  (298.15/273.15). The defaults sit in
+  [gas_mixing.py:20–21](../../backend/modules/gas_mixing.py#L20) and are
+  also prefilled in the form
+  ([GasMixing.jsx:172–173](../../frontend/src/pages/GasMixing.jsx#L172)).
+  The values must be checked against the MFC datasheet (audit item #3).
 - Relative humidity is recorded but not used. That is correct for the H₂
   amount, but it should be stated.
 - No uncertainty is propagated (P, T, V, MFC accuracy).
@@ -436,17 +535,58 @@ origin in the UI.
   frequency thresholds that are vessel-specific. Make them configurable or
   show them as hints.
 
+### From the "no default values" audit (November 2026)
+
+The audit checked that results are computed only from values the user gave
+or the file recorded. Item #1 is fixed: the fast preview used to hide peaks,
+by up to 46% on a real 1 MHz file, and now uses the min/max envelope.
+Item #3 is F9 above. Items #2, #4 and #5 are still open:
+
+**F17 — Gas mixing prefills the chamber geometry and the volume
+corrections (high).** A new record starts with L = W = H = 0.9 m, and the
+pipes, hot-wire, welded-parts and bolts volumes all start at 0
+([GasMixing.jsx:165–171](../../frontend/src/pages/GasMixing.jsx#L165)).
+A record without these fields falls back to the same values (0.9 m and 0)
+when it is loaded
+([GasMixing.jsx:359–365](../../frontend/src/pages/GasMixing.jsx#L359)).
+These look like entered values, so a run can be calculated with the wrong
+volume. On the VH2D rig, for example, the pipes volume is 0.067 m³, not 0.
+*Planned fix:* copy the values from the project's previous gas record and
+label them as copied. With no previous record, leave the fields empty, so
+the existing "required" check stops the calculation.
+
+**F18 — The TPC5 preview reader assumes values when attributes are missing
+(medium).** [tpc5_parser.py:65–73](../../backend/modules/tpc5_parser.py#L65)
+uses a 1 Hz sampling rate when `sampleRateHertz` is missing or invalid, and
+a factor of 1 when `binToVoltFactor` or `voltToPhysicalFactor` is missing.
+The full-resolution reader already refuses a missing rate
+([daq_reader.py:100–102](../../backend/modules/daq_reader.py#L100)), but it
+still defaults both scaling factors to 1 and both offsets to 0
+([daq_reader.py:105–106](../../backend/modules/daq_reader.py#L105)).
+*Fix:* raise a clear error for a missing rate in the preview as well. For
+the scaling, either raise an error or record "scaling not in file" in
+`sampleInfo` and show it.
+
+**F19 — The UI does not show units that were assumed (medium).**
+`/preview_multichannel` returns a `unitSource` per channel (`file header`,
+`assumed` from the channel name, or `unknown`;
+[calculation_api_routes.py:412](../../backend/routes/calculation_api_routes.py#L412)),
+but the screening page never shows it. A unit taken from the channel name
+(see F10) therefore looks the same as one read from the file.
+*Fix:* show an "assumed" badge next to the channel unit and in the peak
+table.
+
 ---
 
 ## 7. Findings: code structure
 
 | # | Finding | Suggestion |
 |---|---|---|
-| S1 | `routes/state.py` has 5 663 lines and 35 routes (file I/O, exports, lock, renames, analysis). | Split into blueprints: `files`, `records` (plan/mappings/gas), `exports`, `lock`, `runs`. Move PDF/CSV export code to a module. |
-| S2 | `WorkspacePage.jsx` (2 081) and `Plan.jsx` (2 115) hold most frontend state and logic. | Extract hooks (`useProjectLock`, `useProjectSave`, `usePlanEditor`) and keep pages presentational. |
+| S1 | `routes/state.py` has 5 813 lines and 40 routes (file I/O, exports, lock, renames, analysis, channel peaks). The Project Description already got its own blueprint, which is the pattern to follow. | Split into blueprints: `files`, `records` (plan/mappings/gas), `exports`, `lock`, `runs`. Move PDF/CSV export code to a module. |
+| S2 | `WorkspacePage.jsx` (2 174) and `Plan.jsx` (2 092) hold most frontend state and logic. | Extract hooks (`useProjectLock`, `useProjectSave`, `usePlanEditor`) and keep pages presentational. |
 | S3 | Four pressure-unit tables: [pressure_analysis.py:36](../../backend/modules/pressure_analysis.py#L36) (has psi), [data_parser.py:481](../../backend/modules/data_parser.py#L481) (no psi), [units.js:38](../../frontend/src/utils/units.js#L38) (no psi), [gasMixing.js:38](../../frontend/src/utils/gasMixing.js#L38) (Pa-based). | One backend table (`units.py`) exported as JSON to the frontend; test both sides against the same cases. |
 | S4 | Duplicate helpers: `resample_uniform` in pressure_analysis and ewt_analysis; three `parse_data_content` wrappers; `flame_analysis` has its own parser. | One `signal_utils.py` (resample, decimate, uniformity check) and one parser entry point. |
-| S5 | Two read paths: full-resolution `daq_reader` (analysis) and decimated preview text (screening, EWT, vent, flame). | Make analysis always use `daq_reader`; keep preview text for display only. |
+| S5 | Two read paths: full-resolution `daq_reader` (pressure analysis, screening peak table) and reduced preview text (screening plots, EWT, vent, flame). | Make every calculation use `daq_reader`; keep preview text for display only. |
 | S6 | `aira_multi_role.py` and `ArchitectureFlowMap.jsx` are not used. | Remove (see the earlier file audit). |
 | S7 | No continuous integration: tests run only when someone runs them. | GitHub Actions: backend unittest + vitest + eslint on every push (free for public repos). |
 | S8 | Analysis endpoints catch `Exception` and return `{"error": str(e)}` with 500. | Map known errors (PressureAnalysisError, ValueError) to 400 and log the rest with a traceback. |
@@ -459,9 +599,10 @@ origin in the UI.
 
 | Suite | Files | Tests | Notes |
 |---|---|---:|---|
-| Backend unittest | 11 in [backend/tests/](../../backend/tests) | 85 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
-| Frontend vitest | 7 in [frontend/tests/](../../frontend/tests) | 41 | Gas-mixing logic, units, mappings, versions, formatting |
+| Backend unittest | 18 in [backend/tests/](../../backend/tests) | 157 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
+| Frontend vitest | 13 in [frontend/tests/](../../frontend/tests) | 62 | Gas-mixing logic, units (incl. trigger detection), peak formatting, mappings, versions, formatting, path crumbs, Project Description |
 | End-to-end | 2 in [tests/e2e/](../../tests/e2e) | – | Playwright; need a running app |
+| Guide media | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) | – | Not a test, but it clicks through every MVP tab on synthetic data, so a broken flow shows up when the media are regenerated |
 | Octave comparison | [backend/tests/scripts/comparison/](../../backend/tests/scripts/comparison) | – | Manual scripts writing CSVs to `backend/tests/results/` |
 
 ### What is independently verified
@@ -474,6 +615,8 @@ origin in the UI.
 | EWT peaks/energies | Octave toolbox | **disagree** (F6) | No |
 | Gas mixing | – | hand values only in tests | – |
 | Analytic pMax/impulse | triangle pulse (6.5, 17.0) | exact | Yes |
+| Preview envelope max | true max of the synthetic signal | exact (the envelope keeps existing samples) | Yes |
+| Peak in range | known spike inside the range, larger spike outside it | exact | Yes |
 
 ### Gaps
 
@@ -497,6 +640,8 @@ origin in the UI.
 - **Untested:** vent time (C7), flame speed (C9), the ppm conversion (C11),
   the absolute-pressure path against a reference, and the frontend–backend
   agreement for the calibration correction.
+- **No CI yet (S7):** the counts above are from running the suites by hand
+  on 24 November 2026.
 
 ---
 
@@ -550,7 +695,9 @@ scripts take units explicitly instead of guessing.
 
 ### 9.4 Order of work
 
-1. Fix F1 (crash) and F5 (EWT unit) — small, independent.
+1. Fix F1 (crash) and F5 (EWT unit), which are small and independent, and
+   the open audit items F17–F19, which affect the MVP screening and gas
+   mixing directly.
 2. Point the skipped Butterworth test at the existing fixture; remove the
    magnitude guess from both comparison scripts; turn the stored Octave CSVs
    into automated tolerance tests (§9.2).
@@ -583,3 +730,29 @@ bash backend/tests/run_octave_ewt_verification.sh
 
 Tests never write to project folders; they use temporary folders. Tests that
 need real campaign data skip when it is not present.
+
+### Regenerating the user-guide media
+
+Run a separate test copy of the app on other ports, so a running EXDA
+(5000/5173) is never touched. Then generate the synthetic demo projects
+and record the media:
+
+```bash
+# 1. synthetic demo projects (no real campaign data)
+python3 docs/EXDA-User-Guide/tools/make_demo_project.py /tmp/EXDA-Demo
+
+# 2. test copy of the app on 5055/5175, using the demo as projects folder
+EXDA_BACKEND_PORT=5055 EXDA_PROJECTS_ROOT=/tmp/EXDA-Demo/EXDA-Projects python3 backend/app.py &
+EXDA_BACKEND_PORT=5055 npx vite --config frontend/vite.config.js --port 5175 &
+
+# 3. screenshots + videos (all sections, or name some: plan gas-mixing …)
+EXDA_URL=http://localhost:5175 CHROME_PATH=/snap/bin/chromium \
+  node docs/EXDA-User-Guide/tools/record_guide_media.mjs /tmp/EXDA-Demo
+
+# 4. Word version
+python3 docs/EXDA-User-Guide/build_userguide_docx.py
+```
+
+Raw recordings go to `docs/EXDA-User-Guide/tools/.raw-videos/` (ignored by
+git). The recorder needs Playwright's ffmpeg (`npx playwright install ffmpeg`)
+and the system `ffmpeg`.

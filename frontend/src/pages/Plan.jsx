@@ -1543,8 +1543,8 @@ const PlanPage = ({
                                             {e.name}
                                         </span>
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                                            <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} className="text-zinc-600 hover:text-white p-1 hover:bg-zinc-800 rounded transition-colors"><PenTool size={12}/></button>
-                                            <button onClick={() => removeRunWithUndo(e.id)} className="text-zinc-600 hover:text-red-500 p-1 hover:bg-zinc-800 rounded transition-colors"><Trash2 size={12}/></button>
+                                            <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} title="Edit run card" aria-label={`Edit run card ${e.name}`} className="text-zinc-600 hover:text-white p-1 hover:bg-zinc-800 rounded transition-colors"><PenTool size={12}/></button>
+                                            <button onClick={() => removeRunWithUndo(e.id)} title="Delete run" aria-label={`Delete run ${e.name}`} className="text-zinc-600 hover:text-red-500 p-1 hover:bg-zinc-800 rounded transition-colors"><Trash2 size={12}/></button>
                                         </div>
                                     </div>
                                     

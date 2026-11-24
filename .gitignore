@@ -79,3 +79,6 @@ AppsExamples
 
 # Windows shortcut created by Setup-EXDA-WIN.bat (holds this PC's full path)
 EXDA.lnk
+
+# Temporary recordings of the user guide media recorder
+docs/EXDA-User-Guide/tools/.raw-videos/
