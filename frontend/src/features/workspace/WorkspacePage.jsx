@@ -1387,7 +1387,7 @@ const WorkspacePage = () => {
                               <div className="ml-3 hidden md:block">
                                   <h1 className="text-lg font-bold text-foreground">Research Projects</h1>
                                   <p className="text-xs text-muted-foreground">
-                                      Manage your hydrogen explosion research experiments
+                                      Manage your experimental test campaigns
                                   </p>
                               </div>
                           )}

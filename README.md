@@ -1,7 +1,7 @@
 # EXDA Dashboard
-### Explosion Data Analysis & Research Management System
+### Experimental Data Analysis & Research Management System
 
-EXDA Dashboard is a full-stack research application for hydrogen explosion experiments, CFD validation, and literature-assisted analysis. It combines a React frontend, a Flask backend, scientific data-processing modules, and optional AI-assisted workflows in a single workspace.
+EXDA (EXperimental DAta) Dashboard is a research application for planning, running and documenting experimental test campaigns, developed for hydrogen explosion experiments, with CFD validation and literature-assisted analysis. It combines a React frontend, a Flask backend, scientific data-processing modules, and optional AI-assisted workflows in a single workspace.
 
 The goal of the app is to make it easier to move from project setup, to experiment planning, to signal analysis, to reporting without bouncing between separate tools.
 

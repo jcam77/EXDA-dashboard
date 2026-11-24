@@ -439,7 +439,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             aria-hidden="true"
           /> */}
           <h1 className="normal-case text-5xl sm:text-6xl lg:text-7xl font-bold mb-4 leading-tight">
-            <span className="text-foreground">Hydrogen Explosion</span>
+            <span className="text-foreground"><span className="text-primary">EX</span>perimental <span className="text-primary">DA</span>ta</span>
             <br />
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Research Platform
@@ -448,7 +448,8 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
           <p className="text-lg sm:text-xl text-muted-foreground mb-6 max-w-2xl mx-auto">
 {/*             A unified workspace for experimental/simulations planning, data analysis,
             literature management, and AI-assisted research workflows. */}
-            Professional analysis and research management system for industrial engineering projects. Analyse experimental data, manage projects, and leverage AI-assisted literature review all in one unified platform.
+            Plan, run and document experimental test campaigns, from checklists and safety procedures to measured data and reports, in one traceable workspace.
+            <span className="mt-2 block text-sm sm:text-base">Developed for hydrogen explosion testing; usable for any experimental campaign.</span>
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
             {onSelectTab && (
@@ -478,16 +479,16 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-16 text-sm">
             <div className="p-4 rounded-lg border border-sidebar-border/30 bg-card/50">
-              <p className="text-2xl font-bold text-primary">User‑Managed</p>
-              <p className="text-muted-foreground text-xs mt-1">Literature Library</p>
+              <p className="text-2xl font-bold text-primary">Plan &amp; Prepare</p>
+              <p className="text-muted-foreground text-xs mt-1">Test plans, checklists, safety procedures</p>
             </div>
             <div className="p-4 rounded-lg border border-sidebar-border/30 bg-card/50">
-              <p className="text-2xl font-bold text-primary">Interactive</p>
-              <p className="text-muted-foreground text-xs mt-1">Data Post‑Processing</p>
+              <p className="text-2xl font-bold text-primary">Measure &amp; Screen</p>
+              <p className="text-muted-foreground text-xs mt-1">DAQ files, sensors, quick-look plots</p>
             </div>
             <div className="p-4 rounded-lg border border-sidebar-border/30 bg-card/50">
-              <p className="text-2xl font-bold text-primary">AI‑Assisted</p>
-              <p className="text-muted-foreground text-xs mt-1">Analysis & Reporting</p>
+              <p className="text-2xl font-bold text-primary">Traceable</p>
+              <p className="text-muted-foreground text-xs mt-1">Every change kept, nothing overwritten</p>
             </div>
           </div>
           {recentProjects.length > 0 && (
