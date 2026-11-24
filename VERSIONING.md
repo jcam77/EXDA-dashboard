@@ -4,8 +4,8 @@ This is the EXDA versioning workflow.
 
 ## Current Release
 
-- Latest release version: `4.0.9`
-- Latest release tag: `browser-MVP-v4.0.9`
+- Latest release version: `4.0.10`
+- Latest release tag: `browser-MVP-v4.0.10`
 - Updated on: `2026-11-24`
 
 ## Safe Rule
