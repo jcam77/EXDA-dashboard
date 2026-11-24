@@ -3,14 +3,9 @@ set -euo pipefail
 
 APP="${1:-}"
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV_DIR="$ROOT_DIR/.venv"
 OS_NAME="$(uname -s 2>/dev/null || echo unknown)"
-
-if [[ -d "$VENV_DIR/bin" ]]; then
-  export PATH="$VENV_DIR/bin:$PATH"
-else
-  echo "⚠️  .venv not found at $VENV_DIR (backend may use system Python)."
-fi
+# The launchers pick and set up the Python environment themselves
+# (.venv-mac on macOS, .venv-win on Windows, .venv on Linux).
 
 VERSION="$(git -C "$ROOT_DIR" describe --tags --always 2>/dev/null || echo "unknown")"
 BRANCH="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")"

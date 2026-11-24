@@ -66,10 +66,16 @@ const resolveBackendCommand = () => {
     return { cmd: process.env.EXDA_BACKEND_PATH, args: [] };
   }
   if (isDev) {
-    const venvCandidates = [
-      path.join(app.getAppPath(), '.venv', 'Scripts', 'python.exe'),
-      path.join(app.getAppPath(), '.venv', 'bin', 'python'),
-    ];
+    // Per-OS environment first (.venv-win / .venv-mac, see scripts/run-python.mjs), then .venv.
+    const venvCandidates = process.platform === 'win32'
+      ? [
+        path.join(app.getAppPath(), '.venv-win', 'Scripts', 'python.exe'),
+        path.join(app.getAppPath(), '.venv', 'Scripts', 'python.exe'),
+      ]
+      : [
+        ...(process.platform === 'darwin' ? [path.join(app.getAppPath(), '.venv-mac', 'bin', 'python')] : []),
+        path.join(app.getAppPath(), '.venv', 'bin', 'python'),
+      ];
     const pythonCmd =
       venvCandidates.find((candidate) => fs.existsSync(candidate)) ||
       (process.platform === 'win32' ? 'python' : 'python3');

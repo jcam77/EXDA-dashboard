@@ -29,6 +29,8 @@ REPO_SCAN_IGNORE_DIRS = {
     ".git",
     "node_modules",
     ".venv",
+    ".venv-mac",
+    ".venv-win",
     "venv",
     "__pycache__",
     "dist",

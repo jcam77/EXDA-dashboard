@@ -41,6 +41,9 @@ test-results/
 # Python
 venv/
 .venv/
+# Per-OS Python environments (.venv-mac, .venv-win) and moved-aside broken copies
+.venv-*/
+.venv.*/
 __pycache__/
 *.pyc
 .ollama_hostname

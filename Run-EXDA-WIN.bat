@@ -1,6 +1,10 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-title EXDA Dashboard Manager
+title EXDA
+
+rem Starts EXDA on Windows (double-click, or the EXDA shortcut).
+rem Every start runs a quick check. On the first start on a computer, or when
+rem something is missing, it runs Setup-EXDA-WIN.bat first and then starts EXDA.
 
 set "REPO_ROOT=%~dp0"
 cd /d "%REPO_ROOT%"
@@ -13,11 +17,9 @@ if exist "%DEFAULTS_FILE%" (
   )
 )
 
-set "HAS_ERRORS=0"
-set "PYTHON_EXE="
-set "PYTHON_ARGS="
-set "CHECK_FILE=%TEMP%\exda_missing_python_%RANDOM%.txt"
-set "PY_PREFIX_FILE=%TEMP%\exda_python_prefix_%RANDOM%.txt"
+set "VENV_PY=%REPO_ROOT%.venv-win\Scripts\python.exe"
+set "PY_OK=import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"
+set "NODE_PKGS_OK=require('rollup'); require.resolve('vite/package.json'); require.resolve('react/package.json'); require.resolve('react-dom/package.json')"
 set "BACKEND_LOG=%TEMP%\exda_backend_%RANDOM%.log"
 set "FRONTEND_HOST=%EXDA_FRONTEND_HOST%"
 if not defined FRONTEND_HOST set "FRONTEND_HOST=%EXDA_DEFAULT_FRONTEND_HOST%"
@@ -28,141 +30,41 @@ if not defined BACKEND_HOST set "BACKEND_HOST=%EXDA_DEFAULT_BACKEND_HOST%"
 set "BACKEND_PORT=%EXDA_BACKEND_PORT%"
 if not defined BACKEND_PORT set "BACKEND_PORT=%EXDA_DEFAULT_BACKEND_PORT%"
 
-if exist "%REPO_ROOT%\.venv\Scripts" set "PATH=%REPO_ROOT%\.venv\Scripts;%PATH%"
-if exist "%ProgramFiles%\nodejs" set "PATH=%ProgramFiles%\nodejs;%PATH%"
-if exist "%ProgramFiles(x86)%\nodejs" set "PATH=%ProgramFiles(x86)%\nodejs;%PATH%"
-if exist "%LocalAppData%\Programs\nodejs" set "PATH=%LocalAppData%\Programs\nodejs;%PATH%"
-if exist "%AppData%\npm" set "PATH=%AppData%\npm;%PATH%"
-if exist "%USERPROFILE%\scoop\shims" set "PATH=%USERPROFILE%\scoop\shims;%PATH%"
-if defined ChocolateyInstall if exist "%ChocolateyInstall%\bin" set "PATH=%ChocolateyInstall%\bin;%PATH%"
-
 echo ========================================
 echo EXDA Launcher (Windows)
 echo ========================================
+call :seed_path
 
-if exist "%REPO_ROOT%\.venv\Scripts\python.exe" (
-  set "PYTHON_EXE=%REPO_ROOT%\.venv\Scripts\python.exe"
-) else (
-  where py >nul 2>nul
+echo Checking requirements ...
+call :needs_setup
+if not errorlevel 1 (
+  echo.
+  echo EXDA needs to install some components on this computer first: !SETUP_REASON!.
+  echo This happens once and can take several minutes.
+  echo.
+  call "%REPO_ROOT%Setup-EXDA-WIN.bat" --from-launcher
+  if errorlevel 1 exit /b 1
+  call :seed_path
+  call :needs_setup
   if not errorlevel 1 (
-    set "PYTHON_EXE=py"
-    set "PYTHON_ARGS=-3"
-  ) else (
-    where python >nul 2>nul
-    if not errorlevel 1 (
-      set "PYTHON_EXE=python"
-    )
+    echo.
+    echo EXDA cannot start yet: !SETUP_REASON!.
+    echo Run Setup-EXDA-WIN.bat in this folder and read its messages.
+    echo.
+    pause
+    exit /b 1
   )
 )
+echo Requirements OK.
 
-if defined PYTHON_EXE (
-  set "PY_PREFIX="
-  "%PYTHON_EXE%" %PYTHON_ARGS% -c "import sys; print(sys.prefix)" > "%PY_PREFIX_FILE%" 2>nul
-  if errorlevel 1 (
-    if /I "%PYTHON_EXE%"=="%REPO_ROOT%\.venv\Scripts\python.exe" (
-      set "PYTHON_EXE="
-      set "PYTHON_ARGS="
-      where py >nul 2>nul
-      if not errorlevel 1 (
-        set "PYTHON_EXE=py"
-        set "PYTHON_ARGS=-3"
-      ) else (
-        where python >nul 2>nul
-        if not errorlevel 1 (
-          set "PYTHON_EXE=python"
-        )
-      )
-    )
-  ) else (
-    set /p PY_PREFIX=<"%PY_PREFIX_FILE%"
-    if /I "%PYTHON_EXE%"=="%REPO_ROOT%\.venv\Scripts\python.exe" (
-      if /I not "!PY_PREFIX!"=="%REPO_ROOT%.venv" (
-        set "PYTHON_EXE="
-        set "PYTHON_ARGS="
-        where py >nul 2>nul
-        if not errorlevel 1 (
-          set "PYTHON_EXE=py"
-          set "PYTHON_ARGS=-3"
-        ) else (
-          where python >nul 2>nul
-          if not errorlevel 1 (
-            set "PYTHON_EXE=python"
-          )
-        )
-      )
-    )
-  )
-)
-
-where node >nul 2>nul
-if errorlevel 1 (
-  echo  - Missing tool: node
-  set "HAS_ERRORS=1"
-)
-
-where npm >nul 2>nul
-if errorlevel 1 (
-  echo  - Missing tool: npm
-  set "HAS_ERRORS=1"
-)
-
-if not defined PYTHON_EXE (
-  echo  - Missing tool: Python 3
-  set "HAS_ERRORS=1"
-)
-
-if not defined FRONTEND_HOST (
-  echo  - Missing runtime setting: EXDA_DEFAULT_FRONTEND_HOST in config\exda-defaults.env
-  set "HAS_ERRORS=1"
-)
-
-if not defined FRONTEND_PORT (
-  echo  - Missing runtime setting: EXDA_DEFAULT_FRONTEND_PORT in config\exda-defaults.env
-  set "HAS_ERRORS=1"
-)
-
-if not defined BACKEND_HOST (
-  echo  - Missing runtime setting: EXDA_DEFAULT_BACKEND_HOST in config\exda-defaults.env
-  set "HAS_ERRORS=1"
-)
-
-if not defined BACKEND_PORT (
-  echo  - Missing runtime setting: EXDA_DEFAULT_BACKEND_PORT in config\exda-defaults.env
-  set "HAS_ERRORS=1"
-)
-
-node -e "require('rollup'); require.resolve('vite/package.json'); require.resolve('react/package.json'); require.resolve('react-dom/package.json')" >nul 2>nul
-if errorlevel 1 (
-  echo  - Missing npm packages: run npm install
-  set "HAS_ERRORS=1"
-)
-
-if defined PYTHON_EXE (
-  "%PYTHON_EXE%" %PYTHON_ARGS% scripts\check_runtime_requirements.py --requirements backend\requirements.txt > "%CHECK_FILE%" 2>nul
-  set "PY_CHECK_EXIT=!ERRORLEVEL!"
-  if "!PY_CHECK_EXIT!"=="1" (
-    for /f "usebackq delims=" %%L in ("%CHECK_FILE%") do (
-      if not "%%L"=="" echo  - Missing Python package: %%L
-    )
-    set "HAS_ERRORS=1"
-  ) else if not "!PY_CHECK_EXIT!"=="0" (
-    echo  - Could not verify Python packages in backend\requirements.txt
-    set "HAS_ERRORS=1"
-  )
-)
-
-if exist "%CHECK_FILE%" del /q "%CHECK_FILE%" >nul 2>nul
-if exist "%PY_PREFIX_FILE%" del /q "%PY_PREFIX_FILE%" >nul 2>nul
-
-if "%HAS_ERRORS%"=="1" (
+set "SETTINGS_OK=1"
+if not defined FRONTEND_HOST set "SETTINGS_OK=0"
+if not defined FRONTEND_PORT set "SETTINGS_OK=0"
+if not defined BACKEND_HOST set "SETTINGS_OK=0"
+if not defined BACKEND_PORT set "SETTINGS_OK=0"
+if "%SETTINGS_OK%"=="0" (
   echo.
-  echo EXDA cannot start yet. Please install the missing requirements.
-  echo.
-  echo Recommended setup commands:
-  echo   npm install
-  echo   py -3 -m venv .venv
-  echo   .venv\Scripts\activate
-  echo   pip install -r backend\requirements.txt
+  echo EXDA cannot start: host or port settings are missing in config\exda-defaults.env
   echo.
   pause
   exit /b 1
@@ -177,7 +79,7 @@ set EXDA_FRONTEND_HOST=%FRONTEND_HOST%
 set EXDA_FRONTEND_PORT=%FRONTEND_PORT%
 set EXDA_CORS_ORIGINS=http://%FRONTEND_HOST%:%FRONTEND_PORT%,http://localhost:%FRONTEND_PORT%,http://127.0.0.1:%FRONTEND_PORT%
 if exist "%BACKEND_LOG%" del /q "%BACKEND_LOG%" >nul 2>nul
-start "EXDA Backend" /B "%PYTHON_EXE%" %PYTHON_ARGS% backend\app.py > "%BACKEND_LOG%" 2>&1
+start "EXDA Backend" /B "%VENV_PY%" backend\app.py > "%BACKEND_LOG%" 2>&1
 
 powershell -NoProfile -Command "$deadline=(Get-Date).AddSeconds(20); while((Get-Date) -lt $deadline){ try { $client=New-Object System.Net.Sockets.TcpClient; $iar=$client.BeginConnect('%BACKEND_HOST%', %BACKEND_PORT%, $null, $null); if($iar.AsyncWaitHandle.WaitOne(500, $false) -and $client.Connected){ $client.Close(); exit 0 } $client.Close() } catch {} Start-Sleep -Milliseconds 500 }; exit 1" >nul 2>nul
 if errorlevel 1 (
@@ -197,9 +99,60 @@ echo App URL:
 echo   http://%FRONTEND_HOST%:%FRONTEND_PORT%/?backendPort=%BACKEND_PORT%
 echo ===================================================
 echo EXDA IS RUNNING
-echo Close this terminal window to stop BOTH the frontend and backend.
+echo Close this window to stop EXDA.
 echo ===================================================
 call npm run vite -- --host %FRONTEND_HOST% --port %FRONTEND_PORT%
 
 endlocal
 exit /b 0
+
+
+rem ==========================================================================
+rem Add the usual install folders of Node.js and Python to PATH (same list as
+rem Setup-EXDA-WIN.bat), so tools installed a moment ago are found.
+:seed_path
+if exist "%ProgramFiles%\nodejs" set "PATH=%ProgramFiles%\nodejs;%PATH%"
+if exist "%LocalAppData%\Programs\nodejs" set "PATH=%LocalAppData%\Programs\nodejs;%PATH%"
+if exist "%AppData%\npm" set "PATH=%AppData%\npm;%PATH%"
+if exist "%USERPROFILE%\scoop\shims" set "PATH=%USERPROFILE%\scoop\shims;%PATH%"
+if defined ChocolateyInstall if exist "%ChocolateyInstall%\bin" set "PATH=%ChocolateyInstall%\bin;%PATH%"
+if exist "%LocalAppData%\Programs\Python\Launcher" set "PATH=%LocalAppData%\Programs\Python\Launcher;%PATH%"
+for /d %%D in ("%LocalAppData%\Programs\Python\Python3*") do set "PATH=%%~D;%%~D\Scripts;!PATH!"
+for /d %%D in ("%ProgramFiles%\Python3*") do set "PATH=%%~D;%%~D\Scripts;!PATH!"
+exit /b 0
+
+
+rem Quick check before every start. Returns 0 (and sets SETUP_REASON) when setup
+rem has to run, 1 when everything EXDA needs is in place.
+:needs_setup
+set "SETUP_REASON="
+if not exist "%VENV_PY%" (
+  set "SETUP_REASON=the Python environment for Windows is not set up yet"
+  exit /b 0
+)
+"%VENV_PY%" -c "!PY_OK!" >nul 2>nul
+if errorlevel 1 (
+  set "SETUP_REASON=the Python environment does not work on this computer"
+  exit /b 0
+)
+"%VENV_PY%" scripts\check_runtime_requirements.py --requirements backend\requirements.txt >nul 2>nul
+if errorlevel 1 (
+  set "SETUP_REASON=some Python packages are missing"
+  exit /b 0
+)
+where node >nul 2>nul
+if errorlevel 1 (
+  set "SETUP_REASON=Node.js is not installed"
+  exit /b 0
+)
+node scripts\check_node_version.cjs >nul 2>nul
+if errorlevel 1 (
+  set "SETUP_REASON=Node.js is too old"
+  exit /b 0
+)
+node -e "%NODE_PKGS_OK%" >nul 2>nul
+if errorlevel 1 (
+  set "SETUP_REASON=some frontend packages are missing"
+  exit /b 0
+)
+exit /b 1

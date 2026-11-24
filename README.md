@@ -18,26 +18,37 @@ The goal of the app is to make it easier to move from project setup, to experime
 
 ### ✅ Prerequisites
 
-- Node.js 18+
-- npm
-- Python 3.10+
+Install these once per computer:
+
+- Node.js 22 LTS (20.19+ or 22.12+ also work)
+- Python 3.10+ (3.12 recommended)
+- Git, to download (clone) EXDA
 - Ollama, optional, for local AiRA model support
 
-### ▶️ Recommended Launchers
+On Windows and macOS the launcher checks for Node.js and Python. If either is missing, it offers to install it (Windows: `winget`, macOS: Homebrew) or opens the download page.
 
-Users can prepare EXDA from a repository checkout with a one-time setup file for their operating system, then use the launcher normally afterwards.
+### ▶️ Start EXDA
 
-Setup once:
+Double-click the launcher for your operating system:
 
-- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh)
-- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Setup-EXDA-MAC.command](Setup-EXDA-MAC.command)
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Setup-EXDA-WIN.bat](Setup-EXDA-WIN.bat)
+- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [EXDA.app](EXDA.app) (opens Terminal and runs [Run-EXDA-MAC.command](Run-EXDA-MAC.command))
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat); after the first start, use the **EXDA** shortcut on the Desktop or in the Start menu
+- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: run [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh) once, then [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
 
-Then run EXDA with the launcher:
+**First start** on a computer (macOS and Windows): the launcher finds that EXDA is not set up yet and runs the setup script ([Setup-EXDA-MAC.command](Setup-EXDA-MAC.command) / [Setup-EXDA-WIN.bat](Setup-EXDA-WIN.bat)) automatically. This takes a few minutes and needs an internet connection. Setup:
 
-- <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
-- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [Run-EXDA-MAC.command](Run-EXDA-MAC.command)
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat)
+- checks the Node.js and Python versions
+- creates the Python environment for this operating system inside the EXDA folder (`.venv-mac` on macOS, `.venv-win` on Windows, `.venv` on Linux) and installs the Python packages
+- installs the frontend packages (`npm install`)
+- on Windows, adds an **EXDA** shortcut with the EXDA icon to the Desktop and Start menu
+
+Then EXDA starts.
+
+**Every later start** runs a quick check, which takes about two seconds. If everything is in place, it starts the backend and frontend and opens EXDA in the browser. If something is missing, setup runs again first.
+
+Because each operating system has its own Python environment, one EXDA folder can be used from macOS and Windows, for example on an external drive. Nothing is installed system-wide apart from Node.js and Python.
+
+Full launcher notes are in [RUN_EXDA.md](RUN_EXDA.md).
 
 ### 🧪 MVP Mode (Simplified Workflow)
 
@@ -58,24 +69,6 @@ Current MVP simplifications include:
 - hidden advanced tabs such as `Pressure Analysis` and `Data Preprocessing`
 - a simplified `Raw Data Pressure Analysis` tab that reuses the same behavior as Data Preprocessing
 
-The setup script will:
-
-- create or repair `.venv`
-- install npm dependencies
-- install backend Python requirements
-- install optional feature requirements
-- verify the installation
-
-The launcher will then:
-
-- check for required tools and packages
-- report anything missing
-- start the backend
-- start the frontend
-- open EXDA in the browser
-
-Full launcher notes are in [RUN_EXDA.md](RUN_EXDA.md).
-
 ### 📦 Manual Installation
 
 If you do not want to use the setup scripts, you can still install everything manually.
@@ -84,7 +77,7 @@ From the repository root:
 
 ```bash
 npm install
-python3 -m venv .venv
+python3 -m venv .venv        # the launchers use .venv-mac on macOS and .venv-win on Windows
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 # Optional extras (AiRA / local LLM):

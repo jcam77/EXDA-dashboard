@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Starts EXDA on macOS (double-click this file, or EXDA.app).
+# Every start runs a quick check. On the first start on a Mac, or when something
+# is missing, it runs Setup-EXDA-MAC.command first and then starts EXDA.
 set -u
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -10,22 +13,15 @@ if [ -f "$DEFAULTS_FILE" ]; then
   . "$DEFAULTS_FILE"
 fi
 
-MISSING_ITEMS=()
-OPTIONAL_ITEMS=()
-PYTHON_CMD=""
+VENV_DIR="$REPO_ROOT/.venv-mac"
+VENV_PY="$VENV_DIR/bin/python"
+PY_OK='import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'
+NODE_PKGS_OK="require('rollup'); require.resolve('vite/package.json'); require.resolve('react/package.json'); require.resolve('react-dom/package.json')"
+SETUP_REASON=""
 FRONTEND_HOST="${EXDA_FRONTEND_HOST:-${EXDA_DEFAULT_FRONTEND_HOST:-}}"
 FRONTEND_PORT="${EXDA_FRONTEND_PORT:-${EXDA_DEFAULT_FRONTEND_PORT:-}}"
 BACKEND_HOST="${EXDA_BACKEND_HOST:-${EXDA_DEFAULT_BACKEND_HOST:-}}"
 BACKEND_PORT="${EXDA_BACKEND_PORT:-${EXDA_DEFAULT_BACKEND_PORT:-}}"
-
-activate_local_venv() {
-  if [ "$PYTHON_CMD" = "$REPO_ROOT/.venv/bin/python" ] && [ -f "$REPO_ROOT/.venv/bin/activate" ]; then
-    # shellcheck disable=SC1091
-    . "$REPO_ROOT/.venv/bin/activate" || return 1
-    PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
-  fi
-  return 0
-}
 
 prepend_path_if_dir() {
   local candidate="$1"
@@ -36,241 +32,58 @@ prepend_path_if_dir() {
   PATH="$candidate:$PATH"
 }
 
+# Same folders as Setup-EXDA-MAC.command.
 seed_gui_path() {
-  prepend_path_if_dir "/opt/homebrew/bin"
   prepend_path_if_dir "/usr/local/bin"
-  prepend_path_if_dir "/usr/bin"
-  prepend_path_if_dir "/bin"
+  prepend_path_if_dir "/opt/homebrew/bin"
+  prepend_path_if_dir "/Library/Frameworks/Python.framework/Versions/Current/bin"
   prepend_path_if_dir "$HOME/.local/bin"
   prepend_path_if_dir "$HOME/bin"
   prepend_path_if_dir "$HOME/.nvm/current/bin"
-}
-
-sanitize_local_venv() {
-  if [ -d "$REPO_ROOT/.venv" ]; then
-    find "$REPO_ROOT/.venv" -name '._*' -type f -delete >/dev/null 2>&1 || true
-    if command -v dot_clean >/dev/null 2>&1; then
-      dot_clean -m "$REPO_ROOT/.venv" >/dev/null 2>&1 || true
-    fi
-  fi
-}
-
-print_header() {
-  echo "========================================"
-  echo "EXDA Launcher (macOS)"
-  echo "========================================"
+  export PATH
 }
 
 pause_on_error() {
   if [ -t 0 ]; then
-    read -r -p "Press Enter to exit..." _
+    read -r -p "Press Enter to close this window..." _
   fi
 }
 
-add_missing() {
-  MISSING_ITEMS+=("$1")
-}
-
-add_optional() {
-  OPTIONAL_ITEMS+=("$1")
-}
-
-using_local_venv() {
-  [ -n "$PYTHON_CMD" ] && [ "$PYTHON_CMD" = "$REPO_ROOT/.venv/bin/python" ]
-}
-
-install_missing_python_packages() {
-  if [ -z "$PYTHON_CMD" ] || ! using_local_venv; then
-    return 1
-  fi
-  local package_names=("$@")
-  if [ "${#package_names[@]}" -eq 0 ]; then
-    return 1
-  fi
-  "$PYTHON_CMD" -m pip install "${package_names[@]}" >/dev/null 2>&1
-}
-
-archive_broken_venv() {
-  if [ ! -d "$REPO_ROOT/.venv" ]; then
-    return 0
-  fi
-  local archived_path="$REPO_ROOT/.venv.broken-$(date +%Y%m%d-%H%M%S)"
-  mv "$REPO_ROOT/.venv" "$archived_path"
-  echo "Archived incompatible local virtualenv to $archived_path"
-}
-
-repair_local_venv() {
-  if ! command -v python3 >/dev/null 2>&1; then
-    return 1
-  fi
-  if [ -d "$REPO_ROOT/.venv" ]; then
-    archive_broken_venv || return 1
-  fi
-  echo "Recreating local .venv for macOS ..."
-  if ! python3 -m venv "$REPO_ROOT/.venv" >/dev/null 2>&1; then
-    return 1
-  fi
-  sanitize_local_venv
-  PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
-  return 0
-}
-
-check_command() {
-  local command_name="$1"
-  if ! command -v "$command_name" >/dev/null 2>&1; then
-    add_missing "Missing tool: $command_name"
-    return 1
-  fi
-  return 0
-}
-
-resolve_python() {
-  sanitize_local_venv
-  if [ -x "$REPO_ROOT/.venv/bin/python" ]; then
-    local detected_prefix=""
-    detected_prefix="$("$REPO_ROOT/.venv/bin/python" -c "import sys; print(sys.prefix)" 2>/dev/null || true)"
-    if [ "$detected_prefix" = "$REPO_ROOT/.venv" ]; then
-      PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
-      return
-    fi
-    echo "Local .venv looks incompatible on this Mac. Trying to repair it ..."
-    if repair_local_venv; then
-      return
-    fi
-    add_missing "Broken local virtualenv: recreate .venv with python3 -m venv .venv"
-  fi
-  if command -v python3 >/dev/null 2>&1; then
-    PYTHON_CMD="python3"
-    return
-  fi
-  if command -v python >/dev/null 2>&1; then
-    PYTHON_CMD="python"
-    return
-  fi
-  add_missing "Missing tool: python3 or python"
-}
-
-check_node_packages() {
-  if ! node -e "require.resolve('vite/package.json'); require.resolve('react/package.json'); require.resolve('react-dom/package.json')" >/dev/null 2>&1; then
-    add_missing "Missing npm packages: run npm install"
-  fi
-}
-
-check_python_packages() {
-  if [ -z "$PYTHON_CMD" ]; then
-    return
-  fi
-
-  local missing_output=""
-  missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements.txt 2>/dev/null)"
-  local status=$?
-
-  if [ "$status" -eq 0 ]; then
-    return
-  fi
-
-  if [ "$status" -eq 1 ] && using_local_venv; then
-    echo "Python runtime packages are missing. Trying to install backend requirements ..."
-    if "$PYTHON_CMD" -m pip install -r backend/requirements.txt >/dev/null 2>&1; then
-      sanitize_local_venv
-      missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements.txt 2>/dev/null)"
-      status=$?
-      if [ "$status" -eq 0 ]; then
-        echo "Python runtime packages repaired in .venv."
-        return
-      fi
+# Removes macOS "._" helper files that external drives collect; they break Python.
+sanitize_venv() {
+  if [ -d "$VENV_DIR" ]; then
+    find "$VENV_DIR" -name '._*' -type f -delete >/dev/null 2>&1 || true
+    if command -v dot_clean >/dev/null 2>&1; then
+      dot_clean -m "$VENV_DIR" >/dev/null 2>&1 || true
     fi
   fi
-
-  if [ "$status" -eq 1 ]; then
-    while IFS= read -r package_name; do
-      [ -n "$package_name" ] && add_missing "Missing Python package: $package_name"
-    done <<< "$missing_output"
-    return
-  fi
-
-  add_missing "Could not verify Python packages in backend/requirements.txt"
 }
 
-check_optional_python_packages() {
-  if [ -z "$PYTHON_CMD" ]; then
-    return
+# Quick check before every start. Returns 0 (and sets SETUP_REASON) when setup
+# has to run, 1 when everything EXDA needs is in place.
+needs_setup() {
+  SETUP_REASON=""
+  sanitize_venv
+  if [ ! -x "$VENV_PY" ]; then
+    SETUP_REASON="the Python environment for macOS is not set up yet"; return 0
   fi
-
-  local missing_output=""
-  missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements-optional.txt 2>/dev/null)"
-  local status=$?
-
-  if [ "$status" -eq 0 ]; then
-    return
+  if [ "$("$VENV_PY" -c 'import sys; print(sys.prefix)' 2>/dev/null)" != "$VENV_DIR" ] \
+    || ! "$VENV_PY" -c "$PY_OK" >/dev/null 2>&1; then
+    SETUP_REASON="the Python environment does not work on this Mac"; return 0
   fi
-
-  if [ "$status" -eq 1 ] && using_local_venv; then
-    echo "Feature packages are missing. Trying to install AiRA/PDF extras ..."
-    if "$PYTHON_CMD" -m pip install -r backend/requirements-optional.txt >/dev/null 2>&1; then
-      sanitize_local_venv
-      missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements-optional.txt 2>/dev/null)"
-      status=$?
-      if [ "$status" -eq 0 ]; then
-        echo "Feature packages repaired in .venv."
-        return
-      fi
-    fi
-    if [ "$status" -eq 1 ]; then
-      mapfile -t missing_packages < <(printf '%s\n' "$missing_output" | sed '/^$/d')
-      if [ "${#missing_packages[@]}" -gt 0 ]; then
-        echo "Trying targeted install for missing feature packages ..."
-        if install_missing_python_packages "${missing_packages[@]}"; then
-          sanitize_local_venv
-          missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements-optional.txt 2>/dev/null)"
-          status=$?
-          if [ "$status" -eq 0 ]; then
-            echo "Feature packages repaired in .venv."
-            return
-          fi
-        fi
-      fi
-    fi
+  if ! "$VENV_PY" scripts/check_runtime_requirements.py --requirements backend/requirements.txt >/dev/null 2>&1; then
+    SETUP_REASON="some Python packages are missing"; return 0
   fi
-
-  if [ "$status" -eq 1 ]; then
-    while IFS= read -r package_name; do
-      [ -n "$package_name" ] && add_optional "Feature package missing: $package_name"
-    done <<< "$missing_output"
-    return
+  if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+    SETUP_REASON="Node.js is not installed"; return 0
   fi
-
-  add_optional "Could not verify feature packages in backend/requirements-optional.txt"
-}
-
-check_runtime_defaults() {
-  [ -n "$FRONTEND_HOST" ] || add_missing "Missing runtime setting: EXDA_DEFAULT_FRONTEND_HOST in config/exda-defaults.env"
-  [ -n "$FRONTEND_PORT" ] || add_missing "Missing runtime setting: EXDA_DEFAULT_FRONTEND_PORT in config/exda-defaults.env"
-  [ -n "$BACKEND_HOST" ] || add_missing "Missing runtime setting: EXDA_DEFAULT_BACKEND_HOST in config/exda-defaults.env"
-  [ -n "$BACKEND_PORT" ] || add_missing "Missing runtime setting: EXDA_DEFAULT_BACKEND_PORT in config/exda-defaults.env"
-}
-
-print_missing_summary() {
-  echo ""
-  echo "EXDA cannot start yet. Please install the missing requirements:"
-  for item in "${MISSING_ITEMS[@]}"; do
-    echo " - $item"
-  done
-  if [ "${#OPTIONAL_ITEMS[@]}" -gt 0 ]; then
-    echo ""
-    echo "Optional features may stay limited until these are installed:"
-    for item in "${OPTIONAL_ITEMS[@]}"; do
-      echo " - $item"
-    done
+  if ! node scripts/check_node_version.cjs >/dev/null 2>&1; then
+    SETUP_REASON="Node.js is too old"; return 0
   fi
-  echo ""
-  echo "Recommended setup commands:"
-  echo "  npm install"
-  echo "  python3 -m venv .venv"
-  echo "  source .venv/bin/activate"
-  echo "  pip install -r backend/requirements.txt"
-  echo "  pip install -r backend/requirements-optional.txt"
-  echo ""
+  if ! node -e "$NODE_PKGS_OK" >/dev/null 2>&1; then
+    SETUP_REASON="some frontend packages are missing"; return 0
+  fi
+  return 1
 }
 
 cleanup() {
@@ -282,7 +95,6 @@ cleanup() {
 
 start_app() {
   echo ""
-  sanitize_local_venv
   echo "Starting EXDA backend on http://${BACKEND_HOST}:${BACKEND_PORT} ..."
   EXDA_BACKEND_DEBUG=1 \
   EXDA_BACKEND_HOST="$BACKEND_HOST" \
@@ -290,7 +102,7 @@ start_app() {
   EXDA_FRONTEND_HOST="$FRONTEND_HOST" \
   EXDA_FRONTEND_PORT="$FRONTEND_PORT" \
   EXDA_CORS_ORIGINS="http://${FRONTEND_HOST}:${FRONTEND_PORT},http://localhost:${FRONTEND_PORT},http://127.0.0.1:${FRONTEND_PORT}" \
-  "$PYTHON_CMD" backend/app.py &
+  "$VENV_PY" backend/app.py &
   BACKEND_PID=$!
   trap cleanup EXIT INT TERM
 
@@ -305,24 +117,45 @@ start_app() {
   echo "Starting EXDA frontend on http://${FRONTEND_HOST}:${FRONTEND_PORT} ..."
   echo "App URL:"
   echo "  http://${FRONTEND_HOST}:${FRONTEND_PORT}/?backendPort=${BACKEND_PORT}"
+  echo "==================================================="
+  echo "EXDA IS RUNNING"
+  echo "Close this window (or press Ctrl+C) to stop EXDA."
+  echo "==================================================="
   npm run vite -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT"
 }
 
-print_header
+echo "========================================"
+echo "EXDA Launcher (macOS)"
+echo "========================================"
 seed_gui_path
-check_command node
-check_command npm
-resolve_python
-activate_local_venv || add_missing "Could not activate the local .venv"
-check_runtime_defaults
-check_node_packages
-check_python_packages
-check_optional_python_packages
 
-if [ "${#MISSING_ITEMS[@]}" -gt 0 ]; then
-  print_missing_summary
+echo "Checking requirements ..."
+if needs_setup; then
+  echo ""
+  echo "EXDA needs to install some components on this Mac first: $SETUP_REASON."
+  echo "This happens once and can take several minutes."
+  echo ""
+  bash "$REPO_ROOT/Setup-EXDA-MAC.command" --from-launcher || exit 1
+  seed_gui_path
+  hash -r
+  if needs_setup; then
+    echo ""
+    echo "EXDA cannot start yet: $SETUP_REASON."
+    echo "Run Setup-EXDA-MAC.command in this folder and read its messages."
+    echo ""
+    pause_on_error
+    exit 1
+  fi
+fi
+echo "Requirements OK."
+
+if [ -z "$FRONTEND_HOST" ] || [ -z "$FRONTEND_PORT" ] || [ -z "$BACKEND_HOST" ] || [ -z "$BACKEND_PORT" ]; then
+  echo ""
+  echo "EXDA cannot start: host or port settings are missing in config/exda-defaults.env"
   pause_on_error
   exit 1
 fi
 
+# shellcheck disable=SC1091
+. "$VENV_DIR/bin/activate"
 start_app

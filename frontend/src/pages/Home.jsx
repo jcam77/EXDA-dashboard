@@ -92,7 +92,7 @@ SOFTWARE.`;
 
 Effective date: February 20, 2026
 
-This Privacy Policy describes how EXDA-Dashboard processes personal data in connection with the desktop and browser-based application used for explosion research and engineering analysis.
+This Privacy Policy describes how EXDA-Dashboard processes personal data in connection with the desktop and browser-based application used for experimental research and engineering analysis.
 
 1. Data We Process
 - Project metadata (project names, paths, timestamps)
@@ -542,8 +542,8 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
               Core Capabilities Designed for Researchers
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Everything you need for professional explosion research,
-              experimental work, and CFD (Computational Fluid Dynamics) simulation validation
+              Everything you need for experimental test campaigns, research data
+              analysis, and CFD (Computational Fluid Dynamics) simulation validation
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -822,7 +822,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             </div>
             <p className="mt-2 text-sm text-foreground text-justify">
               EXDA-Dashboard is designed to support rapid on-site engineering assessment and preliminary interpretation
-              of experimental data during explosion tests. The implemented tools are intended to facilitate timely operational
+              of experimental data during tests. The implemented tools are intended to facilitate timely operational
               decisions (e.g., assessing data quality and determining whether a test repetition may be warranted). Outputs generated
               by the application are therefore indicative and must not be treated as final, publication-grade results or as
               definitive scientific conclusions.
@@ -840,9 +840,9 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="md:col-span-1">
             <h3 className="text-sm font-bold">EXDA-Dashboard</h3>
-            <p className="text-[11px] text-muted-foreground mt-1">Explosion Analysis</p>
+            <p className="text-[11px] text-muted-foreground mt-1">EXperimental DAta</p>
             <p className="text-[11px] text-muted-foreground mt-2">
-              Professional research management system for explosion experiments and modelling data analysis.
+              Research management system for experimental test campaigns and modelling data analysis.
             </p>
           </div>
           <div>
@@ -889,7 +889,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
         </div>
         <div className="max-w-6xl mx-auto mt-1 flex flex-col md:flex-row md:items-center md:justify-between border-t border-sidebar-border/60 pt-4 text-[10px] text-muted-foreground">
           <span>© 2026 EXDA-Dashboard. All rights reserved.</span>
-          <span>Built for explosion research and industrial engineering.</span>
+          <span>Developed for hydrogen explosion research; usable for any experimental campaign.</span>
           <span className="inline-block text-xs text-muted-foreground bg-card/70 rounded px-2 py-0.5 mt-1 md:mt-0 md:ml-4">
             EXDA-Dashboard {displayVersion} &nbsp;|&nbsp; Last updated: {lastUpdatedLabel}
           </span>

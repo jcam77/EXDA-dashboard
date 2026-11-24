@@ -1,0 +1,17 @@
+#!/bin/bash
+# EXDA launcher for macOS: opens Run-EXDA-MAC.command (next to this EXDA.app)
+# in Terminal, exactly as double-clicking that file does, so the startup
+# messages stay visible. No AppleScript or extra permissions needed.
+APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO_ROOT="$(dirname "$APP_DIR")"
+LAUNCHER="$REPO_ROOT/Run-EXDA-MAC.command"
+
+if [ ! -f "$LAUNCHER" ]; then
+  osascript -e 'display alert "EXDA" message "Run-EXDA-MAC.command was not found next to EXDA.app. Keep EXDA.app inside the EXDA app folder." as critical'
+  exit 1
+fi
+
+# Terminal only runs .command files that are executable.
+[ -x "$LAUNCHER" ] || chmod +x "$LAUNCHER" 2>/dev/null
+
+open -a Terminal "$LAUNCHER"
