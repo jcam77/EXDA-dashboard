@@ -614,7 +614,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             {[
               {
                 title: 'Initialise Project Structure',
-                body: 'Create a standardised project hierarchy with Plan/, Raw_Data/, Clean_Data/, Literature/, and aiChat/ directories for organised research management.'
+                body: 'Create a standardised project hierarchy with Plan/, Raw_Data/, Clean_Data/, Literature/, Procedures/, and aiChat/ directories for organised research management.'
               },
               {
                 title: 'Plan & Design Experiments',

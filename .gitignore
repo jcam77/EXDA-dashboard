@@ -26,6 +26,9 @@ dist-electron
 *.sln
 *.sw?
 
+# Working notes kept with the app but never committed or released
+Claude outputs/
+
 # Microsoft Word lock files and automatic backup copies
 ~$*
 Backup of *.docx

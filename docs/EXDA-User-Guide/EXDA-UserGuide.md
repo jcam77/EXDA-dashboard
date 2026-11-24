@@ -76,6 +76,7 @@ EXDA-Projects/
     ├── CFD_Data/      simulation data
     ├── Reports/       mappings, gas mixing, checklists and exported reports
     ├── Literature/    papers for the project
+    ├── Procedures/    RAMS, RAMS appendices and SOPs for the campaign
     └── History/       earlier versions of every saved file and a change log
 ```
 
@@ -151,16 +152,29 @@ The **Checklist** tab holds the safety and pre-test checks.
 1. Tick each check as it is completed, or use **Mark All** / **Mark Group**.
 2. Sign off: **Responsible Name**, **University / Institute Initials**, and tick
    **I confirm safety readiness**.
-3. Under **Record this checklist for a run**, choose the run, add a note if useful,
-   and click **Save snapshot for this run**.
 
-Each snapshot stores the date and time (with time zone), every tick, the item
-texts and the sign-off. Earlier snapshots are listed per run and are never
-overwritten, so the checks done before each test stay on record.
+Record anything unusual for a run (a check that could not be done, a deviation)
+in that run's notes on its run card in **Plan**.
 
-![Checklist with a saved snapshot](images/03-checklist.png)
+**Edit the checklist.** Each project has its own checklist. Click
+**Edit checklist** (above the groups) to rename groups, add, change, move or
+delete checks, add a group (**+ Add group**) or pick a group icon. Nothing is
+saved until you click **Save checklist**; **Cancel** undoes everything. Numbers
+(1.1, 1.2, …) follow the order of the list. A renamed or moved check keeps its
+tick; when checks are removed, EXDA asks first, and their ticks no longer
+count. The checklist is saved in `Reports/checklist.json`, with earlier
+versions kept in `History/`. New projects start from EXDA's standard
+checklist; older projects show it until their checklist is first edited.
 
-▶ **Video:** [Checklist and per-run snapshot](videos/03-checklist.mp4) (33 s)
+**Safety Procedures** at the bottom of the tab lists the documents in the
+project's `Procedures/` folder (RAMS, appendices, SOPs) with **Preview**,
+**Open** and **Download**. The badge at the top shows how many there are, or
+warns when RAMS or SOPs are missing; click it to jump to the list.
+
+![Checklist](images/03-checklist.png)
+
+▶ **Video:** [Checklist](videos/03-checklist.mp4) (33 s; recorded with an
+earlier version that still had a "Record this checklist for a run" card)
 
 ---
 

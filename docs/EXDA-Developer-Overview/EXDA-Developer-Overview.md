@@ -204,6 +204,7 @@ EXDA-Projects/<project>/
 ├── Plan/            <plan>.json (experiments, meta), project_status.json, exported plan CSV/PDF
 ├── Raw_Data/<run>/<DAQ>/   instrument files (read only for EXDA)
 ├── Clean_Data/, CFD_Data/, Literature/
+├── Procedures/      RAMS/, RAMS-Appendices/, SOPs/ (campaign safety documents)
 ├── Reports/         daq_systems.json, sensors_mapping.json, cameras_mapping.json,
 │                    gas_mixing.json, checklist_state.json, checklist_runs.json,
 │                    exported reports <project>_<kind>_<YYYY-MM-DD_HHMMSS>.{pdf,csv}
