@@ -1821,7 +1821,7 @@ const WorkspacePage = () => {
                               setChecklistState={setChecklistState}
                               apiBaseUrl={apiBaseUrl}
                               projectPath={projectPath}
-                              experiments={experiments}
+                              readOnly={isReadOnly}
                           />
                       </Suspense>
                   </SafeComponent>

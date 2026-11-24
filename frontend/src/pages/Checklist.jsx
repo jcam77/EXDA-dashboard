@@ -1,25 +1,27 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ShieldCheck, AlertTriangle, Wind, Warehouse, HardHat, Cog, Activity, ClipboardList, UserCheck, GraduationCap } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertTriangle, ClipboardList, ListChecks, Pencil, UserCheck } from 'lucide-react';
+import ProceduresPanel, { ProceduresBadge } from '../components/ProceduresPanel';
+import ChecklistEditor from '../components/ChecklistEditor';
+import ChecklistGroupIcon from '../components/ChecklistGroupIcon';
+import UnifiedModal from '../components/UnifiedModal';
+import { useProcedures } from '../hooks/useProcedures';
+import { useChecklistDefinition } from '../hooks/useChecklistDefinition';
+import { useAppDialog } from '../hooks/useAppDialog';
+import { checklistProblem, cleanForSave, cloneChecklist, itemLabel, removedItems } from '../utils/checklistDefinition';
+
+const SMALL_BUTTON = 'inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60 disabled:opacity-50';
 
 const ChecklistPage = ({
     checklistState = {},
     setChecklistState = () => {},
     apiBaseUrl = '',
     projectPath = '',
-    experiments = [],
+    readOnly = false,
 }) => {
-    // EXDA-Check C3: a timestamped snapshot of the checklist is stored per run.
-    const runNames = useMemo(
-        () => (Array.isArray(experiments) ? experiments : [])
-            .map((exp) => String(exp?.name || '').trim())
-            .filter(Boolean),
-        [experiments]
-    );
-    const [snapshotRun, setSnapshotRun] = useState('');
-    const [snapshotNote, setSnapshotNote] = useState('');
-    const [runSnapshots, setRunSnapshots] = useState([]);
-    const [snapshotMessage, setSnapshotMessage] = useState({ type: '', text: '' });
-    const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
+    const procedures = useProcedures(apiBaseUrl, projectPath);
+    const scrollToProcedures = () => {
+        document.getElementById('safety-procedures')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
 
 
     const toggleItem = (id) => {
@@ -30,54 +32,60 @@ const ChecklistPage = ({
         setChecklistState(prev => ({ ...prev, [field]: value }));
     };
 
-    const checklistGroups = [
-        {
-            number: "Group 1:",
-            title: "Facility & Environmental Prep",
-            icon: <Warehouse size={24} className="text-zinc-400" />,
-            items: [
-                { id: 'vent', text: "1.1: Ventilation system is confirmed OFF [Proc.Ref. xxx]" },
-                { id: 'hatches', text: "1.2: All ceiling hatches are confirmed OPEN [Proc.Ref. xxx]" },
-                { id: 'cranes', text: "1.3: Overhead cranes are de-energized/OFF [Proc.Ref. xxx]" },
-                { id: 'neighbors', text: "1.4: DBI neighbors and personnel in the area informed [Proc.Ref. xxx]" },
-                { id: 'gate', text: "1.5: Façade Hall gate/safety tape 'DO NOT CROSS' in place [Proc.Ref. xxx]" }
-            ]
-        },
-        {
-            number: "Group 2:",
-            title: "Personnel & PPE (TBT)",
-            icon: <HardHat size={24} className="text-yellow-400" />,
-            items: [
-                { id: 'phones', text: "2.1: NO mobile phones in the Façade Hall / Safe zone storage [Proc.Ref. xxx]" },
-                { id: 'ppe', text: "2.2: PPE: Hearing protection, safety boots, and FR clothing verified [Proc.Ref. xxx]" },
-                { id: 'stop', text: "2.3: 'Say Stop' policy briefed to all involved [Proc.Ref. xxx]" },
-                { id: 'firstaid', text: "2.4: Nearest First Aid kit located and 2+ first aiders present [Proc.Ref. xxx]" },
-                { id: 'batteries', text: "2.5: Lithium-Ion batteries inspected for shape changes [Proc.Ref. xxx]" }
-            ]
-        },
-        {
-            number: "Group 3:",
-            title: "Hardware & Supply Line",
-            icon: <Cog size={24} className="text-orange-400" />,
-            items: [
-                { id: 'blocks', text: "3.1: Mechanical blocks (2-3 per side) secured against tunnel [Proc.Ref. xxx]" },
-                { id: 'leak', text: "3.2: Soapy water leakage test completed on H2 supply line [Proc.Ref. xxx]" },
-                { id: 'v7', text: "3.3: Valve V7 confirmed OPEN for H2 adding to protect seal [Proc.Ref. xxx]" },
-                { id: 'cylinder', text: "3.4: Hydrogen cylinder secured in stable position [Proc.Ref. xxx]" },
-                { id: 'fan', text: "3.5: ATEX fan securely fixed and grounded [Proc.Ref. xxx]" }
-            ]
-        },
-        {
-            number: "Group 4:",
-            title: "Systems Shakedown",
-            icon: <Activity size={24} className="text-red-500" />,
-            items: [
-                { id: 'pretest', text: "4.1: Dry shakedown (no H2) verified for sync, cameras, and spark [Proc.Ref. xxx]" },
-                { id: 'emergency', text: "4.2: Action cards for Ignitor/Fan failure reviewed by team [Proc.Ref. xxx]" },
-                { id: 'sensors', text: "4.3: Pressure and H2 sensors zeroed and signal verified [Proc.Ref. xxx]" }
-            ]
+    // Groups and checks of this project (Reports/checklist.json, or EXDA's
+    // built-in checklist for older projects). Ticks are stored per item id.
+    const definition = useChecklistDefinition(apiBaseUrl, projectPath);
+    const checklistGroups = definition.checklist?.groups || [];
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(null);
+    const [editMessage, setEditMessage] = useState('');
+    const { dialogModal, setDialogModal, showConfirm } = useAppDialog();
+
+    const startEditing = () => {
+        setDraft(cloneChecklist(definition.checklist));
+        setEditMessage('');
+        setEditing(true);
+    };
+
+    const cancelEditing = () => {
+        setEditing(false);
+        setDraft(null);
+        setEditMessage('');
+    };
+
+    const confirmDeleteGroup = (group) => showConfirm({
+        title: 'Delete this group?',
+        content: `"${group.title || 'Untitled group'}" and its ${group.items.length} check(s) are removed when you save. Until then, Cancel undoes it.`,
+        confirmLabel: 'Delete group',
+    });
+
+    const saveEditing = async () => {
+        const problem = checklistProblem(draft);
+        if (problem) {
+            setEditMessage(problem);
+            return;
         }
-    ];
+        const cleaned = cleanForSave(draft);
+        const removed = removedItems(definition.checklist, cleaned);
+        if (removed.length) {
+            const ok = await showConfirm({
+                title: 'Save the checklist?',
+                content: `${removed.length} check(s) will be removed: ${removed.map((item) => `"${item.text}"`).join(', ')}. Their ticks are kept in the project but no longer count.`,
+                confirmLabel: 'Save checklist',
+                confirmVariant: 'primary',
+                type: 'warning',
+            });
+            if (!ok) return;
+        }
+        const result = await definition.save(cleaned);
+        if (!result.ok) {
+            setEditMessage(result.conflict
+                ? `${result.error} Your changes are still here; Cancel and reload the project to see the other version.`
+                : result.error);
+            return;
+        }
+        cancelEditing();
+    };
 
     const allItemIds = checklistGroups.flatMap(group => group.items.map(item => item.id));
     const totalItems = allItemIds.length;
@@ -86,67 +94,6 @@ const ChecklistPage = ({
     const hasResponsible = Boolean((checklistState['resp_name'] || '').trim()) && Boolean((checklistState['inst_init'] || '').trim());
     const isAllChecked = completedItems === totalItems && totalItems > 0;
     const isReady = isAllChecked && checklistState['final_confirm'] && hasResponsible;
-
-    const loadRunSnapshots = useCallback(async (runName) => {
-        if (!apiBaseUrl || !projectPath || !runName) {
-            setRunSnapshots([]);
-            return;
-        }
-        try {
-            const query = new URLSearchParams({ projectPath, runName });
-            const res = await fetch(`${apiBaseUrl}/get_checklist_snapshots?${query.toString()}`);
-            const data = await res.json();
-            if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
-            setRunSnapshots(Array.isArray(data.snapshots) ? data.snapshots : []);
-        } catch (err) {
-            setRunSnapshots([]);
-            setSnapshotMessage({ type: 'error', text: `Could not load snapshots: ${err?.message || err}` });
-        }
-    }, [apiBaseUrl, projectPath]);
-
-    useEffect(() => {
-        loadRunSnapshots(snapshotRun);
-    }, [loadRunSnapshots, snapshotRun]);
-
-    const saveRunSnapshot = async () => {
-        if (!snapshotRun) {
-            setSnapshotMessage({ type: 'error', text: 'Choose the run this checklist belongs to.' });
-            return;
-        }
-        setIsSavingSnapshot(true);
-        setSnapshotMessage({ type: '', text: '' });
-        try {
-            const items = checklistGroups.flatMap((group) => group.items.map((item) => ({
-                id: item.id,
-                text: item.text,
-                checked: Boolean(checklistState[item.id]),
-            })));
-            const res = await fetch(`${apiBaseUrl}/save_checklist_snapshot`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    projectPath,
-                    runName: snapshotRun,
-                    items,
-                    note: snapshotNote,
-                    signOff: {
-                        responsibleName: checklistState['resp_name'] || '',
-                        initials: checklistState['inst_init'] || '',
-                        finalConfirm: Boolean(checklistState['final_confirm']),
-                    },
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
-            setSnapshotMessage({ type: 'success', text: `Snapshot saved for ${snapshotRun} at ${data.snapshot?.savedAt}.` });
-            setSnapshotNote('');
-            await loadRunSnapshots(snapshotRun);
-        } catch (err) {
-            setSnapshotMessage({ type: 'error', text: `Snapshot not saved: ${err?.message || err}` });
-        } finally {
-            setIsSavingSnapshot(false);
-        }
-    };
 
     const setAllItems = (value) => {
         setChecklistState(prev => {
@@ -175,14 +122,17 @@ const ChecklistPage = ({
                     <ClipboardList className="text-primary" size={24} />
                     <h1 className="text-xl font-bold tracking-tight uppercase">Pre-Experiment Checklist</h1>
                 </div>
-                <div className="flex items-center gap-2 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
-                    <ShieldCheck size={20} className="text-amber-500" />
-                    <span className="text-[11px] font-bold text-amber-500 uppercase tracking-widest">Safety Protocol Active: [Proc.Ref. xxx]</span>
-                </div>
+                <ProceduresBadge
+                    count={procedures.documents.length}
+                    missingSections={procedures.missingSections}
+                    loading={procedures.loading}
+                    onClick={scrollToProcedures}
+                />
             </div>
 
-            {/* Progress + Actions */}
-            <div className="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Progress + sign-off */}
+            <div className="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 rounded-xl border border-sidebar-border bg-card/60 p-5">
                     <div className="flex items-center justify-between gap-4">
                         <div>
@@ -230,163 +180,114 @@ const ChecklistPage = ({
                         </div>
                     )}
                 </div>
-                <div className="rounded-xl border border-sidebar-border bg-card/60 p-5">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-3">
-                        <ShieldCheck size={18} className="text-primary" />
-                        <span className="text-[11px] font-black uppercase tracking-widest">Status Summary</span>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                        <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Groups</span>
-                            <span className="text-foreground">{checklistGroups.length}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Items</span>
-                            <span className="text-foreground">{totalItems}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Completed</span>
-                            <span className="text-foreground">{completedItems}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            {/* Emergency & Responsible Party Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <div className="lg:col-span-2 p-5 rounded-xl border border-sidebar-border bg-card/60">
-                    <div className="flex items-center gap-2 mb-2 text-destructive">
-                        <AlertTriangle size={22} />
-                        <span className="text-xs font-bold uppercase tracking-wider">Emergency Action Card Reminder</span>
-                    </div>
-                    <p className="text-sm text-amber-500 leading-relaxed italic">
-                        In case of Ignitor failure: Use fan to vent until H2 = 0% [Proc.Ref. xxx].
-                    </p>
-                    <p className="text-sm text-amber-500 leading-relaxed italic">
-                        In case of Fan failure: Be sure of safety distance and press trigger [Proc.Ref. xxx].
-                    </p>
-                </div>
-
-                {/* Responsible Sign-off Box */}
-                <div className="bg-card/60 border border-sidebar-border rounded-xl p-5 flex flex-col gap-4">
+                {/* Responsible Sign-off */}
+                <div className="bg-card/60 border border-sidebar-border rounded-xl p-5 flex flex-col gap-3">
                     <div className="flex items-center gap-2 text-muted-foreground">
                         <UserCheck size={18} className="text-primary" />
                         <span className="text-[11px] font-black uppercase tracking-widest">Responsible Sign-off</span>
                     </div>
-                    <div className="space-y-2">
-                        <div className="relative">
-                            <input 
-                                type="text"
-                                placeholder="Responsible Name"
-                                className="w-full bg-background border border-border rounded-lg p-2 text-xs outline-none focus:border-ring"
-                                value={checklistState['resp_name'] || ''}
-                                onChange={(e) => handleInputChange('resp_name', e.target.value)}
-                            />
-                        </div>
-                        <div className="relative">
-                            <input 
-                                type="text"
-                                placeholder="University / Institute Initials"
-                                className="w-full bg-background border border-border rounded-lg p-2 text-xs outline-none focus:border-ring"
-                                value={checklistState['inst_init'] || ''}
-                                onChange={(e) => handleInputChange('inst_init', e.target.value)}
-                            />
-                        </div>
-                        <div className="flex items-center gap-3 mt-2">
-                             <input 
-                                type="checkbox"
-                                id="final-lock"
-                                className="w-4 h-4 rounded border-border bg-background text-primary"
-                                checked={checklistState['final_confirm'] || false}
-                                onChange={() => toggleItem('final_confirm')}
-                            />
-                            <label htmlFor="final-lock" className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">I confirm safety readiness</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Per-run snapshot (EXDA-Check C3) */}
-            <div className="mb-8 rounded-xl border border-sidebar-border bg-card/60 p-5">
-                <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-3">
-                    Record this checklist for a run
-                </div>
-                <div className="flex flex-wrap items-end gap-3">
-                    <label className="text-xs text-muted-foreground">
-                        Run
-                        <select
-                            value={snapshotRun}
-                            onChange={(e) => setSnapshotRun(e.target.value)}
-                            className="mt-1 block w-56 bg-background border border-border rounded-lg p-2 text-xs text-foreground"
-                            disabled={!runNames.length}
-                        >
-                            <option value="">{runNames.length ? 'Choose a run…' : 'No runs in the plan'}</option>
-                            {runNames.map((name) => (
-                                <option key={name} value={name}>{name}</option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="text-xs text-muted-foreground flex-1 min-w-[200px]">
-                        Note (optional)
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <input
                             type="text"
-                            value={snapshotNote}
-                            onChange={(e) => setSnapshotNote(e.target.value)}
-                            className="mt-1 block w-full bg-background border border-border rounded-lg p-2 text-xs text-foreground"
-                            placeholder="e.g. checks done before ignition"
+                            placeholder="Responsible Name"
+                            className="w-full bg-background border border-border rounded-lg p-2 text-xs outline-none focus:border-ring"
+                            value={checklistState['resp_name'] || ''}
+                            onChange={(e) => handleInputChange('resp_name', e.target.value)}
                         />
-                    </label>
-                    <button
-                        type="button"
-                        onClick={saveRunSnapshot}
-                        disabled={!snapshotRun || isSavingSnapshot || !projectPath}
-                        className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-primary hover:bg-primary/20 disabled:opacity-50"
-                    >
-                        {isSavingSnapshot ? 'Saving…' : 'Save snapshot for this run'}
-                    </button>
-                </div>
-                <div className="mt-2 text-[11px] text-muted-foreground">
-                    Stores the current ticks, sign-off and item texts with the date and time. Earlier snapshots are kept.
-                </div>
-                {snapshotMessage.text && (
-                    <div className={`mt-2 text-[11px] ${snapshotMessage.type === 'error' ? 'text-destructive' : 'text-primary'}`}>
-                        {snapshotMessage.text}
+                        <input
+                            type="text"
+                            placeholder="University / Institute Initials"
+                            className="w-full bg-background border border-border rounded-lg p-2 text-xs outline-none focus:border-ring"
+                            value={checklistState['inst_init'] || ''}
+                            onChange={(e) => handleInputChange('inst_init', e.target.value)}
+                        />
                     </div>
-                )}
-                {snapshotRun && (
-                    <div className="mt-3">
-                        <div className="text-[11px] font-semibold text-foreground mb-1">
-                            Snapshots for {snapshotRun}: {runSnapshots.length || 'none yet'}
-                        </div>
-                        {runSnapshots.length > 0 && (
-                            <table className="w-full text-[11px]">
-                                <thead>
-                                    <tr className="text-muted-foreground text-left">
-                                        <th className="py-1">Saved at</th>
-                                        <th className="py-1">Completed</th>
-                                        <th className="py-1">Sign-off</th>
-                                        <th className="py-1">Note</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {runSnapshots.map((snap, idx) => (
-                                        <tr key={`${snap.savedAt}-${idx}`} className="border-t border-border/60">
-                                            <td className="py-1 font-mono">{snap.savedAt}</td>
-                                            <td className="py-1">{snap.completed}/{snap.total}{snap.allChecked ? ' (all)' : ''}</td>
-                                            <td className="py-1">
-                                                {[snap.responsibleName, snap.initials].filter(Boolean).join(' / ') || '-'}
-                                                {snap.finalConfirm ? ', confirmed' : ''}
-                                            </td>
-                                            <td className="py-1">{snap.note || ''}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="checkbox"
+                            id="final-lock"
+                            className="w-4 h-4 rounded border-border bg-background ![accent-color:hsl(var(--primary))]"
+                            checked={checklistState['final_confirm'] || false}
+                            onChange={() => toggleItem('final_confirm')}
+                        />
+                        <label htmlFor="final-lock" className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">I confirm safety readiness</label>
                     </div>
-                )}
+                </div>
             </div>
 
+            {/* Emergency reminder: general for every project; the project's own
+                emergency actions are in its procedures (RAMS, SOPs) below. */}
+            <div className="mb-8 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3">
+                <span className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle size={18} />
+                    <span className="text-xs font-bold uppercase tracking-wider">Emergency Action Cards</span>
+                </span>
+                <span className="text-sm text-amber-500 italic">
+                    Before each test, review the emergency action cards and safety procedures of this project with the team.
+                </span>
+                <button
+                    type="button"
+                    onClick={scrollToProcedures}
+                    className="ml-auto inline-flex items-center gap-1 rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
+                >
+                    See Safety Procedures ↓
+                </button>
+            </div>
+
+            {/* Checks: header with Edit, then the groups (or the editor) */}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+                <div className="flex items-center gap-3">
+                    <ListChecks size={22} className="text-primary" />
+                    <div>
+                        <h2 className="text-lg font-bold tracking-tight uppercase">{editing ? 'Editing Checks' : 'Checks'}</h2>
+                        <p className="text-[11px] text-muted-foreground">
+                            {editing
+                                ? 'Rename, add, move or remove groups and checks. Nothing is saved until you click Save checklist.'
+                                : 'Tick each check before the test. Numbers follow the order of the list.'}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    {editing ? (
+                        <>
+                            <button type="button" onClick={cancelEditing} className={SMALL_BUTTON} disabled={definition.saving}>Cancel</button>
+                            <button type="button" onClick={saveEditing} disabled={definition.saving}
+                                className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/20 disabled:opacity-50">
+                                {definition.saving ? 'Saving…' : 'Save checklist'}
+                            </button>
+                        </>
+                    ) : (
+                        <button type="button" onClick={startEditing} className={SMALL_BUTTON}
+                            disabled={readOnly || !definition.checklist}
+                            title={readOnly ? 'Read-only: this project is open for editing elsewhere' : 'Add, rename, move or remove groups and checks'}>
+                            <Pencil size={12} /> Edit checklist
+                        </button>
+                    )}
+                </div>
+            </div>
+            {editMessage && <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">{editMessage}</div>}
+            {definition.loading && !definition.checklist && (
+                <div className="mb-8 text-sm text-muted-foreground">Loading checklist…</div>
+            )}
+            {definition.error && (
+                <div className="mb-8 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">
+                    {definition.error} The checklist file was left unchanged.
+                </div>
+            )}
+
+            {editing && draft ? (
+                <>
+                    <ChecklistEditor draft={draft} setDraft={setDraft} confirmDeleteGroup={confirmDeleteGroup} />
+                    <div className="mb-8 flex justify-end gap-2">
+                        <button type="button" onClick={cancelEditing} className={SMALL_BUTTON} disabled={definition.saving}>Cancel</button>
+                        <button type="button" onClick={saveEditing} disabled={definition.saving}
+                            className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/20 disabled:opacity-50">
+                            {definition.saving ? 'Saving…' : 'Save checklist'}
+                        </button>
+                    </div>
+                </>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 {checklistGroups.map((group, gIdx) => {
                     const groupDone = group.items.filter(item => checklistState[item.id]).length;
@@ -395,11 +296,11 @@ const ChecklistPage = ({
                     const groupComplete = groupDone === groupTotal && groupTotal > 0;
 
                     return (
-                    <div key={gIdx} className="rounded-xl border border-sidebar-border bg-card/50 p-5 hover:border-primary/50 transition">
+                    <div key={group.id} className="rounded-xl border border-sidebar-border bg-card/50 p-5 hover:border-primary/50 transition">
                         <div className="flex items-center gap-3 mb-4">
-                            {group.icon}
-                            <h2 className="text-sm font-black uppercase">{group.number}</h2>
-                            <h2 className="text-sm font-black">{group.title}</h2>
+                            <ChecklistGroupIcon name={group.icon} />
+                            <h2 className="text-sm font-black uppercase whitespace-nowrap">Group {gIdx + 1}:</h2>
+                            <h2 className="min-w-0 truncate text-sm font-black" title={group.title}>{group.title}</h2>
                             <span className={`ml-auto rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${
                                 groupComplete
                                     ? 'border-primary/30 bg-primary/10 text-primary'
@@ -431,16 +332,19 @@ const ChecklistPage = ({
                             </button>
                         </div>
                         <div className="space-y-1">
-                            {group.items.map((item) => (
+                            {group.items.length === 0 && (
+                                <div className="px-3 py-2 text-xs italic text-muted-foreground">No checks yet.</div>
+                            )}
+                            {group.items.map((item, iIdx) => (
                                 <label key={item.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted/60 cursor-pointer group transition-colors border border-transparent hover:border-border">
                                     <input 
                                         type="checkbox" 
-                                        className="mt-1 w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary"
+                                        className="mt-1 w-4 h-4 rounded border-border bg-background ![accent-color:hsl(var(--primary))] focus:ring-primary"
                                         checked={checklistState[item.id] || false}
                                         onChange={() => toggleItem(item.id)}
                                     />
-                                    <span className={`text-sm transition-all ${checklistState[item.id] ? 'text-muted-foreground line-through' : 'text-foreground/80'}`}>
-                                        {item.text}
+                                    <span className={`text-sm transition-all ${checklistState[item.id] ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                        {itemLabel(gIdx, iIdx)}: {item.text}
                                     </span>
                                 </label>
                             ))}
@@ -449,8 +353,11 @@ const ChecklistPage = ({
                     );
                 })}
             </div>
+            )}
 
-            
+            {/* Safety procedures from Procedures/ (RAMS, appendices, SOPs); the header badge scrolls here */}
+            <ProceduresPanel apiBaseUrl={apiBaseUrl} projectPath={projectPath} procedures={procedures} />
+            <UnifiedModal modal={dialogModal} setModal={setDialogModal} />
         </div>
     );
 };

@@ -390,6 +390,11 @@ def create_project_structure(parent_path, project_name):
         return False, str(e), None
 
     success, msg = initialize_project_structure(project_path)
+    if success:
+        # New projects start with their own editable checklist (EXDA template).
+        from modules import checklist_definition, project_store
+        project_store.write_json_atomic(checklist_definition.checklist_path(project_path),
+                                        checklist_definition.NEW_PROJECT_TEMPLATE)
     return success, msg, project_path
 
 def rename_project(project_path, new_project_name):

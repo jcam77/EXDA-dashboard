@@ -32,6 +32,7 @@ export const isStoreConflict = (response, payload) =>
 
 export const FILE_KINDS = {
   checklist: 'checklist',
+  checklistDefinition: 'checklist-definition',
   daq: 'daq',
   gas: 'gas',
   sensors: 'sensors',

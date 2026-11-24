@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from modules import daq_reader, data_parser, gas_mixing_checks, h2s_parser, gas_mixing_store, mf4_parser, output_format, pressure_analysis, procedures, project_manager, project_store, tpc5_parser
+from modules import checklist_definition, daq_reader, data_parser, gas_mixing_checks, h2s_parser, gas_mixing_store, mf4_parser, output_format, pressure_analysis, procedures, project_manager, project_store, tpc5_parser
 
 state_bp = Blueprint("state", __name__)
 ALLOWED_DATA_EXTENSIONS = (".csv", ".txt", ".dat", ".asc", ".ascii", ".mf4", ".tpc5")
@@ -4389,6 +4389,49 @@ def save_checklist_snapshot():
         return jsonify({"success": False, "error": str(exc)}), 500
     return jsonify({"success": True, "runName": run_name, "snapshot": snapshot,
                     "count": len(data["snapshotsByRun"][run_name])})
+
+
+@state_bp.route('/get_checklist', methods=['GET'])
+def get_checklist():
+    """The project's checklist definition (groups and items), or the built-in one."""
+    project_root, err = project_manager.resolve_project_path(request.args.get("projectPath"), require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    try:
+        loaded = checklist_definition.load(project_root)
+    except checklist_definition.ChecklistError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 422
+    return jsonify({
+        "success": True,
+        "checklist": loaded["checklist"],
+        "source": loaded["source"],
+        "version": _reports_version(project_root, checklist_definition.CHECKLIST_FILENAME),
+        "icons": list(checklist_definition.ICONS),
+    })
+
+
+@state_bp.route('/save_checklist', methods=['POST'])
+def save_checklist():
+    """Save the project's checklist definition to Reports/checklist.json (history kept)."""
+    payload = request.json or {}
+    project_root, err = project_manager.resolve_project_path(payload.get("projectPath"), require_project_folder=True)
+    if err:
+        return jsonify({"success": False, "error": err}), 400
+    try:
+        clean = checklist_definition.validate(payload.get("checklist"))
+    except checklist_definition.ChecklistError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    path = checklist_definition.checklist_path(project_root)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    data = {**clean, "updatedAt": _now_display_str(include_seconds=True)}
+    try:
+        saved = project_store.save_json_tracked(project_root, path, data, action="save_checklist",
+                                                expected_version=_base_version(payload))
+    except project_store.StoreConflict as exc:
+        return _store_error_response(exc)
+    except Exception as exc:
+        return jsonify({"success": False, "error": f"Could not save the checklist: {exc}"}), 500
+    return jsonify({"success": True, "checklist": clean, "source": "project", "version": saved["version"]})
 
 
 @state_bp.route('/save_checklist_state', methods=['POST'])
