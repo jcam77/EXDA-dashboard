@@ -5,8 +5,8 @@ verified today, and what to improve before the calculations are extended.
 
 - **Audience:** developers working on EXDA (not end users; see
   [EXDA-UserGuide.md](../EXDA-User-Guide/EXDA-UserGuide.md) for those).
-- **State described:** release 4.0.11 plus the changes prepared for 4.0.12
-  on `CLAUDE-Updates` (24 November 2026). Sections 1–4, 7, 8 and 10 were
+- **State described:** release 4.0.12 on `CLAUDE-Updates`
+  (24 November 2026). Sections 1–4, 7, 8 and 10 were
   updated for this state. The findings in section 6 were first written for
   4.0.0. The calculation modules they refer to (`pressure_analysis`,
   `ewt_analysis`, `gas_mixing`, `flame_analysis`, `useAnalysisPipeline`)
@@ -18,7 +18,7 @@ verified today, and what to improve before the calculations are extended.
 ## Changes since 4.0.0 that matter for developers
 
 | Area | Change | Where |
-|---|---|---|
+| --- | --- | --- |
 | Preview reduction | Min/max envelope instead of keeping every k-th sample; readers report the true sample count and rate (`sampleInfo`) | [signal_reduction.py](../../backend/modules/signal_reduction.py), [DOWNSAMPLING_FLOW.md](DOWNSAMPLING_FLOW.md) |
 | Screening peak table | Max and time of max per selected channel in a required time range, read at full resolution, not saved | [screening_peaks.py](../../backend/modules/screening_peaks.py), `/channel_peaks` in [state.py](../../backend/routes/state.py#L3220), [PeakTable.jsx](../../frontend/src/components/PeakTable.jsx) |
 | Project marker | New projects get `exda-project.json`; older projects are still recognised by their `Plan/` content | [project_manager.py:71](../../backend/modules/project_manager.py#L71) |
@@ -26,7 +26,7 @@ verified today, and what to improve before the calculations are extended.
 | Plan file selection | `project_description.json` and the status file are never picked as the plan | `NON_PLAN_FILENAMES` in [project_manager.py:203](../../backend/modules/project_manager.py#L203) |
 | Projects page | Folder picker styled like the app, project groups, collapsible | [ProjectPickerModal.jsx](../../frontend/src/components/ProjectPickerModal.jsx), [Projects.jsx](../../frontend/src/pages/Projects.jsx) |
 | Page headers | One `PageHeader` component for every tab | [PageHeader.jsx](../../frontend/src/components/PageHeader.jsx) |
-| Launchers | `Setup-EXDA-*` installs requirements on first start; `Run-EXDA-*` only checks and starts | repository root |
+| Launchers | `Setup-EXDA-*` installs requirements on first start; `Run-EXDA-*` only checks and starts; recommended layout `EXDA/` with the app, `EXDA-Projects/` and the EXDA shortcut | repository root, [make_shortcuts.ps1](../../scripts/make_shortcuts.ps1) |
 | User guide | Media regenerated from synthetic demo projects by two scripts | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) |
 
 ---
@@ -86,12 +86,83 @@ flowchart LR
 ```
 
 | Layer | Technology | Entry point |
-|---|---|---|
+| --- | --- | --- |
 | Frontend | React 19, Vite 7 (Node ^20.19 or ≥ 22.12), Tailwind, uPlot (screening plots), Recharts, vitest | [frontend/src/main.jsx](../../frontend/src/main.jsx) → [AppShell.jsx](../../frontend/src/app/AppShell.jsx) → [WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) |
 | Backend | Python 3, Flask (6 blueprints), NumPy, SciPy, h5py, asammdf, ewtpy, PyWavelets | [backend/app.py](../../backend/app.py) |
 | Desktop build | Electron (starts the packaged backend) | [electron/main.cjs](../../electron/main.cjs) |
 | Launchers | First start: `Setup-EXDA-*` creates the Python environment (`.venv`, `.venv-mac`, `.venv-win`; never committed) and installs npm packages. Later starts: `Run-EXDA-*` checks the requirements, starts backend + Vite and opens the browser | `Setup-EXDA-*.{sh,command,bat}`, `Run-EXDA-*.{sh,command,bat}` |
 | Configuration | Host/port defaults | [config/exda-defaults.env](../../config/exda-defaults.env), env vars `EXDA_*` |
+
+### What the setup installs, and where
+
+EXDA runs on colleagues' computers, so the setup is deliberately contained.
+Users can see the same information in [RUN_EXDA.md](../../RUN_EXDA.md)
+("Get EXDA", "The EXDA shortcut", "Where EXDA installs things") and in the
+user guide. The setup scripts print the paths at the start and at the end.
+
+Recommended layout (the user creates `EXDA/`, EXDA creates the rest):
+
+```text
+EXDA/
+├── EXDA                shortcut (EXDA.lnk on Windows, relative symlink to EXDA.app on macOS)
+├── EXDA-dashboard/     the app (repository); every package is installed in here
+└── EXDA-Projects/      project data, created by the backend on first use
+```
+
+| What | Where | Done by | Admin rights |
+| --- | --- | --- | --- |
+| Python packages | `.venv-win` / `.venv-mac` / `.venv` inside the app folder | `python -m venv` + `pip install -r backend/requirements*.txt` | No |
+| Frontend packages | `node_modules` inside the app folder | `npm install` (never `-g`) | No |
+| EXDA shortcut (Windows) | User's Start menu (`Programs`) always; the parent `EXDA` folder when the app is in its own folder, otherwise the app folder (`EXDA.lnk`, git-ignored); the Desktop only after a yes (an existing Desktop shortcut is just updated) | [scripts/make_shortcuts.ps1](../../scripts/make_shortcuts.ps1), called by `:make_shortcuts` | No |
+| EXDA shortcut (macOS) | Relative symlink `EXDA` → `<app>/EXDA.app` in the parent folder, when the app is in its own folder; never the Dock or Desktop | `Setup-EXDA-MAC.command` (`in_own_folder`, `ln -sfn`) | No |
+| Projects folder | `EXDA-Projects` next to the app folder, created when missing (unless an older `<app>/Projects` already holds projects) | `_projects_root_default()` in [projects.py](../../backend/routes/projects.py) | No |
+| Python, only if missing and only after the user accepts | Windows: `winget … Python.Python.3.12 --scope user`; macOS: `brew install python@3.12` | `offer_install` | No |
+| Node.js, only if missing and only after the user accepts | Windows: `winget … OpenJS.NodeJS.LTS` (the Node installer asks Windows for permission); macOS: `brew install node` | `offer_install` | Windows: yes (UAC prompt) |
+| Download caches | npm and pip caches in the user folder (their normal behaviour) | npm, pip | No |
+
+What the scripts never do (checked 25 November 2026):
+
+- They never use `sudo`.
+- They never edit the registry or shell profiles (`.bashrc`, `.zshrc`).
+- They never change PATH permanently. `seed_path` / `seed_gui_path` add the
+  usual Node.js and Python folders only for the running window.
+- They never install npm or pip packages globally, and never start services
+  or scheduled tasks.
+- On Linux they install nothing system-wide. Node.js and Python must already
+  be there.
+- `-ExecutionPolicy Bypass` applies only to the PowerShell process that runs
+  `make_shortcuts.ps1`. It does not change the computer's policy.
+
+"In its own folder" (both systems): the parent is not a general place (drive
+root, user folder, Desktop, Documents, Downloads; on macOS also a volume root)
+and is either named `EXDA…` or holds nothing but `EXDA…` items and hidden
+files. Otherwise setup prints a tip to use an `EXDA` folder. The macOS link is
+relative, so it survives moving the whole `EXDA` folder. `EXDA.app` resolves
+its real folder with `pwd -P`, so it also works when started through the link.
+
+When the app folder is inside OneDrive, iCloud Drive, Dropbox or Google
+Drive, the Windows and macOS setups warn and ask before continuing, because
+syncing about 1–2 GB of package files is slow and can break the environment.
+
+**Removing or replacing EXDA** therefore means replacing or deleting the app
+folder only (plus the shortcuts, to remove it completely). Projects are safe
+because the default projects folder is never inside the app folder for new
+installs: `_projects_root_default()` creates `EXDA-Projects` next to the app
+when it is missing (fixed S9). An older install whose `<app>/Projects` already
+holds something keeps using it, so no project disappears from view. For that
+case `/list_directories` returns `insideAppFolder: true` and
+`recommendedProjectsRoot`, and the Projects page shows a warning with both
+paths. EXDA never moves project data itself.
+
+**Rule for changes to the launchers:**
+
+- Anything installed goes inside the app folder.
+- Anything outside it (a program, a shortcut) needs an explicit yes from the
+  user and must be listed in this table, in RUN_EXDA.md and in the user
+  guide.
+- Batch files must keep CRLF line endings (see `.gitattributes`). Inside
+  `( … )` blocks, use `!VAR!` for paths and keep parentheses out of `echo`
+  text.
 
 Key design rules (from [EXDA-Check.md](EXDA-Check.md), section 0) that every
 change must respect:
@@ -111,7 +182,7 @@ Sizes are lines of code (tracked files, November 2026).
 ### Backend ([backend/](../../backend))
 
 | File | Lines | Role |
-|---|---:|---|
+| --- | ---: | --- |
 | [routes/state.py](../../backend/routes/state.py) | 5 813 | 40 routes: project state, plan/mapping/gas/checklist saves, exports (PDF/CSV), raw-file reading, channel peaks, procedures, lock, run renames |
 | [routes/ai.py](../../backend/routes/ai.py) | 2 040 | AiRA assistant (Ollama), repository context |
 | [routes/calculation_api_routes.py](../../backend/routes/calculation_api_routes.py) | 607 | `/analyze`, `/analyze_pressure`, `/analyze_vent`, `/analyze_ewt`, `/preview_multichannel`, `/aggregate_plot`, `/calculate_gas_mix`, `/calculation_verification` |
@@ -142,7 +213,7 @@ Sizes are lines of code (tracked files, November 2026).
 ### Frontend ([frontend/src/](../../frontend/src))
 
 | File | Lines | Role |
-|---|---:|---|
+| --- | ---: | --- |
 | [features/workspace/WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) | 2 174 | App shell: tabs, tab headers, routing, project open/save, versions, lock, read-only banner |
 | [pages/Plan.jsx](../../frontend/src/pages/Plan.jsx) | 2 092 | Campaign plan, run cards, renames, actual ignition time |
 | [pages/RawDataScreeningCorePage.jsx](../../frontend/src/pages/RawDataScreeningCorePage.jsx) | 1 446 | Pressure and H₂ screening plots; unit and ppm conversions for display; peak range and channel choice (kept in localStorage) |
@@ -169,7 +240,7 @@ reuses the pressure workbench.
 ### Other
 
 | Path | Role |
-|---|---|
+| --- | --- |
 | [tests/e2e/](../../tests/e2e) | Playwright end-to-end tests |
 | [scripts/](../../scripts) | Packaging/maintenance scripts |
 | [docs/](..) | `EXDA-User-Guide/` (guide, Word version, screenshots, videos, build script, and `tools/` with the demo-project generator and the Playwright media recorder), `EXDA-Developer-Overview/` (this overview, EXDA-Check.md review brief, downsampling notes), `design/` (architecture animation sources), `assets/` (icons used by the README) |
@@ -265,7 +336,7 @@ header (set by a fetch wrapper in [clientId.js](../../frontend/src/utils/clientI
 
 ## 4. Project data on disk
 
-```
+```text
 EXDA-Projects/[<group folder>/]<project>/
 ├── exda-project.json   project marker: {"schema": "exda-project/1", "projectId": …}
 ├── Plan/            <plan>.json (experiments, meta), project_status.json,
@@ -281,9 +352,14 @@ EXDA-Projects/[<group folder>/]<project>/
 └── .exda.lock       present while a window edits the project
 ```
 
-The default projects folder is `EXDA_PROJECTS_ROOT`, else `EXDA-Projects`
-next to the app folder, else `<app>/Projects`
-([projects.py](../../backend/routes/projects.py#L18)).
+The default projects folder ([`_projects_root_default`](../../backend/routes/projects.py#L32)):
+
+1. `EXDA_PROJECTS_ROOT`, if set;
+2. `EXDA-Projects` next to the app folder, if it exists;
+3. `<app>/Projects`, only if it already holds something (older installs; the
+   Projects page warns, see section 1);
+4. otherwise `EXDA-Projects` next to the app folder is created (if that fails,
+   `<app>/Projects` remains).
 
 **What counts as a project.** A folder is a project if it holds a valid
 `exda-project.json`, or, for projects made before the marker existed, a
@@ -308,7 +384,7 @@ tolerance; **T** unit-tested (behaviour, not independent values);
 **–** no tests.
 
 | # | Calculation | Where | Status |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | C1 | H₂ fill model (mass, volumes, fill time) | [gas_mixing.py:82](../../backend/modules/gas_mixing.py#L82) | T |
 | C2 | Calibration (dosage) correction | [gasMixing.js:195](../../frontend/src/utils/gasMixing.js#L195) (browser) | T (vitest) |
 | C3 | Gas/plan record consistency checks | [gas_mixing_checks.py:94](../../backend/modules/gas_mixing_checks.py#L94) | T |
@@ -330,7 +406,7 @@ Inputs: target H₂ `x` (vol.% / 100), chamber pressure `P` (Pa), temperature
 Constants: `Ru = 8.314462618 J/(mol·K)`, `M_H2 = 2.01588e-3 kg/mol`,
 `T_std = 298.15 K`, `P_std = 101 325 Pa`.
 
-```
+```text
 V        = L·W·H + V_pipes + V_hotwire − V_welded − V_bolts     (or explicit V_chamber)
 n_total  = P·V / (Ru·T)
 n_H2     = x · n_total
@@ -451,7 +527,7 @@ pressure analysis does.
 fixture ([backend/tests/results/](../../backend/tests/results)):
 
 | Mode | Octave peak (Hz) | Octave energy % | Python peak (Hz) | Python energy % |
-|---:|---:|---:|---:|---:|
+| ---: | ---: | ---: | ---: | ---: |
 | 0 | 1.33 | 99.19 | 4.02 | 82.99 |
 | 1 | 70.47 | 0.58 | 10.04 | 16.19 |
 | 2 | 119.66 | 0.21 | 70.28 | 0.47 |
@@ -485,6 +561,7 @@ from `/calculate_gas_mix`, and keep the frontend for display only.
 
 **F9 — Gas-model assumptions are implicit.** These should be written down
 and checked, not changed silently:
+
 - `P` is treated as the final total pressure of the mixture (constant-pressure
   fill with venting). For a closed-vessel fill from `P0`, the H₂ amount is
   `x/(1−x) · n_air`, which is larger (+19% at 16 vol.%).
@@ -581,7 +658,7 @@ table.
 ## 7. Findings: code structure
 
 | # | Finding | Suggestion |
-|---|---|---|
+| --- | --- | --- |
 | S1 | `routes/state.py` has 5 813 lines and 40 routes (file I/O, exports, lock, renames, analysis, channel peaks). The Project Description already got its own blueprint, which is the pattern to follow. | Split into blueprints: `files`, `records` (plan/mappings/gas), `exports`, `lock`, `runs`. Move PDF/CSV export code to a module. |
 | S2 | `WorkspacePage.jsx` (2 174) and `Plan.jsx` (2 092) hold most frontend state and logic. | Extract hooks (`useProjectLock`, `useProjectSave`, `usePlanEditor`) and keep pages presentational. |
 | S3 | Four pressure-unit tables: [pressure_analysis.py:36](../../backend/modules/pressure_analysis.py#L36) (has psi), [data_parser.py:481](../../backend/modules/data_parser.py#L481) (no psi), [units.js:38](../../frontend/src/utils/units.js#L38) (no psi), [gasMixing.js:38](../../frontend/src/utils/gasMixing.js#L38) (Pa-based). | One backend table (`units.py`) exported as JSON to the frontend; test both sides against the same cases. |
@@ -589,6 +666,7 @@ table.
 | S5 | Two read paths: full-resolution `daq_reader` (pressure analysis, screening peak table) and reduced preview text (screening plots, EWT, vent, flame). | Make every calculation use `daq_reader`; keep preview text for display only. |
 | S6 | `aira_multi_role.py` and `ArchitectureFlowMap.jsx` are not used. | Remove (see the earlier file audit). |
 | S7 | No continuous integration: tests run only when someone runs them. | GitHub Actions: backend unittest + vitest + eslint on every push (free for public repos). |
+| S9 | **Fixed (after 4.0.12).** The default projects folder used to fall back to `<app>/Projects` inside the app folder, so replacing the app folder could delete projects. | `EXDA-Projects` is now created next to the app; older `<app>/Projects` with content is kept and flagged (`insideAppFolder`), with a warning on the Projects page; tests in `test_projects_root.py`. |
 | S8 | Analysis endpoints catch `Exception` and return `{"error": str(e)}` with 500. | Map known errors (PressureAnalysisError, ValueError) to 400 and log the rest with a traceback. |
 
 ---
@@ -598,9 +676,9 @@ table.
 ### Test suites
 
 | Suite | Files | Tests | Notes |
-|---|---|---:|---|
-| Backend unittest | 18 in [backend/tests/](../../backend/tests) | 157 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
-| Frontend vitest | 13 in [frontend/tests/](../../frontend/tests) | 62 | Gas-mixing logic, units (incl. trigger detection), peak formatting, mappings, versions, formatting, path crumbs, Project Description |
+| --- | --- | ---: | --- |
+| Backend unittest | 18 in [backend/tests/](../../backend/tests) | 162 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
+| Frontend vitest | 12 in [frontend/tests/](../../frontend/tests) | 62 | Gas-mixing logic, units (incl. trigger detection), peak formatting, mappings, versions, formatting, path crumbs, Project Description |
 | End-to-end | 2 in [tests/e2e/](../../tests/e2e) | – | Playwright; need a running app |
 | Guide media | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) | – | Not a test, but it clicks through every MVP tab on synthetic data, so a broken flow shows up when the media are regenerated |
 | Octave comparison | [backend/tests/scripts/comparison/](../../backend/tests/scripts/comparison) | – | Manual scripts writing CSVs to `backend/tests/results/` |
@@ -608,7 +686,7 @@ table.
 ### What is independently verified
 
 | Quantity | Reference | Agreement | Automated? |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | pMax, tMax (raw) | Octave, 1 fixture | identical to 5 decimals | No (static CSV) |
 | impulse (raw) | Octave | 1e-4 relative (0.41089 vs 0.41093) | No |
 | pMax (filtered 20 Hz) | Octave `filtfilt` | 0.05% (5.53381 vs 5.53673): different edge padding | No |
@@ -654,7 +732,7 @@ independent reference with an agreed tolerance, run automatically, and
 ### 9.1 Layers
 
 | Layer | What | Examples |
-|---|---|---|
+| --- | --- | --- |
 | L1 Analytic | Inputs with closed-form answers | Triangle/rectangle pulse → exact impulse; Friedlander waveform `p(t)=Ps(1−t/td)e^(−bt/td)` → analytic impulse `Ps·td·(1/b − (1−e^(−b))/b²)`; sine at fc through filtfilt → gain 0.5 (−6 dB); gas mixing at hand-checked values (e.g. 16 vol.%, 101 325 Pa, 293.15 K, 1 m³ → m_H2 = 13.408 g; at 10 SLPM → 976.4 s) |
 | L2 Reference | Same inputs through an independent implementation (Octave/MATLAB, or a second Python implementation written from the equations) | pMax/tMax/impulse/filter on 3–5 fixtures at several settings; gas mixing vs the MATLAB `AuxFcn_H2_MFC_FillCalculator_000` |
 | L3 Properties | Relations that must hold for any input | Unit scaling: bar vs Pa input give identical kPa metrics; time shift: tMax shifts, pMax/impulse unchanged; offset: pMax shifts by the offset; linearity of the filter; EWT energies sum to 100%; gas mass ∝ P·V/T and ∝ x |
@@ -664,7 +742,7 @@ independent reference with an agreed tolerance, run automatically, and
 ### 9.2 Tolerances
 
 | Quantity | Tolerance | Why |
-|---|---|---|
+| --- | --- | --- |
 | Gas mixing outputs | 1e-9 relative | Closed-form; only floating point |
 | pMax, tMax raw | exact sample / 1e-12 | No arithmetic beyond max |
 | Impulse | 1e-6 relative vs analytic (fine grid); 1e-4 vs Octave | Trapezoid differences at the end index |
@@ -673,7 +751,7 @@ independent reference with an agreed tolerance, run automatically, and
 
 ### 9.3 Suggested layout
 
-```
+```text
 backend/tests/verification/
 ├── vectors/                 JSON test vectors (inputs + expected + tolerance)
 │   ├── gas_mixing.json      shared with frontend/tests (L5)

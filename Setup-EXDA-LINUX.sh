@@ -49,6 +49,13 @@ print_header() {
   echo "========================================"
   echo "EXDA Setup (Linux)"
   echo "========================================"
+  echo ""
+  echo "EXDA installs its packages inside this app folder only:"
+  echo "  $REPO_ROOT"
+  echo "  Python packages:   .venv"
+  echo "  Frontend packages: node_modules"
+  echo "  About 1 to 2 GB in total. Deleting the app folder removes all of it."
+  echo "Node.js and Python must already be installed (this script does not install them)."
 }
 
 pause_on_exit() {
@@ -176,7 +183,9 @@ echo "Installing optional feature requirements ..."
 verify_python_requirements backend/requirements-optional.txt || fail "Optional Python requirements are still incomplete"
 
 echo ""
-echo "EXDA setup is complete."
+echo "EXDA setup is complete. Installed in the app folder:"
+echo "  $REPO_ROOT/.venv"
+echo "  $REPO_ROOT/node_modules"
 echo ""
 echo "The EXDA launcher uses .venv automatically."
 echo "If you want this terminal itself to stay activated afterward, run:"

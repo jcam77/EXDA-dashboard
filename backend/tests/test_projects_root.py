@@ -49,8 +49,41 @@ class ProjectsRootTests(unittest.TestCase):
         os.environ["EXDA_PROJECTS_ROOT"] = str(self.base / "elsewhere")
         self.assertEqual(projects_routes._projects_root_default(), str(self.base / "elsewhere"))
 
-    def test_older_installations_keep_the_app_projects_folder(self):
+    def test_projects_folder_is_created_next_to_the_app(self):
+        root = projects_routes._projects_root_default()
+        self.assertEqual(root, str(self.base / "EXDA-Projects"))
+        self.assertTrue((self.base / "EXDA-Projects").is_dir())
+        self.assertFalse((self.app_dir / "Projects").exists())
+
+    def test_empty_app_projects_folder_is_not_used(self):
+        (self.app_dir / "Projects").mkdir()
+        (self.app_dir / "Projects" / ".DS_Store").write_text("", encoding="utf-8")
+        self.assertEqual(projects_routes._projects_root_default(), str(self.base / "EXDA-Projects"))
+
+    def test_older_installations_keep_their_projects_inside_the_app(self):
+        old = self.app_dir / "Projects" / "Week-27"
+        (old / "Plan").mkdir(parents=True)
+        (old / "Plan" / "Experiment_Plan_v000.json").write_text("{}", encoding="utf-8")
         self.assertEqual(projects_routes._projects_root_default(), str(self.app_dir / "Projects"))
+        # Nothing is moved and no empty EXDA-Projects appears that would hide them.
+        self.assertFalse((self.base / "EXDA-Projects").exists())
+        self.assertTrue((old / "Plan" / "Experiment_Plan_v000.json").is_file())
+
+    def test_projects_inside_the_app_folder_are_reported(self):
+        (self.app_dir / "Projects" / "Week-27").mkdir(parents=True)
+        data = flask_app.test_client().get("/list_directories").get_json()
+        self.assertTrue(data["insideAppFolder"])
+        self.assertEqual(data["recommendedProjectsRoot"], str(self.base / "EXDA-Projects"))
+
+    def test_projects_next_to_the_app_are_not_reported(self):
+        (self.base / "EXDA-Projects").mkdir()
+        data = flask_app.test_client().get("/list_directories").get_json()
+        self.assertFalse(data["insideAppFolder"])
+
+    def test_a_folder_with_a_similar_name_is_not_inside_the_app(self):
+        sibling = self.base / "EXDA-dashboard-old"
+        sibling.mkdir()
+        self.assertFalse(projects_routes._is_inside_app_folder(str(sibling)))
 
 
 class ProjectFoldersTests(unittest.TestCase):

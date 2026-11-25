@@ -27,26 +27,47 @@ Install these once per computer:
 
 On Windows and macOS the launcher checks for Node.js and Python. If either is missing, it offers to install it (Windows: `winget`, macOS: Homebrew) or opens the download page.
 
+### 📥 Get EXDA
+
+Make one folder called `EXDA` and put the app inside it:
+
+```bash
+mkdir EXDA
+cd EXDA
+git clone https://github.com/jcam77/EXDA-dashboard.git
+```
+
+Without git, download the ZIP from GitHub (**Code → Download ZIP**) and unzip it inside the `EXDA` folder. The unzipped folder may be called `EXDA-dashboard-main`; that is fine.
+
+Use a local folder, for example `C:\EXDA` or `~/EXDA`, not OneDrive, iCloud Drive, Dropbox or Google Drive. After the first start the `EXDA` folder looks like this:
+
+```text
+EXDA/
+├── EXDA                ← shortcut: double-click to start (EXDA.lnk on Windows)
+├── EXDA-dashboard/     ← the app: replace this folder for a new version
+└── EXDA-Projects/      ← your projects: created by EXDA, never touched by updates
+```
+
 ### ▶️ Start EXDA
 
 Double-click the launcher for your operating system:
 
-- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [EXDA.app](EXDA.app) (opens Terminal and runs [Run-EXDA-MAC.command](Run-EXDA-MAC.command))
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat); after the first start, use the **EXDA** shortcut on the Desktop, in the Start menu or in the EXDA folder
+- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [EXDA.app](EXDA.app) (opens Terminal and runs [Run-EXDA-MAC.command](Run-EXDA-MAC.command)); after the first start, also the **EXDA** shortcut in the `EXDA` folder
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat); after the first start, the **EXDA** shortcut in the `EXDA` folder or in the Start menu (and on the Desktop if you chose it)
 - <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: run [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh) once, then [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
 
 **First start** on a computer (macOS and Windows): the launcher finds that EXDA is not set up yet and runs the setup script ([Setup-EXDA-MAC.command](Setup-EXDA-MAC.command) / [Setup-EXDA-WIN.bat](Setup-EXDA-WIN.bat)) automatically. This takes a few minutes and needs an internet connection. Setup:
 
 - checks the Node.js and Python versions
-- creates the Python environment for this operating system inside the EXDA folder (`.venv-mac` on macOS, `.venv-win` on Windows, `.venv` on Linux) and installs the Python packages
-- installs the frontend packages (`npm install`)
-- on Windows, adds an **EXDA** shortcut with the EXDA icon to the Desktop, the Start menu and the EXDA folder
+- creates the Python environment for this operating system inside the app folder (`.venv-mac` on macOS, `.venv-win` on Windows, `.venv` on Linux) and installs the Python packages
+- installs the frontend packages (`npm install`) inside the app folder
+- adds the **EXDA** shortcut: in the `EXDA` folder (when the app sits in its own folder), on Windows also in the Start menu, and on the Desktop only if you answer yes
 
 Then EXDA starts.
 
 **Every later start** runs a quick check, which takes about two seconds. If everything is in place, it starts the backend and frontend and opens EXDA in the browser. If something is missing, setup runs again first.
 
-Because each operating system has its own Python environment, one EXDA folder can be used from macOS and Windows, for example on an external drive. Nothing is installed system-wide apart from Node.js and Python.
+Because each operating system has its own Python environment, one EXDA folder can be used from macOS and Windows, for example on an external drive. Nothing is installed system-wide apart from Node.js and Python, and only if they are missing and you agree. For a new version, replace only the app folder; to remove EXDA, delete the app folder and the shortcuts. See [RUN_EXDA.md](RUN_EXDA.md#where-exda-installs-things) for the full list.
 
 Full launcher notes are in [RUN_EXDA.md](RUN_EXDA.md).
 

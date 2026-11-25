@@ -119,6 +119,35 @@ offer_install() {
 echo "========================================"
 echo "EXDA Setup (macOS)"
 echo "========================================"
+echo ""
+echo "EXDA installs its packages inside this app folder only:"
+echo "  $REPO_ROOT"
+echo "  Python packages:   .venv-mac"
+echo "  Frontend packages: node_modules"
+echo "  About 1 to 2 GB in total. Deleting the app folder removes all of it."
+echo "Node.js and Python are installed for the whole Mac only if they are"
+echo "missing, and only if you agree when asked."
+
+# A synced cloud folder would upload thousands of package files and can break
+# the Python environment. Ask before continuing there.
+case "$REPO_ROOT" in
+  *"/Library/Mobile Documents/"*|*"/Library/CloudStorage/"*|*"/Dropbox/"*|*"/OneDrive"*|*"/Google Drive/"*)
+    echo ""
+    echo "NOTE: This app folder is inside a synced cloud folder (iCloud Drive,"
+    echo "OneDrive, Dropbox or Google Drive). The cloud service would upload about"
+    echo "1 to 2 GB of package files, and the Python environment can break when it"
+    echo "syncs. A local folder such as ~/EXDA/EXDA-dashboard is better. Projects"
+    echo "can stay in the cloud folder."
+    if [ -t 0 ] && ! ask_yes "Continue setup in this folder anyway?"; then
+      echo ""
+      echo "Setup stopped. Move the app folder to a local folder, for example ~/EXDA/EXDA-dashboard,"
+      echo "then double-click EXDA.app there."
+      echo ""
+      pause_on_exit
+      exit 1
+    fi
+    ;;
+esac
 seed_gui_path
 
 # ---- Node.js ---------------------------------------------------------------
@@ -186,13 +215,55 @@ echo "Installing optional feature packages ..."
 "$VENV_PY" -m pip install -r backend/requirements-optional.txt || fail "Failed to install backend/requirements-optional.txt"
 sanitize_venv
 
+# ---- EXDA shortcut in the parent folder ----------------------------------------
+# The app is "in its own folder" when the parent is not a general place (/, the
+# home folder, Desktop, Documents, Downloads) and either is named EXDA... or holds
+# nothing but EXDA items (app folder, EXDA-Projects, the EXDA link).
+PARENT_DIR="$(dirname "$REPO_ROOT")"
+in_own_folder() {
+  case "$PARENT_DIR" in
+    /|"$HOME"|"$HOME/Desktop"|"$HOME/Documents"|"$HOME/Downloads") ;;
+    *)
+      case "$(basename "$PARENT_DIR")" in EXDA*) return 0 ;; esac
+      local entry
+      for entry in "$PARENT_DIR"/*; do
+        [ -e "$entry" ] || [ -L "$entry" ] || continue
+        case "$(basename "$entry")" in EXDA*) ;; *) return 1 ;; esac
+      done
+      return 0
+      ;;
+  esac
+  return 1
+}
+# Volume roots such as /Volumes/USB are general places too.
+case "$PARENT_DIR" in /Volumes/*/*) ;; /Volumes/*) PARENT_IS_VOLUME=1 ;; esac
+
 echo ""
-echo "EXDA setup is complete."
+FOLDER_LINK="$PARENT_DIR/EXDA"
+if [ -z "${PARENT_IS_VOLUME:-}" ] && in_own_folder; then
+  if [ -e "$FOLDER_LINK" ] && [ ! -L "$FOLDER_LINK" ]; then
+    echo "Note: $FOLDER_LINK already exists and is not an EXDA link; left unchanged."
+  else
+    # Relative link, so it keeps working when the whole EXDA folder is moved.
+    ln -sfn "$(basename "$REPO_ROOT")/EXDA.app" "$FOLDER_LINK" \
+      && echo "EXDA shortcut: $FOLDER_LINK" \
+      || echo "Note: could not create the EXDA shortcut in $PARENT_DIR."
+  fi
+else
+  echo "Tip: put this app folder inside its own EXDA folder, for example"
+  echo "     ~/EXDA/EXDA-dashboard. EXDA then keeps the app, EXDA-Projects and"
+  echo "     the EXDA shortcut together in that one folder."
+fi
+
+echo ""
+echo "EXDA setup is complete. Installed in the app folder:"
+echo "  $VENV_DIR"
+echo "  $REPO_ROOT/node_modules"
 if [ "$FROM_LAUNCHER" = "1" ]; then
   echo "Starting EXDA ..."
   exit 0
 fi
 echo ""
-echo "Start EXDA by double-clicking EXDA.app (or Run-EXDA-MAC.command) in this folder."
+echo "Start EXDA by double-clicking EXDA in the EXDA folder, or EXDA.app in the app folder."
 echo ""
 pause_on_exit

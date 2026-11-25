@@ -63,21 +63,69 @@ AiRA, literature) appear as well.
 
 ## 2. Start EXDA
 
+**Get EXDA once.** Make a folder called `EXDA` in a local place, for example
+`C:\EXDA` or `~/EXDA` (not OneDrive, iCloud Drive, Dropbox or Google Drive), and
+put the app inside it:
+
+```bash
+mkdir EXDA
+cd EXDA
+git clone https://github.com/jcam77/EXDA-dashboard.git
+```
+
+Without git, download the ZIP from GitHub (**Code → Download ZIP**) and unzip it
+inside the `EXDA` folder. After the first start the folder holds three things:
+
+```text
+EXDA/
+├── EXDA                ← shortcut: double-click to start EXDA
+├── EXDA-dashboard/     ← the app (everything EXDA installs is in here)
+└── EXDA-Projects/      ← your projects (created by EXDA)
+```
+
 **Double-click EXDA.**
 
-- **Windows:** `Run-EXDA-WIN.bat` in the EXDA folder; after the first start, the
-  **EXDA** shortcut on the Desktop, in the Start menu or in the EXDA folder.
-- **macOS:** `EXDA.app` in the EXDA folder.
+- **Windows:** `Run-EXDA-WIN.bat` in the app folder the first time. After that,
+  use the **EXDA** shortcut in the `EXDA` folder or in the Start menu. The first
+  start asks whether you also want it on the Desktop.
+- **macOS:** `EXDA.app` in the app folder the first time. After that, use the
+  **EXDA** shortcut in the `EXDA` folder.
 - **Linux:** run `Setup-EXDA-LINUX.sh` once, then `Run-EXDA-LINUX.sh`.
 
-**The first start installs what EXDA needs** (a few minutes, internet needed):
-the Python and frontend packages, inside the EXDA folder. If Node.js or Python is
-missing, EXDA offers to install it (Windows: `winget`, macOS: Homebrew) or opens
-the download page. Every later start only runs a quick check (about two seconds)
-and opens EXDA in your web browser. Close the terminal window to stop EXDA.
+**The first start installs what EXDA needs** (a few minutes, internet needed,
+about 1–2 GB). The Python packages go into `.venv-win`, `.venv-mac` or `.venv`
+and the frontend packages into `node_modules`, both inside the app folder, and
+the setup window prints these paths. Nothing else is added to your computer
+apart from the shortcuts listed above. Only if Node.js or Python is missing does
+EXDA offer to install it for the whole computer (Windows: `winget`, macOS:
+Homebrew), and only after you accept. Otherwise it opens the download page.
+Every later start only runs a quick check (about two seconds) and opens EXDA in
+your web browser. Close the terminal window to stop EXDA.
 
-**Keep your projects outside the EXDA folder,** for example in `EXDA-Projects`
-next to it. App updates then never touch your experiment records.
+**Your projects are kept apart from the app,** in `EXDA-Projects` next to it.
+App updates never touch them. You can also open projects stored anywhere else,
+for example on a lab drive.
+
+**To update EXDA or remove it,** replace or delete only the app folder:
+
+1. Close EXDA (close its terminal window).
+2. Delete the app folder `EXDA-dashboard`. **Do not delete the EXDA folder
+   around it**, because that holds your projects.
+3. For a newer version, put the new app folder in the same `EXDA` folder and
+   double-click its launcher. The first start installs the packages again (a few
+   minutes) and updates the EXDA shortcuts.
+4. To remove EXDA completely, also delete the EXDA shortcuts: in the `EXDA`
+   folder and, on Windows, in the Start menu and on the Desktop.
+
+If the Projects page shows a warning **Projects inside the app folder**, your
+projects are stored in an older place that an update would delete. Close EXDA,
+move them to `EXDA-Projects` as the warning says, and start EXDA again.
+
+Node.js and Python stay on the computer, which is what the next version needs.
+To remove them as well, uninstall them like any other program, but only if no
+other software uses them. If you got EXDA with `git clone`, updating with
+`git pull` in the app folder is quicker: the packages stay, and the next start
+installs only what changed.
 
 **Open each project in one window only.** A second window on the same project is
 read-only (see [section 15](#15-how-exda-protects-your-data)).

@@ -2,7 +2,9 @@
 # EXDA launcher for macOS: opens Run-EXDA-MAC.command (next to this EXDA.app)
 # in Terminal, exactly as double-clicking that file does, so the startup
 # messages stay visible. No AppleScript or extra permissions needed.
-APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+# pwd -P: the real folder, also when EXDA.app was started through the EXDA link
+# in the parent folder.
+APP_DIR="$(cd "$(dirname "$0")/../.." && pwd -P)"
 REPO_ROOT="$(dirname "$APP_DIR")"
 LAUNCHER="$REPO_ROOT/Run-EXDA-MAC.command"
 

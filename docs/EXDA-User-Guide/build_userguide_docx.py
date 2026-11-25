@@ -279,12 +279,31 @@ def add_table(doc, header, rows):
     doc.add_paragraph()
 
 
+# Fenced blocks in these languages are commands, shown as monospace lines;
+# all other fenced blocks are folder trees, shown as Folder/Contents tables.
+CODE_LANGUAGES = {"bash", "sh", "shell", "console", "powershell", "ps1", "cmd", "bat"}
+
+
+def add_code_block(doc, lines, prototypes):
+    for line in lines:
+        p = styled_paragraph(doc, prototypes["paragraph"])
+        p.paragraph_format.left_indent = Cm(0.8)
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after = Pt(0)
+        run = p.add_run(line.rstrip())
+        run.font.name = "Consolas"
+        run.font.size = Pt(9.5)
+    spacer = styled_paragraph(doc, prototypes["paragraph"])
+    spacer.paragraph_format.space_after = Pt(0)
+
+
 def tree_to_rows(lines):
     rows = []
     for line in lines:
         m = re.match(r"^[\s│├└─]*([^\s].*?)\s{2,}(.+)$", line)
         if m:
-            rows.append([m.group(1).strip(), m.group(2).strip()])
+            # "← note" comments in a tree are shown as plain contents text
+            rows.append([m.group(1).strip(), m.group(2).strip().lstrip("←").strip()])
         elif line.strip():
             rows.append([re.sub(r"^[\s│├└─]*", "", line).strip(), ""])
     return rows
@@ -388,13 +407,17 @@ def build(template: Path, output: Path = OUTPUT):
             i += 1
             continue
         if stripped.startswith("```"):
+            lang = stripped[3:].strip().lower()
             block = []
             i += 1
             while i < len(lines) and not lines[i].strip().startswith("```"):
                 block.append(lines[i])
                 i += 1
             i += 1
-            add_table(doc, ["Folder", "Contents"], tree_to_rows(block))
+            if lang in CODE_LANGUAGES:
+                add_code_block(doc, block, prototypes)
+            else:  # folder trees ("text" blocks)
+                add_table(doc, ["Folder", "Contents"], tree_to_rows(block))
             continue
         if stripped.startswith("|"):
             header = split_row(stripped)

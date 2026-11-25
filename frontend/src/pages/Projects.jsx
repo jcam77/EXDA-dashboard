@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, FolderPlus, Folder, FolderOpen, Folders, Trash2, Search, RefreshCw, Home, Pencil, Copy } from 'lucide-react';
+import { AlertTriangle, ChevronDown, FolderPlus, Folder, FolderOpen, Folders, Trash2, Search, RefreshCw, Home, Pencil, Copy } from 'lucide-react';
 import ProjectPickerModal from '../components/ProjectPickerModal';
 import UnifiedModal from '../components/UnifiedModal';
 import { getBackendBaseUrl } from '../utils/backendUrl';
@@ -17,6 +17,8 @@ const ProjectsPage = ({
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Set when the default projects folder lies inside the app folder (older installs).
+  const [appFolderWarning, setAppFolderWarning] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   // Folded project groups (by group folder path), remembered in this browser.
   const [collapsedGroups, setCollapsedGroups] = useState(() => {
@@ -123,6 +125,9 @@ const ProjectsPage = ({
       const res = await fetch(`${apiBaseUrl}/list_directories`);
       const data = await res.json();
       if (!data.success || !data.path) return null;
+      setAppFolderWarning(
+        data.insideAppFolder ? { path: data.path, recommended: data.recommendedProjectsRoot } : null
+      );
       return { path: data.path, mode: 'root' };
     } catch {
       return null;
@@ -893,6 +898,21 @@ const ProjectsPage = ({
             ))}
           </div>
         </div>
+
+        {appFolderWarning && (
+          <div role="alert" className="mb-6 rounded-xl border border-warning/40 bg-warning/10 p-4">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-warning">
+              <AlertTriangle size={14} />
+              Projects inside the app folder
+            </div>
+            <p className="mt-2 text-sm text-foreground">
+              Your projects are in <span className="font-mono text-[12px]">{appFolderWarning.path}</span>, inside the
+              EXDA app folder. Replacing or deleting the app folder for an update would delete them. Close EXDA and move
+              them to <span className="font-mono text-[12px]">{appFolderWarning.recommended}</span>, next to the app
+              folder. EXDA uses that folder automatically from the next start.
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">

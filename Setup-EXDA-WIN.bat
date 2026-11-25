@@ -6,7 +6,8 @@ rem EXDA setup for Windows.
 rem  - Checks Node.js (20.19+ or 22.12+) and Python (3.10+); offers to install them with winget.
 rem  - Creates the Windows Python environment .venv-win and installs the Python packages.
 rem  - Installs the frontend packages (npm install).
-rem  - Adds an "EXDA" shortcut with the EXDA icon to the Desktop, the Start menu and this folder.
+rem  - Adds an "EXDA" shortcut to the Start menu and to the EXDA parent folder (or this
+rem    folder), and to the Desktop if the user agrees (scripts\make_shortcuts.ps1).
 rem Run-EXDA-WIN.bat calls this automatically (with --from-launcher) when something is missing.
 
 set "REPO_ROOT=%~dp0"
@@ -22,10 +23,28 @@ set "NODE_PKGS_OK=require('rollup'); require.resolve('vite/package.json'); requi
 set "PYTHON_EXE="
 set "PYTHON_ARGS="
 set "FAIL_MSG="
+set "CLOUD_STOP=0"
 
 echo ========================================
 echo EXDA Setup (Windows)
 echo ========================================
+echo.
+echo EXDA installs its packages inside this app folder only:
+echo   %REPO_ROOT%
+echo   Python packages:   .venv-win
+echo   Frontend packages: node_modules
+echo   About 1 to 2 GB in total. Deleting the app folder removes all of it.
+echo Node.js and Python are installed for the whole computer only if they are
+echo missing, and only if you agree when asked.
+
+rem A synced cloud folder would upload thousands of package files and can
+rem break the Python environment. Ask before continuing there.
+echo "%REPO_ROOT%" | findstr /I /C:"OneDrive" /C:"Dropbox" /C:"Google Drive" /C:"iCloudDrive" >nul
+if not errorlevel 1 call :cloud_folder_warning
+if "%CLOUD_STOP%"=="1" (
+  endlocal
+  exit /b 1
+)
 call :seed_path
 
 rem ---- Node.js -------------------------------------------------------------
@@ -131,18 +150,40 @@ rem ---- Shortcut --------------------------------------------------------------
 call :make_shortcuts
 
 echo.
-echo EXDA setup is complete.
+echo EXDA setup is complete. Installed in the app folder:
+echo   %REPO_ROOT%.venv-win
+echo   %REPO_ROOT%node_modules
 if "%FROM_LAUNCHER%"=="1" (
   echo Starting EXDA ...
   endlocal
   exit /b 0
 )
 echo.
-echo Start EXDA with the EXDA shortcut on your Desktop or in the Start menu,
-echo or double-click Run-EXDA-WIN.bat in this folder.
+echo Start EXDA with the EXDA shortcut in the Start menu or in the EXDA folder,
+echo or double-click Run-EXDA-WIN.bat in the app folder.
 echo.
 pause
 endlocal
+exit /b 0
+
+
+rem ==========================================================================
+:cloud_folder_warning
+set "CLOUD_STOP=0"
+echo.
+echo NOTE: This app folder is inside a synced cloud folder, for example OneDrive.
+echo The cloud service would upload about 1 to 2 GB of package files, and the
+echo Python environment can break when it syncs. A local folder such as
+echo C:\EXDA\EXDA-dashboard is better. Projects can stay in the cloud folder.
+choice /C YN /M "Continue setup in this folder anyway"
+if errorlevel 2 (
+  set "CLOUD_STOP=1"
+  echo.
+  echo Setup stopped. Move the app folder to a local folder, for example
+  echo C:\EXDA\EXDA-dashboard, then double-click Run-EXDA-WIN.bat there.
+  echo.
+  pause
+)
 exit /b 0
 
 
@@ -225,14 +266,10 @@ start "" "%~3"
 exit /b 1
 
 
-rem "EXDA" shortcuts with the EXDA icon: Desktop, Start menu and the EXDA folder itself
-rem (EXDA.lnk there is ignored by git, because a shortcut stores this PC's full path).
+rem "EXDA" shortcuts with the EXDA icon, see scripts\make_shortcuts.ps1. An EXDA.lnk
+rem inside the app folder is ignored by git, because a shortcut stores this PC's full path.
 :make_shortcuts
-set "SHORTCUT_ICON=%REPO_ROOT%scripts\EXDA.ico"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; foreach ($dir in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'), '%REPO_ROOT:~0,-1%')) { $lnk = $ws.CreateShortcut((Join-Path $dir 'EXDA.lnk')); $lnk.TargetPath = '%REPO_ROOT%Run-EXDA-WIN.bat'; $lnk.WorkingDirectory = '%REPO_ROOT%'; $lnk.IconLocation = '%SHORTCUT_ICON%,0'; $lnk.Description = 'EXDA - EXperimental DAta'; $lnk.Save() }" >nul 2>nul
-if errorlevel 1 (
-  echo Note: could not create the EXDA shortcut. You can still start EXDA with Run-EXDA-WIN.bat.
-) else (
-  echo The EXDA shortcut is on your Desktop, in the Start menu and in the EXDA folder.
-)
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%REPO_ROOT%scripts\make_shortcuts.ps1" -AppDir "%REPO_ROOT:~0,-1%"
+if errorlevel 1 echo Note: could not create the EXDA shortcut. You can still start EXDA with Run-EXDA-WIN.bat.
 exit /b 0

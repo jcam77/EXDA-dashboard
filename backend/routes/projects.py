@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 import os
 import string
 import sys
+import threading
 
 from modules import project_description, project_manager
 
@@ -14,23 +15,61 @@ def _app_root():
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 PROJECTS_FOLDER_NAME = "EXDA-Projects"
+LEGACY_PROJECTS_FOLDER_NAME = "Projects"
+_first_start_lock = threading.Lock()
+
+
+def _projects_beside_app():
+    """The recommended projects folder: EXDA-Projects next to the app folder."""
+    return os.path.join(os.path.dirname(_app_root()), PROJECTS_FOLDER_NAME)
+
+
+def _has_visible_entries(path):
+    try:
+        return any(not name.startswith(".") for name in os.listdir(path))
+    except OSError:
+        return False
 
 
 def _projects_root_default():
     """Return the default projects folder.
 
-    Project data lives outside the app folder, so app updates never touch it:
+    Project data lives outside the app folder, so replacing the app folder for
+    an update never touches it (recommended layout: EXDA/<app>, EXDA/EXDA-Projects):
     1. EXDA_PROJECTS_ROOT, if set;
-    2. an 'EXDA-Projects' folder next to the app folder, if it exists;
-    3. otherwise the app's own 'Projects' folder (older installations).
+    2. 'EXDA-Projects' next to the app folder, if it exists;
+    3. the app's own 'Projects' folder, only if it already holds something
+       (older installations; the Projects page warns about it);
+    4. otherwise 'EXDA-Projects' next to the app folder is created now. Only
+       if that is not possible does the app's own 'Projects' folder remain.
     """
     configured = os.environ.get("EXDA_PROJECTS_ROOT")
     if configured:
         return configured
-    beside_app = os.path.join(os.path.dirname(_app_root()), PROJECTS_FOLDER_NAME)
+    beside_app = _projects_beside_app()
     if os.path.isdir(beside_app):
         return beside_app
-    return os.path.join(_app_root(), "Projects")
+    legacy = os.path.join(_app_root(), LEGACY_PROJECTS_FOLDER_NAME)
+    if _has_visible_entries(legacy):
+        return legacy
+    with _first_start_lock:
+        if os.path.isdir(beside_app):  # created meanwhile by another request
+            return beside_app
+        try:
+            os.makedirs(beside_app)
+        except OSError:
+            return legacy
+    return beside_app
+
+
+def _is_inside_app_folder(path):
+    """True if `path` lies inside the app folder (deleted when the app is replaced)."""
+    try:
+        app = os.path.normcase(os.path.realpath(_app_root()))
+        target = os.path.normcase(os.path.realpath(path))
+        return os.path.commonpath([app, target]) == app
+    except (OSError, ValueError):
+        return False
 
 
 @projects_bp.route('/select_project_folder', methods=['POST'])
@@ -295,6 +334,10 @@ def list_directories():
             "isProject": project_manager.is_project_folder(path),
             "notice": notice,
             "quickPlaces": _quick_places(),
+            # Projects inside the app folder are deleted when the app folder is
+            # replaced for an update; the Projects page warns about it.
+            "insideAppFolder": _is_inside_app_folder(path),
+            "recommendedProjectsRoot": _projects_beside_app(),
         })
     except PermissionError:
         return jsonify({"success": False, "error": "No permission to open this folder", "quickPlaces": _quick_places()}), 403

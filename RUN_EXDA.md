@@ -2,12 +2,35 @@
 
 EXDA is now documented as a browser-first app.
 
+## Get EXDA
+
+Make one folder called `EXDA` and put the app (this repository) inside it:
+
+```bash
+mkdir EXDA
+cd EXDA
+git clone https://github.com/jcam77/EXDA-dashboard.git
+```
+
+Without git, download the ZIP from GitHub (**Code → Download ZIP**) and unzip it inside the `EXDA` folder. The unzipped folder may be called `EXDA-dashboard-main`; EXDA does not depend on the app folder's name.
+
+Put the `EXDA` folder somewhere local with a short path, for example `C:\EXDA` or `~/EXDA`. After the first start it holds:
+
+```text
+EXDA/
+├── EXDA                ← shortcut to start EXDA (EXDA.lnk on Windows, a link to EXDA.app on macOS)
+├── EXDA-dashboard/     ← the app: everything EXDA installs is inside this folder
+└── EXDA-Projects/      ← your projects: created by EXDA on its first start
+```
+
+The `EXDA` folder is created by you; the shortcut and `EXDA-Projects` are created by EXDA. You can skip the `EXDA` folder: EXDA still works, with `EXDA-Projects` created next to the app wherever it is, and setup prints a tip.
+
 ## Start EXDA
 
 Double-click the launcher for your operating system:
 
-- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [EXDA.app](EXDA.app) (opens Terminal and runs [Run-EXDA-MAC.command](Run-EXDA-MAC.command))
-- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat), or the **EXDA** shortcut (Desktop, Start menu or the EXDA folder) that the first start creates
+- <img src="docs/assets/os-icons/apple.png" alt="macOS" width="16" height="16"> macOS: [EXDA.app](EXDA.app) (opens Terminal and runs [Run-EXDA-MAC.command](Run-EXDA-MAC.command)), or the **EXDA** shortcut in the `EXDA` folder that the first start creates
+- <img src="docs/assets/os-icons/windows.png" alt="Windows" width="16" height="16"> Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat), or the **EXDA** shortcut that the first start creates (in the `EXDA` folder, in the Start menu, and on the Desktop if you chose it)
 - <img src="docs/assets/os-icons/linux.png" alt="Linux" width="16" height="16"> Linux: run [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh) once, then [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
 
 Install once per computer: Node.js 22 LTS (20.19+ or 22.12+), Python 3.10+ (3.12 recommended) and Git. On macOS and Windows the setup offers to install Node.js and Python if they are missing (macOS: Homebrew, Windows: `winget`). Otherwise it opens the download page.
@@ -29,7 +52,56 @@ Setup:
 - creates the Python environment, or moves a broken one aside to `.venv-*.broken-<id>`
 - runs `npm install`, and reinstalls `node_modules` if the packages for this operating system are incomplete
 - installs `backend/requirements.txt` and `backend/requirements-optional.txt`
-- on Windows, creates the **EXDA** shortcut (icon: [scripts/EXDA.ico](scripts/EXDA.ico)) on the Desktop, in the Start menu and in the EXDA folder (not stored in git, since a shortcut holds the PC's full path)
+- creates the **EXDA** shortcut (see below)
+
+### The EXDA shortcut
+
+| Place | Windows ([scripts/make_shortcuts.ps1](scripts/make_shortcuts.ps1)) | macOS ([Setup-EXDA-MAC.command](Setup-EXDA-MAC.command)) |
+| --- | --- | --- |
+| `EXDA` folder, next to the app and `EXDA-Projects` | `EXDA.lnk`, when the app sits in its own folder | `EXDA`, a link to `EXDA.app`, when the app sits in its own folder |
+| Inside the app folder | `EXDA.lnk`, only when the app does **not** sit in its own folder | `EXDA.app` is always there |
+| Start menu | Always (your user's Start menu) | – |
+| Desktop | **Only if you answer yes.** An EXDA shortcut already there is just updated | Never (drag the EXDA shortcut to the Dock yourself if you like) |
+
+"In its own folder" means the folder around the app is not a general place (the drive root, your user folder, Desktop, Documents or Downloads) and is either named `EXDA…` or holds nothing but EXDA items. Setup prints every shortcut it writes. Linux gets no shortcut. Shortcuts are never stored in git: a Windows shortcut holds the computer's full path.
+
+## Where EXDA installs things
+
+You choose the location by where you put the `EXDA` folder. Setup asks nothing else about locations, and it prints the paths when it starts and when it finishes.
+
+| What | Where | Removed by deleting the app folder? |
+| --- | --- | --- |
+| Python packages | `.venv-win` (Windows), `.venv-mac` (macOS), `.venv` (Linux), inside the app folder | Yes |
+| Frontend packages | `node_modules`, inside the app folder | Yes |
+| EXDA shortcuts | See the table above | Only the one inside the app folder; delete the others by hand (or let the next version rewrite them) |
+| Node.js and Python | System-wide, **only if missing and only after you accept** (Windows: `winget`, Python for your user only; macOS: Homebrew). On Linux, install them yourself | No: they are normal programs, uninstall them as usual |
+| Download caches | npm and pip keep their usual caches in your user folder, as for any project | No, but they are safe to ignore or clear |
+| Your projects | `EXDA-Projects` next to the app folder (created on the first start), or wherever you create them | No: they are never inside the app folder |
+
+Together the packages take about 1–2 GB. The setup scripts never use administrator rights themselves, never change system settings, the registry or your shell profile, and never install npm or pip packages globally. Only the Node.js installer on Windows asks Windows for permission, because it installs for all users.
+
+**Where to put the `EXDA` folder:** a local folder with a short path, for example `C:\EXDA` or `~/EXDA`. Do not use OneDrive, iCloud Drive, Dropbox or Google Drive. The sync service would upload thousands of package files and can break the Python environment, so setup warns and asks first if it finds the app there. Projects can live in a synced folder: open them from there.
+
+## Remove EXDA or update to a newer version
+
+Only the app folder (`EXDA-dashboard`) is replaced or removed. Your projects in `EXDA-Projects` stay where they are.
+
+1. Close EXDA (close its terminal window). Windows cannot delete files that are in use.
+2. Delete the app folder `EXDA-dashboard`. **Do not delete the `EXDA` folder around it** unless you also want to delete your projects.
+3. **New version:** put the new app folder in the same `EXDA` folder and double-click its launcher. The first start installs the packages again (a few minutes, internet needed) and rewrites the EXDA shortcuts so they point to the new app.
+4. **Remove EXDA completely:** also delete the EXDA shortcut in the `EXDA` folder and, on Windows, `EXDA.lnk` in the Start menu and (if you added it) on the Desktop. Keep or move `EXDA-Projects` as you wish: it is your data.
+
+**Projects inside the app folder (older installations).** Before EXDA created `EXDA-Projects` automatically, it could keep projects in `Projects` inside the app folder ([projects.py](backend/routes/projects.py)). EXDA keeps using that folder if it holds anything, and the Projects page then shows a warning, because replacing the app folder would delete those projects. Close EXDA, move them to `EXDA-Projects` next to the app folder, and start EXDA again.
+
+**With git:** `git pull` in the app folder updates the app in place. The Python environment and `node_modules` stay, and the next start installs only packages that changed.
+
+Node.js and Python stay installed; the next version needs them too. Remove them like any other program only if nothing else uses them.
+
+**If you move the whole `EXDA` folder later:**
+
+- **macOS:** the EXDA link still works (it is relative). The next start notices that the Python environment belongs to the old place and installs it again (a few minutes).
+- **Windows:** EXDA usually keeps working, but the shortcuts still point to the old place. Run `Setup-EXDA-WIN.bat` once in the new place to rewrite them.
+- **Linux:** run `Setup-EXDA-LINUX.sh` again.
 
 Each operating system keeps its own Python environment, so one EXDA folder (for example on an external drive) can be used from macOS and Windows. `node_modules` is shared: npm keeps the native packages for each system side by side. An older shared `.venv` folder is no longer used on macOS or Windows and can be deleted.
 
