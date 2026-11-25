@@ -1,14 +1,14 @@
 # EXDA Dashboard
 
-## Development and AI assistance
-
-**EXDA was designed and developed by Javier I. Camacho.** The code and the documentation, including this guide, were written with the assistance of AI coding tools (OpenAI Codex and Anthropic Claude, including Claude Opus 5.5). All changes were reviewed by the author. The calculations are covered by automated tests; see the Developer Overview for what has been verified and what has not. Results shown by EXDA are for quick on-site checks and are not final, publication-grade results.
-
 ## Experimental Data Analysis & Research Management System
 
 EXDA (EXperimental DAta) Dashboard is a research application for planning, running and documenting experimental test campaigns, developed for hydrogen explosion experiments, with CFD validation and literature-assisted analysis. It combines a React frontend, a Flask backend, scientific data-processing modules, and optional AI-assisted workflows in a single workspace.
 
 The goal of the app is to make it easier to move from project setup, to experiment planning, to signal analysis, to reporting without bouncing between separate tools.
+
+**Development and AI assistance**
+
+**EXDA was designed and developed by Javier I. Camacho.** The code and the documentation, including this guide, were written with the assistance of AI coding tools (OpenAI Codex and Anthropic Claude, including Claude Opus 5.5). All changes were reviewed by the author. The calculations are covered by automated tests; see the Developer Overview for what has been verified and what has not. Results shown by EXDA are for quick on-site checks and are not final, publication-grade results.
 
 ## What The App Covers
 
