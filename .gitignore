@@ -82,3 +82,6 @@ EXDA.lnk
 
 # Temporary recordings of the user guide media recorder
 docs/EXDA-User-Guide/tools/.raw-videos/
+
+# Local AI development tools
+.codex
