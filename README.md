@@ -4,7 +4,7 @@
 
 **EXDA was designed and developed by Javier I. Camacho.** The code and the documentation, including this guide, were written with the assistance of AI coding tools (OpenAI Codex and Anthropic Claude, including Claude Opus 5.5). All changes were reviewed by the author. The calculations are covered by automated tests; see the Developer Overview for what has been verified and what has not. Results shown by EXDA are for quick on-site checks and are not final, publication-grade results.
 
-### Experimental Data Analysis & Research Management System
+## Experimental Data Analysis & Research Management System
 
 EXDA (EXperimental DAta) Dashboard is a research application for planning, running and documenting experimental test campaigns, developed for hydrogen explosion experiments, with CFD validation and literature-assisted analysis. It combines a React frontend, a Flask backend, scientific data-processing modules, and optional AI-assisted workflows in a single workspace.
 
@@ -57,9 +57,9 @@ EXDA/
 
 Double-click the launcher for your operating system:
 
--  macOS: [EXDA.app](EXDA.app) (opens Terminal and runs [Run-EXDA-MAC.command](Run-EXDA-MAC.command)); after the first start, also the **EXDA** shortcut in the `EXDA` folder
--  Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat); after the first start, the **EXDA** shortcut in the `EXDA` folder or in the Start menu (and on the Desktop if you chose it)
--  Linux: run [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh) once, then [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
+- macOS: [EXDA.app](EXDA.app) (opens Terminal and runs [Run-EXDA-MAC.command](Run-EXDA-MAC.command)); after the first start, also the **EXDA** shortcut in the `EXDA` folder
+- Windows: [Run-EXDA-WIN.bat](Run-EXDA-WIN.bat); after the first start, the **EXDA** shortcut in the `EXDA` folder or in the Start menu (and on the Desktop if you chose it)
+- Linux: run [Setup-EXDA-LINUX.sh](Setup-EXDA-LINUX.sh) once, then [Run-EXDA-LINUX.sh](Run-EXDA-LINUX.sh)
 
 **First start** on a computer (macOS and Windows): the launcher finds that EXDA is not set up yet and runs the setup script ([Setup-EXDA-MAC.command](Setup-EXDA-MAC.command) / [Setup-EXDA-WIN.bat](Setup-EXDA-WIN.bat)) automatically. This takes a few minutes and needs an internet connection. Setup:
 
