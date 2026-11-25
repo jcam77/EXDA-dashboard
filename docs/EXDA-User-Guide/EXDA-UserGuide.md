@@ -138,7 +138,9 @@ read-only (see [section 15](#15-how-exda-protects-your-data)).
 
 **Open a project.** On the Home page, click **Open Project**.
 
-1. The path at the top shows where you are; click any part of it to go back.
+1. The window opens in your projects folder (`EXDA-Projects`, or the projects
+   folder of the project you opened last). The path at the top shows where you
+   are; click any part of it to go back.
    The buttons below it jump to **EXDA projects**, Home, Desktop, Documents and
    your drives. To type or paste a path, click the pen icon.
 2. **Click** a folder to select it, **double-click** (or click **›**) to go
@@ -187,9 +189,22 @@ name, objective and the fields of their Project Description (methods, facility,
 keywords, …). **Clear All** empties the folder list until you add a folder with
 **Add Projects Root**.
 
-![Projects page with a group of projects](images/02-projects-page.png)
+**Research and experimental capabilities.** The card under the summary shows
+the terms from the Project Description of the projects listed: methods, measured
+quantities, facility, fuels and keywords. The more projects use a term, the larger
+it is, and each kind of term has its own colour (see the line above the words).
+Hold the mouse over a word to highlight it and see which projects use it; click
+it to find those projects. While a word or a search is active, a bar above the
+list says how many projects are shown (for example *Showing 1 of 3 projects
+matching "flame arrival"*); click **Show all**, the **×** in the search box, the
+word again or **Filter: … ×** in the card to see all projects again. The card follows the folder and
+status you select, so you can compare, for example, only your real projects with
+the demo projects left out. It is empty until the projects have a Project
+Description (see [section 4](#4-project-description)). Click its header to fold it.
 
-▶ **Video:** [Projects page: groups and search](videos/02-projects-page.mp4) (10 s)
+![Projects page with the capabilities card](images/02-projects-page.png)
+
+▶ **Video:** [Projects page: capabilities, groups and search](videos/02-projects-page.mp4) (9 s)
 
 ---
 
@@ -203,7 +218,9 @@ date and deadline. They are saved automatically with the experiment plan.
 **Standard fields** are the same in every project, so projects can be compared:
 research questions, methods, measured quantities, facility / rig, fuels /
 mixtures, scale & conditions, partners / funding and keywords. Leave a field empty
-if it does not apply.
+if it does not apply. The terms in methods, measured quantities, facility, fuels
+and keywords make up the **research and experimental capabilities** card on the
+Projects page (see [section 3](#3-projects-open-create-and-find-them)).
 
 - In term fields, type a term and press **Enter** (or comma). While you type, EXDA
   suggests terms already used in your other projects and shows in how many; pick

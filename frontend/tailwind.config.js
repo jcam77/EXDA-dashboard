@@ -55,6 +55,12 @@ export default {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         info: "hsl(var(--info))",
+        cloud: {
+          methods: "hsl(var(--cloud-methods))",
+          measured: "hsl(var(--cloud-measured))",
+          facility: "hsl(var(--cloud-facility))",
+          fuels: "hsl(var(--cloud-fuels))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

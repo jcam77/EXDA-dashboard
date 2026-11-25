@@ -15,6 +15,7 @@ import PlanPickerModal from '../../components/PlanPickerModal';
 import { getBackendBaseUrl } from '../../utils/backendUrl';
 import { getPublicUrl } from '../../utils/assetUrl';
 import { recordRecentProject } from '../../utils/recentProjects';
+import { projectPickerStart, readSavedProjectFolders } from '../../utils/pickerStart';
 import { DEFAULT_INPUT_UNIT, FROM_FILE_UNIT } from '../../utils/units';
 import { EXDA_DISPLAY_TIME_ZONE, formatExdaClock } from '../../utils/timezone';
 import { getClientId, renewClientId } from '../../utils/clientId';
@@ -1562,7 +1563,7 @@ const WorkspacePage = () => {
               <ProjectPickerModal
                   isOpen={picker.open}
                   mode={picker.mode}
-                  initialPath={localStorage.getItem('lastProjectPath') || ''}
+                  initialPath={projectPickerStart(localStorage.getItem('lastProjectPath'), readSavedProjectFolders(localStorage))}
                   onClose={closePicker}
                   onOpen={(pathValue) => {
                       closePicker();
@@ -1627,7 +1628,7 @@ const WorkspacePage = () => {
                     <ProjectPickerModal
                         isOpen={picker.open}
                         mode={picker.mode}
-                        initialPath={localStorage.getItem('lastProjectPath') || ''}
+                        initialPath={projectPickerStart(localStorage.getItem('lastProjectPath'), readSavedProjectFolders(localStorage))}
                         onClose={closePicker}
                         onOpen={(pathValue) => {
                             closePicker();

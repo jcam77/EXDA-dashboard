@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronDown, FolderPlus, Folder, FolderOpen, Folders, Trash2, Search, RefreshCw, Home, Pencil, Copy } from 'lucide-react';
+import { AlertTriangle, ChevronDown, FolderPlus, Folder, FolderOpen, Folders, Trash2, Search, RefreshCw, Home, Pencil, Copy, X } from 'lucide-react';
+import CapabilityCloud from '../components/CapabilityCloud';
 import ProjectPickerModal from '../components/ProjectPickerModal';
 import UnifiedModal from '../components/UnifiedModal';
 import { getBackendBaseUrl } from '../utils/backendUrl';
@@ -376,6 +377,7 @@ const ProjectsPage = ({
         name: project.name,
         group: project.group || '',
         descriptionText: project.descriptionText || '',
+        capabilities: project.capabilities || {},
         path: project.path,
         status: statusValue,
         objective: objectiveText,
@@ -404,6 +406,15 @@ const ProjectsPage = ({
       })
       .sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
   }, [normalizedProjects, searchQuery, selectedStatus, activeProjectPath]);
+
+  // The capabilities cloud follows the loaded folder(s) and the status filter,
+  // but not the search, so clicking a word does not shrink the cloud.
+  const cloudProjects = useMemo(() => {
+    const scopedProjects = activeProjectPath
+      ? normalizedProjects.filter((project) => project.path === activeProjectPath)
+      : normalizedProjects;
+    return scopedProjects.filter((project) => selectedStatus === 'all' || project.status === selectedStatus);
+  }, [normalizedProjects, selectedStatus, activeProjectPath]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -773,6 +784,13 @@ const ProjectsPage = ({
           </div>
         </div>
 
+        <CapabilityCloud
+          projects={cloudProjects}
+          loading={loading}
+          searchQuery={searchQuery}
+          onSelectTerm={setSearchQuery}
+        />
+
         <div className="mb-8 space-y-4">
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
@@ -879,6 +897,17 @@ const ProjectsPage = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-lg border border-border bg-card px-10 py-3 text-sm text-foreground placeholder:text-muted-foreground"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                title="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2" data-testid="project-status-filters">
@@ -898,6 +927,27 @@ const ProjectsPage = ({
             ))}
           </div>
         </div>
+
+        {searchQuery.trim() && !loading && (
+          <div
+            role="status"
+            className="mb-6 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm text-foreground"
+          >
+            <span>
+              Showing {filteredProjects.length} of {cloudProjects.length}{' '}
+              {cloudProjects.length === 1 ? 'project' : 'projects'} matching{' '}
+              <span className="font-semibold text-primary">&ldquo;{searchQuery.trim()}&rdquo;</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="inline-flex items-center gap-1 rounded-lg border border-primary/50 px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+            >
+              <X size={14} />
+              Show all
+            </button>
+          </div>
+        )}
 
         {appFolderWarning && (
           <div role="alert" className="mb-6 rounded-xl border border-warning/40 bg-warning/10 p-4">

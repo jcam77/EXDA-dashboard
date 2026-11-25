@@ -24,6 +24,7 @@ verified today, and what to improve before the calculations are extended.
 | Project marker | New projects get `exda-project.json`; older projects are still recognised by their `Plan/` content | [project_manager.py:71](../../backend/modules/project_manager.py#L71) |
 | Project Description | New first tab, stored in `Plan/project_description.json` (own blueprint) | [project_description.py](../../backend/modules/project_description.py), [routes/project_description.py](../../backend/routes/project_description.py) |
 | Plan file selection | `project_description.json` and the status file are never picked as the plan | `NON_PLAN_FILENAMES` in [project_manager.py:203](../../backend/modules/project_manager.py#L203) |
+| Capabilities cloud | Projects page card with the capability terms (methods, measured quantities, facility, fuels, keywords) of the listed projects, sized by the number of projects and packed on a spiral (some smaller words vertical); colours are the theme tokens `--cloud-*` (index.css), a categorical palette checked with a colour-vision validator in both themes; follows the folder and status filters; click a word to search, with a visible filter bar and Show all. Computed in the browser from `capabilities` in `/list_projects`; read-only | [CapabilityCloud.jsx](../../frontend/src/components/CapabilityCloud.jsx), [capabilityCloud.js](../../frontend/src/utils/capabilityCloud.js), `CAPABILITY_FIELD_IDS` in [project_description.py](../../backend/modules/project_description.py) |
 | Projects page | Folder picker styled like the app, project groups, collapsible | [ProjectPickerModal.jsx](../../frontend/src/components/ProjectPickerModal.jsx), [Projects.jsx](../../frontend/src/pages/Projects.jsx) |
 | Page headers | One `PageHeader` component for every tab | [PageHeader.jsx](../../frontend/src/components/PageHeader.jsx) |
 | Launchers | `Setup-EXDA-*` installs requirements on first start; `Run-EXDA-*` only checks and starts; recommended layout `EXDA/` with the app, `EXDA-Projects/` and the EXDA shortcut | repository root, [make_shortcuts.ps1](../../scripts/make_shortcuts.ps1) |
@@ -225,6 +226,7 @@ Sizes are lines of code (tracked files, November 2026).
 | [components/ProjectPickerModal.jsx](../../frontend/src/components/ProjectPickerModal.jsx) | 307 | Folder picker in the app style (breadcrumbs from [pathCrumbs.js](../../frontend/src/utils/pathCrumbs.js)) |
 | [pages/ProjectDescription.jsx](../../frontend/src/pages/ProjectDescription.jsx) | 292 | Project Description tab (with [useProjectDescription.js](../../frontend/src/hooks/useProjectDescription.js), [TagInput.jsx](../../frontend/src/components/TagInput.jsx)) |
 | [components/PeakTable.jsx](../../frontend/src/components/PeakTable.jsx) | 194 | Peak pressures table: range, channel choice, calls `/channel_peaks`; values formatted by [peakFormat.js](../../frontend/src/utils/peakFormat.js) |
+| [components/CapabilityCloud.jsx](../../frontend/src/components/CapabilityCloud.jsx) | 223 | Research and experimental capabilities word cloud on the Projects page, drawn as SVG (term counting and the deterministic spiral layout in [capabilityCloud.js](../../frontend/src/utils/capabilityCloud.js)) |
 | [components/PageHeader.jsx](../../frontend/src/components/PageHeader.jsx) | 19 | Title bar used by every tab |
 | [features/analysis/PressureAnalysisWorkbench.jsx](../../frontend/src/features/analysis/PressureAnalysisWorkbench.jsx) | 766 | Pressure analysis and CFD-validation UI (advanced mode) |
 | [pages/AppCalculationsVerification.jsx](../../frontend/src/pages/AppCalculationsVerification.jsx) | 651 | In-app verification page (Python vs Octave) |
@@ -677,8 +679,8 @@ table.
 
 | Suite | Files | Tests | Notes |
 | --- | --- | ---: | --- |
-| Backend unittest | 18 in [backend/tests/](../../backend/tests) | 162 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
-| Frontend vitest | 12 in [frontend/tests/](../../frontend/tests) | 62 | Gas-mixing logic, units (incl. trigger detection), peak formatting, mappings, versions, formatting, path crumbs, Project Description |
+| Backend unittest | 18 in [backend/tests/](../../backend/tests) | 164 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
+| Frontend vitest | 13 in [frontend/tests/](../../frontend/tests) | 68 | Gas-mixing logic, units (incl. trigger detection), peak formatting, capabilities cloud, mappings, versions, formatting, path crumbs, Project Description |
 | End-to-end | 2 in [tests/e2e/](../../tests/e2e) | – | Playwright; need a running app |
 | Guide media | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) | – | Not a test, but it clicks through every MVP tab on synthetic data, so a broken flow shows up when the media are regenerated |
 | Octave comparison | [backend/tests/scripts/comparison/](../../backend/tests/scripts/comparison) | – | Manual scripts writing CSVs to `backend/tests/results/` |

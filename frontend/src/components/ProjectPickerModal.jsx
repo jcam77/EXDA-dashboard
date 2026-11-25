@@ -67,8 +67,9 @@ const ProjectPickerModal = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    const lastPath = initialPath || localStorage.getItem('lastProjectPath') || '';
-    fetchDirectories(lastPath);
+    // '' = the default projects folder (callers pass a projects folder, never
+    // an old project path; see utils/pickerStart.js).
+    fetchDirectories(initialPath || '');
   }, [isOpen, initialPath, fetchDirectories]);
 
   // Keep the end of a long path in view.

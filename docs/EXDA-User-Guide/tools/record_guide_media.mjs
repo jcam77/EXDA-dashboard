@@ -217,17 +217,20 @@ const SECTIONS = {
   'projects-page': () => record('02-projects-page', {
     prepare: async (page) => {
       await page.goto(`${URL}/projects`);
-      await page.getByText('VH2D-Demo-Wk22-2026').first().waitFor({ timeout: 20000 });
+      await page.getByText('VH2D-Demo-Wk22-2026', { exact: true }).first().waitFor({ timeout: 20000 });
       await pause(page, 1200);
     },
     act: async (page) => {
-      await page.locator('section', { hasText: 'EMP2X-Demo' }).first().scrollIntoViewIfNeeded();
-      await page.mouse.wheel(0, 160);
-      await pause(page, 1200);
+      // Top of the page: summary tiles, capabilities cloud, folders.
+      await page.getByRole('list', { name: 'Capability terms' }).waitFor({ timeout: 20000 });
+      await pause(page, 1000);
       await shot(page, '02-projects-page');
+      // A word in the cloud finds the projects that use it.
+      await click(page, page.getByRole('button', { name: 'flame arrival', exact: true }), 1800);
+      await page.locator('section', { hasText: 'EMP2X-Demo' }).first().scrollIntoViewIfNeeded();
+      await pause(page, 1200);
       await click(page, page.getByRole('button', { name: /EMP2X-Demo/ }).first(), 1300);
       await click(page, page.getByRole('button', { name: /EMP2X-Demo/ }).first(), 1300);
-      await typeInto(page, page.getByPlaceholder(/Search projects/), 'flame arrival', 1800);
     },
   }),
 

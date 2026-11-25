@@ -170,6 +170,19 @@ def load_quietly(project_root):
     return loaded["description"] if loaded["source"] == "project" else None
 
 
+# Tag fields that say what a project can do (not who funds it). The Projects
+# page shows them as the research and experimental capabilities cloud.
+CAPABILITY_FIELD_IDS = ("methods", "measured_quantities", "facility", "fuels", "keywords")
+
+
+def capability_terms(description):
+    """The filled-in capability terms of a description, by field id."""
+    if not description:
+        return {}
+    standard = description.get("standard") or {}
+    return {field_id: list(standard[field_id]) for field_id in CAPABILITY_FIELD_IDS if standard.get(field_id)}
+
+
 def search_text(description):
     """All filled-in values as one text, for searching projects."""
     if not description:

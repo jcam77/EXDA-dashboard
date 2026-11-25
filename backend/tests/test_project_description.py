@@ -145,6 +145,25 @@ class RouteTests(unittest.TestCase):
                          [{"value": "pressure", "count": 2}, {"value": "flame arrival", "count": 1}])
         self.assertEqual(data["projectsSearched"], 2)
 
+    def test_projects_list_gives_the_capability_terms(self):
+        self.save(sample(methods=["vented explosion"], facility=["VH2D chamber"], partners=["LU"]))
+        other = self.base / "No-description"
+        (other / "Plan").mkdir(parents=True)
+        project_manager.write_project_marker(str(other))
+        data = self.client.get("/list_projects", query_string={"path": str(self.base)}).get_json()
+        by_name = {p["name"]: p for p in data["projects"]}
+        self.assertEqual(by_name["Campaign"]["capabilities"],
+                         {"methods": ["vented explosion"], "facility": ["VH2D chamber"]})
+        self.assertEqual(by_name["No-description"]["capabilities"], {})
+        self.assertNotIn("partners", pd.CAPABILITY_FIELD_IDS)
+        self.assertTrue(set(pd.CAPABILITY_FIELD_IDS) <= set(pd.TAG_FIELD_IDS))
+
+    def test_capability_fields_match_the_frontend(self):
+        js = (REPO_ROOT / "frontend" / "src" / "utils" / "capabilityCloud.js").read_text(encoding="utf-8")
+        labels = {field["id"]: field["label"] for field in pd.STANDARD_FIELDS}
+        for field_id in pd.CAPABILITY_FIELD_IDS:
+            self.assertIn(f"id: '{field_id}', label: '{labels[field_id]}'", js)
+
     def test_projects_list_can_search_description_values(self):
         self.save({"standard": {"facility": ["VH2D chamber"]},
                    "extra": [{"id": "x1", "label": "Ignition source", "value": "spark"}]})

@@ -397,14 +397,17 @@ def list_projects():
         status = project_manager.read_project_status(full)
         if not status:
             status = project_manager.ensure_project_status(full)
+        description = project_description.load_quietly(full)
         projects.append({
             "name": os.path.basename(full),
             "path": full,
             "group": group,
             "status": status,
             "plan": project_manager.get_project_plan_summary(full),
-            # Filled-in description values, so the Projects page can search them.
-            "descriptionText": project_description.search_text(project_description.load_quietly(full)),
+            # Filled-in description values, so the Projects page can search them,
+            # and the capability terms for its capabilities cloud.
+            "descriptionText": project_description.search_text(description),
+            "capabilities": project_description.capability_terms(description),
         })
     return jsonify({"success": True, "path": os.path.abspath(root), "projects": projects})
 
