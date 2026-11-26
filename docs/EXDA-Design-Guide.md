@@ -9,7 +9,7 @@ How EXDA looks and why, so that new screens, and new apps in the same family
   [frontend/src/index.css](../frontend/src/index.css) and
   [frontend/tailwind.config.js](../frontend/tailwind.config.js). This guide
   explains them; if the two ever disagree, fix the guide.
-- **State:** EXDA 5.0.5 (November 2026). It replaces the old
+- **State:** EXDA 5.0.6 (November 2026). It replaces the old
   `design_guidelines.json` (February 2026), which described an earlier, grey look.
 
 ---
@@ -38,10 +38,10 @@ place. Never use fixed palette colours (`text-zinc-400`, `bg-amber-500`,
 `text-emerald-400` …) in new code: they cannot follow the theme and are often
 unreadable in one of the two.
 
-> Older screens (mainly the Plan tab) still use some fixed `zinc` / `black` /
-> `white` classes. A compatibility layer in `index.css` maps those onto the
-> tokens, so they look right, but it is legacy: do not add to it, and replace
-> such classes with tokens when touching that code.
+Since 5.0.6 the whole frontend uses tokens; the old compatibility layer that
+mapped `zinc`/`black`/`white` classes onto the theme is gone. **One exception:**
+modal backdrops use `bg-black/60`–`bg-black/80`, a dark see-through layer that is
+right in both themes.
 
 ### Tokens
 
@@ -81,6 +81,14 @@ Categorical colours are a separate, validated palette, not the status tokens:
 (violet), `--cloud-facility` (red, as in the DBI logo), `--cloud-fuels`
 (amber); grey (`muted-foreground`) for a last, neutral category.
 
+- **Plot series** (screening channels, verification curves) use
+  `--series-1` … `--series-8`: blue, orange, aqua, yellow, violet, red, green,
+  magenta, from the validated reference palette with magenta last (adjacent pairs
+  validated on the card in both themes; plots always show a legend).
+- **Canvas plots** (uPlot) cannot read CSS classes: use the helpers in
+  [utils/themeColors.js](../frontend/src/utils/themeColors.js) (`themeColor`,
+  `resolveColor`, `SERIES_CSS`) and redraw on a theme switch (`useThemeKey`).
+  SVG charts (Recharts) can use `hsl(var(--token))` directly.
 - They were checked with a colour-vision validator (all pairs, both themes):
   colour-blind separation ΔE ≥ 9.3, normal-vision ΔE ≥ 15.7, text contrast ≥
   4.6:1. **Re-run the validator for any change or new colour**; do not pick
@@ -93,7 +101,8 @@ Categorical colours are a separate, validated palette, not the status tokens:
 
 - **Font:** Inter (shipped with the app, `frontend/public/fonts`), weights
   400–800. Monospace (paths, file names, numbers in tables): `font-mono`.
-- **Minimum size: 11 px.** Use 11 px (`text-[11px]`) only for meta text:
+- **Minimum size: 11 px,** also in charts (axis ticks, bar labels). Use 11 px
+  (`text-[11px]`) only for meta text:
   badges, chips, captions, legends. Labels and normal text are 12 px
   (`text-xs`) or 14 px (`text-sm`).
 
@@ -144,7 +153,9 @@ Categorical colours are a separate, validated palette, not the status tokens:
   active chip `border-primary bg-primary/10 text-primary`. While a filter hides
   items, show a tinted bar "Showing N of M … Show all".
 - **Paths:** show the folder name, with the full path in `title`; handle both
-  `/` and `\` (Windows) — see `folderName` in `utils/pathCrumbs.js`.
+  `/` and `\` (Windows) — see `folderName` in `utils/pathCrumbs.js`. Where a
+  whole path is shown, use [PathText](../frontend/src/components/PathText.jsx):
+  monospace, and it wraps only after a `/` or `\`, never inside a name.
 
 ## 5. Light and dark
 
@@ -167,8 +178,8 @@ Categorical colours are a separate, validated palette, not the status tokens:
 
 Copy the foundation, not the whole of EXDA:
 
-1. `index.css` (tokens, fonts, base styles, without the legacy `zinc` mapping)
-   and `tailwind.config.js`.
+1. `index.css` (tokens, fonts, base styles) and `tailwind.config.js`, plus
+   `utils/themeColors.js` if the app draws plots.
 2. The components listed in section 4 that the app needs.
 3. Launchers and setup scripts (same install rules: everything inside the app
    folder, nothing system-wide without asking), the release script, the test

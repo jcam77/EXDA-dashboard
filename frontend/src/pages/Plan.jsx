@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import PathText from '../components/PathText';
 import { 
     Save, Upload, Plus, CheckSquare, Square, PenTool, Trash2, Calendar, 
     Clock, GripVertical, Layers, FlaskConical, X, 
@@ -15,24 +16,23 @@ import { formatPressurePa, formatTempK } from '../utils/formatting';
 import ModalPortal from '../components/ModalPortal';
 
 const RUN_NAME_ORDER_RE = /^(.*)-(\d+)(?:-([Rr])(\d+))?$/;
+// Timeline colours are theme tokens, so they follow light/dark (docs/EXDA-Design-Guide.md).
 const RUN_STATUS_COLORS = {
-    error: '#dc2626',
-    canceled: '#f97316',
+    error: 'hsl(var(--destructive))',
+    canceled: 'hsl(var(--warning))',
     done: 'hsl(var(--primary) / 0.12)',
-    planned: '#3f3f46',
+    planned: 'hsl(var(--muted-foreground) / 0.25)',
 };
 
+// Group markers: the validated categorical palette (blue, green, violet, amber,
+// red, grey); more groups repeat it, and the legend names each group.
 const GROUP_MARKER_COLORS = [
-  '#708090', // Slate
-  '#0047AB', // Cobalt
-  '#FF1493', // Deep Pink 
-  '#8B4513', // Brown
-  '#7851A9', // Royal Purple
-  '#00FFFF', // Cyan
-  '#8B4513', // Brown
-  '#FFFFFF', // Pure White 
-  '#000080', // Navy
-  '#87CEEB', // Sky Blue
+  'hsl(var(--cloud-methods))',
+  'hsl(var(--cloud-measured))',
+  'hsl(var(--cloud-skills))',
+  'hsl(var(--cloud-fuels))',
+  'hsl(var(--cloud-facility))',
+  'hsl(var(--muted-foreground))',
 ];
 
 const formatVolPercentLabel = (value) => {
@@ -65,7 +65,8 @@ const formatCompactPercentLabel = (value) => {
     return `${numeric.toFixed(2).replace(/\.?0+$/, '')}%`;
 };
 
-const getScheduleH2BadgeWidth = (label) => Math.max(30, Math.min(42, (String(label || '').length * 5.2) + 10));
+// Sized for the 11 px badge text (the design guide's minimum).
+const getScheduleH2BadgeWidth = (label) => Math.max(34, Math.min(58, (String(label || '').length * 6.8) + 12));
 
 const IGNITION_PRESET_OPTIONS = [
     'Back Wall',
@@ -1121,7 +1122,7 @@ const PlanPage = ({
         const isDragging = draggingScheduleRun === runName;
         const statusStroke = visualStatus === 'done'
             ? 'hsl(var(--primary) / 0.42)'
-            : (isDragging ? 'rgba(255,255,255,0.55)' : 'rgba(2,6,23,0.25)');
+            : (isDragging ? 'hsl(var(--foreground) / 0.55)' : 'hsl(var(--background) / 0.35)');
         const statusStrokeWidth = visualStatus === 'done'
             ? 0.9
             : (isDragging ? 1 : 0.45);
@@ -1153,7 +1154,7 @@ const PlanPage = ({
                     height={height}
                     rx={4}
                     ry={4}
-                    fill="rgba(2,6,23,0.78)"
+                    fill="hsl(var(--card) / 0.85)"
                 />
                 <rect
                     x={x + 2}
@@ -1182,7 +1183,7 @@ const PlanPage = ({
                             x={x + width + h2BadgeWidth / 2 + 5}
                             y={y + height / 2}
                             fill="hsl(var(--primary))"
-                            fontSize={7.6}
+                            fontSize={11}
                             fontWeight={800}
                             dominantBaseline="middle"
                             textAnchor="middle"
@@ -1207,14 +1208,18 @@ const PlanPage = ({
             ? getRunVisualStatus(runFromList)
             : String(payload?.[`${dayKey}Status`] || 'planned');
         const dayNumber = Number.parseInt(String(payload?.[`${dayKey}Day`] || ''), 10) || 1;
-        const fill = visualStatus === 'done' ? 'hsl(var(--primary))' : '#f8fafc';
-        const stroke = visualStatus === 'done' ? 'rgba(2,6,23,0.75)' : 'rgba(2,6,23,0.25)';
+        // Done and planned bars are light tints (label in accent or text colour);
+        // error and canceled bars are solid, so their label uses the background colour.
+        const fill = visualStatus === 'done'
+            ? 'hsl(var(--primary))'
+            : (visualStatus === 'planned' ? 'hsl(var(--foreground))' : 'hsl(var(--background))');
+        const stroke = visualStatus === 'done' ? 'hsl(var(--background) / 0.75)' : 'hsl(var(--background) / 0.25)';
         return (
             <text
                 x={x + width / 2}
                 y={y + height / 2}
                 fill={fill}
-                fontSize={10}
+                fontSize={11}
                 fontWeight={700}
                 dominantBaseline="middle"
                 textAnchor="middle"
@@ -1370,15 +1375,15 @@ const PlanPage = ({
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
             {/* LEFT: LIST & RUN CARDS (30%) */}
-            <div className="lg:col-span-4 bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl flex flex-col h-full overflow-hidden">
+            <div className="lg:col-span-4 bg-card/60 border border-border p-6 rounded-xl flex flex-col h-full overflow-hidden">
                 <div className="mb-4 space-y-2">
                    <div className="flex items-center gap-2">
                        <FlaskConical size={16} className="text-primary shrink-0"/>
-                       <input value={planName} onChange={e=>setPlanName(e.target.value)} aria-label="Plan name" title="Plan name" className="bg-transparent border-b border-zinc-800 text-sm font-bold w-full min-w-0 outline-none focus:border-primary text-white"/>
+                       <input value={planName} onChange={e=>setPlanName(e.target.value)} aria-label="Plan name" title="Plan name" className="bg-transparent border-b border-border text-sm font-bold w-full min-w-0 outline-none focus:border-primary text-foreground"/>
                    </div>
                    <div className="flex flex-wrap items-center justify-end gap-1">
-                       <button onClick={handleSavePlan} title="Save plan" aria-label="Save plan" className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Save size={18}/></button>
-                       <button onClick={onImport} title="Load a plan file" aria-label="Load a plan file" className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors"><Upload size={18}/></button>
+                       <button onClick={handleSavePlan} title="Save plan" aria-label="Save plan" className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"><Save size={18}/></button>
+                       <button onClick={onImport} title="Load a plan file" aria-label="Load a plan file" className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"><Upload size={18}/></button>
                        <ExportFormatButtons
                            onExportCsv={exportPlanAsCsv}
                            onExportPdf={exportPlanAsPdf}
@@ -1388,47 +1393,47 @@ const PlanPage = ({
                    </div>
                 </div>
                 
-                <div className="flex flex-col gap-2 mb-4 bg-black/20 p-3 rounded border border-zinc-800/50">
+                <div className="flex flex-col gap-2 mb-4 bg-background/[0.28] p-3 rounded border border-border/[0.58]">
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                         <input
                             value={input.group}
                             onChange={e=>{ setInput({...input, group:e.target.value}); setCreateError(""); }}
                             placeholder="Group ID (e.g., TEST-01)"
-                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                            className="bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-foreground"
                         />
                         <input
                             value={input.run}
                             onChange={e=>{ setInput({...input, run:e.target.value}); setCreateError(""); }}
                             placeholder="Run # (e.g., 1 or 1-R1)"
-                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                            className="bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-foreground"
                         />
                         <input
                             value={input.h2}
                             onChange={e=>{ setInput({...input, h2:e.target.value}); setCreateError(""); }}
                             placeholder="H2 vol.% (e.g., 18)"
-                            className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                            className="bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-foreground"
                         />
                         <IsoDateInput
                             value={input.plannedDate}
                             onValueChange={next=>{ setInput({...input, plannedDate: next}); setCreateError(""); }}
                             placeholder="YYYY-MM-DD"
                             title="Schedule date"
-                            className="w-full bg-black border border-zinc-800 rounded px-3 py-1.5 pr-9 text-sm outline-none focus:border-primary text-white"
+                            className="w-full bg-background border border-border rounded px-3 py-1.5 pr-9 text-sm outline-none focus:border-primary text-foreground"
                         />
                     </div>
                     <input
                         value={input.name}
                         onChange={e=>{ setInput({...input, name:e.target.value}); setCreateError(""); }}
                         placeholder="Manual run name override (optional)"
-                        className="bg-black border border-zinc-800 rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-white"
+                        className="bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-foreground"
                     />
-                    <div className="text-[11px] text-zinc-500">
-                        Auto run name: <span className="text-zinc-300 font-semibold">{buildRunName(input.group, input.run) || "--"}</span>
+                    <div className="text-[11px] text-muted-foreground">
+                        Auto run name: <span className="text-foreground/85 font-semibold">{buildRunName(input.group, input.run) || "--"}</span>
                     </div>
-                    <div className="text-[11px] text-zinc-600">
+                    <div className="text-[11px] text-muted-foreground">
                         Naming is fully editable. You can use any project prefix and override the generated name.
                     </div>
-                    <label className="inline-flex items-center gap-2 text-[11px] text-zinc-400">
+                    <label className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
                         <input
                             type="checkbox"
                             checked={!!input.isPreparation}
@@ -1438,21 +1443,21 @@ const PlanPage = ({
                         Preparation run (can be marked done without full metadata)
                     </label>
                     {createError && (
-                        <div className="text-[11px] text-red-400">{createError}</div>
+                        <div className="text-[11px] text-destructive">{createError}</div>
                     )}
                     <button onClick={addExp} className="bg-primary/10 border border-primary/30 px-3 py-1.5 rounded text-primary hover:border-primary/60 hover:bg-primary/20 flex items-center justify-center gap-2 font-bold text-xs"><Plus size={14}/> Add Planned Run</button>
                     <button
                         onClick={() => verifyRunFolders(true)}
-                        className="border border-zinc-700 px-3 py-1.5 rounded text-zinc-300 hover:border-zinc-500 hover:text-zinc-100 flex items-center justify-center gap-2 font-semibold text-xs"
+                        className="border border-border px-3 py-1.5 rounded text-foreground/85 hover:border-ring hover:text-foreground flex items-center justify-center gap-2 font-semibold text-xs"
                     >
                         <Layers size={14}/> Sync run folders
                     </button>
                     {!!folderCheck.message && (
                         <div className={`text-[11px] ${
                             folderCheck.status === 'ok' ? 'text-primary' :
-                            folderCheck.status === 'warning' ? 'text-amber-400' :
-                            folderCheck.status === 'error' ? 'text-red-400' :
-                            'text-zinc-500'
+                            folderCheck.status === 'warning' ? 'text-warning' :
+                            folderCheck.status === 'error' ? 'text-destructive' :
+                            'text-muted-foreground'
                         }`}>
                             {folderCheck.message}
                         </div>
@@ -1461,7 +1466,7 @@ const PlanPage = ({
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
                     {lastDeletedRun?.experiment && (
-                        <div className="mb-3 flex items-center justify-between gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                        <div className="mb-3 flex items-center justify-between gap-2 rounded border border-warning/40 bg-warning/10 px-3 py-2 text-[11px] text-warning">
                             <div className="truncate">
                                 Run <span className="font-semibold">{lastDeletedRun.experiment.name}</span> deleted.
                             </div>
@@ -1469,7 +1474,7 @@ const PlanPage = ({
                                 <button
                                     type="button"
                                     onClick={undoDeletedRun}
-                                    className="inline-flex items-center gap-1 rounded border border-amber-300/40 px-2 py-1 font-semibold text-amber-100 hover:bg-amber-400/20"
+                                    className="inline-flex items-center gap-1 rounded border border-warning/40 px-2 py-1 font-semibold text-warning hover:bg-warning/20"
                                 >
                                     <Undo2 size={12}/> Undo
                                 </button>
@@ -1479,7 +1484,7 @@ const PlanPage = ({
                                         clearDeleteUndoTimeout();
                                         setLastDeletedRun(null);
                                     }}
-                                    className="text-amber-200/80 hover:text-amber-100"
+                                    className="text-warning/80 hover:text-warning"
                                     aria-label="Dismiss delete notice"
                                 >
                                     <X size={12} />
@@ -1494,19 +1499,19 @@ const PlanPage = ({
                                 <button
                                     type="button"
                                     onClick={() => toggleGroupCollapse(group)}
-                                    className="shrink-0 text-[11px] font-bold text-zinc-500 flex items-center gap-2 tracking-wide hover:text-zinc-300 transition-colors"
+                                    className="shrink-0 text-[11px] font-bold text-muted-foreground flex items-center gap-2 tracking-wide hover:text-foreground/85 transition-colors"
                                     title={isGroupCollapsed(group) ? 'Expand group' : 'Collapse group'}
                                 >
                                     {isGroupCollapsed(group) ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                                     <Layers size={10}/>
                                     {group}
-                                    <span className="text-[11px] text-zinc-600">({tasks.length})</span>
+                                    <span className="text-[11px] text-muted-foreground">({tasks.length})</span>
                                 </button>
                                 <input
                                     value={getGroupObjective(group)}
                                     onChange={(event) => setGroupObjective(group, event.target.value)}
                                     placeholder="Group objective (short description)"
-                                    className="min-w-0 flex-1 bg-black border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300 outline-none focus:border-primary"
+                                    className="min-w-0 flex-1 bg-background border border-border rounded px-2 py-1 text-[11px] text-foreground/85 outline-none focus:border-primary"
                                 />
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -1518,7 +1523,7 @@ const PlanPage = ({
                                             setGroupRenameErrors((prev) => ({ ...prev, [group]: "" }));
                                         }}
                                         placeholder="Rename group (updates all runs in this group)"
-                                        className="min-w-0 flex-1 bg-black border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300 outline-none focus:border-primary"
+                                        className="min-w-0 flex-1 bg-background border border-border rounded px-2 py-1 text-[11px] text-foreground/85 outline-none focus:border-primary"
                                     />
                                     <button
                                         type="button"
@@ -1529,31 +1534,31 @@ const PlanPage = ({
                                     </button>
                                 </div>
                                 {!!groupRenameErrors[group] && (
-                                    <div className="text-[11px] text-red-400">{groupRenameErrors[group]}</div>
+                                    <div className="text-[11px] text-destructive">{groupRenameErrors[group]}</div>
                                 )}
                             </div>
                             {!isGroupCollapsed(group) && tasks.map(e => (
-                                <div key={e.id} draggable onDragStart={()=>setDraggedId(e.id)} onDragOver={ev=>ev.preventDefault()} onDrop={()=>onDrop(e.id)} className={`flex flex-col p-3 bg-black/40 border rounded mb-2 group transition-all ${isReady(e) ? 'border-zinc-900 hover:border-zinc-700' : 'border-yellow-900/30 hover:border-yellow-700/50'}`}>
+                                <div key={e.id} draggable onDragStart={()=>setDraggedId(e.id)} onDragOver={ev=>ev.preventDefault()} onDrop={()=>onDrop(e.id)} className={`flex flex-col p-3 bg-background/50 border rounded mb-2 group transition-all ${isReady(e) ? 'border-border hover:border-border' : 'border-info/30 hover:border-info/50'}`}>
                                     <div className="flex items-center gap-2">
-                                        <GripVertical size={14} className="text-zinc-700 cursor-grab active:cursor-grabbing"/>
+                                        <GripVertical size={14} className="text-muted-foreground cursor-grab active:cursor-grabbing"/>
                                         <button 
                                             onClick={() => setExperiments(experiments.map(x => x.id === e.id ? {...x, done: !x.done} : x))} 
                                             disabled={!isReady(e)}
-                                            className={`${isReady(e) ? 'text-zinc-600 hover:text-primary' : 'text-zinc-800 cursor-not-allowed'}`}
+                                            className={`${isReady(e) ? 'text-muted-foreground hover:text-primary' : 'text-muted-foreground/50 cursor-not-allowed'}`}
                                         >
                                             {e.done ? <CheckSquare size={16} className="text-[hsl(var(--primary))]"/> : <Square size={16}/>}
                                         </button>
                                         <span
                                             title={String(e.name || '')}
                                             className={`text-[13px] leading-snug flex-1 min-w-0 pr-2 font-mono font-semibold break-all ${
-                                                e.done ? 'text-zinc-400' : 'text-zinc-300'
+                                                e.done ? 'text-muted-foreground' : 'text-foreground/85'
                                             }`}
                                         >
                                             {e.name}
                                         </span>
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                                            <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} title="Edit run card" aria-label={`Edit run card ${e.name}`} className="text-zinc-600 hover:text-white p-1 hover:bg-zinc-800 rounded transition-colors"><PenTool size={12}/></button>
-                                            <button onClick={() => removeRunWithUndo(e.id)} title="Delete run" aria-label={`Delete run ${e.name}`} className="text-zinc-600 hover:text-red-500 p-1 hover:bg-zinc-800 rounded transition-colors"><Trash2 size={12}/></button>
+                                            <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} title="Edit run card" aria-label={`Edit run card ${e.name}`} className="text-muted-foreground hover:text-foreground p-1 hover:bg-muted rounded transition-colors"><PenTool size={12}/></button>
+                                            <button onClick={() => removeRunWithUndo(e.id)} title="Delete run" aria-label={`Delete run ${e.name}`} className="text-muted-foreground hover:text-destructive p-1 hover:bg-muted rounded transition-colors"><Trash2 size={12}/></button>
                                         </div>
                                     </div>
                                     
@@ -1569,26 +1574,26 @@ const PlanPage = ({
                                             </div>
                                         )}
                                         {isPreparationRun(e) && (
-                                            <div className="flex items-center gap-1 border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 rounded text-[11px] text-amber-300 font-semibold">
+                                            <div className="flex items-center gap-1 border border-warning/40 bg-warning/10 px-1.5 py-0.5 rounded text-[11px] text-warning font-semibold">
                                                 <Wrench size={8}/> Preparation
                                             </div>
                                         )}
                                         {e.meta?.hasError && (
-                                            <div className="flex items-center gap-1 border border-red-500/40 bg-red-500/10 px-1.5 py-0.5 rounded text-[11px] text-red-300 font-semibold">
+                                            <div className="flex items-center gap-1 border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 rounded text-[11px] text-destructive font-semibold">
                                                 <AlertCircle size={8}/> Error
                                             </div>
                                         )}
                                         {!e.meta?.hasError && e.meta?.isCanceled && (
-                                            <div className="flex items-center gap-1 border border-orange-500/40 bg-orange-500/10 px-1.5 py-0.5 rounded text-[11px] text-orange-300 font-semibold">
+                                            <div className="flex items-center gap-1 border border-warning/40 bg-warning/10 px-1.5 py-0.5 rounded text-[11px] text-warning font-semibold">
                                                 <X size={8}/> Canceled
                                             </div>
                                         )}
                                         {isReady(e) ? (
                                             <>
-                                                <div className="flex items-center gap-1 border border-zinc-800 px-1.5 py-0.5 rounded text-[11px] text-zinc-500">
+                                                <div className="flex items-center gap-1 border border-border px-1.5 py-0.5 rounded text-[11px] text-muted-foreground">
                                                     <Gauge size={8}/> {formatPressurePa(e.meta.p0) || '-'} Pa
                                                 </div>
-                                                <div className="flex items-center gap-1 border border-zinc-800 px-1.5 py-0.5 rounded text-[11px] text-zinc-500">
+                                                <div className="flex items-center gap-1 border border-border px-1.5 py-0.5 rounded text-[11px] text-muted-foreground">
                                                     <Thermometer size={8}/> {formatTempK(e.meta.t0) || '-'} K
                                                 </div>
                                                 {!!(Array.isArray(e.meta?.dataFiles) && e.meta.dataFiles.length) && (
@@ -1598,7 +1603,7 @@ const PlanPage = ({
                                                 )}
                                             </>
                                         ) : (
-                                            <div className="flex items-center gap-1 bg-yellow-950/20 border border-yellow-900/30 px-1.5 py-0.5 rounded text-[11px] text-yellow-600 font-bold tracking-wide">
+                                            <div className="flex items-center gap-1 bg-info/10 border border-info/30 px-1.5 py-0.5 rounded text-[11px] text-info font-bold tracking-wide">
                                                 <AlertCircle size={8}/> Missing: {getMissingMeta(e).join(', ')}
                                             </div>
                                         )}
@@ -1609,7 +1614,7 @@ const PlanPage = ({
                                             onChange={(event) => updateRunShortDescription(e.id, event.target.value)}
                                             onClick={(event) => event.stopPropagation()}
                                             placeholder="Short run description (e.g., baseline vented run)"
-                                            className="w-full bg-black/20 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300 outline-none focus:border-primary"
+                                            className="w-full bg-background/[0.28] border border-border rounded px-2 py-1 text-[11px] text-foreground/85 outline-none focus:border-primary"
                                         />
                                     </div>
                                 </div>
@@ -1624,30 +1629,30 @@ const PlanPage = ({
                 {/* KPIs. The objective, description, start and deadline are edited in the
                     Project Description tab (same plan data, saved with the plan). */}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-zinc-300 leading-none mb-1">{stats.daysLeft}</div>
-                        <div className="text-[11px] text-zinc-500 font-bold">Days until Deadline</div>
+                    <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-foreground/85 leading-none mb-1">{stats.daysLeft}</div>
+                        <div className="text-[11px] text-muted-foreground font-bold">Days until Deadline</div>
                     </div>
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                    <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
                         <div className="text-xl font-bold text-primary leading-none mb-1">{stats.pace || '--'}</div>
-                        <div className="text-[11px] text-zinc-500 font-bold">Pace (Runs/Day)</div>
+                        <div className="text-[11px] text-muted-foreground font-bold">Pace (Runs/Day)</div>
                     </div>
-                    <div className="bg-zinc-900/50 border border-orange-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-orange-400 leading-none mb-1">{stats.canceled}</div>
-                        <div className="text-[11px] text-zinc-500 font-bold">Canceled Runs</div>
+                    <div className="bg-card/60 border border-warning/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-warning leading-none mb-1">{stats.canceled}</div>
+                        <div className="text-[11px] text-muted-foreground font-bold">Canceled Runs</div>
                     </div>
-                    <div className="bg-zinc-900/50 border border-red-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-red-400 leading-none mb-1">{stats.errors}</div>
-                        <div className="text-[11px] text-zinc-500 font-bold">Error Runs</div>
+                    <div className="bg-card/60 border border-destructive/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-destructive leading-none mb-1">{stats.errors}</div>
+                        <div className="text-[11px] text-muted-foreground font-bold">Error Runs</div>
                     </div>
-                    <div className="bg-zinc-900/50 border border-yellow-500/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-yellow-300 leading-none mb-1">{stats.preparation}</div>
-                        <div className="text-[11px] text-zinc-500 font-bold">Preparation Runs</div>
+                    <div className="bg-card/60 border border-info/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-info leading-none mb-1">{stats.preparation}</div>
+                        <div className="text-[11px] text-muted-foreground font-bold">Preparation Runs</div>
                     </div>
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-white leading-none mb-1">{stats.completionPercent}%</div>
-                        <div className="text-[11px] text-zinc-500 font-bold">Completion ({stats.done}/{stats.total})</div>
-                        <div className="mt-2 h-1 w-full max-w-[120px] rounded-full bg-zinc-800 overflow-hidden">
+                    <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                        <div className="text-xl font-bold text-foreground leading-none mb-1">{stats.completionPercent}%</div>
+                        <div className="text-[11px] text-muted-foreground font-bold">Completion ({stats.done}/{stats.total})</div>
+                        <div className="mt-2 h-1 w-full max-w-[120px] rounded-full bg-muted overflow-hidden">
                             <div className="h-full bg-primary" style={{ width: `${stats.completionPercent}%` }} />
                         </div>
                     </div>
@@ -1655,13 +1660,13 @@ const PlanPage = ({
 
                 {/* TIMELINE */}
                 <div
-                    className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl shrink-0 flex flex-col"
+                    className="bg-card/60 border border-border p-4 rounded-xl shrink-0 flex flex-col"
                     style={{ height: `${scheduleChartHeightPx}px` }}
                 >
-                    <h3 className="text-[11px] font-bold text-zinc-500 mb-4 flex items-center gap-2 tracking-wide"><Clock size={12}/> Campaign Schedule</h3>
+                    <h3 className="text-[11px] font-bold text-muted-foreground mb-4 flex items-center gap-2 tracking-wide"><Clock size={12}/> Campaign Schedule</h3>
                     <div
                         ref={scheduleChartAreaRef}
-                        className="flex-1 bg-black/40 rounded-lg border border-zinc-800/50 overflow-hidden"
+                        className="flex-1 bg-background/50 rounded-lg border border-border/[0.58] overflow-hidden"
                         style={{ cursor: draggingScheduleRun ? 'grabbing' : 'default' }}
                     >
                         <ResponsiveContainer width="100%" height="100%">
@@ -1669,13 +1674,13 @@ const PlanPage = ({
                                 layout="vertical"
                                 data={scheduleData}
                                 barSize={22}
-                                margin={{left: 16, right: 54, top: 16, bottom: 22}}
+                                margin={{left: 16, right: 72, top: 16, bottom: 22}}
                             >
-                                <CartesianGrid strokeDasharray="2 4" horizontal={false} stroke="#334155" />
+                                <CartesianGrid strokeDasharray="2 4" horizontal={false} stroke="hsl(var(--border))" />
                                 <XAxis
                                     type="number"
-                                    stroke="#a1a1aa"
-                                    fontSize={9}
+                                    stroke="hsl(var(--muted-foreground))"
+                                    fontSize={11}
                                     tickFormatter={formatScheduleTick}
                                     domain={[0, scheduleMaxDay]}
                                     ticks={scheduleTicks}
@@ -1710,26 +1715,26 @@ const PlanPage = ({
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                    <div className="mt-2 text-[11px] text-zinc-500 text-center">
+                    <div className="mt-2 text-[11px] text-muted-foreground text-center">
                         Drag a run block left/right to move its planned day. Click opens Run Metadata Card.
                     </div>
-                    <div className="mt-3 flex items-center justify-center gap-4 text-[11px] text-zinc-400">
+                    <div className="mt-3 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
                         <div className="flex items-center gap-1.5">
                             <span className="inline-block h-2.5 w-2.5 rounded-sm border border-primary/40 bg-primary/15" />
                             <span>Done</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-500" />
+                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-warning" />
                             <span>Canceled</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500" />
+                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-destructive" />
                             <span>Error</span>
                         </div>
                     </div>
                     {scheduleGroupNames.length > 0 && (
-                        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
-                            <span className="font-bold uppercase tracking-wide text-zinc-600">Groups</span>
+                        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                            <span className="font-bold uppercase tracking-wide text-muted-foreground">Groups</span>
                             {scheduleGroupNames.map((groupName) => (
                                 <span key={groupName} className="inline-flex items-center gap-1.5">
                                     <span
@@ -1751,28 +1756,28 @@ const PlanPage = ({
                 <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-[70] px-4 py-4 backdrop-blur-md overflow-y-auto">
                     <div
                         ref={runCardRef}
-                        className="bg-zinc-950 p-5 rounded-2xl border border-primary/30 w-full max-w-5xl shadow-2xl max-h-[76vh] overflow-hidden ring-1 ring-white/5 font-sans flex flex-col"
+                        className="bg-background p-5 rounded-2xl border border-primary/30 w-full max-w-5xl shadow-2xl max-h-[76vh] overflow-hidden ring-1 ring-foreground/5 font-sans flex flex-col"
                         style={{ transform: `translate(${modalOffset.x}px, ${modalOffset.y}px)` }}
                     >
                         <div
-                            className={`flex justify-between items-start mb-5 border-b border-zinc-800 pb-4 select-none ${isModalDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                            className={`flex justify-between items-start mb-5 border-b border-border pb-4 select-none ${isModalDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                             onMouseDown={beginModalDrag}
                             title="Drag to move the run card"
                         >
                             <div className="min-w-0 flex-1">
-                                <h3 className="text-white font-bold text-xl flex items-center gap-3 tracking-tight">
+                                <h3 className="text-foreground font-bold text-xl flex items-center gap-3 tracking-tight">
                                     <Beaker size={24} className="text-primary"/> Run Metadata Card
                                 </h3>
                                 <div className="mt-2 max-w-md">
-                                    <label className="text-[11px] text-zinc-500 font-bold mb-1 block">Run name</label>
+                                    <label className="text-[11px] text-muted-foreground font-bold mb-1 block">Run name</label>
                                     <input
                                         value={editingExp.name || ''}
                                         onChange={(e) => { setEditingExp({ ...editingExp, name: e.target.value }); setEditError(""); }}
-                                        className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                        className="w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary"
                                         placeholder="e.g., TEST-01-01"
                                     />
                                     {editError && (
-                                        <div className="mt-2 text-[11px] text-red-400">{editError}</div>
+                                        <div className="mt-2 text-[11px] text-destructive">{editError}</div>
                                     )}
                                 </div>
                             </div>
@@ -1780,12 +1785,12 @@ const PlanPage = ({
                                 <button
                                     type="button"
                                     data-drag-handle
-                                    className={`text-zinc-500 hover:text-zinc-200 bg-zinc-900 p-2 rounded-full transition-all ${isModalDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                                    className={`text-muted-foreground hover:text-foreground/[0.92] bg-card p-2 rounded-full transition-all ${isModalDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                                     title="Drag card"
                                 >
                                     <GripVertical size={16} />
                                 </button>
-                                <button onClick={()=>{ setEditError(""); setEditingExp(null); }} className="text-zinc-500 hover:text-white bg-zinc-900 p-2 rounded-full transition-all hover:scale-110"><X size={20}/></button>
+                                <button onClick={()=>{ setEditError(""); setEditingExp(null); }} className="text-muted-foreground hover:text-foreground bg-card p-2 rounded-full transition-all hover:scale-110"><X size={20}/></button>
                             </div>
                         </div>
 
@@ -1793,59 +1798,59 @@ const PlanPage = ({
                         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 text-left">
                             <div className="space-y-6 md:col-span-3">
                                 <div>
-                                    <div className="flex items-center gap-2 text-zinc-300 font-semibold text-xs tracking-wide mb-3 border-b border-zinc-900 pb-1">
+                                    <div className="flex items-center gap-2 text-foreground/85 font-semibold text-xs tracking-wide mb-3 border-b border-border pb-1">
                                         <TrendingUp size={12}/> Mixture Parameters
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 pl-1 md:pl-2">
-                                        <div><label className="text-[11px] text-zinc-500 font-bold mb-1 block">Target H2%V</label><input value={editingExp.meta?.h2} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 10.5"/></div>
+                                        <div><label className="text-[11px] text-muted-foreground font-bold mb-1 block">Target H2%V</label><input value={editingExp.meta?.h2} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2:e.target.value}})} className="w-full bg-background border border-border rounded p-2.5 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 10.5"/></div>
                                         <div>
-                                            <label className="text-[11px] text-zinc-500 font-bold mb-1 block" title="Injected hydrogen mass">H2 injected (g) • mirrored from Gas Mixing</label>
-                                            <input value={editingMirroredH2Injected} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Not calculated yet'} />
+                                            <label className="text-[11px] text-muted-foreground font-bold mb-1 block" title="Injected hydrogen mass">H2 injected (g) • mirrored from Gas Mixing</label>
+                                            <input value={editingMirroredH2Injected} readOnly className="w-full bg-background border border-border rounded p-2.5 text-xs text-foreground/85 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Not calculated yet'} />
                                         </div>
                                         <div>
-                                            <label className="text-[11px] text-zinc-500 font-bold mb-1 block" title="Mass flow controller flow">MFC flow (SLPM) • mirrored from Gas Mixing</label>
-                                            <input value={editingMirroredMfcFlow} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Not calculated yet'} />
+                                            <label className="text-[11px] text-muted-foreground font-bold mb-1 block" title="Mass flow controller flow">MFC flow (SLPM) • mirrored from Gas Mixing</label>
+                                            <input value={editingMirroredMfcFlow} readOnly className="w-full bg-background border border-border rounded p-2.5 text-xs text-foreground/85 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Not calculated yet'} />
                                         </div>
-                                        <div><label className="text-[11px] text-zinc-500 font-bold mb-1 block">Schedule Date</label><IsoDateInput value={editingExp.meta?.plannedDate || ''} onValueChange={next=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDate: next, plannedDay: ''}})} placeholder="YYYY-MM-DD" className="w-full bg-black border border-zinc-800 rounded p-2.5 pr-9 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"/></div>
+                                        <div><label className="text-[11px] text-muted-foreground font-bold mb-1 block">Schedule Date</label><IsoDateInput value={editingExp.meta?.plannedDate || ''} onValueChange={next=>setEditingExp({...editingExp, meta:{...editingExp.meta, plannedDate: next, plannedDay: ''}})} placeholder="YYYY-MM-DD" className="w-full bg-background border border-border rounded p-2.5 pr-9 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary"/></div>
                                         <div>
-                                            <label className="text-[11px] text-zinc-500 font-bold mb-1 block">Init. P (Pa) • mirrored from Gas Mixing</label>
-                                            <input value={editingMirroredPchamber} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Set in Gas Mixing'} />
+                                            <label className="text-[11px] text-muted-foreground font-bold mb-1 block">Init. P (Pa) • mirrored from Gas Mixing</label>
+                                            <input value={editingMirroredPchamber} readOnly className="w-full bg-background border border-border rounded p-2.5 text-xs text-foreground/85 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Set in Gas Mixing'} />
                                         </div>
                                         <div>
-                                            <label className="text-[11px] text-zinc-500 font-bold mb-1 block">Init. T (K) • mirrored from Gas Mixing</label>
-                                            <input value={editingMirroredTchamberK} readOnly className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-300 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Set in Gas Mixing'} />
+                                            <label className="text-[11px] text-muted-foreground font-bold mb-1 block">Init. T (K) • mirrored from Gas Mixing</label>
+                                            <input value={editingMirroredTchamberK} readOnly className="w-full bg-background border border-border rounded p-2.5 text-xs text-foreground/85 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Set in Gas Mixing'} />
                                         </div>
-                                        <div><label className="text-[11px] text-zinc-500 font-bold mb-1 block whitespace-nowrap">Recirc stop → ignition time (s)</label><input value={editingExp.meta?.recircStopToIgnitionSec || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, recircStopToIgnitionSec:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 120"/></div>
-                                        <div className="md:col-span-2 lg:col-span-3 rounded border border-zinc-800 p-2">
-                                            <label className="text-[11px] text-zinc-500 font-bold mb-1 block">Actual ignition time (with time zone)</label>
+                                        <div><label className="text-[11px] text-muted-foreground font-bold mb-1 block whitespace-nowrap">Recirc stop → ignition time (s)</label><input value={editingExp.meta?.recircStopToIgnitionSec || ''} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, recircStopToIgnitionSec:e.target.value}})} className="w-full bg-background border border-border rounded p-2.5 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 120"/></div>
+                                        <div className="md:col-span-2 lg:col-span-3 rounded border border-border p-2">
+                                            <label className="text-[11px] text-muted-foreground font-bold mb-1 block">Actual ignition time (with time zone)</label>
                                             <div className="flex flex-wrap gap-2">
                                                 <input
                                                     value={editingExp.meta?.actualIgnitionTime || ''}
                                                     onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, actualIgnitionTime:e.target.value, actualIgnitionTimeSource: editingExp.meta?.actualIgnitionTimeSource || 'entered manually'}})}
-                                                    className="flex-1 min-w-[220px] bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                                    className="flex-1 min-w-[220px] bg-background border border-border rounded p-2.5 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary"
                                                     placeholder="e.g., 2026-07-02T18:50:35+02:00"
                                                 />
                                                 <input
                                                     value={editingExp.meta?.actualIgnitionTimeSource || ''}
                                                     onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, actualIgnitionTimeSource:e.target.value}})}
-                                                    className="flex-1 min-w-[220px] bg-black border border-zinc-800 rounded p-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                                    className="flex-1 min-w-[220px] bg-background border border-border rounded p-2.5 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary"
                                                     placeholder="Source (e.g., logbook, MF4 recording start)"
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={() => loadIgnitionCandidates(editingExp.name)}
-                                                    className="rounded border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:border-primary"
+                                                    className="rounded border border-border px-2 py-1 text-[11px] text-foreground/85 hover:border-primary"
                                                 >
                                                     {ignitionCandidates.loading ? 'Reading files…' : 'Suggest from instrument files'}
                                                 </button>
                                             </div>
                                             {String(editingExp.meta?.actualIgnitionTime || '').trim() !== ''
                                                 && !/(Z|[+-]\d{2}:?\d{2})$/.test(String(editingExp.meta?.actualIgnitionTime || '').trim()) && (
-                                                <div className="mt-1 text-[11px] text-amber-500">State the time zone, e.g. +02:00 (CEST) or Z (UTC).</div>
+                                                <div className="mt-1 text-[11px] text-warning">State the time zone, e.g. +02:00 (CEST) or Z (UTC).</div>
                                             )}
                                             {ignitionCandidates.runName === editingExp.name && (ignitionCandidates.items.length > 0 || ignitionCandidates.error) && (
-                                                <div className="mt-2 text-[11px] text-zinc-400 space-y-1">
-                                                    {ignitionCandidates.error && <div className="text-amber-500">{ignitionCandidates.error}</div>}
+                                                <div className="mt-2 text-[11px] text-muted-foreground space-y-1">
+                                                    {ignitionCandidates.error && <div className="text-warning">{ignitionCandidates.error}</div>}
                                                     {ignitionCandidates.items.map((c, idx) => (
                                                         <div key={`${c.source}-${c.file}-${idx}`} className="flex flex-wrap items-center gap-2">
                                                             <button
@@ -1859,28 +1864,28 @@ const PlanPage = ({
                                                                         actualIgnitionTimeSource: `${c.source} (${c.file}); ${c.timezone}`,
                                                                     },
                                                                 })}
-                                                                className="rounded border border-zinc-700 px-1.5 py-0.5 text-zinc-200 hover:border-primary disabled:opacity-40"
+                                                                className="rounded border border-border px-1.5 py-0.5 text-foreground/[0.92] hover:border-primary disabled:opacity-40"
                                                             >
                                                                 Use
                                                             </button>
-                                                            <span className="font-mono text-zinc-200">{c.value || '-'}</span>
+                                                            <span className="font-mono text-foreground/[0.92]">{c.value || '-'}</span>
                                                             <span>{c.source}; {c.timezone}</span>
-                                                            <span className="text-zinc-500">{c.file}</span>
-                                                            {c.note && <span className="text-zinc-500">{c.note}</span>}
+                                                            <span className="text-muted-foreground">{c.file}</span>
+                                                            {c.note && <span className="text-muted-foreground">{c.note}</span>}
                                                         </div>
                                                     ))}
-                                                    <div className="text-zinc-500">Nothing is filled in automatically: choose the stamp that matches the ignition, or type the logbook time.</div>
+                                                    <div className="text-muted-foreground">Nothing is filled in automatically: choose the stamp that matches the ignition, or type the logbook time.</div>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2 text-zinc-300 font-semibold text-xs tracking-wide mb-3 border-b border-zinc-900 pb-1">
+                                    <div className="flex items-center gap-2 text-foreground/85 font-semibold text-xs tracking-wide mb-3 border-b border-border pb-1">
                                         <Zap size={12}/> Experimental Setup
                                     </div>
                                     <div className="space-y-4 pl-1 md:pl-2">
-                                        <label className="inline-flex items-center gap-2 text-[11px] text-zinc-400">
+                                        <label className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
                                             <input
                                                 type="checkbox"
                                                 checked={!!editingExp.meta?.isPreparation}
@@ -1890,7 +1895,7 @@ const PlanPage = ({
                                             Preparation run (skip required metadata gate)
                                         </label>
                                         <div>
-                                            <label className="text-[11px] text-zinc-500 font-bold mb-1 block">Ignition Configuration</label>
+                                            <label className="text-[11px] text-muted-foreground font-bold mb-1 block">Ignition Configuration</label>
                                             <select
                                                 value={editingIgnitionSelection}
                                                 onChange={(e) => {
@@ -1907,7 +1912,7 @@ const PlanPage = ({
                                                     }
                                                     setEditingExp({ ...editingExp, meta: { ...editingExp.meta, ignition: selected } });
                                                 }}
-                                                className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 outline-none focus:ring-1 focus:ring-primary"
+                                                className="w-full bg-background border border-border rounded p-2 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
                                             >
                                                 <option value="">Select ignition setup...</option>
                                                 {IGNITION_PRESET_OPTIONS.map((option) => (
@@ -1919,13 +1924,13 @@ const PlanPage = ({
                                                 <input
                                                     value={editingIgnitionValue}
                                                     onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, ignition:e.target.value}})}
-                                                    className="mt-2 w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                                    className="mt-2 w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary"
                                                     placeholder="Type custom ignition setup..."
                                                 />
                                             )}
                                         </div>
                                         <div>
-                                            <label className="text-[11px] text-zinc-500 font-bold mb-1 block">Venting Configuration</label>
+                                            <label className="text-[11px] text-muted-foreground font-bold mb-1 block">Venting Configuration</label>
                                             <select
                                                 value={editingVentSelection}
                                                 onChange={(e) => {
@@ -1942,7 +1947,7 @@ const PlanPage = ({
                                                     }
                                                     setEditingExp({ ...editingExp, meta: { ...editingExp.meta, vent: selected } });
                                                 }}
-                                                className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 outline-none focus:ring-1 focus:ring-primary"
+                                                className="w-full bg-background border border-border rounded p-2 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
                                             >
                                                 <option value="">Select vent setup...</option>
                                                 {VENT_PRESET_OPTIONS.map((option) => (
@@ -1954,7 +1959,7 @@ const PlanPage = ({
                                                 <input
                                                     value={editingVentValue}
                                                     onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, vent:e.target.value}})}
-                                                    className="mt-2 w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                                    className="mt-2 w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary"
                                                     placeholder="Type custom vent setup..."
                                                 />
                                             )}
@@ -1965,26 +1970,26 @@ const PlanPage = ({
 
                             <div className="space-y-6 md:col-span-2">
                                 <div>
-                                    <div className="flex items-center gap-2 text-zinc-300 font-semibold text-xs tracking-wide mb-3 border-b border-zinc-900 pb-1">
+                                    <div className="flex items-center gap-2 text-foreground/85 font-semibold text-xs tracking-wide mb-3 border-b border-border pb-1">
                                         <Cpu size={12}/> Traceability Link
                                     </div>
-                                    <div><label className="text-[11px] text-zinc-500 font-bold mb-1 block">Case ID / CFD Hash</label><input value={editingExp.meta?.cfdHash} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, cfdHash:e.target.value}})} className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., #OFv2306-mesh-rev2"/></div>
+                                    <div><label className="text-[11px] text-muted-foreground font-bold mb-1 block">Case ID / CFD Hash</label><input value={editingExp.meta?.cfdHash} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, cfdHash:e.target.value}})} className="w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., #OFv2306-mesh-rev2"/></div>
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2 text-zinc-300 font-semibold text-xs tracking-wide mb-3 border-b border-zinc-900 pb-1">
+                                    <div className="flex items-center gap-2 text-foreground/85 font-semibold text-xs tracking-wide mb-3 border-b border-border pb-1">
                                         <Layers size={12}/> Associated Data Files
                                     </div>
                                     <div className="space-y-2">
-                                        <div className="text-[11px] text-zinc-500">
-                                            Showing files detected in this run folder: <span className="text-zinc-300 font-mono">Raw_Data/{String(editingExp?.name || '').trim() || '<run>'}/</span>
+                                        <div className="text-[11px] text-muted-foreground">
+                                            Showing files detected in this run folder: <PathText className="text-foreground/85" path={`Raw_Data/${String(editingExp?.name || '').trim() || '<run>'}/`} />
                                         </div>
-                                        <div className="max-h-32 overflow-y-auto pr-1 space-y-1 border border-zinc-800 rounded bg-black/30 p-2">
+                                        <div className="max-h-32 overflow-y-auto pr-1 space-y-1 border border-border rounded bg-background/40 p-2">
                                             {editingRunScopedFiles.map((filePath) => {
                                                 const checked = editingSelectedFiles.includes(filePath);
                                                 const parts = String(filePath).split('/');
                                                 const fileName = parts[parts.length - 1] || filePath;
                                                 return (
-                                                    <label key={filePath} className="flex items-start gap-2 text-[11px] text-zinc-300 cursor-pointer" title={filePath}>
+                                                    <label key={filePath} className="flex items-start gap-2 text-[11px] text-foreground/85 cursor-pointer" title={filePath}>
                                                         <input
                                                             type="checkbox"
                                                             checked={checked}
@@ -1993,13 +1998,13 @@ const PlanPage = ({
                                                         />
                                                         <span className="min-w-0">
                                                             <span className="block break-all leading-tight text-primary font-semibold">{fileName}</span>
-                                                            <span className="mt-0.5 block break-all leading-tight text-zinc-500 text-[11px]">{filePath}</span>
+                                                            <PathText className="mt-0.5 block leading-tight text-muted-foreground text-[11px]" path={filePath} />
                                                         </span>
                                                     </label>
                                                 );
                                             })}
                                             {editingRunScopedFiles.length === 0 && (
-                                                <div className="text-[11px] text-zinc-500">No files found in this run folder.</div>
+                                                <div className="text-[11px] text-muted-foreground">No files found in this run folder.</div>
                                             )}
                                         </div>
                                         {editingRunScopedFiles.length > 0 && (
@@ -2007,7 +2012,7 @@ const PlanPage = ({
                                                 <button
                                                     type="button"
                                                     onClick={clearAllDataFilesForEditingExp}
-                                                    className="text-[11px] px-2 py-1 rounded border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
+                                                    className="text-[11px] px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground/[0.92] hover:bg-card transition-colors"
                                                 >
                                                     Clear all
                                                 </button>
@@ -2021,87 +2026,87 @@ const PlanPage = ({
                                             </div>
                                         )}
                                         {editingStaleLinkedFiles.length > 0 && (
-                                            <div className="rounded border border-amber-600/40 bg-amber-900/15 px-2 py-1.5 text-[11px] text-amber-300 space-y-1">
+                                            <div className="rounded border border-warning/40 bg-warning/10 px-2 py-1.5 text-[11px] text-warning space-y-1">
                                                 <div>
                                                     {editingStaleLinkedFiles.length} linked file(s) are not found in this run folder on this computer.
                                                     They stay linked; check that the data is in Raw_Data, or unlink them.
                                                 </div>
-                                                <ul className="font-mono text-[11px] text-amber-200/80 break-all">
+                                                <ul className="font-mono text-[11px] text-warning/80 break-all">
                                                     {editingStaleLinkedFiles.map((path) => <li key={path}>{path}</li>)}
                                                 </ul>
                                                 <div className="flex justify-end">
                                                     <button
                                                         type="button"
                                                         onClick={unlinkMissingFilesForEditingExp}
-                                                        className="text-[11px] px-2 py-1 rounded border border-amber-600/50 text-amber-300 hover:bg-amber-900/30 transition-colors"
+                                                        className="text-[11px] px-2 py-1 rounded border border-warning/50 text-warning hover:bg-warning/10 transition-colors"
                                                     >
                                                         Unlink these files
                                                     </button>
                                                 </div>
                                             </div>
                                         )}
-                                        <div className="text-[11px] text-zinc-500">
+                                        <div className="text-[11px] text-muted-foreground">
                                             Selected: {editingSelectedFiles.length}
                                         </div>
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2 text-zinc-300 font-semibold text-xs tracking-wide mb-3 border-b border-zinc-900 pb-1">
+                                    <div className="flex items-center gap-2 text-foreground/85 font-semibold text-xs tracking-wide mb-3 border-b border-border pb-1">
                                         <PenTool size={12}/> Operator Notes
                                     </div>
-                                    <div className="mb-3 rounded border border-zinc-800 bg-black/30 p-3 space-y-3">
-                                        <div className="text-[11px] font-semibold tracking-wide text-zinc-400">Run Status Flags</div>
-                                        <label className="inline-flex items-center gap-2 text-[11px] text-zinc-300">
+                                    <div className="mb-3 rounded border border-border bg-background/40 p-3 space-y-3">
+                                        <div className="text-[11px] font-semibold tracking-wide text-muted-foreground">Run Status Flags</div>
+                                        <label className="inline-flex items-center gap-2 text-[11px] text-foreground/85">
                                             <input
                                                 type="checkbox"
                                                 checked={!!editingExp.meta?.hasError}
                                                 onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, hasError:e.target.checked}})}
-                                                className="h-3.5 w-3.5 accent-red-500"
+                                                className="h-3.5 w-3.5 accent-destructive"
                                             />
                                             Error (plot color turns red)
                                         </label>
                                         <textarea
                                             value={editingExp.meta?.errorNote || ''}
                                             onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, errorNote:e.target.value}})}
-                                            className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic h-16 outline-none focus:ring-1 focus:ring-red-500 resize-none font-sans"
+                                            className="w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic h-16 outline-none focus:ring-1 focus:ring-destructive resize-none font-sans"
                                             placeholder="Error note (anomaly, root cause, traceback, etc.)"
                                         />
-                                        <label className="inline-flex items-center gap-2 text-[11px] text-zinc-300">
+                                        <label className="inline-flex items-center gap-2 text-[11px] text-foreground/85">
                                             <input
                                                 type="checkbox"
                                                 checked={!!editingExp.meta?.isCanceled}
                                                 onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, isCanceled:e.target.checked}})}
-                                                className="h-3.5 w-3.5 accent-orange-500"
+                                                className="h-3.5 w-3.5 accent-warning"
                                             />
                                             Canceled (plot color turns orange)
                                         </label>
                                         <textarea
                                             value={editingExp.meta?.canceledNote || ''}
                                             onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, canceledNote:e.target.value}})}
-                                            className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic h-16 outline-none focus:ring-1 focus:ring-orange-500 resize-none font-sans"
+                                            className="w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic h-16 outline-none focus:ring-1 focus:ring-warning resize-none font-sans"
                                             placeholder="Canceled note (reason and next action)"
                                         />
-                                        <div className="text-[11px] text-zinc-500">
+                                        <div className="text-[11px] text-muted-foreground">
                                             If both are checked, chart color priority is: Error (red) over Canceled (orange).
                                         </div>
                                     </div>
                                     <div className="mb-3">
-                                        <label className="text-[11px] text-zinc-500 font-bold mb-1 block">Short Description</label>
+                                        <label className="text-[11px] text-muted-foreground font-bold mb-1 block">Short Description</label>
                                         <input
                                             value={editingExp.meta?.shortDescription || ''}
                                             onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, shortDescription:e.target.value}})}
-                                            className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none focus:ring-1 focus:ring-primary"
+                                            className="w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary"
                                             placeholder="One-line summary for this run"
                                         />
                                     </div>
-                                    <textarea value={editingExp.notes} onChange={e=>setEditingExp({...editingExp, notes:e.target.value})} className="w-full bg-black border border-zinc-800 rounded p-3 text-xs text-zinc-100 placeholder:text-zinc-600 placeholder:italic h-24 outline-none focus:ring-1 focus:ring-primary resize-none font-sans" placeholder="e.g., Record sensor health, offsets, or observations..."/>
+                                    <textarea value={editingExp.notes} onChange={e=>setEditingExp({...editingExp, notes:e.target.value})} className="w-full bg-background border border-border rounded p-3 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic h-24 outline-none focus:ring-1 focus:ring-primary resize-none font-sans" placeholder="e.g., Record sensor health, offsets, or observations..."/>
                                 </div>
                             </div>
                         </div>
                         </div>
 
-                        <div className="mt-6 flex justify-end gap-2 border-t border-zinc-800 pt-4">
-                            <button onClick={()=>{ setEditError(""); setEditingExp(null); }} className="bg-zinc-900 text-zinc-400 px-3 py-2 rounded-md font-semibold text-xs border border-zinc-800 hover:bg-zinc-800 transition-all">Discard</button>
+                        <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
+                            <button onClick={()=>{ setEditError(""); setEditingExp(null); }} className="bg-card text-muted-foreground px-3 py-2 rounded-md font-semibold text-xs border border-border hover:bg-muted transition-all">Discard</button>
                             <button onClick={saveEdit} className="border border-primary/30 bg-primary/10 text-primary px-3 py-2 rounded-md font-semibold text-xs hover:bg-primary/20 transition-all">Save Run Card</button>
                         </div>
                     </div>

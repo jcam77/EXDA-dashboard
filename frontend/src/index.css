@@ -97,6 +97,18 @@
         --cloud-facility: 3 74% 64%;
         --cloud-fuels: 45 98% 48%;
         --cloud-skills: 259 99% 69%;
+        /* Plot series (screening channels, verification curves), in this order.
+           Reference categorical palette, re-ordered so magenta is last; adjacent
+           pairs validated on the card in both themes (CVD >= 7.1, normal >= 19.8;
+           the plots always show a legend). */
+        --series-1: 213 77% 56%;
+        --series-2: 17 70% 50%;
+        --series-3: 159 73% 36%;
+        --series-4: 40 100% 39%;
+        --series-5: 247 69% 72%;
+        --series-6: 0 72% 65%;
+        --series-7: 120 86% 34%;
+        --series-8: 338 61% 58%;
     }
 
     .light {
@@ -145,6 +157,14 @@
         --cloud-facility: 360 96% 30%;
         --cloud-fuels: 36 73% 34%;
         --cloud-skills: 261 89% 36%;
+        --series-1: 213 68% 50%;
+        --series-2: 17 82% 56%;
+        --series-3: 159 73% 40%;
+        --series-4: 41 100% 46%;
+        --series-5: 248 62% 58%;
+        --series-6: 0 73% 59%;
+        --series-7: 120 100% 26%;
+        --series-8: 337 70% 70%;
     }
 
     .light :is(input, textarea, select)::placeholder {
@@ -263,74 +283,6 @@
     }
 }
 
-@layer utilities {
-    .bg-zinc-950 {
-        background-color: hsl(var(--background)) !important;
-    }
-    .bg-zinc-900 {
-        background-color: hsl(var(--card)) !important;
-    }
-    .bg-zinc-900\/50 {
-        background-color: hsl(var(--card) / 0.6) !important;
-    }
-    .bg-zinc-900\/40 {
-        background-color: hsl(var(--card) / 0.5) !important;
-    }
-    .bg-zinc-900\/20 {
-        background-color: hsl(var(--card) / 0.3) !important;
-    }
-    .bg-zinc-800 {
-        background-color: hsl(var(--muted)) !important;
-    }
-    .bg-zinc-800\/50 {
-        background-color: hsl(var(--muted) / 0.6) !important;
-    }
-    .bg-zinc-800\/30 {
-        background-color: hsl(var(--muted) / 0.4) !important;
-    }
-    .bg-black {
-        background-color: hsl(var(--background)) !important;
-    }
-    .bg-black\/20 {
-        background-color: hsl(var(--background) / 0.28) !important;
-    }
-    .bg-black\/30 {
-        background-color: hsl(var(--background) / 0.4) !important;
-    }
-    .bg-black\/40 {
-        background-color: hsl(var(--background) / 0.5) !important;
-    }
-    .text-white {
-        color: hsl(var(--foreground)) !important;
-    }
-    .text-zinc-700,
-    .text-zinc-600,
-    .text-zinc-500,
-    .text-zinc-400 {
-        color: hsl(var(--muted-foreground)) !important;
-    }
-    .text-zinc-300 {
-        color: hsl(var(--foreground) / 0.85) !important;
-    }
-    .text-zinc-200 {
-        color: hsl(var(--foreground) / 0.92) !important;
-    }
-    .text-zinc-100 {
-        color: hsl(var(--foreground)) !important;
-    }
-    .border-zinc-900,
-    .border-zinc-800,
-    .border-zinc-700 {
-        border-color: hsl(var(--border)) !important;
-    }
-    .border-zinc-800\/50 {
-        border-color: hsl(var(--border) / 0.58) !important;
-    }
-    .border-zinc-900\/30 {
-        border-color: hsl(var(--border) / 0.42) !important;
-    }
-}
-
 /* Ensure AI Markdown lists appear vertically with bullet points */
 .ai-response-container ul {
     list-style-type: disc;
@@ -417,8 +369,8 @@
 .markdown-content code {
     font-family: Monaco, "Courier New", monospace;
     font-size: 0.82rem;
-    background: rgba(148, 163, 184, 0.15);
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: hsl(var(--muted-foreground) / 0.15);
+    border: 1px solid hsl(var(--border));
     padding: 0.1rem 0.35rem;
     border-radius: 6px;
 }
@@ -426,8 +378,8 @@
 .markdown-content pre {
     margin: 0.9rem 0;
     padding: 0.85rem 1rem;
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: hsl(var(--muted) / 0.6);
+    border: 1px solid hsl(var(--border));
     border-radius: 12px;
     overflow-x: auto;
 }
@@ -444,7 +396,7 @@
     margin: 0.8rem 0;
     padding: 0.25rem 1rem;
     border-left: 3px solid hsl(var(--primary) / 0.65);
-    color: rgba(226, 232, 240, 0.85);
+    color: hsl(var(--foreground) / 0.85);
     font-style: italic;
     background: hsl(var(--primary) / 0.08);
     border-radius: 8px;
@@ -452,7 +404,7 @@
 
 .markdown-content hr {
     margin: 1rem 0;
-    border-color: rgba(148, 163, 184, 0.25);
+    border-color: hsl(var(--border));
 }
 
 .markdown-content table {
@@ -463,13 +415,13 @@
 
 .markdown-content th,
 .markdown-content td {
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    border: 1px solid hsl(var(--border));
     padding: 0.45rem 0.6rem;
     text-align: left;
 }
 
 .markdown-content th {
-    background: rgba(148, 163, 184, 0.12);
+    background: hsl(var(--muted-foreground) / 0.12);
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;

@@ -103,7 +103,7 @@ const LiteraturePage = ({ projectPath }) => {
             </PageHeader>
 
             {/* Table UI */}
-            <div className="grid grid-cols-12 px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border bg-background">
+            <div className="grid grid-cols-12 px-4 py-2 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border bg-background">
                 <div className="col-span-5">File Name</div>
                 <div className="col-span-3">Category</div>
                 <div className="col-span-2 text-center">AI Status</div>
@@ -125,20 +125,20 @@ const LiteraturePage = ({ projectPath }) => {
                             {/* Category (Subfolder) */}
                             <div className="col-span-3 flex items-center gap-2">
                                 <Folder size={12} className="text-muted-foreground" />
-                                <span className={`text-[11px] font-mono truncate ${paper.folder === 'Books' ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                                <span className={`text-[11px] font-mono truncate ${paper.folder === 'Books' ? 'text-success' : 'text-muted-foreground'}`}>
                                     {paper.folder}
                                 </span>
                             </div>
 
                             <div className="col-span-2 flex justify-center">
-                                <span className="text-[9px] text-blue-500 font-bold uppercase tracking-widest flex items-center gap-1.5 bg-blue-500/5 px-2 py-1 rounded-md border border-blue-500/10">
+                                <span className="text-[11px] text-primary font-bold uppercase tracking-widest flex items-center gap-1.5 bg-primary/5 px-2 py-1 rounded-md border border-primary/10">
                                     <CheckCircle size={10} /> Indexed
                                 </span>
                             </div>
 
                             <div className="col-span-2 flex justify-end gap-2 pr-2">
                                 <button onClick={() => handleViewPdf(paper.fullPath)} className="text-muted-foreground hover:text-foreground p-1 transition-colors"><ExternalLink size={14}/></button>
-                                <button onClick={() => handleDelete(paper.fullPath, paper.name)} className="text-zinc-600 hover:text-red-400 p-1 transition-colors"><Trash2 size={14}/></button>
+                                <button onClick={() => handleDelete(paper.fullPath, paper.name)} className="text-muted-foreground hover:text-destructive p-1 transition-colors"><Trash2 size={14}/></button>
                             </div>
                         </div>
                     ))}

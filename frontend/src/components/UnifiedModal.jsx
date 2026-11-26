@@ -35,7 +35,7 @@ const UnifiedModal = ({ modal, setModal }) => {
                         modal.type === 'question'
                             ? 'bg-primary/15 border-primary/30 text-primary'
                             : modal.type === 'success'
-                                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-500'
+                                ? 'bg-success/15 border-success/30 text-success'
                                 : 'bg-destructive/15 border-destructive/30 text-destructive'
                     }`}>
                         {modal.type === 'question'

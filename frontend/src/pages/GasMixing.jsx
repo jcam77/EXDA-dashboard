@@ -841,7 +841,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                     Used in calculation: {draft.pChamberPa !== '' ? `${draft.pChamberPa} Pa` : '-'}
                   </span>
                   {pressureWarning && (
-                    <span className="mt-1 block text-[11px] font-semibold text-amber-300">{pressureWarning}</span>
+                    <span className="mt-1 block text-[11px] font-semibold text-warning">{pressureWarning}</span>
                   )}
                   <div className="mt-1 flex items-center justify-between gap-2">
                     <span className="text-[11px] text-muted-foreground">Plan value: {planPressurePa ? `${planPressurePa} Pa` : '-'}</span>
@@ -942,7 +942,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                     <input
                       value="Linear: H2_corrected_g = a * target + b"
                       readOnly
-                      className="w-full rounded border border-sidebar-border bg-zinc-950 px-2 py-2 text-sm text-zinc-300"
+                      className="w-full rounded border border-sidebar-border bg-background px-2 py-2 text-sm text-foreground/85"
                     />
                   </label>
                   <label className="text-xs">
@@ -977,10 +977,10 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                     />
                   </label>
                 </div>
-                <p className="mt-2 rounded border border-sidebar-border/60 bg-background/50 px-2 py-1.5 font-mono text-[11px] text-zinc-300">
+                <p className="mt-2 rounded border border-sidebar-border/60 bg-background/50 px-2 py-1.5 font-mono text-[11px] text-foreground/85">
                   Equation: H2_corrected_g = a * target + b
                 </p>
-                <p className="mt-1 text-[11px] text-zinc-400">
+                <p className="mt-1 text-[11px] text-muted-foreground">
                   Model target value used: {results?.correction?.targetForModel ?? '-'} ({dosageModel.targetBasis === 'fraction_0_1' ? 'fraction basis' : 'percent basis'})
                 </p>
                 <label className="mt-2 block text-xs">
@@ -1072,7 +1072,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
               title={resultsAreStale || !baseResults ? 'Recalculate before saving' : undefined}
               className={`inline-flex items-center gap-2 rounded border px-3 py-2 text-xs font-semibold disabled:opacity-60 ${
                 resultsAreStale || !baseResults
-                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                  ? 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20'
                   : 'border-sidebar-border bg-muted/30 text-foreground hover:bg-muted/60'
               }`}
             >
@@ -1087,7 +1087,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
             Calculation Results
             {results && resultsAreStale && (
-              <span className="rounded-full border border-amber-500/50 bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-300">
+              <span className="rounded-full border border-warning/50 bg-warning/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-warning">
                 Stale
               </span>
             )}
@@ -1100,7 +1100,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
           {results ? (
             <div className="space-y-4">
               {resultsAreStale && (
-                <div className="rounded border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                <div className="rounded border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
                   <p className="font-semibold">
                     Inputs changed since last calculation — these results do not match the inputs above. Recalculate before saving.
                   </p>
@@ -1114,7 +1114,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                 </div>
               )}
               {savedModelDiffersFromGlobal && (
-                <div className="rounded border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+                <div className="rounded border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-primary">
                   This record was saved with calibration {effectiveDosageModel.enabled ? 'enabled' : 'disabled'} (a = {effectiveDosageModel.a || '-'}, b = {effectiveDosageModel.b || '-'}).
                   The current model is {dosageModel.enabled ? 'enabled' : 'disabled'} (a = {dosageModel.a || '-'}, b = {dosageModel.b || '-'}).
                   Values below are as saved; press Calculate to apply the current model.
@@ -1125,7 +1125,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
               </p>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <div className={`rounded-lg p-3 ${results?.correction?.applied ? 'border-2 border-emerald-400/60 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(52,211,153,0.25)]' : 'border border-primary/35 bg-primary/10'}`}>
+                <div className={`rounded-lg p-3 ${results?.correction?.applied ? 'border-2 border-success/60 bg-success/10 shadow-[0_0_0_1px_hsl(var(--success)/0.25)]' : 'border border-primary/35 bg-primary/10'}`}>
                   <p className="text-[11px] uppercase tracking-wider text-primary/90">
                     {results?.correction?.applied ? 'Required H2 Mass (g) - Corrected (MFC Input)' : 'Required H2 Mass (g)'}
                   </p>
@@ -1133,7 +1133,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                     {formatResultValue(results?.correction?.applied ? results?.correction?.correctedMassG : results?.m_H2_injected_g, 3)}
                   </p>
                   {results?.correction?.applied && (
-                    <p className="mt-1 text-[11px] font-semibold text-emerald-300">Use this corrected mass as the MFC dosage input.</p>
+                    <p className="mt-1 text-[11px] font-semibold text-success">Use this corrected mass as the MFC dosage input.</p>
                   )}
                 </div>
                 <div className="rounded-lg border border-primary/35 bg-primary/10 p-3">
@@ -1155,7 +1155,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
               </div>
 
               {results?.correction && (
-                <div className="rounded border border-sidebar-border bg-background/50 px-3 py-2 text-xs text-zinc-300">
+                <div className="rounded border border-sidebar-border bg-background/50 px-3 py-2 text-xs text-foreground/85">
                   {results.correction.applied
                     ? `Calibration applied (${results.correction.modelType}): ${results.correction.equation}`
                     : `Calibration not applied: ${results.correction.reason || 'n/a'}`}
@@ -1268,7 +1268,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                 </table>
               </div>
             ) : (
-              <p className="text-emerald-300">No inconsistencies found.</p>
+              <p className="text-success">No inconsistencies found.</p>
             )}
           </div>
         )}

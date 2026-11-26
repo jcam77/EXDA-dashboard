@@ -70,7 +70,7 @@ const ArchitectureFlowMap = () => {
     <div className="rounded-xl border border-sidebar-border bg-card/60 p-4 sm:p-5 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-foreground">Interactive Architecture Map</h3>
-        <span className="rounded border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+        <span className="rounded border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
           Phase {phaseIndex + 1}: {PHASES[phaseIndex].title}
         </span>
       </div>
@@ -118,16 +118,16 @@ const ArchitectureFlowMap = () => {
         </div>
 
         <div className="rounded-lg border border-border bg-background/50 p-3">
-          <div className={`inline-flex rounded border px-2 py-1 text-[10px] font-semibold ${KIND_CLASS[selected.kind] || KIND_CLASS.entry}`}>
+          <div className={`inline-flex rounded border px-2 py-1 text-[11px] font-semibold ${KIND_CLASS[selected.kind] || KIND_CLASS.entry}`}>
             {selected.kind}
           </div>
           <h4 className="mt-2 text-sm font-semibold text-foreground">{selected.label}</h4>
           <p className="mt-2 text-xs text-muted-foreground">{selected.details}</p>
           <div className="mt-3">
-            <div className="text-[10px] font-semibold text-muted-foreground mb-1">Real references</div>
+            <div className="text-[11px] font-semibold text-muted-foreground mb-1">Real references</div>
             <div className="space-y-1">
               {(selected.refs || []).map((ref) => (
-                <code key={ref} className="block rounded border border-border bg-muted/20 px-2 py-1 text-[10px] text-foreground">
+                <code key={ref} className="block rounded border border-border bg-muted/20 px-2 py-1 text-[11px] text-foreground">
                   {ref}
                 </code>
               ))}

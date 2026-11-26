@@ -264,13 +264,13 @@ const ImportDataPage = (props) => {
                         <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
                             <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
                                 <div className="text-xs font-semibold uppercase tracking-wide text-primary">Folder Structure Convention (Data)</div>
-                                <div className="mt-1 text-[11px] text-zinc-300 font-mono break-all">
+                                <div className="mt-1 text-[11px] text-foreground/85 font-mono break-all">
                                     Projects/&lt;ProjectName&gt;/Raw_Data/&lt;Run&gt;/&lt;DAQ&gt;/
                                 </div>
-                                <div className="mt-2 text-[11px] text-zinc-400">
+                                <div className="mt-2 text-[11px] text-muted-foreground">
                                     Example:
                                 </div>
-                                <ul className="mt-1 space-y-1 text-[11px] text-zinc-300 font-mono">
+                                <ul className="mt-1 space-y-1 text-[11px] text-foreground/85 font-mono">
                                     <li>Projects/XXXX-Project/Raw_Data/XXXX-01-01/DAQ-1/DAQ-1-XXXX-01-01.tpc5</li>
                                     <li>Projects/XXXX-Project/Raw_Data/XXXX-01-01/DAQ-2/DAQ-2-XXXX-01-01.mf4</li>
                                     <li>Projects/XXXX-Project/Raw_Data/XXXX-01-01/H2BGA/H2BGA-U-M-L-XXXX-01-01.csv</li>
@@ -278,18 +278,18 @@ const ImportDataPage = (props) => {
                             </div>
                             <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
                                 <div className="text-xs font-semibold uppercase tracking-wide text-primary">Filename Convention</div>
-                                <div className="mt-1 text-[11px] text-zinc-300 font-mono break-all">
+                                <div className="mt-1 text-[11px] text-foreground/85 font-mono break-all">
                                     &lt;DAQ&gt;-&lt;Run&gt;.&lt;ext&gt;
                                 </div>
-                                <div className="mt-2 text-[11px] text-zinc-400">
+                                <div className="mt-2 text-[11px] text-muted-foreground">
                                     Recommended examples:
                                 </div>
-                                <ul className="mt-1 space-y-1 text-[11px] text-zinc-300 font-mono">
+                                <ul className="mt-1 space-y-1 text-[11px] text-foreground/85 font-mono">
                                     <li>DAQ-1-XXXX-01-01.tpc5</li>
                                     <li>DAQ-2-XXXX-01-01.mf4</li>
                                     <li>H2BGA-U-M-L-XXXX-01-01.csv</li>
                                 </ul>
-                                <div className="mt-2 text-[11px] text-zinc-400">
+                                <div className="mt-2 text-[11px] text-muted-foreground">
                                     H2BGA legend (sampling point location in chamber): <span className="font-mono">U</span>=Upper, <span className="font-mono">M</span>=Middle, <span className="font-mono">L</span>=Lower
                                 </div>
                             </div>
@@ -365,7 +365,7 @@ const ImportDataPage = (props) => {
                             </div>
                             <div className="space-y-1.5 md:col-span-3">
                                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                    <Droplets size={14} className="text-cyan-400" /> Concentration Measurements
+                                    <Droplets size={14} className="text-primary" /> Concentration Measurements
                                 </div>
                                 <select
                                     onChange={(e) => {
@@ -399,14 +399,14 @@ const ImportDataPage = (props) => {
                                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
                                     <div className="rounded-xl border border-border/80 bg-background/25 p-2.5">
                                         <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                            <Activity size={13} className="text-red-500" />
+                                            <Activity size={13} className="text-destructive" />
                                             Pressure Queue ({pressureQueue.length})
                                         </div>
                                         <div className="space-y-1.5">
                                             {pressureQueue.length > 0 ? pressureQueue.map((d, i) => (
                                                 <div key={`pressure-${i}`} className="flex items-center gap-2.5 p-2.5 bg-background border border-border rounded-lg group">
-                                                    <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="mt-0.5 accent-blue-600 w-4 h-4 cursor-pointer"/>
-                                                    <Activity size={15} className="text-red-500 shrink-0" />
+                                                    <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="mt-0.5 accent-primary w-4 h-4 cursor-pointer"/>
+                                                    <Activity size={15} className="text-destructive shrink-0" />
                                                     <div className="flex-1 min-w-0">
                                                         <div className="text-xs text-foreground/90 font-mono break-all whitespace-normal leading-relaxed pr-2" title={getQueuePath(d)}>
                                                             {getQueueDisplayName(d)}
@@ -415,7 +415,7 @@ const ImportDataPage = (props) => {
                                                     <button
                                                         type="button"
                                                         onClick={() => onRemoveCase && onRemoveCase(d.path || d.name)}
-                                                        className="text-muted-foreground hover:text-red-400 p-1 shrink-0"
+                                                        className="text-muted-foreground hover:text-destructive p-1 shrink-0"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -428,14 +428,14 @@ const ImportDataPage = (props) => {
 
                                     <div className="rounded-xl border border-border/80 bg-background/25 p-2.5">
                                         <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                            <Flame size={13} className="text-amber-500" />
+                                            <Flame size={13} className="text-warning" />
                                             Flame Queue ({flameQueue.length})
                                         </div>
                                         <div className="space-y-1.5">
                                             {flameQueue.length > 0 ? flameQueue.map((d, i) => (
                                                 <div key={`flame-${i}`} className="flex items-center gap-2.5 p-2.5 bg-background border border-border rounded-lg group">
-                                                    <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="mt-0.5 accent-blue-600 w-4 h-4 cursor-pointer"/>
-                                                    <Flame size={15} className="text-amber-500 shrink-0" />
+                                                    <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="mt-0.5 accent-primary w-4 h-4 cursor-pointer"/>
+                                                    <Flame size={15} className="text-warning shrink-0" />
                                                     <div className="flex-1 min-w-0">
                                                         <div className="text-xs text-foreground/90 font-mono break-all whitespace-normal leading-relaxed pr-2" title={getQueuePath(d)}>
                                                             {getQueueDisplayName(d)}
@@ -444,7 +444,7 @@ const ImportDataPage = (props) => {
                                                     <button
                                                         type="button"
                                                         onClick={() => onRemoveCase && onRemoveCase(d.path || d.name)}
-                                                        className="text-muted-foreground hover:text-red-400 p-1 shrink-0"
+                                                        className="text-muted-foreground hover:text-destructive p-1 shrink-0"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -457,14 +457,14 @@ const ImportDataPage = (props) => {
 
                                     <div className="rounded-xl border border-border/80 bg-background/25 p-2.5">
                                         <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                            <Droplets size={13} className="text-cyan-400" />
+                                            <Droplets size={13} className="text-primary" />
                                             Concentration Queue ({concentrationQueue.length})
                                         </div>
                                         <div className="space-y-1.5">
                                             {concentrationQueue.length > 0 ? concentrationQueue.map((d, i) => (
                                                 <div key={`concentration-${i}`} className="flex items-center gap-2.5 p-2.5 bg-background border border-border rounded-lg group">
-                                                    <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="mt-0.5 accent-blue-600 w-4 h-4 cursor-pointer"/>
-                                                    <Droplets size={15} className="text-cyan-400 shrink-0" />
+                                                    <input type="checkbox" checked={selectedCases.some(c => (c.path || c.name) === (d.path || d.name))} onChange={() => onToggleCase(d.path || d.name)} className="mt-0.5 accent-primary w-4 h-4 cursor-pointer"/>
+                                                    <Droplets size={15} className="text-primary shrink-0" />
                                                     <div className="flex-1 min-w-0">
                                                         <div className="text-xs text-foreground/90 font-mono break-all whitespace-normal leading-relaxed pr-2" title={getQueuePath(d)}>
                                                             {getQueueDisplayName(d)}
@@ -473,7 +473,7 @@ const ImportDataPage = (props) => {
                                                     <button
                                                         type="button"
                                                         onClick={() => onRemoveCase && onRemoveCase(d.path || d.name)}
-                                                        className="text-muted-foreground hover:text-red-400 p-1 shrink-0"
+                                                        className="text-muted-foreground hover:text-destructive p-1 shrink-0"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -553,7 +553,7 @@ const ImportDataPage = (props) => {
                                 <h3 className="text-base font-semibold text-foreground mb-2">Imported Data Queue</h3>
                                 {simulationData.length > 0 ? simulationData.map((s, i) => (
                                     <div key={i} className="flex items-center gap-3 p-4 bg-background border border-border rounded-xl group">
-                                        <input type="checkbox" checked={selectedCases.some(c => c.path === s.path)} onChange={() => onToggleCase(s.path)} className="accent-blue-600 w-4 h-4 cursor-pointer"/>
+                                        <input type="checkbox" checked={selectedCases.some(c => c.path === s.path)} onChange={() => onToggleCase(s.path)} className="accent-primary w-4 h-4 cursor-pointer"/>
                                         <Database size={16} className="text-primary" />
                                         <div className="flex-1 text-xs text-foreground/80 font-mono break-all whitespace-normal leading-relaxed">{formatName(s.path || s.name)}</div>
                                         <button
@@ -565,7 +565,7 @@ const ImportDataPage = (props) => {
                                                     onRemoveCase(id);
                                                 }
                                             }}
-                                            className="text-muted-foreground hover:text-red-400 p-1"
+                                            className="text-muted-foreground hover:text-destructive p-1"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -635,7 +635,7 @@ const ImportDataPage = (props) => {
                             </div>
 
                             {inspectionError ? (
-                                <div className="mt-3 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                                <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                                     {inspectionError}
                                 </div>
                             ) : null}
@@ -672,9 +672,9 @@ const ImportDataPage = (props) => {
                                                 ? summarizeTimeVectorState(result.inspection?.timeSummary)
                                                 : (result ? 'ERROR' : 'PENDING');
                                             const statusClass = status === 'PASS'
-                                                ? 'text-emerald-400'
+                                                ? 'text-success'
                                                 : status === 'CHECK' || status === 'ERROR'
-                                                    ? 'text-amber-300'
+                                                    ? 'text-warning'
                                                     : 'text-muted-foreground';
                                             return (
                                                 <div key={`status-${entry.path}`} className="flex items-center justify-between gap-3 rounded border border-border/60 px-2.5 py-1.5">
@@ -699,9 +699,9 @@ const ImportDataPage = (props) => {
                                             ? summarizeTimeVectorState(inspection?.timeSummary)
                                             : 'ERROR';
                                         const statusClass = status === 'PASS'
-                                            ? 'text-emerald-400'
+                                            ? 'text-success'
                                             : status === 'CHECK' || status === 'ERROR'
-                                                ? 'text-amber-300'
+                                                ? 'text-warning'
                                                 : 'text-muted-foreground';
 
                                         return (
@@ -831,7 +831,7 @@ const ImportDataPage = (props) => {
                                                             ) : null}
                                                         </>
                                                     ) : (
-                                                        <div className="mt-2 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                                                        <div className="mt-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                                                             {result?.error || 'Inspection failed for this file.'}
                                                         </div>
                                                     )

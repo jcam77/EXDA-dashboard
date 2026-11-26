@@ -1,17 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
+import { resolveColor, SERIES_CSS, themeColor, useThemeKey } from '../utils/themeColors';
 
-const FALLBACK_COLORS = [
-  '#38bdf8',
-  '#f97316',
-  '#22c55e',
-  '#a78bfa',
-  '#f59e0b',
-  '#14b8a6',
-  '#f43f5e',
-  '#84cc16',
-];
+// Channel colours: theme tokens --series-1..8 (see docs/EXDA-Design-Guide.md).
+const FALLBACK_COLORS = SERIES_CSS;
 
 const formatXTick = (v) => {
   const num = Number(v);
@@ -64,6 +57,8 @@ const HighResMultiChannelPlot = ({
   // Optional { start, end } on the x axis, drawn as a shaded band behind the curves.
   highlightRange = null,
 }) => {
+  // Redraw with the right colours when the light/dark theme changes.
+  const themeKey = useThemeKey();
   const mountRef = useRef(null);
   const chartRef = useRef(null);
   const initialScalesRef = useRef(null);
@@ -165,7 +160,7 @@ const HighResMultiChannelPlot = ({
       },
       ...channels.map((channel, idx) => ({
         label: `${channel.label || `Channel ${channel.index + 1}`}${channel.unit && channel.unit !== 'raw' ? ` (${channel.unit})` : ''}`,
-        stroke: colors[idx % colors.length],
+        stroke: resolveColor(colors[idx % colors.length]),
         width: 1.2,
         spanGaps,
         scale: useDualAxis && isVoltageChannel(channel) ? 'y2' : 'y',
@@ -185,16 +180,18 @@ const HighResMultiChannelPlot = ({
       axes: [
         {
           size: 52,
-          stroke: '#94a3b8',
-          grid: { stroke: 'rgba(148,163,184,0.18)' },
+          // Tick labels such as "-500.0e-3" are ~70 px wide; keep them apart.
+          space: 90,
+          stroke: themeColor('muted-foreground'),
+          grid: { stroke: themeColor('muted-foreground', 0.18) },
           label: xAxisLabel,
           values: (_u, vals) => vals.map(xAxisMode === 'index' ? formatXIndexTick : formatXTick),
         },
         {
           label: primaryLabel,
           size: 78,
-          stroke: '#94a3b8',
-          grid: { stroke: 'rgba(148,163,184,0.14)' },
+          stroke: themeColor('muted-foreground'),
+          grid: { stroke: themeColor('muted-foreground', 0.14) },
           values: (_u, vals) => vals.map(formatYTick),
         },
         ...(useDualAxis
@@ -204,7 +201,7 @@ const HighResMultiChannelPlot = ({
                 side: 1,
                 label: secondaryLabel,
                 size: 78,
-                stroke: '#94a3b8',
+                stroke: themeColor('muted-foreground'),
                 grid: { show: false },
                 values: (_u, vals) => vals.map(formatYTick),
               },
@@ -233,9 +230,8 @@ const HighResMultiChannelPlot = ({
                 const from = Math.max(left, Math.min(x0, x1));
                 const to = Math.min(left + plotWidth, Math.max(x0, x1));
                 if (!(to > from)) return;
-                const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
                 u.ctx.save();
-                u.ctx.fillStyle = primary ? `hsl(${primary} / 0.12)` : 'rgba(56, 189, 248, 0.12)';
+                u.ctx.fillStyle = themeColor('primary', 0.12);
                 u.ctx.fillRect(from, top, to - from, plotHeight);
                 u.ctx.restore();
               },
@@ -263,8 +259,8 @@ const HighResMultiChannelPlot = ({
     }
     const selectEl = chart.root.querySelector('.u-select');
     if (selectEl) {
-      selectEl.style.border = '1px dashed rgba(148, 163, 184, 0.9)';
-      selectEl.style.background = 'rgba(56, 189, 248, 0.12)';
+      selectEl.style.border = `1px dashed ${themeColor('muted-foreground', 0.9)}`;
+      selectEl.style.background = themeColor('primary', 0.12);
     }
 
     const onDoubleClick = () => handleResetZoom();
@@ -335,7 +331,7 @@ const HighResMultiChannelPlot = ({
       chart.destroy();
       chartRef.current = null;
     };
-  }, [bandEnd, bandStart, channels, clampXRange, colors, dataSeries, handleResetZoom, hasBand, height, primaryLabel, secondaryLabel, showLegend, spanGaps, useDualAxis, width, xAxisLabel, xAxisMode, xValues]);
+  }, [bandEnd, bandStart, channels, clampXRange, colors, dataSeries, handleResetZoom, hasBand, height, primaryLabel, secondaryLabel, showLegend, spanGaps, themeKey, useDualAxis, width, xAxisLabel, xAxisMode, xValues]);
 
   return (
     <div className="w-full relative" style={{ height: `${height}px` }}>

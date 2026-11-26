@@ -104,7 +104,7 @@ const ProjectDescriptionPage = ({ apiBaseUrl, projectPath, readOnly = false, pla
       <PageHeader icon={ScrollText} title="Project Description" subtitle="What the project is about, described the same way in every project.">
         {current && (
           <div className="flex items-center gap-3 text-[11px]">
-            <span className={problem || status.state === 'error' ? 'text-red-400' : 'text-muted-foreground'}>
+            <span className={problem || status.state === 'error' ? 'text-destructive' : 'text-muted-foreground'}>
               {problem
                 || (status.state === 'error' && status.message)
                 || (status.state === 'saving' && 'Saving…')
@@ -121,7 +121,7 @@ const ProjectDescriptionPage = ({ apiBaseUrl, projectPath, readOnly = false, pla
 
       {data.loading && !data.description && <div className="text-sm text-muted-foreground">Loading project description…</div>}
       {data.error && (
-        <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">
+        <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">
           {data.error} The file was left unchanged.
         </div>
       )}

@@ -392,12 +392,12 @@ const DaqSystemsPage = ({ projectPath = '' }) => {
       {editorOpen && (
         <ModalPortal>
         <div className="fixed inset-0 z-[70] bg-background/80 flex items-center justify-center px-4 py-4 backdrop-blur-md">
-          <div className="w-full max-w-2xl rounded-2xl border border-primary/30 bg-zinc-950 p-5 md:p-6 shadow-2xl ring-1 ring-white/5">
+          <div className="w-full max-w-2xl rounded-2xl border border-primary/30 bg-background p-5 md:p-6 shadow-2xl ring-1 ring-foreground/5">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold">{editingId ? 'Edit DAQ System' : 'Add DAQ System'}</h3>
               <button
                 onClick={closeEditor}
-                className="text-zinc-500 hover:text-white bg-zinc-900 p-2 rounded-full transition-all hover:scale-110"
+                className="text-muted-foreground hover:text-foreground bg-card p-2 rounded-full transition-all hover:scale-110"
                 title="Close"
                 aria-label="Close"
               >

@@ -816,11 +816,11 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
                         <td className="py-2 pr-3">{camera.temperatureRange || '-'}</td>
                         <td className="py-2 pr-3">{camera.isActive !== false ? 'Yes' : 'No'}</td>
                         <td className="py-2 pr-3">
-                          {status === 'complete' && <span className="inline-flex items-center gap-1 text-emerald-400"><CheckCircle2 size={12} /> Complete</span>}
+                          {status === 'complete' && <span className="inline-flex items-center gap-1 text-success"><CheckCircle2 size={12} /> Complete</span>}
                           {status === 'warning' && (
                             <div className="space-y-1">
-                              <span className="inline-flex items-center gap-1 text-amber-400" title={result.warnings.join(' | ')}><AlertTriangle size={12} /> Warning</span>
-                              <p className="max-w-[220px] text-[11px] leading-tight text-amber-300">{result.warnings[0]}</p>
+                              <span className="inline-flex items-center gap-1 text-warning" title={result.warnings.join(' | ')}><AlertTriangle size={12} /> Warning</span>
+                              <p className="max-w-[220px] text-[11px] leading-tight text-warning">{result.warnings[0]}</p>
                             </div>
                           )}
                           {status === 'error' && (
@@ -940,14 +940,14 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
         <ModalPortal>
         <div className={`fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-background/80 px-4 py-4 backdrop-blur-md ${editorDragging ? 'select-none' : ''}`}>
           <div
-            className="flex max-h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-primary/30 bg-zinc-950 p-5 font-sans shadow-2xl ring-1 ring-white/5 md:p-6"
+            className="flex max-h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-primary/30 bg-background p-5 font-sans shadow-2xl ring-1 ring-foreground/5 md:p-6"
             style={{ transform: `translate(${editorOffset.x}px, ${editorOffset.y}px)` }}
           >
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold">{editingExistingId ? 'Edit Camera' : 'Add Camera'}</h3>
               <div className="flex items-center gap-3">
-                <button type="button" className={`rounded-full bg-zinc-900 p-2 text-zinc-500 transition-all hover:text-zinc-200 ${editorDragging ? 'cursor-grabbing' : 'cursor-grab'}`} onMouseDown={beginEditorDrag} title="Drag window" aria-label="Drag window"><GripVertical size={16} /></button>
-                <button onClick={() => setEditorOpen(false)} className="rounded-full bg-zinc-900 p-2 text-zinc-500 transition-all hover:scale-110 hover:text-white" title="Close" aria-label="Close"><X size={16} /></button>
+                <button type="button" className={`rounded-full bg-card p-2 text-muted-foreground transition-all hover:text-foreground/[0.92] ${editorDragging ? 'cursor-grabbing' : 'cursor-grab'}`} onMouseDown={beginEditorDrag} title="Drag window" aria-label="Drag window"><GripVertical size={16} /></button>
+                <button onClick={() => setEditorOpen(false)} className="rounded-full bg-card p-2 text-muted-foreground transition-all hover:scale-110 hover:text-foreground" title="Close" aria-label="Close"><X size={16} /></button>
               </div>
             </div>
 
@@ -963,8 +963,8 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
                 )}
                 {editorValidation.warnings.length > 0 && (
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">Warnings</p>
-                    <ul className="mt-1 space-y-1 text-xs text-amber-200">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-warning">Warnings</p>
+                    <ul className="mt-1 space-y-1 text-xs text-warning">
                       {editorValidation.warnings.map((message) => <li key={`warn-${message}`}>- {message}</li>)}
                     </ul>
                   </div>

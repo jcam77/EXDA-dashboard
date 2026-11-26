@@ -213,7 +213,7 @@ const ProjectPickerModal = ({
               </>
             )}
           </div>
-          {error && <div className="text-xs text-red-400">{error}</div>}
+          {error && <div className="text-xs text-destructive">{error}</div>}
           {!error && notice && (
             <div className="truncate text-xs text-[hsl(var(--warning))]" title={notice}>
               {noticeText}

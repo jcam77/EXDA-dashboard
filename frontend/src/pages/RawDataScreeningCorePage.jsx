@@ -1,19 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SERIES_CSS } from '../utils/themeColors';
 import { RefreshCw, Shield } from 'lucide-react';
 import HighResMultiChannelPlot from '../components/HighResMultiChannelPlot';
 import PeakTable from '../components/PeakTable';
 import { FROM_FILE_UNIT, UNIT_OPTIONS_WITH_FILE, convertValueByUnit, getChannelDisplayUnit, isVoltageOrTrigger, normalizeUnitToken } from '../utils/units';
 
-const CHANNEL_COLORS = [
-  '#38bdf8',
-  '#f97316',
-  '#22c55e',
-  '#a78bfa',
-  '#f59e0b',
-  '#14b8a6',
-  '#f43f5e',
-  '#84cc16',
-];
+// Channel colours: theme tokens --series-1..8 (CSS; the plot resolves them for its canvas).
+const CHANNEL_COLORS = SERIES_CSS;
 const formatFileName = (value) => {
   if (!value) return '';
   const normalized = String(value).replace(/\\/g, '/');
@@ -918,7 +911,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                             return prev.filter((path) => path !== option.value);
                           })
                         }
-                        className="accent-blue-600 w-3.5 h-3.5"
+                        className="accent-primary w-3.5 h-3.5"
                       />
                       <span className="truncate" title={option.label}>{option.label}</span>
                     </label>
@@ -948,7 +941,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                 type="checkbox"
                 checked={convertToKpa}
                 onChange={(event) => setConvertToKpa(event.target.checked)}
-                className="accent-blue-600 w-4 h-4"
+                className="accent-primary w-4 h-4"
               />
               Convert pressure to kPa
             </label>
@@ -958,7 +951,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                 type="checkbox"
                 checked={convertPpmToVolPercent}
                 onChange={(event) => setConvertPpmToVolPercent(event.target.checked)}
-                className="accent-blue-600 w-4 h-4"
+                className="accent-primary w-4 h-4"
               />
               Convert ppm to vol.% (÷ 10,000; ppm channels only)
             </label>
@@ -968,7 +961,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
               type="checkbox"
               checked={fullResolution}
               onChange={(event) => setFullResolution(event.target.checked)}
-              className="accent-blue-600 w-4 h-4"
+              className="accent-primary w-4 h-4"
             />
             Full Resolution (all points, slower)
           </label>
@@ -977,7 +970,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
               type="checkbox"
               checked={limitTimeWindow}
               onChange={(event) => setLimitTimeWindow(event.target.checked)}
-              className="accent-blue-600 w-4 h-4"
+              className="accent-primary w-4 h-4"
             />
             Limit Time Window (s)
           </label>
@@ -1043,7 +1036,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
           </button>
         </div>
         {viewMode === 'compare' && !compareOverlayCompatibility.enabled && (
-          <p className="mt-2 text-xs text-amber-300">
+          <p className="mt-2 text-xs text-warning">
             {compareOverlayCompatibility.reason}
           </p>
         )}
@@ -1053,17 +1046,17 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
             : 'Plot only selected channels to keep the tab lightweight. Use this tab to inspect signal quality before EWT/Pressure analysis.'}
         </p>
         {hasMixedUnits && !isConcentrationMode && (
-          <p className="mt-1 text-xs text-amber-300">
+          <p className="mt-1 text-xs text-warning">
             Mixed channel units detected. Pressure and trigger channels are displayed together; check unit tags.
           </p>
         )}
         {fullResolution && (
-          <p className="mt-1 text-xs text-amber-300">
+          <p className="mt-1 text-xs text-warning">
             Full-resolution plotting can be heavy for large files. If UI becomes slow, uncheck this and use Display limit.
           </p>
         )}
         {limitTimeWindow && (
-          <p className="mt-1 text-xs text-amber-300">
+          <p className="mt-1 text-xs text-warning">
             Time window is applied at file-read stage (especially useful for TPC5 full-resolution workflows).
           </p>
         )}
@@ -1075,7 +1068,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/40 rounded-xl p-4 text-sm text-red-300">
+        <div className="bg-destructive/10 border border-destructive/40 rounded-xl p-4 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -1331,7 +1324,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
                           return prev.filter((key) => key !== channel.key);
                         })
                       }
-                      className="accent-blue-600 w-3.5 h-3.5"
+                      className="accent-primary w-3.5 h-3.5"
                     />
                     <span className="text-foreground font-semibold">{channel.label || `Channel ${channel.index + 1}`}</span>
                     <span>/</span>
@@ -1361,7 +1354,7 @@ const RawDataScreeningCorePage = ({ apiBaseUrl, projectPath, selectedCases = [],
           )}
 
           {convertedChannels.length === 0 ? (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
               No channels selected. Pick at least one channel to render the preview.
             </div>
           ) : plotLayout === 'overlay' ? (

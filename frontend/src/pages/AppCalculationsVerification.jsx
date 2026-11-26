@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { SERIES_CSS } from '../utils/themeColors';
 import { Activity, AlertTriangle, AudioLines, RefreshCw, Sigma } from 'lucide-react';
 import {
   Bar,
@@ -157,11 +158,11 @@ const AppCalculationsVerificationPage = () => {
 
   const ewtSeries = useMemo(
     () => [
-      { key: 'raw', label: 'Raw Signal', color: '#ef4444' },
+      { key: 'raw', label: 'Raw Signal', color: SERIES_CSS[5] },
       ...ewtModeKeys.map((key) => ({
         key,
         label: `EWT MRA Component ${key.replace('mode_', '')}`,
-        color: '#38bdf8',
+        color: SERIES_CSS[0],
       })),
     ],
     [ewtModeKeys]
@@ -207,7 +208,7 @@ const AppCalculationsVerificationPage = () => {
               { key: 'Noisy (input)', label: 'Noisy (input)', unit: 'kPa', role: 'pressure', index: 1 },
               { key: 'Noisy filtered', label: 'Noisy filtered', unit: 'kPa', role: 'pressure', index: 2 },
             ]}
-            colors={['#22c55e', '#f97316', '#38bdf8']}
+            colors={[SERIES_CSS[6], SERIES_CSS[1], SERIES_CSS[0]]}
             height={470}
             showLegend
           />
@@ -217,12 +218,12 @@ const AppCalculationsVerificationPage = () => {
       <div className="bg-card/60 border border-border rounded-xl p-4">
         <h3 className="text-sm font-bold text-foreground mb-3">Python vs MATLAB/Octave Pressure Metrics</h3>
         {payload.dataSource === 'custom' && (
-          <div className="mb-3 text-xs text-blue-400 bg-blue-900/10 border border-blue-900/30 rounded px-3 py-2">
+          <div className="mb-3 text-xs text-primary bg-primary/10 border border-primary/30 rounded px-3 py-2">
             Custom input is active. Fixture-based MATLAB/Octave reference metrics are disabled for this run.
           </div>
         )}
         {payload.dataSource !== 'custom' && !payload.matlabMetricsAvailable && (
-          <div className="mb-3 text-xs text-yellow-500 bg-yellow-900/10 border border-yellow-900/30 rounded px-3 py-2">
+          <div className="mb-3 text-xs text-warning bg-warning/10 border border-warning/30 rounded px-3 py-2">
             MATLAB/Octave metrics file is missing or empty. Export results to{' '}
             <code>{payload.matlabMetricsFile || 'backend/tests/results/pressure_metrics_octave.csv'}</code>.
           </div>
@@ -230,7 +231,7 @@ const AppCalculationsVerificationPage = () => {
         <div className="overflow-auto rounded-lg border border-primary/30 bg-primary/10 p-3">
           <table className="w-full border-collapse text-xs">
             <thead>
-              <tr className="text-[10px] tracking-widest text-primary border-b border-primary/20">
+              <tr className="text-[11px] tracking-widest text-primary border-b border-primary/20">
                 <th className="text-left pb-2">Series</th>
                 <th className="text-right pb-2">Python Pmax (kPa)</th>
                 <th className="text-right pb-2">MATLAB/Octave Pmax (kPa)</th>
@@ -282,14 +283,14 @@ const AppCalculationsVerificationPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 min-h-[560px]">
             {ewtPlotData.length === 0 ? (
-              <div className="h-full min-h-[560px] flex items-center justify-center rounded border border-border/60 bg-black/20 text-sm text-muted-foreground">
+              <div className="h-full min-h-[560px] flex items-center justify-center rounded border border-border/60 bg-background/[0.28] text-sm text-muted-foreground">
                 {ewtWarning || error || 'No EWT data available yet.'}
               </div>
             ) : (
               <div className="space-y-3 max-h-[860px] overflow-auto pr-1">
                 {ewtSeries.map((series) => (
-                  <div key={series.key} className="rounded border border-border/60 bg-black/20 p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                  <div key={series.key} className="rounded border border-border/60 bg-background/[0.28] p-3">
+                    <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
                       {series.label}
                     </div>
                     <div className="h-56">
@@ -312,7 +313,7 @@ const AppCalculationsVerificationPage = () => {
           </div>
 
           <div className="space-y-3">
-            <div className="rounded border border-border/60 bg-black/20 p-3 text-xs text-muted-foreground">
+            <div className="rounded border border-border/60 bg-background/[0.28] p-3 text-xs text-muted-foreground">
               <div>Samples: <span className="text-foreground">{ewtSummary.samples ?? '-'}</span></div>
               <div>Plotted points: <span className="text-foreground">{ewtPlottedPointCount || 0}</span></div>
               <div>Sampling rate: <span className="text-foreground">{formatFixed(ewtSummary.fs, 2)} Hz</span></div>
@@ -320,14 +321,14 @@ const AppCalculationsVerificationPage = () => {
             </div>
 
             {ewtWarning && (
-              <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-300 flex items-start gap-2">
+              <div className="rounded border border-warning/30 bg-warning/10 p-2 text-xs text-warning flex items-start gap-2">
                 <AlertTriangle size={12} className="mt-0.5" />
                 <span>{ewtWarning}</span>
               </div>
             )}
 
-            <div className="rounded border border-border/60 bg-black/20 p-3">
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">EWT MRA Component Energy (%)</div>
+            <div className="rounded border border-border/60 bg-background/[0.28] p-3">
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-2">EWT MRA Component Energy (%)</div>
               {ewtEnergy.length === 0 ? (
                 <div className="text-xs text-muted-foreground">No EWT energy data.</div>
               ) : (
@@ -335,8 +336,8 @@ const AppCalculationsVerificationPage = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={ewtEnergy}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="mode" stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                      <XAxis dataKey="mode" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
@@ -356,10 +357,10 @@ const AppCalculationsVerificationPage = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="rounded border border-primary/30 bg-primary/10 p-3 overflow-auto">
-          <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Python EWT MRA Component Peaks</div>
+          <div className="text-[11px] uppercase tracking-widest text-primary font-bold mb-2">Python EWT MRA Component Peaks</div>
           <table className="w-full border-collapse text-xs">
             <thead>
-              <tr className="text-[10px] tracking-widest text-primary border-b border-primary/20">
+              <tr className="text-[11px] tracking-widest text-primary border-b border-primary/20">
                 <th className="text-left pb-2">Component</th>
                 <th className="text-right pb-2">Peak (Hz)</th>
                 <th className="text-right pb-2">Energy (%)</th>
@@ -383,7 +384,7 @@ const AppCalculationsVerificationPage = () => {
         </div>
 
         <div className="rounded border border-primary/30 bg-primary/10 p-3 overflow-auto">
-          <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">
+          <div className="text-[11px] uppercase tracking-widest text-primary font-bold mb-2">
             Python vs Octave Peak Alignment
           </div>
           {payload.dataSource === 'custom' ? (
@@ -397,7 +398,7 @@ const AppCalculationsVerificationPage = () => {
           ) : (
             <table className="w-full border-collapse text-xs">
               <thead>
-                <tr className="text-[10px] tracking-widest text-primary border-b border-primary/20">
+                <tr className="text-[11px] tracking-widest text-primary border-b border-primary/20">
                   <th className="text-left pb-2">Component</th>
                   <th className="text-right pb-2">Python (Hz)</th>
                   <th className="text-right pb-2">Octave (Hz)</th>
@@ -419,7 +420,7 @@ const AppCalculationsVerificationPage = () => {
         </div>
       </div>
 
-      <div className="text-[11px] text-muted-foreground border border-border/60 bg-black/20 rounded px-3 py-2">
+      <div className="text-[11px] text-muted-foreground border border-border/60 bg-background/[0.28] rounded px-3 py-2">
         Note: chart data is downsampled only for display.
         {' '}
         {ewtDownsampleApplied
@@ -480,7 +481,7 @@ const AppCalculationsVerificationPage = () => {
         {dataSource === 'custom' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="flex flex-col items-start">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+              <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
                 Clean Reference File (Optional)
               </label>
               <input
@@ -494,12 +495,12 @@ const AppCalculationsVerificationPage = () => {
                 }
                 className="mt-1 w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
               />
-              <div className="mt-1 text-[10px] text-muted-foreground">
+              <div className="mt-1 text-[11px] text-muted-foreground">
                 {customFiles.clean ? customFiles.clean.name : 'No file selected'}
               </div>
             </div>
             <div className="flex flex-col items-start">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+              <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
                 Noisy Input File (Required)
               </label>
               <input
@@ -513,7 +514,7 @@ const AppCalculationsVerificationPage = () => {
                 }
                 className="mt-1 w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
               />
-              <div className="mt-1 text-[10px] text-muted-foreground">
+              <div className="mt-1 text-[11px] text-muted-foreground">
                 {customFiles.noisy ? customFiles.noisy.name : 'No file selected'}
               </div>
             </div>
@@ -546,7 +547,7 @@ const AppCalculationsVerificationPage = () => {
         {activeSection === 'pressure' ? (
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col items-start">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+              <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
                 Allowed Decay From Pmax (%)
               </label>
               <input
@@ -565,7 +566,7 @@ const AppCalculationsVerificationPage = () => {
               />
             </div>
             <div className="flex flex-col items-start">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+              <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
                 Cutoff (Hz)
               </label>
               <input
@@ -583,7 +584,7 @@ const AppCalculationsVerificationPage = () => {
               />
             </div>
             <div className="flex flex-col items-start">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+              <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
                 Filter Order
               </label>
               <input
@@ -605,7 +606,7 @@ const AppCalculationsVerificationPage = () => {
         ) : (
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col items-start">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">MaxNumPeaks</label>
+              <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">MaxNumPeaks</label>
               <input
                 type="number"
                 min="1"
@@ -623,7 +624,7 @@ const AppCalculationsVerificationPage = () => {
               />
             </div>
             <div className="flex flex-col items-start">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Max Points</label>
+              <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Max Points</label>
               <input
                 type="number"
                 min="200"

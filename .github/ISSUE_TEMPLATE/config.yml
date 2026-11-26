@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/jcam77/EXDA-dashboard/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
+  - name: User guide
+    url: https://github.com/jcam77/EXDA-dashboard/blob/main/docs/EXDA-User-Guide/EXDA-UserGuide.md
+    about: How to use every tab, with screenshots and short videos.

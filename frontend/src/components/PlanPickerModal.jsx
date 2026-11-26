@@ -63,7 +63,7 @@ const PlanPickerModal = ({ isOpen, projectPath, onClose, onSelect }) => {
               Refresh
             </button>
             {loading && <span>Loading...</span>}
-            {error && <span className="text-red-400">{error}</span>}
+            {error && <span className="text-destructive">{error}</span>}
           </div>
 
           <div className="max-h-64 overflow-auto rounded-md border border-sidebar-border">

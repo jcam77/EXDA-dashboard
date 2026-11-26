@@ -1,0 +1,29 @@
+name: Accessibility barrier
+description: Something in EXDA is hard to read, see or use.
+labels: ["accessibility"]
+body:
+  - type: textarea
+    id: barrier
+    attributes:
+      label: What is hard to use?
+      description: For example text too small or faint, colours hard to tell apart, something not reachable with the keyboard.
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where in EXDA
+      placeholder: "e.g. Raw Data Screening — Pressure, plot legend"
+  - type: dropdown
+    id: theme
+    attributes:
+      label: Theme
+      options:
+        - Dark
+        - Light
+        - Both
+  - type: input
+    id: setup
+    attributes:
+      label: Your setup (optional)
+      description: Browser, operating system, screen size, zoom, assistive technology.

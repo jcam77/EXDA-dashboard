@@ -53,7 +53,7 @@ const ChecklistEditor = ({ draft, setDraft, confirmDeleteGroup }) => {
               onClick={() => updateGroups((gs) => moveInArray(gs, gIdx, -1))}><ArrowUp size={14} /></button>
             <button type="button" className={ICON_BUTTON} title="Move group down" disabled={gIdx === groups.length - 1}
               onClick={() => updateGroups((gs) => moveInArray(gs, gIdx, 1))}><ArrowDown size={14} /></button>
-            <button type="button" className={`${ICON_BUTTON} hover:text-red-400`} title="Delete group"
+            <button type="button" className={`${ICON_BUTTON} hover:text-destructive`} title="Delete group"
               onClick={() => deleteGroup(gIdx)}><Trash2 size={14} /></button>
           </div>
 
@@ -75,7 +75,7 @@ const ChecklistEditor = ({ draft, setDraft, confirmDeleteGroup }) => {
                   onClick={() => updateItems(gIdx, (items) => moveInArray(items, iIdx, -1))}><ArrowUp size={14} /></button>
                 <button type="button" className={ICON_BUTTON} title="Move down" disabled={iIdx === group.items.length - 1}
                   onClick={() => updateItems(gIdx, (items) => moveInArray(items, iIdx, 1))}><ArrowDown size={14} /></button>
-                <button type="button" className={`${ICON_BUTTON} hover:text-red-400`} title="Delete check"
+                <button type="button" className={`${ICON_BUTTON} hover:text-destructive`} title="Delete check"
                   onClick={() => updateItems(gIdx, (items) => items.filter((_, i) => i !== iIdx))}><Trash2 size={14} /></button>
               </div>
             ))}

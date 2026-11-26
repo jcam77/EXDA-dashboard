@@ -1,0 +1,74 @@
+name: Bug report
+description: Something in EXDA does not work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting. **Do not include confidential data:** no project
+        data, raw files, partner names or unpublished results. Security problems
+        go to the Security tab instead (see SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: EXDA version
+      description: Shown at the bottom of the Home page, e.g. "EXDA-Dashboard 5.0.6".
+      placeholder: "5.0.6"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: MVP mode
+      options:
+        - "On (simple test-day view)"
+        - "Off (advanced tabs)"
+        - "Not sure"
+  - type: input
+    id: tab
+    attributes:
+      label: Tab or screen
+      placeholder: "e.g. Plan → Run Metadata Card"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, including any message EXDA showed.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a project
+        2. Go to …
+        3. Click …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or terminal output
+      description: Drag images here. The terminal window that runs EXDA often shows the cause.
+  - type: checkboxes
+    id: confidential
+    attributes:
+      label: Confidentiality
+      options:
+        - label: This report contains no confidential project data.
+          required: true

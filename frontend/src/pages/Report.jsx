@@ -103,7 +103,7 @@ const ReportPage = ({
         content: (
           <div className="space-y-2">
             <p>Export saved to:</p>
-            <p className="break-all rounded border border-border bg-black/30 px-2 py-1 font-mono text-xs text-zinc-300">
+            <p className="break-all rounded border border-border bg-background/40 px-2 py-1 font-mono text-xs text-foreground/85">
               {String(payload.path || '')}
             </p>
           </div>
@@ -216,9 +216,9 @@ const ReportPage = ({
 
         <section className="rounded-xl border border-sidebar-border bg-card/60 p-5">
           <div className="mb-3 flex items-center gap-2">
-            <Construction size={16} className="text-amber-400" />
+            <Construction size={16} className="text-warning" />
             <h3 className="text-base font-semibold text-foreground">2. Experiments Report</h3>
-            <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-300">
+            <span className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-warning">
               Under Construction
             </span>
           </div>

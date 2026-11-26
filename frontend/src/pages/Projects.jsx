@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import PathText from '../components/PathText';
 import { AlertTriangle, ChevronDown, FolderPlus, Folder, FolderOpen, Folders, Trash2, Search, RefreshCw, Home, Pencil, Copy, X } from 'lucide-react';
 import CapabilityCloud from '../components/CapabilityCloud';
 import { folderName } from '../utils/pathCrumbs';
@@ -957,16 +958,16 @@ const ProjectsPage = ({
               Projects inside the app folder
             </div>
             <p className="mt-2 text-sm text-foreground">
-              Your projects are in <span className="font-mono text-[12px]">{appFolderWarning.path}</span>, inside the
+              Your projects are in <PathText className="text-[12px]" path={appFolderWarning.path} />, inside the
               EXDA app folder. Replacing or deleting the app folder for an update would delete them. Close EXDA and move
-              them to <span className="font-mono text-[12px]">{appFolderWarning.recommended}</span>, next to the app
+              them to <PathText className="text-[12px]" path={appFolderWarning.recommended} />, next to the app
               folder. EXDA uses that folder automatically from the next start.
             </p>
           </div>
         )}
 
         {error && (
-          <div className="mb-6 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div className="mb-6 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
           </div>
         )}

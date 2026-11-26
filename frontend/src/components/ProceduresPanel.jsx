@@ -28,11 +28,11 @@ export const ProceduresBadge = ({ count, missingSections = [], loading, onClick 
       onClick={onClick}
       title="Show the safety procedures (bottom of this page)"
       className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-colors ${ok
-        ? 'bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20'
-        : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20'}`}
+        ? 'bg-warning/10 border-warning/20 hover:bg-warning/20'
+        : 'bg-destructive/10 border-destructive/30 hover:bg-destructive/20'}`}
     >
-      {ok ? <ShieldCheck size={20} className="text-amber-500" /> : <AlertTriangle size={20} className="text-red-500" />}
-      <span className={`text-[11px] font-bold uppercase tracking-widest ${ok ? 'text-amber-500' : 'text-red-500'}`}>{text}</span>
+      {ok ? <ShieldCheck size={20} className="text-warning" /> : <AlertTriangle size={20} className="text-destructive" />}
+      <span className={`text-[11px] font-bold uppercase tracking-widest ${ok ? 'text-warning' : 'text-destructive'}`}>{text}</span>
     </button>
   );
 };
@@ -107,11 +107,11 @@ const ProceduresPanel = ({ apiBaseUrl, projectPath, procedures }) => {
         </div>
       </div>
 
-      {error && <div className="mb-2 text-[11px] text-red-400">{error}</div>}
-      {message && <div className="mb-2 text-[11px] text-red-400">{message}</div>}
+      {error && <div className="mb-2 text-[11px] text-destructive">{error}</div>}
+      {message && <div className="mb-2 text-[11px] text-destructive">{message}</div>}
 
       {!loading && !error && missingSections.length > 0 && (
-        <div className="mb-2 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">
+        <div className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <div>
             <div className="font-semibold">

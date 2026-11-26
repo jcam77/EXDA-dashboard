@@ -92,7 +92,7 @@ const EwtAnalysisPage = ({
                     <AudioLines size={16} className="text-primary" />
                     Empirical Wavelet Transform
                 </div>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                <div className="text-[11px] text-muted-foreground uppercase tracking-widest">
                     Single pressure file analysis
                 </div>
             </div>
@@ -102,20 +102,20 @@ const EwtAnalysisPage = ({
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-bold text-foreground">Signal + EWT MRA Components</h3>
                         {isProcessing && (
-                            <span className="text-[10px] uppercase tracking-widest text-primary animate-pulse">Processing...</span>
+                            <span className="text-[11px] uppercase tracking-widest text-primary animate-pulse">Processing...</span>
                         )}
                     </div>
                     <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <div className="rounded-lg border border-border/60 bg-black/20 px-3 py-2">
-                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Samples</div>
+                        <div className="rounded-lg border border-border/60 bg-background/[0.28] px-3 py-2">
+                            <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Samples</div>
                             <div className="text-sm font-bold text-foreground">{summary.samples || '--'}</div>
                         </div>
-                        <div className="rounded-lg border border-border/60 bg-black/20 px-3 py-2">
-                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Sampling Rate</div>
+                        <div className="rounded-lg border border-border/60 bg-background/[0.28] px-3 py-2">
+                            <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Sampling Rate</div>
                             <div className="text-sm font-bold text-foreground">{summary.fs ? `${summary.fs.toFixed(2)} Hz` : '--'}</div>
                         </div>
-                        <div className="rounded-lg border border-border/60 bg-black/20 px-3 py-2">
-                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Libraries</div>
+                        <div className="rounded-lg border border-border/60 bg-background/[0.28] px-3 py-2">
+                            <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Libraries</div>
                             <div className="text-xs text-muted-foreground">
                                 EWT {summary.usesEWT ? 'ON' : 'OFF'} | PyWT {summary.usesPyWT ? 'ON' : 'OFF'}
                             </div>
@@ -132,8 +132,8 @@ const EwtAnalysisPage = ({
                                         color: modeColors[idx % modeColors.length],
                                     })),
                                 ].map((series, idx) => (
-                                    <div key={series.key} className="bg-black/20 border border-border/60 rounded-xl p-3">
-                                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                                    <div key={series.key} className="bg-background/[0.28] border border-border/60 rounded-xl p-3">
+                                        <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
                                             {series.label}
                                         </div>
                                         <div className="h-40 max-w-[720px] mx-auto">
@@ -144,7 +144,7 @@ const EwtAnalysisPage = ({
                                                         dataKey="time"
                                                         type="number"
                                                         stroke="hsl(var(--muted-foreground))"
-                                                        fontSize={10}
+                                                        fontSize={11}
                                                         tickFormatter={formatTimeTick}
                                                         tickCount={localTickCount || 10}
                                                         domain={['dataMin', 'dataMax']}
@@ -154,19 +154,19 @@ const EwtAnalysisPage = ({
                                                             position: 'insideBottom',
                                                             offset: -5,
                                                             fill: 'hsl(var(--muted-foreground))',
-                                                            fontSize: 9,
+                                                            fontSize: 11,
                                                         }}
                                                     />
                                                     <YAxis
                                                         stroke="hsl(var(--muted-foreground))"
-                                                        fontSize={10}
+                                                        fontSize={11}
                                                         tickCount={localYTickCount || 10}
                                                         label={{
                                                             value: idx === 0 ? `Pressure (${ewtDisplayUnit})` : `${series.label} (${ewtDisplayUnit})`,
                                                             angle: -90,
                                                             position: 'insideLeft',
                                                             fill: 'hsl(var(--muted-foreground))',
-                                                            fontSize: 9,
+                                                            fontSize: 11,
                                                         }}
                                                     />
                                                     <Tooltip
@@ -196,13 +196,13 @@ const EwtAnalysisPage = ({
 
                 <div className="flex flex-col gap-4">
                     <div className="bg-card/60 border border-border rounded-xl p-4">
-                        <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                        <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
                             <Sliders size={12} className="text-primary" />
                             Settings
                         </div>
                         <div className="mt-3 space-y-3">
                             <div>
-                                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Pressure File</label>
+                                <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Pressure File</label>
                                 <select
                                     value={selectedPath}
                                     onChange={(e) => setSettings(prev => ({ ...prev, ewtSelectedPath: e.target.value }))}
@@ -218,7 +218,7 @@ const EwtAnalysisPage = ({
                                         );
                                     })}
                                 </select>
-                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                <p className="mt-1 text-[11px] text-muted-foreground">
                                     For waveform files, select Y[n] channel and choose input units. Optional conversion to kPa is available.
                                 </p>
                             </div>
@@ -238,7 +238,7 @@ const EwtAnalysisPage = ({
                                     Limit input time window (s)
                                 </label>
                                 <div>
-                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Start Time (s)</label>
+                                    <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Start Time (s)</label>
                                     <input
                                         type="number"
                                         step="any"
@@ -255,7 +255,7 @@ const EwtAnalysisPage = ({
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">End Time (s)</label>
+                                    <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">End Time (s)</label>
                                     <input
                                         type="number"
                                         step="any"
@@ -272,7 +272,7 @@ const EwtAnalysisPage = ({
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Channel</label>
+                                    <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Channel</label>
                                     <select
                                         value={Number(settings.ewtChannelIndex ?? 0)}
                                         onChange={(e) =>
@@ -291,7 +291,7 @@ const EwtAnalysisPage = ({
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Input Unit</label>
+                                    <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Input Unit</label>
                                     <select
                                         value={settings.ewtInputUnit || 'auto'}
                                         onChange={(e) => setSettings(prev => ({ ...prev, ewtInputUnit: e.target.value }))}
@@ -314,7 +314,7 @@ const EwtAnalysisPage = ({
                                     Convert to kPa
                                 </label>
                                 <div>
-                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">MaxNumPeaks</label>
+                                    <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">MaxNumPeaks</label>
                                     <input
                                         type="number"
                                         min="1"
@@ -329,7 +329,7 @@ const EwtAnalysisPage = ({
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">X Ticks</label>
+                                    <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">X Ticks</label>
                                     <input
                                         type="number"
                                         min="3"
@@ -344,7 +344,7 @@ const EwtAnalysisPage = ({
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Y Ticks</label>
+                                    <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Y Ticks</label>
                                     <input
                                         type="number"
                                         min="3"
@@ -359,7 +359,7 @@ const EwtAnalysisPage = ({
                                     />
                                 </div>
                                 <div className="flex flex-col justify-end">
-                                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Max Points</div>
+                                    <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Max Points</div>
                                     <div className="text-xs text-foreground mt-1">{settings.ewtMaxPoints}</div>
                                 </div>
                             </div>
@@ -367,14 +367,14 @@ const EwtAnalysisPage = ({
                     </div>
 
                     {warning && (
-                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[10px] text-amber-300">
+                        <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-2 text-[11px] text-warning">
                             <AlertTriangle size={12} className="mt-0.5" />
                             <span>{warning}</span>
                         </div>
                     )}
 
                     <div className="bg-card/60 border border-border rounded-xl p-4">
-                        <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">EWT MRA Component Energy (%)</h4>
+                        <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-2">EWT MRA Component Energy (%)</h4>
                         {energy.length > 0 ? (
                             <div className="h-[180px] max-w-[360px] mx-auto">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -383,25 +383,25 @@ const EwtAnalysisPage = ({
                                         <XAxis
                                             dataKey="mode"
                                             stroke="hsl(var(--muted-foreground))"
-                                            fontSize={10}
+                                            fontSize={11}
                                             label={{
                                                 value: 'Component',
                                                 position: 'insideBottom',
                                                 offset: -4,
                                                 fill: 'hsl(var(--muted-foreground))',
-                                                fontSize: 9,
+                                                fontSize: 11,
                                             }}
                                         />
                                         <YAxis
                                             stroke="hsl(var(--muted-foreground))"
-                                            fontSize={10}
+                                            fontSize={11}
                                             tickCount={localYTickCount || 10}
                                             label={{
                                                 value: 'Energy (%)',
                                                 angle: -90,
                                                 position: 'insideLeft',
                                                 fill: 'hsl(var(--muted-foreground))',
-                                                fontSize: 9,
+                                                fontSize: 11,
                                             }}
                                         />
                                         <Tooltip
@@ -420,28 +420,28 @@ const EwtAnalysisPage = ({
 
                     {suggestedFilter && (
                         <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
-                            <div className="text-[10px] uppercase tracking-widest text-primary font-bold">Suggested Low-Pass Filter</div>
+                            <div className="text-[11px] uppercase tracking-widest text-primary font-bold">Suggested Low-Pass Filter</div>
                             <div className="mt-1 text-sm font-bold text-foreground">
                                 {suggestedFilter.cutoffHz} Hz cutoff
                             </div>
-                            <div className="mt-1 text-[10px] text-muted-foreground">
+                            <div className="mt-1 text-[11px] text-muted-foreground">
                                 {suggestedFilter.basis}
                             </div>
-                            <div className="mt-1 text-[10px] text-muted-foreground">
+                            <div className="mt-1 text-[11px] text-muted-foreground">
                                 {suggestedFilter.note}
                             </div>
                         </div>
                     )}
 
                     <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
-                        <div className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">
+                        <div className="text-[11px] uppercase tracking-widest text-primary font-bold mb-2">
                             EWT MRA Component Summary
                         </div>
                         {energy.length > 0 ? (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs border-collapse">
                                     <thead>
-                                        <tr className="text-[10px] text-muted-foreground uppercase border-b border-primary/20">
+                                        <tr className="text-[11px] text-muted-foreground uppercase border-b border-primary/20">
                                             <th className="pb-2">Component</th>
                                             <th className="pb-2">Energy %</th>
                                             <th className="pb-2">Peak Freq (Hz)</th>

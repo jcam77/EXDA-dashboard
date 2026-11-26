@@ -202,7 +202,7 @@ class SafeComponent extends React.Component {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="p-4 bg-red-900/20 border border-red-500/50 rounded text-red-200 text-xs font-mono">
+                <div className="p-4 bg-destructive/10 border border-destructive/50 rounded text-destructive text-xs font-mono">
                     <strong>Plugin Error:</strong> {this.state.error?.toString()}
                 </div>
             );
@@ -1282,7 +1282,7 @@ const WorkspacePage = () => {
               <ul className="space-y-1.5 text-xs">
                   {savedItems.map((item) => (
                       <li key={item.label} className="flex items-start gap-2">
-                          <span className={item.ok ? 'text-emerald-400' : 'text-amber-400'}>
+                          <span className={item.ok ? 'text-success' : 'text-warning'}>
                               {item.ok ? '✓' : '•'}
                           </span>
                           <div className="min-w-0">
@@ -1701,7 +1701,7 @@ const WorkspacePage = () => {
                                                             }
                                                         }}
                                                     >
-                                                        <FlaskConical className="shrink-0 text-foreground"/><Activity className="shrink-0 text-red-500"/>
+                                                        <FlaskConical className="shrink-0 text-foreground"/><Activity className="shrink-0 text-destructive"/>
                                                         {/* One line; a long name ends in "…" (full path on hover). */}
                                                         <span className="truncate [overflow-wrap:normal] [word-break:normal]">{projectPath.split(/[/\\]/).pop()}</span>
                                                     </h1>

@@ -869,19 +869,19 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
                         <td className="py-2 pr-3">{normalizeTriggerMethodValue(sensor.triggerMethod) || '-'}</td>
                         <td className="py-2 pr-3">
                           {status === 'complete' && (
-                            <span className="inline-flex items-center gap-1 text-emerald-400">
+                            <span className="inline-flex items-center gap-1 text-success">
                               <CheckCircle2 size={12} /> Complete
                             </span>
                           )}
                           {status === 'warning' && (
                             <div className="space-y-1">
                               <span
-                                className="inline-flex items-center gap-1 text-amber-400"
+                                className="inline-flex items-center gap-1 text-warning"
                                 title={result.warnings.join(' | ')}
                               >
                                 <AlertTriangle size={12} /> Warning
                               </span>
-                              <p className="max-w-[220px] text-[11px] leading-tight text-amber-300">
+                              <p className="max-w-[220px] text-[11px] leading-tight text-warning">
                                 {result.warnings[0]}
                               </p>
                             </div>
@@ -1094,7 +1094,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
         <ModalPortal>
         <div className={`fixed inset-0 z-[70] bg-background/80 flex items-center justify-center px-4 py-4 backdrop-blur-md overflow-y-auto ${editorDragging ? 'select-none' : ''}`}>
           <div
-            className="w-full max-w-3xl rounded-2xl border border-primary/30 bg-zinc-950 p-5 md:p-6 shadow-2xl max-h-[76vh] overflow-hidden ring-1 ring-white/5 font-sans flex flex-col"
+            className="w-full max-w-3xl rounded-2xl border border-primary/30 bg-background p-5 md:p-6 shadow-2xl max-h-[76vh] overflow-hidden ring-1 ring-foreground/5 font-sans flex flex-col"
             style={{ transform: `translate(${editorOffset.x}px, ${editorOffset.y}px)` }}
           >
             <div className="flex items-center justify-between">
@@ -1102,7 +1102,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  className={`text-zinc-500 hover:text-zinc-200 bg-zinc-900 p-2 rounded-full transition-all ${editorDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                  className={`text-muted-foreground hover:text-foreground/[0.92] bg-card p-2 rounded-full transition-all ${editorDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                   onMouseDown={beginEditorDrag}
                   title="Drag window"
                   aria-label="Drag window"
@@ -1111,7 +1111,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
                 </button>
                 <button
                   onClick={() => setEditorOpen(false)}
-                  className="text-zinc-500 hover:text-white bg-zinc-900 p-2 rounded-full transition-all hover:scale-110"
+                  className="text-muted-foreground hover:text-foreground bg-card p-2 rounded-full transition-all hover:scale-110"
                   title="Close"
                   aria-label="Close"
                 >
@@ -1134,8 +1134,8 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
                 )}
                 {editorValidation.warnings.length > 0 && (
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">Warnings (recommended)</p>
-                    <ul className="mt-1 space-y-1 text-xs text-amber-200">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-warning">Warnings (recommended)</p>
+                    <ul className="mt-1 space-y-1 text-xs text-warning">
                       {editorValidation.warnings.map((message) => (
                         <li key={`warn-${message}`}>• {message}</li>
                       ))}

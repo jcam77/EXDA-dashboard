@@ -32,6 +32,7 @@ cd "$ROOT_DIR"
 # Projects/, Demo Projects/, appsTestEnviroment/ and experiment data are
 # deliberately NOT listed. Add paths here only for application code/docs.
 ALLOWED_DIRS=(
+  .github
   EXDA.app
   backend
   frontend

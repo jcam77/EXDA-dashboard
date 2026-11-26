@@ -142,7 +142,7 @@ const ChecklistPage = ({
                                         Ready
                                     </span>
                                 ) : (
-                                    <span className="ml-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest text-amber-500">
+                                    <span className="ml-2 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest text-warning">
                                         Pending
                                     </span>
                                 )}
@@ -172,7 +172,7 @@ const ChecklistPage = ({
                         />
                     </div>
                     {!hasResponsible && (
-                        <div className="mt-3 text-[11px] text-amber-500">
+                        <div className="mt-3 text-[11px] text-warning">
                             Add responsible name and initials to enable final sign-off.
                         </div>
                     )}
@@ -215,12 +215,12 @@ const ChecklistPage = ({
 
             {/* Emergency reminder: general for every project; the project's own
                 emergency actions are in its procedures (RAMS, SOPs) below. */}
-            <div className="mb-8 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3">
+            <div className="mb-8 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
                 <span className="flex items-center gap-2 text-destructive">
                     <AlertTriangle size={18} />
                     <span className="text-xs font-bold uppercase tracking-wider">Emergency Action Cards</span>
                 </span>
-                <span className="text-sm text-amber-500 italic">
+                <span className="text-sm text-warning italic">
                     Before each test, review the emergency action cards and safety procedures of this project with the team.
                 </span>
                 <button
@@ -263,12 +263,12 @@ const ChecklistPage = ({
                     )}
                 </div>
             </div>
-            {editMessage && <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">{editMessage}</div>}
+            {editMessage && <div className="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{editMessage}</div>}
             {definition.loading && !definition.checklist && (
                 <div className="mb-8 text-sm text-muted-foreground">Loading checklist…</div>
             )}
             {definition.error && (
-                <div className="mb-8 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">
+                <div className="mb-8 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">
                     {definition.error} The checklist file was left unchanged.
                 </div>
             )}

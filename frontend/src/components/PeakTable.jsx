@@ -116,7 +116,7 @@ const PeakTable = ({
       </div>
 
       {(rangeProblem || error || stale || !selectedIndices.length) && (
-        <div className={`mb-2 text-[11px] ${error ? 'text-red-400' : 'text-[hsl(var(--warning))]'}`}>
+        <div className={`mb-2 text-[11px] ${error ? 'text-destructive' : 'text-[hsl(var(--warning))]'}`}>
           {error
             || rangeProblem
             || (!selectedIndices.length ? 'Tick at least one channel.' : '')

@@ -1,14 +1,14 @@
 import React from 'react';
 import { Activity, Cog, Flame, Gauge, HardHat, ListChecks, ShieldCheck, Warehouse } from 'lucide-react';
 
-// Icon of a checklist group. The four original groups keep their colours;
+// Icon of a checklist group. The four original groups keep distinct theme colours;
 // other icons use the app's accent colour.
 const ICONS = {
   'list-checks': [ListChecks, 'text-primary'],
-  warehouse: [Warehouse, 'text-zinc-400'],
-  'hard-hat': [HardHat, 'text-yellow-400'],
-  cog: [Cog, 'text-orange-400'],
-  activity: [Activity, 'text-red-500'],
+  warehouse: [Warehouse, 'text-muted-foreground'],
+  'hard-hat': [HardHat, 'text-warning'],
+  cog: [Cog, 'text-info'],
+  activity: [Activity, 'text-destructive'],
   flame: [Flame, 'text-primary'],
   gauge: [Gauge, 'text-primary'],
   shield: [ShieldCheck, 'text-primary'],

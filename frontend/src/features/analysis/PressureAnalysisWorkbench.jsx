@@ -232,14 +232,14 @@ const PressureAnalysis = ({
         <div className="lg:col-span-2 bg-card/60 border border-border p-4 rounded-xl flex flex-col">
           <div className="flex justify-between items-start mb-2 gap-4">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Activity className="text-cyan-400" size={16} />
+              <Activity className="text-primary" size={16} />
               {chartTitle}
             </h3>
             <div className="flex items-start gap-2">
               {plotData && plotData.length > 0 && (
-                <div className="flex items-start gap-2 bg-yellow-900/10 border border-yellow-900/30 p-2 rounded max-w-md">
-                  <Info size={14} className="text-yellow-500 mt-0.5 shrink-0" />
-                  <p className="text-[10px] text-yellow-500/80 leading-tight">
+                <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 p-2 rounded max-w-md">
+                  <Info size={14} className="text-warning mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-warning/80 leading-tight">
                     <strong>Visualization Note:</strong> Each run keeps its native time vector and sampling rate.
                     Gaps between series are expected when DAQs have different sampling.
                   </p>
@@ -250,7 +250,7 @@ const PressureAnalysis = ({
 
           <div className="flex-1 min-h-0 relative">
             {isProcessing ? (
-              <div className="absolute inset-0 flex items-center justify-center text-cyan-300 animate-pulse font-mono text-sm">
+              <div className="absolute inset-0 flex items-center justify-center text-primary animate-pulse font-mono text-sm">
                 Processing Pressure Data...
               </div>
             ) : plotData && plotData.length > 0 ? (
@@ -269,16 +269,16 @@ const PressureAnalysis = ({
           </div>
 
           <div className="mt-4 bg-card/60 border border-border rounded-xl p-3">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Plot Controls</div>
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Plot Controls</div>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
               {isValidationMode && (
                 <div className="rounded-lg border border-border/60 bg-card/40 p-3">
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
                     Simulation Filter
                   </div>
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="flex flex-col">
-                      <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
+                      <label className="text-[11px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
                       <input
                         type="number"
                         min="1"
@@ -289,7 +289,7 @@ const PressureAnalysis = ({
                       />
                     </div>
                     <div className="flex flex-col">
-                      <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Order</label>
+                      <label className="text-[11px] text-muted-foreground uppercase font-bold">Filter Order</label>
                       <input
                         type="number"
                         min="1"
@@ -301,7 +301,7 @@ const PressureAnalysis = ({
                       />
                     </div>
                     <div className="flex flex-col">
-                      <label className="text-[10px] text-muted-foreground uppercase font-bold">Pressure Reference</label>
+                      <label className="text-[11px] text-muted-foreground uppercase font-bold">Pressure Reference</label>
                       <select
                         value={settings.simulationPressureReference || 'gauge'}
                         onChange={(e) => setSettings({ ...settings, simulationPressureReference: e.target.value })}
@@ -325,12 +325,12 @@ const PressureAnalysis = ({
                 </div>
               )}
               <div className="rounded-lg border border-border/60 bg-card/40 p-3">
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
                   Experimental Filter
                 </div>
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">Filter Frequency (Hz)</label>
                     <input
                       type="number"
                       min="1"
@@ -341,7 +341,7 @@ const PressureAnalysis = ({
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Filter Order</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">Filter Order</label>
                     <input
                       type="number"
                       min="1"
@@ -362,7 +362,7 @@ const PressureAnalysis = ({
                     Use raw experimental data
                   </label>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Channel</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">Channel</label>
                     <select
                       value={Number(settings.pressureChannelIndex ?? 0)}
                       onChange={(e) =>
@@ -381,7 +381,7 @@ const PressureAnalysis = ({
                     </select>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Input Unit</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">Input Unit</label>
                     <select
                       value={settings.pressureInputUnit || FROM_FILE_UNIT}
                       onChange={(e) => setSettings({ ...settings, pressureInputUnit: e.target.value })}
@@ -405,7 +405,7 @@ const PressureAnalysis = ({
                     Convert to kPa
                   </label>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Pressure Reference</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">Pressure Reference</label>
                     <select
                       value={settings.pressureReference || 'gauge'}
                       onChange={(e) => setSettings({ ...settings, pressureReference: e.target.value })}
@@ -428,7 +428,7 @@ const PressureAnalysis = ({
                     Baseline (zero-offset) correction
                   </label>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Method</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">Method</label>
                     <select
                       value={settings.baselineMethod || 'mean'}
                       disabled={!settings.baselineEnabled}
@@ -440,7 +440,7 @@ const PressureAnalysis = ({
                     </select>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Window start (s)</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">Window start (s)</label>
                     <input
                       type="number"
                       step="any"
@@ -452,7 +452,7 @@ const PressureAnalysis = ({
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Window end (s)</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">Window end (s)</label>
                     <input
                       type="number"
                       step="any"
@@ -469,12 +469,12 @@ const PressureAnalysis = ({
                 </div>
               </div>
               <div className="xl:col-span-2 rounded-lg border border-border/60 bg-card/40 p-3">
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
                   Display, Impulse & Input Scope
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold min-h-[24px] flex items-end">
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold min-h-[24px] flex items-end">
                       X Ticks
                     </label>
                     <input
@@ -488,7 +488,7 @@ const PressureAnalysis = ({
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold min-h-[24px] flex items-end">
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold min-h-[24px] flex items-end">
                       Y Ticks
                     </label>
                     <input
@@ -502,7 +502,7 @@ const PressureAnalysis = ({
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold min-h-[24px] flex items-end">
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold min-h-[24px] flex items-end">
                       Allowed Decay From P<sub>max</sub> (%)
                     </label>
                     <input
@@ -530,7 +530,7 @@ const PressureAnalysis = ({
                     Limit input time window (s)
                   </label>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">Start (s)</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">Start (s)</label>
                     <input
                       type="number"
                       step="any"
@@ -542,7 +542,7 @@ const PressureAnalysis = ({
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-muted-foreground uppercase font-bold">End (s)</label>
+                    <label className="text-[11px] text-muted-foreground uppercase font-bold">End (s)</label>
                     <input
                       type="number"
                       step="any"
@@ -584,7 +584,7 @@ const PressureAnalysis = ({
 
         <div className="flex flex-col gap-4 min-h-0">
           <div className="bg-card/60 border border-border p-4 rounded-xl">
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <Info size={12} className="text-muted-foreground" />
               <span>
                 {isValidationMode
@@ -620,7 +620,7 @@ const PressureAnalysis = ({
             <div className="space-y-3">
               {isValidationMode ? (
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground uppercase font-bold">Series Filter</label>
+                  <label className="text-[11px] text-muted-foreground uppercase font-bold">Series Filter</label>
                   <select
                     value={seriesScope}
                     onChange={(e) => setSeriesScope(e.target.value)}
@@ -660,7 +660,7 @@ const PressureAnalysis = ({
               <Settings size={16} className="text-muted-foreground" /> Calculated Metrics
             </h3>
             <div className="mb-4 rounded-lg border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground">
-              <div className="text-[10px] uppercase tracking-widest font-bold mb-2">Visible Series</div>
+              <div className="text-[11px] uppercase tracking-widest font-bold mb-2">Visible Series</div>
               <div className="flex flex-col gap-2">
                 {analysisResults.length === 0 && <span className="text-[11px] text-muted-foreground">No series yet.</span>}
                 {analysisResults.map((item) => (
@@ -699,7 +699,7 @@ const PressureAnalysis = ({
             <div className="flex-1 overflow-auto custom-scrollbar rounded-lg border border-primary/30 bg-primary/10 p-3">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="text-[10px] text-primary uppercase border-b border-primary/20">
+                  <tr className="text-[11px] text-primary uppercase border-b border-primary/20">
                     <th className="pb-2 font-bold">Case</th>
                     <th className="pb-2 text-right">P<sub>max</sub></th>
                     <th className="pb-2 text-right">t<sub>peak</sub></th>
@@ -736,7 +736,7 @@ const PressureAnalysis = ({
                     </tr>
                     {!res.error && res.processing && (
                       <tr className="border-b border-primary/15">
-                        <td colSpan={isValidationMode ? 6 : 5} className="pb-2 text-[10px] text-muted-foreground">
+                        <td colSpan={isValidationMode ? 6 : 5} className="pb-2 text-[11px] text-muted-foreground">
                           <details>
                             <summary className="cursor-pointer">Processing record</summary>
                             <ul className="mt-1 list-disc pl-4">

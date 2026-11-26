@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest an improvement or a new feature.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is the problem or need?
+      description: For example "on test days I cannot see at a glance whether …".
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: dropdown
+    id: when
+    attributes:
+      label: When do you need it?
+      options:
+        - "On test days (quick on-site checks)"
+        - "Planning and documenting a campaign"
+        - "Analysis after the tests"
+        - "Other"
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Screenshots, examples, similar tools. No confidential data, please.

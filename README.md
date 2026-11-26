@@ -352,3 +352,14 @@ See `VERSIONING.md` for the exact workflow, examples, and tag naming guidance.
 - If PDF-related AI features are limited, install the optional backend requirements.
 - If frontend tooling behaves strangely on shared or synced folders, check for macOS sidecar files such as `._*` and `.DS_Store`, which can interfere with JS tooling.
 - If you need a packaged desktop build rather than the normal browser-first workflow, see [PACKAGING.md](PACKAGING.md).
+
+## 🤝 Help And Contributing
+
+All contact goes through GitHub; there is no public email address.
+
+- **Bugs, ideas, accessibility barriers:** open an issue with the [issue forms](https://github.com/jcam77/EXDA-dashboard/issues/new/choose). Please never include confidential project data.
+- **Security problems:** report them privately, see [SECURITY.md](.github/SECURITY.md).
+- **Contributing:** see [CONTRIBUTING.md](.github/CONTRIBUTING.md) and the [code of conduct](.github/CODE_OF_CONDUCT.md).
+- **Accessibility:** what EXDA does and its known limits are in [ACCESSIBILITY.md](.github/ACCESSIBILITY.md).
+- **Look and feel:** [design guide](docs/EXDA-Design-Guide.md).
+
