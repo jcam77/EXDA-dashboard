@@ -82,8 +82,18 @@ set EXDA_CORS_ORIGINS=http://%FRONTEND_HOST%:%FRONTEND_PORT%,http://localhost:%F
 if exist "%BACKEND_LOG%" del /q "%BACKEND_LOG%" >nul 2>nul
 start "EXDA Backend" /B "%VENV_PY%" backend\app.py > "%BACKEND_LOG%" 2>&1
 
-powershell -NoProfile -Command "$deadline=(Get-Date).AddSeconds(20); while((Get-Date) -lt $deadline){ try { $client=New-Object System.Net.Sockets.TcpClient; $iar=$client.BeginConnect('%BACKEND_HOST%', %BACKEND_PORT%, $null, $null); if($iar.AsyncWaitHandle.WaitOne(500, $false) -and $client.Connected){ $client.Close(); exit 0 } $client.Close() } catch {} Start-Sleep -Milliseconds 500 }; exit 1" >nul 2>nul
-if errorlevel 1 (
+rem Make sure it is EXDA (not another program) that answers on the port.
+"%VENV_PY%" scripts\check_exda_backend.py %BACKEND_HOST% %BACKEND_PORT% 30
+set "BACKEND_CHECK=%errorlevel%"
+if "%BACKEND_CHECK%"=="2" (
+  echo.
+  echo EXDA cannot use port %BACKEND_PORT% because another program answers on it.
+  echo Stop that program, or set another EXDA_DEFAULT_BACKEND_PORT in config\exda-defaults.env.
+  echo.
+  pause
+  exit /b 1
+)
+if not "%BACKEND_CHECK%"=="0" (
   echo.
   echo The backend stopped during startup. Check the error output below.
   if exist "%BACKEND_LOG%" (

@@ -375,6 +375,24 @@ start_app() {
     exit 1
   fi
 
+  # Make sure it is EXDA (not another program) that answers on the port.
+  "$PYTHON_CMD" scripts/check_exda_backend.py "$BACKEND_HOST" "$BACKEND_PORT" 30
+  backend_check=$?
+  if [ "$backend_check" -ne 0 ]; then
+    echo ""
+    if [ "$backend_check" -eq 2 ]; then
+      echo "EXDA cannot use port ${BACKEND_PORT}: another program answers on it."
+      echo "Programs listening on port ${BACKEND_PORT}:"
+      lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN 2>/dev/null | sed 's/^/  /'
+      echo "Stop that program, or set another EXDA_DEFAULT_BACKEND_PORT in"
+      echo "config/exda-defaults.env."
+    else
+      echo "EXDA's backend does not answer on port ${BACKEND_PORT}. Check the error output above."
+    fi
+    pause_on_error
+    exit 1
+  fi
+
   local app_url="http://${FRONTEND_HOST}:${FRONTEND_PORT}/?backendPort=${BACKEND_PORT}"
   echo "Starting EXDA frontend on http://${FRONTEND_HOST}:${FRONTEND_PORT} ..."
   echo "App URL:"

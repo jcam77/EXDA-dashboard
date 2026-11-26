@@ -106,6 +106,14 @@ app.register_blueprint(ai_bp)
 app.register_blueprint(literature_bp)
 app.register_blueprint(project_description_bp)
 
+
+@app.route('/exda_health', methods=['GET'])
+def exda_health():
+    """Lets the launchers check that it is really EXDA answering on this port
+    (on a Mac, AirPlay Receiver can answer on a port EXDA also listens on)."""
+    from flask import jsonify
+    return jsonify({"app": "EXDA", "success": True})
+
 if __name__ == '__main__':
     print("🚀 EXDA DASHBOARD ENGINE READY")
     host = _setting("EXDA_BACKEND_HOST")

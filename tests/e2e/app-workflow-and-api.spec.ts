@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:5000";
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:5077";
 const BACKEND_WAIT_TIMEOUT_MS = 30_000;
 const SSE_PROBE_TIMEOUT_MS = 10_000;
 const TEMP_PROJECT_PREFIX = "exda-smoke-";

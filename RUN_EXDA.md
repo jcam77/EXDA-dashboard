@@ -105,6 +105,10 @@ Node.js and Python stay installed; the next version needs them too. Remove them 
 
 Each operating system keeps its own Python environment, so one EXDA folder (for example on an external drive) can be used from macOS and Windows. `node_modules` is shared: npm keeps the native packages for each system side by side. An older shared `.venv` folder is no longer used on macOS or Windows and can be deleted.
 
+## Ports
+
+EXDA uses two local ports, set in [config/exda-defaults.env](config/exda-defaults.env): **5173** for the page in the browser and **5077** for the backend (5000 until version 5.0.6; macOS uses port 5000 for AirPlay Receiver). On every start the launchers check that it is really EXDA that answers on the backend port ([scripts/check_exda_backend.py](scripts/check_exda_backend.py), via `/exda_health`). If another program answers there, the launcher says so and stops, instead of the page showing *"Backend not running?"*. To use other ports, change the two `PORT` lines in `config/exda-defaults.env`.
+
 ## MVP Mode (Optional)
 
 For a simplified onsite workflow, you can enable MVP mode (Minimum Viable Product).

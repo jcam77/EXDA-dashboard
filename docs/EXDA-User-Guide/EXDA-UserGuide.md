@@ -1,4 +1,4 @@
-# EXDA User Guide — MVP mode (version 5.0.6)
+# EXDA User Guide — MVP mode (version 5.0.7)
 
 This guide walks you through a test campaign in EXDA, tab by tab, in the order
 you use them: from opening a project to exporting the report. Every section has a
@@ -547,6 +547,7 @@ exported from their own tabs.
 
 | Message or symptom | What to do |
 | --- | --- |
+| *“Backend not running?”*, or no projects and folders appear | Look at the terminal window that runs EXDA. If it says *“another program answers on port …”*, that program uses EXDA's port: on a Mac this is often **AirPlay Receiver** (System Settings → General → AirDrop & Handoff → switch off AirPlay Receiver). If the window is closed, start EXDA again. |
 | **Read-only** banner | The project is open in another window or on another computer. Close that one and reload this one. Use **Take over editing** only if the other EXDA crashed. |
 | *“… was changed elsewhere … reload”* | Someone saved the same file after you opened it. Reload the page, then redo your change. |
 | Gas Mixing result marked **STALE** | An input changed after calculating. Click **Calculate** again, then **Save Run**. |

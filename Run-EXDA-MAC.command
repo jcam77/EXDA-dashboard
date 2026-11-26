@@ -114,6 +114,26 @@ start_app() {
     exit 1
   fi
 
+  # Make sure it is EXDA that answers on the port: on a Mac, AirPlay Receiver
+  # can listen on the same port and answer instead.
+  "$VENV_PY" scripts/check_exda_backend.py "$BACKEND_HOST" "$BACKEND_PORT" 30
+  backend_check=$?
+  if [ "$backend_check" -ne 0 ]; then
+    echo ""
+    if [ "$backend_check" -eq 2 ]; then
+      echo "EXDA cannot use port ${BACKEND_PORT}: another program answers on it."
+      echo "Programs listening on port ${BACKEND_PORT}:"
+      lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN 2>/dev/null | sed 's/^/  /'
+      echo "If it is ControlCenter, turn off AirPlay Receiver (System Settings >"
+      echo "General > AirDrop & Handoff), or set another EXDA_DEFAULT_BACKEND_PORT"
+      echo "in config/exda-defaults.env."
+    else
+      echo "EXDA's backend does not answer on port ${BACKEND_PORT}. Check the error output above."
+    fi
+    pause_on_error
+    exit 1
+  fi
+
   echo "Starting EXDA frontend on http://${FRONTEND_HOST}:${FRONTEND_PORT} ..."
   echo "App URL:"
   echo "  http://${FRONTEND_HOST}:${FRONTEND_PORT}/?backendPort=${BACKEND_PORT}"

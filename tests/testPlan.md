@@ -31,6 +31,6 @@ Execution
 - Import workflow only: `npx playwright test tests/e2e/import-data-selection.spec.ts`
 
 Assumptions
-- Backend is reachable at `http://127.0.0.1:5000` unless `BACKEND_URL` is set.
-- Tests may require permission to bind local ports (`5173`, `5000`) in restricted environments.
+- Backend is reachable at `http://127.0.0.1:5077` unless `BACKEND_URL` is set.
+- Tests may require permission to bind local ports (`5173`, `5077`) in restricted environments.
 - Temp projects are created under `/tmp` and cleaned automatically after test runs.

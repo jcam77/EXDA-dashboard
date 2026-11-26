@@ -23,7 +23,7 @@ export default defineConfig({
     },
     {
       command: "npm run server:smoke",
-      url: "http://127.0.0.1:5000/list_directories?path=/tmp",
+      url: "http://127.0.0.1:5077/list_directories?path=/tmp",
       reuseExistingServer: true,
       timeout: 120_000,
     },

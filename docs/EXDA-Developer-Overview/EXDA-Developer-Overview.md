@@ -35,6 +35,7 @@ verified today, and what to improve before the calculations are extended.
 | Plan file selection | `project_description.json` and the status file are never picked as the plan | `NON_PLAN_FILENAMES` in [project_manager.py:203](../../backend/modules/project_manager.py#L203) |
 | Capabilities cloud | Projects page card with the capability terms (methods, measured quantities, facility, fuels, keywords) of the listed projects, sized by the number of projects and packed on a spiral (some smaller words vertical); colours are the theme tokens `--cloud-*` (index.css), a categorical palette checked with a colour-vision validator in both themes; follows the folder and status filters; click a word to search, with a visible filter bar and Show all. Computed in the browser from `capabilities` in `/list_projects`; read-only | [CapabilityCloud.jsx](../../frontend/src/components/CapabilityCloud.jsx), [capabilityCloud.js](../../frontend/src/utils/capabilityCloud.js), `CAPABILITY_FIELD_IDS` in [project_description.py](../../backend/modules/project_description.py) |
 | Design guide and readability | [EXDA-Design-Guide.md](../EXDA-Design-Guide.md) replaces `design_guidelines.json`: tokens, type (minimum 11 px), components, light/dark and chart-colour rules. Warning and error tokens raised to ≥ 4.5:1 text contrast; checkboxes use `primary`; status badges and the read-only banner use tokens instead of fixed colours; top-bar buttons never break inside a word; 8–10 px text raised to 11 px on MVP screens | `index.css`, `WorkspacePage.jsx`, `Projects.jsx`, MVP pages |
+| Backend port and start check | Default backend port 5000 → 5077 (macOS AirPlay Receiver also listens on 5000 and answered the browser instead of EXDA, so the page showed "Backend not running?" although the backend had started). `/exda_health` identifies EXDA; all three launchers run [check_exda_backend.py](../../scripts/check_exda_backend.py) after starting the backend and stop with a clear message if nothing or another program answers | `config/exda-defaults.env`, `backend/app.py`, `Run-EXDA-*` |
 | Theme tokens everywhere | All ~500 fixed palette classes moved to theme tokens and the legacy `zinc` compatibility layer in `index.css` removed (only modal backdrops keep `bg-black/60–80`); plot channels use validated `--series-1..8` (canvas via `utils/themeColors.js`, redrawn on theme switch); Plan timeline status/group colours on tokens; markdown styles fixed for light theme; 11 px minimum also on advanced screens and in charts; paths wrap only at separators (`PathText`) | `index.css`, `themeColors.js`, `PathText.jsx`, `HighResMultiChannelPlot.jsx`, `Plan.jsx` |
 | Technical skills | New standard Project Description field, picked from the team's skills list (categories → skills) so the same skill has one name; missing skills are added on purpose (category required, `addedBy`/`addedAt` recorded); feeds the capabilities cloud (violet). Projects store the names as text; names outside the list are kept and marked | [skills_catalog.py](../../backend/modules/skills_catalog.py) (`/skills_catalog`, `/add_skill_to_catalog`), [SkillPicker.jsx](../../frontend/src/components/SkillPicker.jsx), [skillsCatalog.js](../../frontend/src/utils/skillsCatalog.js) |
 | Windows folder names | Projects page folder chips show only the folder name (`folderName` in pathCrumbs.js), as on macOS/Linux; CFD import helpers accept `\\` | [Projects.jsx](../../frontend/src/pages/Projects.jsx), [dataImportRules.js](../../frontend/src/features/workspace/dataImportRules.js) |
@@ -698,7 +699,7 @@ table.
 
 | Suite | Files | Tests | Notes |
 | --- | --- | ---: | --- |
-| Backend unittest | 20 in [backend/tests/](../../backend/tests) | 174 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
+| Backend unittest | 21 in [backend/tests/](../../backend/tests) | 176 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
 | Frontend vitest | 18 in [frontend/tests/](../../frontend/tests) | 89 | Gas-mixing logic, technical skills list, Windows paths, units (incl. trigger detection), peak formatting, capabilities cloud, picker start folder, run data files, mappings, versions, formatting, path crumbs, Project Description |
 | End-to-end | 2 in [tests/e2e/](../../tests/e2e) | – | Playwright; need a running app |
 | Guide media | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) | – | Not a test, but it clicks through every MVP tab on synthetic data, so a broken flow shows up when the media are regenerated |
@@ -833,7 +834,7 @@ need real campaign data skip when it is not present.
 ### Regenerating the user-guide media
 
 Run a separate test copy of the app on other ports, so a running EXDA
-(5000/5173) is never touched. Then generate the synthetic demo projects
+(5077/5173) is never touched. Then generate the synthetic demo projects
 and record the media:
 
 ```bash

@@ -46,7 +46,7 @@ cd jcam-v2306/applications/smoothMesh-main
 **Run commands**:
 ```bash
 cd run/.../VH2D-dashboard
-npm run dev  # Starts both Vite (port 5173) and Flask (port 5000) concurrently
+npm run dev  # Starts both Vite (port 5173) and Flask (port 5077) concurrently
 ```
 
 ### 3. Simulation Cases (`run/EMP2X-Project-OFv2306/VHD_using_HyXiFOAM/`)
@@ -107,7 +107,7 @@ meta: {
 ### Extending Backend Analysis
 1. Add function to `backend/modules/dataAnalysis.py`
 2. Create route in `backend/app.py` with `/endpoint_name` pattern
-3. Frontend fetch from `http://127.0.0.1:5000/endpoint_name`
+3. Frontend fetch from `http://127.0.0.1:5077/endpoint_name`
 4. Always return JSON with `{"success": bool, "data": ..., "message": str}`
 
 ### OpenFOAM Solver Modifications
@@ -133,7 +133,7 @@ ProjectFolder/
 ## Common Pitfalls
 
 1. **TabPlan "No Metadata" warnings**: Experiments require ALL of h2/ignition/vent to be ready (line 167-176)
-2. **Backend CORS errors**: Flask CORS enabled (line 15), but frontend must use `http://127.0.0.1:5000` not `localhost`
+2. **Backend CORS errors**: Flask CORS enabled (line 15), but frontend must use `http://127.0.0.1:5077` not `localhost`
 3. **OpenFOAM version mismatch**: This build expects v2306 - check `WM_PROJECT_VERSION`
 4. **Python env**: Backend expects system Python3 with numpy/scipy/flask/flask-cors installed
 5. **Recharts responsive containers**: Always wrap in `<ResponsiveContainer width="100%" height="100%">` (TabPlan.jsx line 228, 256)
