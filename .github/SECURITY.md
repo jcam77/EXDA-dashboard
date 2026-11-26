@@ -20,8 +20,8 @@ Only the latest release on the `main` branch receives fixes. Please update
 
 ## Scope
 
-EXDA is a local app: by default its backend listens on `127.0.0.1` (this
-computer only; see `config/exda-defaults.env`), and it reads and writes project folders on your disk. Relevant reports include,
+EXDA is a local app: its backend listens on `127.0.0.1` (this computer only)
+and it reads and writes project folders on your disk. Relevant reports include,
 for example, ways to read or write files outside the selected project folders,
 to reach the backend from another computer, or to run code through a project
 file. Problems in third-party packages should also be reported to those
