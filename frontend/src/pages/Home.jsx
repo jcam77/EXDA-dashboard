@@ -1,5 +1,6 @@
 /* global __APP_VERSION__, __LAST_UPDATED__ */
 import React from 'react';
+import { fetchJsonShared } from '../utils/sharedFetch';
 import {
   ArrowRight,
   BarChart3,
@@ -173,8 +174,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
 
       try {
         const rootCandidates = new Set();
-        const defaultRes = await fetch(`${apiBaseUrl}/list_directories`);
-        const defaultData = await defaultRes.json();
+        const defaultData = await fetchJsonShared(`${apiBaseUrl}/list_directories`);
         if (defaultData.success && defaultData.path) {
           rootCandidates.add(normalizePath(defaultData.path));
         }
@@ -218,10 +218,10 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
         const backendProjects = [];
         for (const rootPath of uniqueRoots) {
           try {
-            const listRes = await fetch(
+            // Shared with the Projects page, so the same list is fetched once.
+            const listData = await fetchJsonShared(
               `${apiBaseUrl}/list_projects?path=${encodeURIComponent(rootPath)}`
             );
-            const listData = await listRes.json();
             if (!listData.success) continue;
             (listData.projects || []).forEach((project) => {
               const status = project.status || {};

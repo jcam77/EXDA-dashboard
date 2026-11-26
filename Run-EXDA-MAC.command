@@ -143,7 +143,8 @@ start_app() {
   echo "EXDA IS RUNNING"
   echo "Close this window (or press Ctrl+C) to stop EXDA."
   echo "==================================================="
-  npm run vite -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT"
+  # Browser compatibility data only matters when building; hide its "data is old" notice.
+  BROWSERSLIST_IGNORE_OLD_DATA=1 npm run vite -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT"
 }
 
 echo "========================================"

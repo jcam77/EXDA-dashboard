@@ -2,6 +2,7 @@
 // tab copies sessionStorage, so storing it there would give both tabs the
 // same id. The backend uses it so only one window edits a project at a time.
 import { getBackendBaseUrl } from './backendUrl';
+import { clearSharedFetchCache } from './sharedFetch';
 
 const makeId = () => {
   try {
@@ -35,6 +36,9 @@ export const installClientIdOnFetch = () => {
   const originalFetch = window.fetch.bind(window);
   window.fetch = (input, init = {}) => {
     if (!isBackendUrl(input)) return originalFetch(input, init);
+    // A change (save, create, rename …) makes earlier shared reads out of date.
+    const method = String(init.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') clearSharedFetchCache();
     const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
     if (!headers.has(CLIENT_HEADER)) headers.set(CLIENT_HEADER, currentId);
     return originalFetch(input, { ...init, headers });

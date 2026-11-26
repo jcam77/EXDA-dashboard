@@ -400,7 +400,8 @@ start_app() {
   echo "App URL:"
   echo "  ${app_url}"
 
-  "$REPO_ROOT/node_modules/.bin/vite" --config frontend/vite.config.js --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" &
+  # Browser compatibility data only matters when building; hide its "data is old" notice.
+  BROWSERSLIST_IGNORE_OLD_DATA=1 "$REPO_ROOT/node_modules/.bin/vite" --config frontend/vite.config.js --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" &
   VITE_PID=$!
 
   if [ "${EXDA_OPEN_BROWSER:-1}" != "0" ] && command -v xdg-open >/dev/null 2>&1; then

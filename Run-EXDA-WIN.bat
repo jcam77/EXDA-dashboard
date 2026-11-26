@@ -20,7 +20,6 @@ if exist "%DEFAULTS_FILE%" (
 set "VENV_PY=%REPO_ROOT%.venv-win\Scripts\python.exe"
 set "PY_OK=import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"
 set "NODE_PKGS_OK=require('rollup'); require.resolve('vite/package.json'); require.resolve('react/package.json'); require.resolve('react-dom/package.json')"
-set "BACKEND_LOG=%TEMP%\exda_backend_%RANDOM%.log"
 set "FRONTEND_HOST=%EXDA_FRONTEND_HOST%"
 if not defined FRONTEND_HOST set "FRONTEND_HOST=%EXDA_DEFAULT_FRONTEND_HOST%"
 set "FRONTEND_PORT=%EXDA_FRONTEND_PORT%"
@@ -81,8 +80,9 @@ set EXDA_BACKEND_PORT=%BACKEND_PORT%
 set EXDA_FRONTEND_HOST=%FRONTEND_HOST%
 set EXDA_FRONTEND_PORT=%FRONTEND_PORT%
 set EXDA_CORS_ORIGINS=http://%FRONTEND_HOST%:%FRONTEND_PORT%,http://localhost:%FRONTEND_PORT%,http://127.0.0.1:%FRONTEND_PORT%
-if exist "%BACKEND_LOG%" del /q "%BACKEND_LOG%" >nul 2>nul
-start "EXDA Backend" /B "%VENV_PY%" backend\app.py > "%BACKEND_LOG%" 2>&1
+rem The backend shares this window, so its messages (and any error) show here,
+rem as on macOS and Linux.
+start "EXDA Backend" /B "%VENV_PY%" backend\app.py
 
 rem Make sure it is EXDA (not another program) that answers on the port.
 "%VENV_PY%" scripts\check_exda_backend.py %BACKEND_HOST% %BACKEND_PORT% 30
@@ -97,11 +97,7 @@ if "%BACKEND_CHECK%"=="2" (
 )
 if not "%BACKEND_CHECK%"=="0" (
   echo.
-  echo The backend stopped during startup. Check the error output below.
-  if exist "%BACKEND_LOG%" (
-    echo.
-    type "%BACKEND_LOG%"
-  )
+  echo The backend stopped during startup. Check the error messages above.
   echo.
   pause
   exit /b 1
@@ -114,6 +110,8 @@ echo ===================================================
 echo EXDA IS RUNNING
 echo Close this window to stop EXDA.
 echo ===================================================
+rem Browser compatibility data only matters when building; hide its "data is old" notice.
+set "BROWSERSLIST_IGNORE_OLD_DATA=1"
 call npm run vite -- --host %FRONTEND_HOST% --port %FRONTEND_PORT%
 
 endlocal

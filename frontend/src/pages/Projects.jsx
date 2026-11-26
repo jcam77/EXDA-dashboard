@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PathText from '../components/PathText';
 import { AlertTriangle, ChevronDown, FolderPlus, Folder, FolderOpen, Folders, Trash2, Search, RefreshCw, Home, Pencil, Copy, X } from 'lucide-react';
 import CapabilityCloud from '../components/CapabilityCloud';
+import { fetchJsonShared } from '../utils/sharedFetch';
 import { folderName } from '../utils/pathCrumbs';
 import ProjectPickerModal from '../components/ProjectPickerModal';
 import UnifiedModal from '../components/UnifiedModal';
@@ -51,51 +52,6 @@ const ProjectsPage = ({
   const [selectedFolder, setSelectedFolder] = useState('all');
   const { dialogModal, setDialogModal, showAlert, showConfirm, showPrompt } = useAppDialog();
 
-  const buildSummaryFromPlan = (data) => {
-    if (!data || typeof data !== 'object') return null;
-    const experiments = Array.isArray(data.experiments) ? data.experiments : [];
-    const doneCount = experiments.filter((exp) => exp?.done).length;
-    const total = experiments.length;
-    const progress = total ? Math.round((doneCount / total) * 100) : 0;
-    const meta = data.meta || {};
-    return {
-      plan_name: data.planName || 'Experiment_Plan',
-      objective: meta.objective || '',
-      description: meta.description || '',
-      start_date: meta.startDate || '',
-      deadline: meta.deadline || '',
-      created_date: meta.startDate || '',
-      experiments_total: total,
-      experiments_done: doneCount,
-      progress,
-      status: progress >= 100 ? 'archived' : total === 0 ? 'planning' : 'active',
-    };
-  };
-
-  const fetchPlanFallback = useCallback(async (projectPath) => {
-    const candidates = [
-      `${projectPath}/Plan/Experiment_Plan_v000.json`,
-      `${projectPath}/Plan/Experiment_Plan.json`,
-      `${projectPath}/Plan/Experiment_Plan_v001.json`,
-    ];
-    for (const candidate of candidates) {
-      try {
-        const res = await fetch(
-          `${apiBaseUrl}/read_project_file?path=${encodeURIComponent(candidate)}&projectPath=${encodeURIComponent(projectPath)}`
-        );
-        const data = await res.json();
-        if (data.success && data.content) {
-          const planData = JSON.parse(data.content);
-          const summary = buildSummaryFromPlan(planData);
-          if (summary) return summary;
-        }
-      } catch {
-        continue;
-      }
-    }
-    return null;
-  }, [apiBaseUrl]);
-
   const validateFolderEntry = useCallback(async (item) => {
     const entry = typeof item === 'string' ? { path: item, mode: 'root' } : item;
     const path = (entry?.path || '').trim();
@@ -104,17 +60,15 @@ const ProjectsPage = ({
 
     try {
       if (mode === 'project') {
-        const res = await fetch(
+        const data = await fetchJsonShared(
           `${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(path)}`
         );
-        const data = await res.json();
         return data.success ? { path, mode } : null;
       }
 
-      const res = await fetch(
+      const data = await fetchJsonShared(
         `${apiBaseUrl}/list_directories?path=${encodeURIComponent(path)}`
       );
-      const data = await res.json();
       return data.success ? { path, mode } : null;
     } catch {
       return null;
@@ -125,8 +79,7 @@ const ProjectsPage = ({
     try {
       // Without a path the backend answers for the default projects folder
       // (EXDA-Projects next to the app, or EXDA_PROJECTS_ROOT); 404 if it is missing.
-      const res = await fetch(`${apiBaseUrl}/list_directories`);
-      const data = await res.json();
+      const data = await fetchJsonShared(`${apiBaseUrl}/list_directories`);
       if (!data.success || !data.path) return null;
       setAppFolderWarning(
         data.insideAppFolder ? { path: data.path, recommended: data.recommendedProjectsRoot } : null
@@ -145,17 +98,16 @@ const ProjectsPage = ({
 
     try {
       if (mode === 'project') {
-        const res = await fetch(
+        const data = await fetchJsonShared(
           `${apiBaseUrl}/get_project_state?projectPath=${encodeURIComponent(path)}`
         );
-        const data = await res.json();
         return data.success ? 1 : 0;
       }
 
-      const res = await fetch(
+      // Same request as loadProjects below, so the list is fetched once.
+      const data = await fetchJsonShared(
         `${apiBaseUrl}/list_projects?path=${encodeURIComponent(path)}`
       );
-      const data = await res.json();
       if (!data.success) return 0;
       return Array.isArray(data.projects) ? data.projects.length : 0;
     } catch {
@@ -189,13 +141,14 @@ const ProjectsPage = ({
     return savedWithProjects;
   }, [countProjectsForEntry, locateDefaultProjectsRoot, validateFolderEntry]);
 
-  const loadProjects = useCallback(async (paths) => {
+  // force: ask the backend again (Refresh, after a change); otherwise answers
+  // fetched a moment ago (e.g. while counting projects) are reused.
+  const loadProjects = useCallback(async (paths, { force = false } = {}) => {
     const pathList = Array.isArray(paths) ? paths : [paths].filter(Boolean);
     if (pathList.length === 0) return;
     setLoading(true);
     setError('');
     try {
-      const cacheBuster = Date.now();
       const allEntries = [];
       for (const item of pathList) {
         const path = item.path || item;
@@ -204,10 +157,12 @@ const ProjectsPage = ({
         // holding several test campaigns); see /list_projects in the backend.
         // A single project folder lists only itself; a folder that is not an
         // EXDA project (no exda-project.json) is never shown as a project.
-        const res = await fetch(
-          `${apiBaseUrl}/list_projects?path=${encodeURIComponent(path)}&_ts=${cacheBuster}`
+        // Each entry already carries its plan summary (or none if the project
+        // has no readable plan), so no further requests are needed per project.
+        const data = await fetchJsonShared(
+          `${apiBaseUrl}/list_projects?path=${encodeURIComponent(path)}`,
+          { force }
         );
-        const data = await res.json();
         if (!data.success) {
           continue;
         }
@@ -215,47 +170,10 @@ const ProjectsPage = ({
           allEntries.push(entry);
         });
       }
-      const summaries = await Promise.all(
-        allEntries.map(async (project) => {
-          if (project.plan) {
-            return { path: project.path, plan: project.plan };
-          }
-          try {
-            const summaryRes = await fetch(
-              `${apiBaseUrl}/project_plan_summary?path=${encodeURIComponent(
-                project.path
-              )}&_ts=${cacheBuster}`
-            );
-            const summaryData = await summaryRes.json();
-            if (summaryData.success) {
-              return { path: project.path, plan: summaryData.plan };
-            }
-            const fallback = await fetchPlanFallback(project.path);
-            if (fallback) {
-              return { path: project.path, plan: fallback };
-            }
-          } catch {
-            const fallback = await fetchPlanFallback(project.path);
-            if (fallback) {
-              return { path: project.path, plan: fallback };
-            }
-            return null;
-          }
-          return null;
-        })
-      );
-
-      const summaryMap = summaries
-        .filter(Boolean)
-        .reduce((acc, item) => {
-          acc[item.path] = item.plan;
-          return acc;
-        }, {});
 
       const mergedMap = new Map();
       allEntries.forEach((project) => {
-        const enriched = summaryMap[project.path] ? { ...project, plan: summaryMap[project.path] } : project;
-        mergedMap.set(project.path, enriched);
+        mergedMap.set(project.path, project);
       });
 
       setProjects(Array.from(mergedMap.values()));
@@ -267,7 +185,7 @@ const ProjectsPage = ({
     } finally {
       setLoading(false);
     }
-  }, [apiBaseUrl, fetchPlanFallback]);
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     if (projectFolders.length > 0) return;
@@ -321,22 +239,27 @@ const ProjectsPage = ({
     initFolders();
   }, [apiBaseUrl, projectFolders.length, demoMode, resolvePreferredProjectFolders]);
 
+  // The Refresh button changes refreshKey: then the lists are fetched fresh.
+  const lastRefreshKey = useRef(refreshKey);
   useEffect(() => {
     if (projectFolders.length === 0) return;
+    const force = lastRefreshKey.current !== refreshKey;
+    lastRefreshKey.current = refreshKey;
     if (selectedFolder === 'all') {
-      loadProjects(projectFolders);
+      loadProjects(projectFolders, { force });
       return;
     }
     const selected = projectFolders.find((item) => item.path === selectedFolder);
-    loadProjects(selected || selectedFolder);
+    loadProjects(selected || selectedFolder, { force });
   }, [refreshKey, projectFolders, selectedFolder, loadProjects]);
 
+  // After a change (create, rename, copy, archive …) always ask the backend again.
   const reloadProjects = useCallback(() => {
     if (selectedFolder === 'all') {
-      return loadProjects(projectFolders);
+      return loadProjects(projectFolders, { force: true });
     }
     const selected = projectFolders.find((item) => item.path === selectedFolder);
-    return loadProjects(selected || selectedFolder);
+    return loadProjects(selected || selectedFolder, { force: true });
   }, [loadProjects, projectFolders, selectedFolder]);
 
   const handlePickBasePath = (pathValue) => {
