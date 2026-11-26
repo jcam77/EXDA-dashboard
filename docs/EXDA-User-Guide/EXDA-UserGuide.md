@@ -1,4 +1,4 @@
-# EXDA User Guide — MVP mode (version 4.0.12)
+# EXDA User Guide — MVP mode (version 5.0.4)
 
 This guide walks you through a test campaign in EXDA, tab by tab, in the order
 you use them: from opening a project to exporting the report. Every section has a
@@ -58,6 +58,14 @@ the advanced analysis tabs (pressure analysis, EWT, CFD validation, flame speed,
 AiRA, literature) appear as well.
 
 ![The project workspace in MVP mode](images/00-workspace.png)
+
+**Development and AI assistance.** EXDA was designed and developed by Javier I.
+Camacho. The code and the documentation, including this guide, were written with
+the assistance of AI coding tools (OpenAI Codex and Anthropic Claude, including
+Claude Opus 5.5). All changes were reviewed by the author. The calculations are
+covered by automated tests; the Developer Overview lists what has been verified
+against independent references and what has not. Results shown by EXDA are for
+quick on-site checks and are not final, publication-grade results.
 
 ---
 

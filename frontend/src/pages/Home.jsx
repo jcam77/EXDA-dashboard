@@ -838,6 +838,10 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
               must be independently reviewed and processed using validated workflows outside this application, including appropriate
               documentation of assumptions, processing steps, and uncertainty evaluation.
             </p>
+            <p className="mt-2 text-xs text-muted-foreground text-justify">
+              EXDA was developed with the assistance of AI coding tools (OpenAI Codex and Anthropic Claude Opus 5.5);
+              all changes were reviewed and tested by the author.
+            </p>
           </div>
         </div>
       </section>

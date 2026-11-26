@@ -5,8 +5,11 @@ verified today, and what to improve before the calculations are extended.
 
 - **Audience:** developers working on EXDA (not end users; see
   [EXDA-UserGuide.md](../EXDA-User-Guide/EXDA-UserGuide.md) for those).
-- **State described:** release 4.0.12 on `CLAUDE-Updates`
-  (24 November 2026). Sections 1–4, 7, 8 and 10 were
+- **State described:** release 5.0.3 on `CLAUDE-Updates`
+  (26 November 2026). Releases 4.0.13–5.0.3 changed the install layout,
+  the shortcuts, the projects folder, the capabilities cloud and the picker
+  start folder (all in the table below); the code changes after 4.0.14 were
+  documentation only. Sections 1–4, 7, 8 and 10 are
   updated for this state. The findings in section 6 were first written for
   4.0.0. The calculation modules they refer to (`pressure_analysis`,
   `ewt_analysis`, `gas_mixing`, `flame_analysis`, `useAnalysisPipeline`)
@@ -14,6 +17,12 @@ verified today, and what to improve before the calculations are extended.
   "no default values" audit of November 2026.
 - **Evidence:** every finding in section 6 was checked against the code;
   the numbers quoted were reproduced by running the current code.
+- **Development and AI assistance:** EXDA was designed and developed by
+  Javier I. Camacho, with the assistance of AI coding tools (OpenAI Codex and
+  Anthropic Claude, including Claude Opus 5.5) for code, tests and
+  documentation, including this overview. The tools worked within the
+  repository's own checks (unit tests, lint, the allow-listed release script);
+  every change was reviewed, and every release was run, by the author.
 
 ## Changes since 4.0.0 that matter for developers
 
@@ -25,6 +34,8 @@ verified today, and what to improve before the calculations are extended.
 | Project Description | New first tab, stored in `Plan/project_description.json` (own blueprint) | [project_description.py](../../backend/modules/project_description.py), [routes/project_description.py](../../backend/routes/project_description.py) |
 | Plan file selection | `project_description.json` and the status file are never picked as the plan | `NON_PLAN_FILENAMES` in [project_manager.py:203](../../backend/modules/project_manager.py#L203) |
 | Capabilities cloud | Projects page card with the capability terms (methods, measured quantities, facility, fuels, keywords) of the listed projects, sized by the number of projects and packed on a spiral (some smaller words vertical); colours are the theme tokens `--cloud-*` (index.css), a categorical palette checked with a colour-vision validator in both themes; follows the folder and status filters; click a word to search, with a visible filter bar and Show all. Computed in the browser from `capabilities` in `/list_projects`; read-only | [CapabilityCloud.jsx](../../frontend/src/components/CapabilityCloud.jsx), [capabilityCloud.js](../../frontend/src/utils/capabilityCloud.js), `CAPABILITY_FIELD_IDS` in [project_description.py](../../backend/modules/project_description.py) |
+| Run data files on Windows | Relative paths sent to the browser (`/list_raw_data`, project-state data files, Literature) always use "/", as stored in the plan; before, Windows sent "\\", so the run card found no files. The run card never drops linked files on save; links to files not found on this computer are listed and only removed with "Unlink these files" | [runFiles.js](../../frontend/src/utils/runFiles.js), `Plan.jsx`, [test_raw_data_listing.py](../../backend/tests/test_raw_data_listing.py) |
+| Picker start folder | Open/Create Project start in a projects folder (the one holding the last project, else the default `EXDA-Projects`), never at an old project path that may no longer exist | [pickerStart.js](../../frontend/src/utils/pickerStart.js), used by `WorkspacePage.jsx` and `ProjectPickerModal.jsx` |
 | Projects page | Folder picker styled like the app, project groups, collapsible | [ProjectPickerModal.jsx](../../frontend/src/components/ProjectPickerModal.jsx), [Projects.jsx](../../frontend/src/pages/Projects.jsx) |
 | Page headers | One `PageHeader` component for every tab | [PageHeader.jsx](../../frontend/src/components/PageHeader.jsx) |
 | Launchers | `Setup-EXDA-*` installs requirements on first start; `Run-EXDA-*` only checks and starts; recommended layout `EXDA/` with the app, `EXDA-Projects/` and the EXDA shortcut | repository root, [make_shortcuts.ps1](../../scripts/make_shortcuts.ps1) |
@@ -187,7 +198,7 @@ Sizes are lines of code (tracked files, November 2026).
 | [routes/state.py](../../backend/routes/state.py) | 5 813 | 40 routes: project state, plan/mapping/gas/checklist saves, exports (PDF/CSV), raw-file reading, channel peaks, procedures, lock, run renames |
 | [routes/ai.py](../../backend/routes/ai.py) | 2 040 | AiRA assistant (Ollama), repository context |
 | [routes/calculation_api_routes.py](../../backend/routes/calculation_api_routes.py) | 607 | `/analyze`, `/analyze_pressure`, `/analyze_vent`, `/analyze_ewt`, `/preview_multichannel`, `/aggregate_plot`, `/calculate_gas_mix`, `/calculation_verification` |
-| [routes/projects.py](../../backend/routes/projects.py) | 407 | Create, open, rename, copy, delete, list projects; projects overview and plan summary; folder listing for the picker; default projects folder |
+| [routes/projects.py](../../backend/routes/projects.py) | 453 | Create, open, rename, copy, delete, list projects (with capability terms); default projects folder created next to the app; projects overview and plan summary; folder listing for the picker; default projects folder |
 | [routes/project_description.py](../../backend/routes/project_description.py) | 108 | `/get_project_description`, `/save_project_description`, `/project_description_suggestions` |
 | [modules/project_manager.py](../../backend/modules/project_manager.py) | 594 | Project folder structure, project marker, plan save/load, status |
 | [modules/pressure_analysis.py](../../backend/modules/pressure_analysis.py) | 580 | Pressure processing chain and metrics (pMax, tMax, impulse), vent time |
@@ -200,7 +211,7 @@ Sizes are lines of code (tracked files, November 2026).
 | [modules/h2s_parser.py](../../backend/modules/h2s_parser.py) | 196 | H₂ sensor logs: block splitting, duplicates |
 | [modules/folder_dialog.py](../../backend/modules/folder_dialog.py) | 196 | Native folder dialog fallback (per OS) |
 | [modules/tpc5_parser.py](../../backend/modules/tpc5_parser.py), [mf4_parser.py](../../backend/modules/mf4_parser.py) | 186, 123 | Preview content from TPC5/MF4, reduced with the min/max envelope |
-| [modules/project_description.py](../../backend/modules/project_description.py) | 183 | Project Description schema (`exda-project-description/1`), validation, suggestions from other projects |
+| [modules/project_description.py](../../backend/modules/project_description.py) | 196 | Project Description schema (`exda-project-description/1`), validation, suggestions from other projects |
 | [modules/checklist_definition.py](../../backend/modules/checklist_definition.py), [procedures.py](../../backend/modules/procedures.py) | 166, 84 | Editable checklist definition; list of campaign safety documents |
 | [modules/gas_mixing_store.py](../../backend/modules/gas_mixing_store.py) | 163 | Gas record history and audit |
 | [modules/plot_interpolation.py](../../backend/modules/plot_interpolation.py) | 152 | Merging series for overlay plots (display only) |
@@ -215,18 +226,18 @@ Sizes are lines of code (tracked files, November 2026).
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| [features/workspace/WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) | 2 174 | App shell: tabs, tab headers, routing, project open/save, versions, lock, read-only banner |
+| [features/workspace/WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) | 2 175 | App shell: tabs, tab headers, routing, project open/save, versions, lock, read-only banner |
 | [pages/Plan.jsx](../../frontend/src/pages/Plan.jsx) | 2 092 | Campaign plan, run cards, renames, actual ignition time |
 | [pages/RawDataScreeningCorePage.jsx](../../frontend/src/pages/RawDataScreeningCorePage.jsx) | 1 446 | Pressure and H₂ screening plots; unit and ppm conversions for display; peak range and channel choice (kept in localStorage) |
 | [pages/GasMixing.jsx](../../frontend/src/pages/GasMixing.jsx) | 1 366 | Gas mixing form, calculate/save, calibration, record checks |
 | [pages/SensorsMapping.jsx](../../frontend/src/pages/SensorsMapping.jsx), [CamerasMapping.jsx](../../frontend/src/pages/CamerasMapping.jsx) | 1 216, 1 043 | Sensor/camera mappings, per-run overrides |
-| [pages/Projects.jsx](../../frontend/src/pages/Projects.jsx), [Home.jsx](../../frontend/src/pages/Home.jsx) | 988, 972 | Projects overview (groups, collapsible), home page |
+| [pages/Projects.jsx](../../frontend/src/pages/Projects.jsx), [Home.jsx](../../frontend/src/pages/Home.jsx) | 1 058, 976 | Projects overview (capabilities cloud, filter bar, groups, collapsible), home page |
 | [pages/ImportData.jsx](../../frontend/src/pages/ImportData.jsx) | 851 | Raw data folders per run and DAQ |
 | [components/HighResMultiChannelPlot.jsx](../../frontend/src/components/HighResMultiChannelPlot.jsx) | 361 | uPlot multichannel plot; draws the peak-table time range |
-| [components/ProjectPickerModal.jsx](../../frontend/src/components/ProjectPickerModal.jsx) | 307 | Folder picker in the app style (breadcrumbs from [pathCrumbs.js](../../frontend/src/utils/pathCrumbs.js)) |
+| [components/ProjectPickerModal.jsx](../../frontend/src/components/ProjectPickerModal.jsx) | 308 | Folder picker in the app style (breadcrumbs from [pathCrumbs.js](../../frontend/src/utils/pathCrumbs.js); start folder from [pickerStart.js](../../frontend/src/utils/pickerStart.js)) |
 | [pages/ProjectDescription.jsx](../../frontend/src/pages/ProjectDescription.jsx) | 292 | Project Description tab (with [useProjectDescription.js](../../frontend/src/hooks/useProjectDescription.js), [TagInput.jsx](../../frontend/src/components/TagInput.jsx)) |
 | [components/PeakTable.jsx](../../frontend/src/components/PeakTable.jsx) | 194 | Peak pressures table: range, channel choice, calls `/channel_peaks`; values formatted by [peakFormat.js](../../frontend/src/utils/peakFormat.js) |
-| [components/CapabilityCloud.jsx](../../frontend/src/components/CapabilityCloud.jsx) | 223 | Research and experimental capabilities word cloud on the Projects page, drawn as SVG (term counting and the deterministic spiral layout in [capabilityCloud.js](../../frontend/src/utils/capabilityCloud.js)) |
+| [components/CapabilityCloud.jsx](../../frontend/src/components/CapabilityCloud.jsx) | 244 | Research and experimental capabilities word cloud on the Projects page, drawn as SVG (term counting and the deterministic spiral layout in [capabilityCloud.js](../../frontend/src/utils/capabilityCloud.js)) |
 | [components/PageHeader.jsx](../../frontend/src/components/PageHeader.jsx) | 19 | Title bar used by every tab |
 | [features/analysis/PressureAnalysisWorkbench.jsx](../../frontend/src/features/analysis/PressureAnalysisWorkbench.jsx) | 766 | Pressure analysis and CFD-validation UI (advanced mode) |
 | [pages/AppCalculationsVerification.jsx](../../frontend/src/pages/AppCalculationsVerification.jsx) | 651 | In-app verification page (Python vs Octave) |
@@ -679,8 +690,8 @@ table.
 
 | Suite | Files | Tests | Notes |
 | --- | --- | ---: | --- |
-| Backend unittest | 18 in [backend/tests/](../../backend/tests) | 164 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
-| Frontend vitest | 13 in [frontend/tests/](../../frontend/tests) | 68 | Gas-mixing logic, units (incl. trigger detection), peak formatting, capabilities cloud, mappings, versions, formatting, path crumbs, Project Description |
+| Backend unittest | 19 in [backend/tests/](../../backend/tests) | 167 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
+| Frontend vitest | 15 in [frontend/tests/](../../frontend/tests) | 80 | Gas-mixing logic, units (incl. trigger detection), peak formatting, capabilities cloud, picker start folder, run data files, mappings, versions, formatting, path crumbs, Project Description |
 | End-to-end | 2 in [tests/e2e/](../../tests/e2e) | – | Playwright; need a running app |
 | Guide media | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) | – | Not a test, but it clicks through every MVP tab on synthetic data, so a broken flow shows up when the media are regenerated |
 | Octave comparison | [backend/tests/scripts/comparison/](../../backend/tests/scripts/comparison) | – | Manual scripts writing CSVs to `backend/tests/results/` |
@@ -721,7 +732,7 @@ table.
   the absolute-pressure path against a reference, and the frontend–backend
   agreement for the calibration correction.
 - **No CI yet (S7):** the counts above are from running the suites by hand
-  on 24 November 2026.
+  on 26 November 2026.
 
 ---
 

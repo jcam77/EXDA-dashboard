@@ -4,6 +4,7 @@ import {
     Clock, GripVertical, Layers, FlaskConical, X, 
     AlertCircle, CheckCircle2, Beaker, Zap, Cpu, TrendingUp, Thermometer, Gauge, ChevronRight, ChevronDown, Wrench, Undo2
 } from 'lucide-react';
+import { filesInRunFolder, linkedRunFiles, missingLinkedFiles, toPosixPath } from '../utils/runFiles';
 import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, LabelList } from 'recharts';
 import { getBackendBaseUrl } from '../utils/backendUrl';
 import UnifiedModal from '../components/UnifiedModal';
@@ -372,12 +373,7 @@ const PlanPage = ({
         });
     }, [experiments, projectPath, syncRunFolders]);
 
-    const filesForRunName = useCallback((runName) => {
-        const cleanName = String(runName || '').trim();
-        if (!cleanName) return [];
-        const prefix = `${cleanName}/`;
-        return rawDataFiles.filter((filePath) => String(filePath || '').startsWith(prefix));
-    }, [rawDataFiles]);
+    const filesForRunName = useCallback((runName) => filesInRunFolder(rawDataFiles, runName), [rawDataFiles]);
 
     const buildRunName = useCallback((groupValue, runValue) => {
         const cleanGroup = String(groupValue || '').trim().replace(/[/\\]/g, '-');
@@ -593,7 +589,7 @@ const PlanPage = ({
                     const oldName = String(exp?.name || '').trim();
                     const newName = String(renameMap.get(exp.id) || '').trim();
                     const currentFiles = Array.isArray(exp?.meta?.dataFiles) ? exp.meta.dataFiles : [];
-                    const remappedFiles = currentFiles.map((filePath) => remapRunFilePath(filePath, oldName, newName));
+                    const remappedFiles = currentFiles.map((filePath) => remapRunFilePath(toPosixPath(filePath), oldName, newName));
                     return {
                         ...exp,
                         name: newName,
@@ -695,10 +691,10 @@ const PlanPage = ({
                 return;
             }
             setEditError("");
-            const current = Array.isArray(editingExp.meta?.dataFiles) ? editingExp.meta.dataFiles : [];
-            const runScoped = new Set(filesForRunName(editingExp.name));
-            // Respect user selection: keep only checked files that belong to this run folder.
-            const selected = current.filter((filePath) => runScoped.has(filePath));
+            // Keep every linked file, also ones not found in the run folder on
+            // this computer (e.g. data not copied here yet); they are only
+            // removed when the user unlinks them. Paths are stored with "/".
+            const selected = linkedRunFiles(editingExp.meta?.dataFiles);
             const updatedEditingExp = {
                 ...editingExp,
                 meta: {
@@ -847,7 +843,7 @@ const PlanPage = ({
                 const res = await fetch(`${apiBaseUrl}/list_raw_data?projectPath=${encodeURIComponent(projectPath)}`);
                 const data = await res.json();
                 if (!cancelled) {
-                    setRawDataFiles(Array.isArray(data?.files) ? data.files : []);
+                    setRawDataFiles(Array.isArray(data?.files) ? data.files.map(toPosixPath) : []);
                 }
             } catch {
                 if (!cancelled) setRawDataFiles([]);
@@ -859,9 +855,9 @@ const PlanPage = ({
 
     const toggleDataFileForEditingExp = (pathValue) => {
         if (!editingExp) return;
-        const cleanPath = (pathValue || '').trim();
+        const cleanPath = toPosixPath(pathValue);
         if (!cleanPath) return;
-        const current = Array.isArray(editingExp.meta?.dataFiles) ? editingExp.meta.dataFiles : [];
+        const current = linkedRunFiles(editingExp.meta?.dataFiles);
         const next = current.includes(cleanPath)
             ? current.filter((item) => item !== cleanPath)
             : [...current, cleanPath];
@@ -880,18 +876,31 @@ const PlanPage = ({
             ...editingExp,
             meta: {
                 ...editingExp.meta,
-                dataFiles: [...editingRunScopedFiles]
+                dataFiles: linkedRunFiles([...editingStaleLinkedFiles, ...editingRunScopedFiles])
             }
         });
     };
 
     const clearAllDataFilesForEditingExp = () => {
         if (!editingExp) return;
+        // Clears the files of this run folder; links to files not found here stay.
         setEditingExp({
             ...editingExp,
             meta: {
                 ...editingExp.meta,
-                dataFiles: []
+                dataFiles: [...editingStaleLinkedFiles]
+            }
+        });
+    };
+
+    const unlinkMissingFilesForEditingExp = () => {
+        if (!editingExp) return;
+        const missing = new Set(editingStaleLinkedFiles);
+        setEditingExp({
+            ...editingExp,
+            meta: {
+                ...editingExp.meta,
+                dataFiles: linkedRunFiles(editingExp.meta?.dataFiles).filter((path) => !missing.has(path))
             }
         });
     };
@@ -1340,9 +1349,9 @@ const PlanPage = ({
         setIsModalDragging(true);
     };
 
-    const editingSelectedFiles = Array.isArray(editingExp?.meta?.dataFiles) ? editingExp.meta.dataFiles : [];
+    const editingSelectedFiles = linkedRunFiles(editingExp?.meta?.dataFiles);
     const editingRunScopedFiles = editingExp ? filesForRunName(editingExp.name) : [];
-    const editingStaleLinkedFiles = editingSelectedFiles.filter((pathValue) => !editingRunScopedFiles.includes(pathValue));
+    const editingStaleLinkedFiles = missingLinkedFiles(editingSelectedFiles, editingRunScopedFiles);
     const editingIgnitionValue = String(editingExp?.meta?.ignition || '');
     const editingVentValue = String(editingExp?.meta?.vent || '');
     const editingIgnitionSelection = ignitionEditorMode;
@@ -1971,7 +1980,7 @@ const PlanPage = ({
                                         </div>
                                         <div className="max-h-32 overflow-y-auto pr-1 space-y-1 border border-zinc-800 rounded bg-black/30 p-2">
                                             {editingRunScopedFiles.map((filePath) => {
-                                                const checked = (editingExp.meta?.dataFiles || []).includes(filePath);
+                                                const checked = editingSelectedFiles.includes(filePath);
                                                 const parts = String(filePath).split('/');
                                                 const fileName = parts[parts.length - 1] || filePath;
                                                 return (
@@ -2012,12 +2021,27 @@ const PlanPage = ({
                                             </div>
                                         )}
                                         {editingStaleLinkedFiles.length > 0 && (
-                                            <div className="rounded border border-amber-600/40 bg-amber-900/15 px-2 py-1.5 text-[10px] text-amber-300">
-                                                {editingStaleLinkedFiles.length} linked file(s) are outside this run folder and will be removed when you save this run card.
+                                            <div className="rounded border border-amber-600/40 bg-amber-900/15 px-2 py-1.5 text-[10px] text-amber-300 space-y-1">
+                                                <div>
+                                                    {editingStaleLinkedFiles.length} linked file(s) are not found in this run folder on this computer.
+                                                    They stay linked; check that the data is in Raw_Data, or unlink them.
+                                                </div>
+                                                <ul className="font-mono text-[9px] text-amber-200/80 break-all">
+                                                    {editingStaleLinkedFiles.map((path) => <li key={path}>{path}</li>)}
+                                                </ul>
+                                                <div className="flex justify-end">
+                                                    <button
+                                                        type="button"
+                                                        onClick={unlinkMissingFilesForEditingExp}
+                                                        className="text-[10px] px-2 py-1 rounded border border-amber-600/50 text-amber-300 hover:bg-amber-900/30 transition-colors"
+                                                    >
+                                                        Unlink these files
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
                                         <div className="text-[10px] text-zinc-500">
-                                            Selected: {(editingExp.meta?.dataFiles || []).length}
+                                            Selected: {editingSelectedFiles.length}
                                         </div>
                                     </div>
                                 </div>

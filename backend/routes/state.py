@@ -3010,7 +3010,7 @@ def get_project_state():
                 if f.startswith('.'):
                     continue
                 full_path = os.path.join(root, f)
-                rel_path = os.path.relpath(full_path, data_dir)
+                rel_path = os.path.relpath(full_path, data_dir).replace(os.sep, "/")
 
                 file_info = {"name": f, "path": full_path, "rel": rel_path}
 
@@ -3645,7 +3645,8 @@ def list_raw_data():
         dirs[:] = [d for d in dirs if not d.startswith('.')]
         for f in files:
             if not f.startswith('.'):
-                rel_path = os.path.relpath(os.path.join(root, f), data_dir)
+                # Always "/" (as stored in the plan), also on Windows.
+                rel_path = os.path.relpath(os.path.join(root, f), data_dir).replace(os.sep, "/")
                 files_found.append(rel_path)
     return jsonify({"success": True, "files": sorted(files_found)})
 

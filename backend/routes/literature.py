@@ -23,7 +23,7 @@ def list_research_pdfs():
     for root, dirs, files in os.walk(literature_dir):
         for f in files:
             if f.lower().endswith('.pdf'):
-                rel_path = os.path.relpath(os.path.join(root, f), literature_dir)
+                rel_path = os.path.relpath(os.path.join(root, f), literature_dir).replace(os.sep, "/")
                 files_found.append(rel_path)
     return jsonify({"success": True, "files": files_found})
 
