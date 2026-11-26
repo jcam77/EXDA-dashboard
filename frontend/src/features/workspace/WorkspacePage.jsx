@@ -374,7 +374,7 @@ const WorkspacePage = () => {
   const renderMvpModeButton = useCallback(() => (
       <button
           onClick={handleMvpModeToggle}
-          className={`inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-md border px-3 text-[10px] font-semibold uppercase tracking-widest transition ${isMvpMode ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
+          className={`inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-md border px-3 text-[11px] font-semibold uppercase tracking-widest transition ${isMvpMode ? 'border-primary bg-primary/15 text-primary' : 'border-border text-foreground hover:border-ring'}`}
           aria-pressed={isMvpMode}
           title={isMvpMode ? 'Disable MVP mode (password protected when configured)' : 'Enable MVP mode'}
       >
@@ -803,8 +803,8 @@ const WorkspacePage = () => {
   })();
 
   const projectStatusClassName = (() => {
-      if (projectStatus === 'active') return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-      if (projectStatus === 'planning') return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+      if (projectStatus === 'active') return 'bg-success/15 text-success border-success/40';
+      if (projectStatus === 'planning') return 'bg-warning/15 text-warning border-warning/40';
       return 'bg-muted/20 text-muted-foreground border-border';
   })();
 
@@ -1465,7 +1465,7 @@ const WorkspacePage = () => {
                                   <p className="text-xs text-muted-foreground">
                                       Artificial Intelligence Research Assistant
                                   </p>
-                                  <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
+                                  <p className="text-[11px] text-muted-foreground uppercase tracking-[0.2em]">
                                       LLM-Based Analysis Module
                                   </p>
                               </div>
@@ -1514,7 +1514,7 @@ const WorkspacePage = () => {
                           </div>
                           <button
                               onClick={() => setIsLight((value) => !value)}
-                              className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition"
+                              className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition"
                               aria-pressed={isLight}
                               role="switch"
                               aria-checked={isLight}
@@ -1685,10 +1685,10 @@ const WorkspacePage = () => {
                                                     <img src={getPublicUrl('institute_logo-DarkMode.png')} alt="I" className="h-10 object-contain logo-dark" onError={(e) => {e.target.style.display='none'}} />
                                                     <img src={getPublicUrl('institute_logo-LightMode.png')} alt="I" className="h-10 object-contain logo-light" onError={(e) => {e.target.style.display='none'}} />
                                                 </a>
-                                            <div className="ml-4">
-                                                <div className="flex flex-wrap items-center gap-3">
+                                            <div className="ml-4 min-w-0">
+                                                <div className="flex flex-wrap items-center gap-3 min-w-0">
                                                     <h1
-                                                        className="text-xl font-bold text-foreground flex items-center gap-2 cursor-pointer hover:text-primary transition"
+                                                        className="min-w-0 max-w-[24rem] text-lg xl:text-xl font-bold text-foreground flex items-center gap-2 cursor-pointer hover:text-primary transition"
                                                         title={projectPath}
                                                         aria-label={`Project path: ${projectPath}`}
                                                         role="button"
@@ -1701,14 +1701,15 @@ const WorkspacePage = () => {
                                                             }
                                                         }}
                                                     >
-                                                        <FlaskConical className="text-foreground"/><Activity className="text-red-500"/> 
-                                                        {projectPath.split(/[/\\]/).pop()}
+                                                        <FlaskConical className="shrink-0 text-foreground"/><Activity className="shrink-0 text-red-500"/>
+                                                        {/* One line; a long name ends in "…" (full path on hover). */}
+                                                        <span className="truncate [overflow-wrap:normal] [word-break:normal]">{projectPath.split(/[/\\]/).pop()}</span>
                                                     </h1>
                                                     <select
                                                         value={projectStatus}
                                                         onChange={(event) => updateWorkspaceProjectStatus(event.target.value)}
                                                         disabled={isUpdatingProjectStatus}
-                                                        className={`rounded-md border px-2 py-1 text-[10px] font-semibold uppercase disabled:cursor-not-allowed ${projectStatusClassName}`}
+                                                        className={`rounded-md border px-2 py-1 text-[11px] font-semibold uppercase disabled:cursor-not-allowed ${projectStatusClassName}`}
                                                         aria-label="Project status"
                                                         title="Project status"
                                                     >
@@ -1755,7 +1756,7 @@ const WorkspacePage = () => {
                                             </div>
                                             <button
                                                 onClick={() => setIsLight((value) => !value)}
-                                                className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition"
+                                                className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition"
                                                 aria-pressed={isLight}
                                                 role="switch"
                                                 aria-checked={isLight}
@@ -1769,18 +1770,18 @@ const WorkspacePage = () => {
                                                     </span>
                                                 </span>
                                             </button>
-                                            <div className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-widest">
+                                            <div className="hidden 2xl:block whitespace-nowrap text-[11px] text-muted-foreground uppercase tracking-wider">
                                                 Press ? for shortcuts
                                             </div>
                                             <div
-                                                className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-widest"
+                                                className="hidden lg:block whitespace-nowrap text-[11px] text-muted-foreground uppercase tracking-wider"
                                                 title={`Time zone: ${EXDA_DISPLAY_TIME_ZONE}`}
                                             >
                                                 {formatLastSaved(lastSavedAt)}
                                             </div>
                                             <button
                                                 onClick={saveProject}
-                                                className="text-[10px] font-bold uppercase tracking-widest bg-primary/15 px-4 py-2 rounded border border-primary/40 hover:bg-primary/25 transition-all shadow-sm text-primary flex items-center gap-2"
+                                                className="shrink-0 whitespace-nowrap text-xs font-bold uppercase tracking-wider bg-primary/15 px-3 py-2 rounded border border-primary/40 hover:bg-primary/25 transition-all shadow-sm text-primary flex items-center gap-2"
                                                 title="Save Project"
                                                 aria-label="Save Project"
                                             >
@@ -1788,7 +1789,7 @@ const WorkspacePage = () => {
                                             </button>
                                             <button 
                                                 onClick={handleCloseProject} 
-                                                className="text-[10px] font-bold uppercase tracking-widest bg-red-500/15 px-4 py-2 rounded border border-red-500/40 hover:bg-red-500/25 transition-all shadow-sm text-red-500 flex items-center gap-2"
+                                                className="shrink-0 whitespace-nowrap text-xs font-bold uppercase tracking-wider bg-destructive/15 px-3 py-2 rounded border border-destructive/40 hover:bg-destructive/25 transition-all shadow-sm text-destructive flex items-center gap-2"
                                             >
                                                 <X size={12} /> Close Project
                                             </button>
@@ -1805,7 +1806,7 @@ const WorkspacePage = () => {
                                                         to={t.to} 
                                                         title={t.id === 'ewt' ? 'Empirical Wavelet Transform filter data analysis' : undefined}
                                                         aria-label={t.id === 'ewt' ? 'Empirical Wavelet Transform filter data analysis' : t.l}
-                                                        className={`flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-semibold transition ${isActive ? 'border-primary bg-primary/15 text-primary' : 'border-sidebar-border text-muted-foreground hover:border-primary/60 hover:text-foreground'}`}
+                                                        className={`flex items-center gap-2 whitespace-nowrap px-3 py-2 rounded-md border text-sm font-semibold transition ${isActive ? 'border-primary bg-primary/15 text-primary' : 'border-sidebar-border text-muted-foreground hover:border-primary/60 hover:text-foreground'}`}
                                                     >
                                                         <t.i size={16} className={isActive ? 'text-primary' : 'text-muted-foreground'} />
                                                         <span className="tracking-wide">{t.l}</span>
@@ -1818,7 +1819,7 @@ const WorkspacePage = () => {
 
           <div className={`w-full p-6 flex-1 animate-in fade-in slide-in-from-bottom-2 duration-700 relative z-0 ${activeTab === 'home' ? 'overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
               {isReadOnly && (
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-500">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-xs text-warning">
                       <span>
                           <strong>Read-only.</strong>{' '}
                           {projectLock.holder?.sameApp ? (
@@ -1834,7 +1835,7 @@ const WorkspacePage = () => {
                       </span>
                       <button
                           type="button"
-                          className="rounded border border-amber-500/50 px-3 py-1 font-semibold hover:bg-amber-500/20"
+                          className="rounded border border-warning/50 px-3 py-1 font-semibold hover:bg-warning/20"
                           onClick={async () => {
                               const ok = await confirmWithModal({
                                   title: 'Take over editing?',

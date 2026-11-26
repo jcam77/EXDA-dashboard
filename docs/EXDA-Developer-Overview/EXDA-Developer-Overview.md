@@ -5,11 +5,11 @@ verified today, and what to improve before the calculations are extended.
 
 - **Audience:** developers working on EXDA (not end users; see
   [EXDA-UserGuide.md](../EXDA-User-Guide/EXDA-UserGuide.md) for those).
-- **State described:** release 5.0.3 on `CLAUDE-Updates`
-  (26 November 2026). Releases 4.0.13–5.0.3 changed the install layout,
-  the shortcuts, the projects folder, the capabilities cloud and the picker
-  start folder (all in the table below); the code changes after 4.0.14 were
-  documentation only. Sections 1–4, 7, 8 and 10 are
+- **State described:** release 5.0.5 on `CLAUDE-Updates`
+  (26 November 2026). Releases 4.0.13–5.0.5 changed the install layout,
+  the shortcuts, the projects folder, the capabilities cloud, the picker
+  start folder, Windows path handling and added the technical skills field
+  (all in the table below). Sections 1–4, 7, 8 and 10 are
   updated for this state. The findings in section 6 were first written for
   4.0.0. The calculation modules they refer to (`pressure_analysis`,
   `ewt_analysis`, `gas_mixing`, `flame_analysis`, `useAnalysisPipeline`)
@@ -34,6 +34,9 @@ verified today, and what to improve before the calculations are extended.
 | Project Description | New first tab, stored in `Plan/project_description.json` (own blueprint) | [project_description.py](../../backend/modules/project_description.py), [routes/project_description.py](../../backend/routes/project_description.py) |
 | Plan file selection | `project_description.json` and the status file are never picked as the plan | `NON_PLAN_FILENAMES` in [project_manager.py:203](../../backend/modules/project_manager.py#L203) |
 | Capabilities cloud | Projects page card with the capability terms (methods, measured quantities, facility, fuels, keywords) of the listed projects, sized by the number of projects and packed on a spiral (some smaller words vertical); colours are the theme tokens `--cloud-*` (index.css), a categorical palette checked with a colour-vision validator in both themes; follows the folder and status filters; click a word to search, with a visible filter bar and Show all. Computed in the browser from `capabilities` in `/list_projects`; read-only | [CapabilityCloud.jsx](../../frontend/src/components/CapabilityCloud.jsx), [capabilityCloud.js](../../frontend/src/utils/capabilityCloud.js), `CAPABILITY_FIELD_IDS` in [project_description.py](../../backend/modules/project_description.py) |
+| Design guide and readability | [EXDA-Design-Guide.md](../EXDA-Design-Guide.md) replaces `design_guidelines.json`: tokens, type (minimum 11 px), components, light/dark and chart-colour rules. Warning and error tokens raised to ≥ 4.5:1 text contrast; checkboxes use `primary`; status badges and the read-only banner use tokens instead of fixed colours; top-bar buttons never break inside a word; 8–10 px text raised to 11 px on MVP screens | `index.css`, `WorkspacePage.jsx`, `Projects.jsx`, MVP pages |
+| Technical skills | New standard Project Description field, picked from the team's skills list (categories → skills) so the same skill has one name; missing skills are added on purpose (category required, `addedBy`/`addedAt` recorded); feeds the capabilities cloud (violet). Projects store the names as text; names outside the list are kept and marked | [skills_catalog.py](../../backend/modules/skills_catalog.py) (`/skills_catalog`, `/add_skill_to_catalog`), [SkillPicker.jsx](../../frontend/src/components/SkillPicker.jsx), [skillsCatalog.js](../../frontend/src/utils/skillsCatalog.js) |
+| Windows folder names | Projects page folder chips show only the folder name (`folderName` in pathCrumbs.js), as on macOS/Linux; CFD import helpers accept `\\` | [Projects.jsx](../../frontend/src/pages/Projects.jsx), [dataImportRules.js](../../frontend/src/features/workspace/dataImportRules.js) |
 | Run data files on Windows | Relative paths sent to the browser (`/list_raw_data`, project-state data files, Literature) always use "/", as stored in the plan; before, Windows sent "\\", so the run card found no files. The run card never drops linked files on save; links to files not found on this computer are listed and only removed with "Unlink these files" | [runFiles.js](../../frontend/src/utils/runFiles.js), `Plan.jsx`, [test_raw_data_listing.py](../../backend/tests/test_raw_data_listing.py) |
 | Picker start folder | Open/Create Project start in a projects folder (the one holding the last project, else the default `EXDA-Projects`), never at an old project path that may no longer exist | [pickerStart.js](../../frontend/src/utils/pickerStart.js), used by `WorkspacePage.jsx` and `ProjectPickerModal.jsx` |
 | Projects page | Folder picker styled like the app, project groups, collapsible | [ProjectPickerModal.jsx](../../frontend/src/components/ProjectPickerModal.jsx), [Projects.jsx](../../frontend/src/pages/Projects.jsx) |
@@ -218,6 +221,7 @@ Sizes are lines of code (tracked files, November 2026).
 | [modules/flame_analysis.py](../../backend/modules/flame_analysis.py) | 85 | Flame speed from probe crossing times |
 | [modules/signal_reduction.py](../../backend/modules/signal_reduction.py) | 69 | Min/max envelope row selection, `reduction_info`, median sampling rate |
 | [modules/output_format.py](../../backend/modules/output_format.py) | 56 | Fixed-precision formatting for exports |
+| [modules/skills_catalog.py](../../backend/modules/skills_catalog.py) | 142 | Team list of technical skills (`EXDA-Projects/exda-skills.json`; built-in default until the first skill is added), add with duplicate check |
 | [modules/screening_peaks.py](../../backend/modules/screening_peaks.py) | 44 | Required time range, max and time of max in that range |
 | [modules/aira_multi_role.py](../../backend/modules/aira_multi_role.py) | 266 | Not imported anywhere (candidate for removal) |
 | [tests/](../../backend/tests) | 18 files | unittest suites, reference data, Octave comparison scripts, third-party EWT toolbox |
@@ -238,6 +242,7 @@ Sizes are lines of code (tracked files, November 2026).
 | [pages/ProjectDescription.jsx](../../frontend/src/pages/ProjectDescription.jsx) | 292 | Project Description tab (with [useProjectDescription.js](../../frontend/src/hooks/useProjectDescription.js), [TagInput.jsx](../../frontend/src/components/TagInput.jsx)) |
 | [components/PeakTable.jsx](../../frontend/src/components/PeakTable.jsx) | 194 | Peak pressures table: range, channel choice, calls `/channel_peaks`; values formatted by [peakFormat.js](../../frontend/src/utils/peakFormat.js) |
 | [components/CapabilityCloud.jsx](../../frontend/src/components/CapabilityCloud.jsx) | 244 | Research and experimental capabilities word cloud on the Projects page, drawn as SVG (term counting and the deterministic spiral layout in [capabilityCloud.js](../../frontend/src/utils/capabilityCloud.js)) |
+| [components/SkillPicker.jsx](../../frontend/src/components/SkillPicker.jsx) | 234 | Technical skills field: search the team list by skill or category, add a missing skill with its category |
 | [components/PageHeader.jsx](../../frontend/src/components/PageHeader.jsx) | 19 | Title bar used by every tab |
 | [features/analysis/PressureAnalysisWorkbench.jsx](../../frontend/src/features/analysis/PressureAnalysisWorkbench.jsx) | 766 | Pressure analysis and CFD-validation UI (advanced mode) |
 | [pages/AppCalculationsVerification.jsx](../../frontend/src/pages/AppCalculationsVerification.jsx) | 651 | In-app verification page (Python vs Octave) |
@@ -256,7 +261,7 @@ reuses the pressure workbench.
 | --- | --- |
 | [tests/e2e/](../../tests/e2e) | Playwright end-to-end tests |
 | [scripts/](../../scripts) | Packaging/maintenance scripts |
-| [docs/](..) | `EXDA-User-Guide/` (guide, Word version, screenshots, videos, build script, and `tools/` with the demo-project generator and the Playwright media recorder), `EXDA-Developer-Overview/` (this overview, EXDA-Check.md review brief, downsampling notes), `design/` (architecture animation sources), `assets/` (icons used by the README) |
+| [docs/](..) | `EXDA-User-Guide/` (guide, Word version, screenshots, videos, build script, and `tools/` with the demo-project generator and the Playwright media recorder), `EXDA-Developer-Overview/` (this overview, EXDA-Check.md review brief, downsampling notes), `EXDA-Design-Guide.md` (look and feel, for EXDA and apps in the same style), `design/` (architecture animation sources), `assets/` (icons used by the README) |
 | [versioning.sh](../../versioning.sh), [VERSIONING.md](../../VERSIONING.md) | Release assistant (allow-listed staging, tag, merge) |
 
 ---
@@ -350,6 +355,8 @@ header (set by a fetch wrapper in [clientId.js](../../frontend/src/utils/clientI
 ## 4. Project data on disk
 
 ```text
+EXDA-Projects/exda-skills.json   team list of technical skills (written when the
+                                 first skill is added; shared by all projects)
 EXDA-Projects/[<group folder>/]<project>/
 ├── exda-project.json   project marker: {"schema": "exda-project/1", "projectId": …}
 ├── Plan/            <plan>.json (experiments, meta), project_status.json,
@@ -690,8 +697,8 @@ table.
 
 | Suite | Files | Tests | Notes |
 | --- | --- | ---: | --- |
-| Backend unittest | 19 in [backend/tests/](../../backend/tests) | 167 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
-| Frontend vitest | 15 in [frontend/tests/](../../frontend/tests) | 80 | Gas-mixing logic, units (incl. trigger detection), peak formatting, capabilities cloud, picker start folder, run data files, mappings, versions, formatting, path crumbs, Project Description |
+| Backend unittest | 20 in [backend/tests/](../../backend/tests) | 174 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
+| Frontend vitest | 17 in [frontend/tests/](../../frontend/tests) | 87 | Gas-mixing logic, technical skills list, Windows paths, units (incl. trigger detection), peak formatting, capabilities cloud, picker start folder, run data files, mappings, versions, formatting, path crumbs, Project Description |
 | End-to-end | 2 in [tests/e2e/](../../tests/e2e) | – | Playwright; need a running app |
 | Guide media | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) | – | Not a test, but it clicks through every MVP tab on synthetic data, so a broken flow shows up when the media are regenerated |
 | Octave comparison | [backend/tests/scripts/comparison/](../../backend/tests/scripts/comparison) | – | Manual scripts writing CSVs to `backend/tests/results/` |

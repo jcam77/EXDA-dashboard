@@ -138,11 +138,11 @@ const ChecklistPage = ({
                                 <span className="text-2xl font-bold text-foreground">{completionPercent}%</span>
                                 <span className="text-xs text-muted-foreground">{completedItems}/{totalItems} complete</span>
                                 {isReady ? (
-                                    <span className="ml-2 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary">
+                                    <span className="ml-2 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest text-primary">
                                         Ready
                                     </span>
                                 ) : (
-                                    <span className="ml-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-500">
+                                    <span className="ml-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest text-amber-500">
                                         Pending
                                     </span>
                                 )}
@@ -208,7 +208,7 @@ const ChecklistPage = ({
                             checked={checklistState['final_confirm'] || false}
                             onChange={() => toggleItem('final_confirm')}
                         />
-                        <label htmlFor="final-lock" className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">I confirm safety readiness</label>
+                        <label htmlFor="final-lock" className="text-[11px] text-muted-foreground uppercase font-bold tracking-tighter">I confirm safety readiness</label>
                     </div>
                 </div>
             </div>
@@ -298,7 +298,7 @@ const ChecklistPage = ({
                             <ChecklistGroupIcon name={group.icon} />
                             <h2 className="text-sm font-black uppercase whitespace-nowrap">Group {gIdx + 1}:</h2>
                             <h2 className="min-w-0 truncate text-sm font-black" title={group.title}>{group.title}</h2>
-                            <span className={`ml-auto rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${
+                            <span className={`ml-auto rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest ${
                                 groupComplete
                                     ? 'border-primary/30 bg-primary/10 text-primary'
                                     : 'border-border bg-muted/40 text-muted-foreground'
@@ -316,14 +316,14 @@ const ChecklistPage = ({
                             <button
                                 type="button"
                                 onClick={() => setGroupItems(group.items, true)}
-                                className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-primary hover:border-primary/60 hover:bg-primary/20 transition"
+                                className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-primary hover:border-primary/60 hover:bg-primary/20 transition"
                             >
                                 Mark Group
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setGroupItems(group.items, false)}
-                                className="rounded-md border border-border bg-muted/40 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-ring transition"
+                                className="rounded-md border border-border bg-muted/40 px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-ring transition"
                             >
                                 Reset
                             </button>

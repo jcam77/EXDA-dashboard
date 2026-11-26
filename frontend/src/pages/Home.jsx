@@ -406,7 +406,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
               </div>
               <button
                 onClick={() => setIsLight((value) => !value)}
-                className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition"
+                className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition"
                 aria-pressed={isLight}
                 role="switch"
                 aria-checked={isLight}
@@ -522,7 +522,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
                         </p>
                         <p className="text-xs text-muted-foreground">Last opened: {formatDate(project.lastOpened)}</p>
                       </div>
-                      <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                      <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
                         {project.status}
                       </span>
                     </div>
@@ -665,7 +665,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
             <div className="flex flex-col gap-3">
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-                <div className="flex items-center justify-between text-[10px] uppercase text-muted-foreground">
+                <div className="flex items-center justify-between text-[11px] uppercase text-muted-foreground">
                   <span className="px-2 py-1 rounded-md border border-primary/20 bg-primary/10 text-primary">UI</span>
                   <ArrowRight size={12} className="text-primary/60" />
                   <span className="px-2 py-1 rounded-md border border-primary/20 bg-primary/10 text-primary">State</span>
@@ -739,7 +739,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             </div>
             <div className="flex flex-col gap-3">
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-                <div className="flex items-center justify-between text-[10px] uppercase text-muted-foreground">
+                <div className="flex items-center justify-between text-[11px] uppercase text-muted-foreground">
                   <span className="px-2 py-1 rounded-md border border-primary/20 bg-primary/10 text-primary">API</span>
                   <ArrowRight size={12} className="text-primary/60" />
                   <span className="px-2 py-1 rounded-md border border-primary/20 bg-primary/10 text-primary">Analysis</span>
@@ -856,7 +856,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             </p>
           </div>
           <div>
-            <h4 className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Product</h4>
+            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Product</h4>
             <ul className="mt-1 space-y-0.5 text-[11px] text-foreground">
               <li>Exda-Dashboard</li>
               <li>Project Creation</li>
@@ -864,7 +864,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             </ul>
           </div>
           <div>
-            <h4 className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Resources</h4>
+            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Resources</h4>
             <ul className="mt-1 space-y-0.5 text-[11px] text-foreground">
               <li>Literature</li>
               <li>AI Research Chat</li>
@@ -872,7 +872,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             </ul>
           </div>
           <div>
-            <h4 className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">About</h4>
+            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">About</h4>
             <ul className="mt-1 space-y-0.5 text-[11px] text-foreground">
               <li>About Us</li>
               <li>Contact</li>
@@ -897,7 +897,7 @@ Full version is available in repository file: PRIVACY_POLICY.md`;
             </ul>
           </div>
         </div>
-        <div className="max-w-6xl mx-auto mt-1 flex flex-col md:flex-row md:items-center md:justify-between border-t border-sidebar-border/60 pt-4 text-[10px] text-muted-foreground">
+        <div className="max-w-6xl mx-auto mt-1 flex flex-col md:flex-row md:items-center md:justify-between border-t border-sidebar-border/60 pt-4 text-[11px] text-muted-foreground">
           <span>© 2026 EXDA-Dashboard. All rights reserved.</span>
           <span>Developed for hydrogen explosion research; usable for any experimental campaign.</span>
           <span className="inline-block text-xs text-muted-foreground bg-card/70 rounded px-2 py-0.5 mt-1 md:mt-0 md:ml-4">

@@ -208,6 +208,8 @@ def build_main(projects: Path) -> None:
         "standard": {
             "research_questions": "How does the hydrogen concentration change the peak over-pressure of a vented deflagration?",
             "methods": ["vented explosion"], "measured_quantities": ["pressure", "H2 concentration"],
+            "technical_skills": ["DAQ setup and configuration", "Pressure sensors (installation, calibration)",
+                                 "Gas handling and mixing (MFC)", "MATLAB signal processing"],
             "facility": ["VH2D chamber"], "fuels": ["H2-air"], "scale_conditions": "",
             "partners": [], "keywords": [],
         },
@@ -276,8 +278,12 @@ def build_group(projects: Path) -> None:
     group.mkdir(parents=True, exist_ok=True)
     for name, terms in (
         ("VH2D-Demo-Wk22-2026", {"methods": ["vented explosion", "DAQ characterisation"],
-                                 "measured_quantities": ["pressure", "flame arrival"]}),
-        ("VH2D-Demo-Wk27-2026", {"methods": ["vented explosion"], "measured_quantities": ["pressure", "H2 concentration"]}),
+                                 "measured_quantities": ["pressure", "flame arrival"],
+                                 "technical_skills": ["DAQ setup and configuration", "High-speed imaging",
+                                                      "MATLAB signal processing"]}),
+        ("VH2D-Demo-Wk27-2026", {"methods": ["vented explosion"], "measured_quantities": ["pressure", "H2 concentration"],
+                                 "technical_skills": ["DAQ setup and configuration", "Gas handling and mixing (MFC)",
+                                                      "Explosion test operation"]}),
     ):
         ok, msg, root = project_manager.create_project_structure(str(group), name)
         if not ok:
@@ -285,7 +291,8 @@ def build_group(projects: Path) -> None:
         write_json(Path(root) / "Plan" / "project_description.json", {
             "schema": "exda-project-description/1",
             "standard": {"research_questions": "", "methods": terms["methods"],
-                         "measured_quantities": terms["measured_quantities"], "facility": ["VH2D chamber"],
+                         "measured_quantities": terms["measured_quantities"],
+                         "technical_skills": terms["technical_skills"], "facility": ["VH2D chamber"],
                          "fuels": ["H2-air"], "scale_conditions": "", "partners": ["LU", "DBI"], "keywords": ["P2X"]},
             "extra": [], "updatedAt": "2026-06-01 08:00:00",
         })

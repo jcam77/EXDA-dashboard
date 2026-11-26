@@ -30,6 +30,9 @@ STANDARD_FIELDS = (
      "hint": "e.g. vented explosion, DAQ characterisation"},
     {"id": "measured_quantities", "label": "Measured quantities", "kind": "tags",
      "hint": "e.g. pressure, flame arrival, H2 concentration"},
+    # Picked from the team's standard skills list (modules/skills_catalog.py).
+    {"id": "technical_skills", "label": "Technical skills", "kind": "tags", "catalog": "skills",
+     "hint": "Skills the project needs, from the team's standard list"},
     {"id": "facility", "label": "Facility / rig", "kind": "tags",
      "hint": "e.g. VH2D chamber"},
     {"id": "fuels", "label": "Fuels / mixtures", "kind": "tags",
@@ -172,7 +175,7 @@ def load_quietly(project_root):
 
 # Tag fields that say what a project can do (not who funds it). The Projects
 # page shows them as the research and experimental capabilities cloud.
-CAPABILITY_FIELD_IDS = ("methods", "measured_quantities", "facility", "fuels", "keywords")
+CAPABILITY_FIELD_IDS = ("methods", "measured_quantities", "technical_skills", "facility", "fuels", "keywords")
 
 
 def capability_terms(description):

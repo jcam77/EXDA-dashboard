@@ -127,7 +127,7 @@ const PeakTable = ({
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <th className="w-10 py-1.5 pr-2">Use</th>
               <th className="py-1.5 pr-4">Channel</th>
               <th className="py-1.5 pr-4 text-right">Max</th>
@@ -159,7 +159,7 @@ const PeakTable = ({
                   <td className="py-1.5 pr-4">
                     <span className="font-semibold text-foreground">{name}</span>
                     {recorded && recorded.toLowerCase() !== unit.toLowerCase() && (
-                      <span className="ml-2 text-[10px] text-muted-foreground">recorded in {recorded}</span>
+                      <span className="ml-2 text-[11px] text-muted-foreground">recorded in {recorded}</span>
                     )}
                   </td>
                   <td className="py-1.5 pr-4 text-right font-mono">

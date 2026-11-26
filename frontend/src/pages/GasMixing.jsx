@@ -683,7 +683,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
         subtitle="Mixture preparation per campaign group and run, with the calculation inputs kept for each run."
         className="!mb-2"
       >
-        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${
           verificationMeta.isMatlabVerified
             ? 'border-primary/40 bg-primary/10 text-primary'
             : 'border-warning/40 bg-warning/10 text-warning'
@@ -790,7 +790,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                     <button
                       type="button"
                       onClick={() => setDraft((prev) => ({ ...prev, targetVol: planTargetVol || '' }))}
-                      className="rounded border border-sidebar-border bg-muted/30 px-2 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted/60"
+                      className="rounded border border-sidebar-border bg-muted/30 px-2 py-0.5 text-[11px] font-semibold text-foreground hover:bg-muted/60"
                     >
                       Use Plan
                     </button>
@@ -851,7 +851,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                         setPressureUnit('Pa');
                         setPressureFromInput(planPressurePa || '', 'Pa');
                       }}
-                      className="rounded border border-sidebar-border bg-muted/30 px-2 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted/60"
+                      className="rounded border border-sidebar-border bg-muted/30 px-2 py-0.5 text-[11px] font-semibold text-foreground hover:bg-muted/60"
                     >
                       Use Plan
                     </button>
@@ -895,7 +895,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-primary">Volume Corrections</p>
 
               <div className="rounded border border-sidebar-border/60 bg-background/40 p-3">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Added Volumes</p>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Added Volumes</p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label className="text-xs">
                     <span className="mb-1 block font-semibold text-muted-foreground">Pipes (m³)</span>
@@ -909,7 +909,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
               </div>
 
               <div className="mt-3 rounded border border-sidebar-border/60 bg-background/40 p-3">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Subtracted Volumes</p>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Subtracted Volumes</p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label className="text-xs">
                     <span className="mb-1 block font-semibold text-muted-foreground">Welded Parts (m³)</span>
@@ -1000,7 +1000,7 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
                 <button
                   type="button"
                   onClick={() => setShowAdvancedConstants((prev) => !prev)}
-                  className="rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted/60"
+                  className="rounded border border-sidebar-border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60"
                 >
                   {showAdvancedConstants ? 'Hide' : 'Show'}
                 </button>
@@ -1087,12 +1087,12 @@ const GasMixingPage = ({ projectPath, experiments = [] }) => {
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
             Calculation Results
             {results && resultsAreStale && (
-              <span className="rounded-full border border-amber-500/50 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+              <span className="rounded-full border border-amber-500/50 bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-300">
                 Stale
               </span>
             )}
             {results && viewingSavedRecord && !resultsAreStale && (
-              <span className="rounded-full border border-sidebar-border bg-muted/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="rounded-full border border-sidebar-border bg-muted/30 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 As saved
               </span>
             )}

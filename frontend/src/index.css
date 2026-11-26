@@ -65,7 +65,7 @@
         --accent: 190 95% 78%;
         --accent-foreground: 220 20% 12%;
 
-        --destructive: 0 70% 52%;
+        --destructive: 0 78% 62%;
         --destructive-foreground: 210 33% 96%;
 
         --border: 220 18% 22%;
@@ -84,17 +84,19 @@
         --sidebar-ring: 190 95% 78%;
 
         --success: 152 24% 74%;
-        --warning: 35 77% 34%;
+        /* Text tokens reach >= 4.5:1 on card and background (see docs/EXDA-Design-Guide.md). */
+        --warning: 35 80% 52%;
         --info: 194 37% 79%;
         /* Capabilities word cloud (Projects page): one colour per kind of term.
            Validated as a categorical palette (dataviz validator, all pairs):
            CVD separation >= 9.3, normal vision >= 15.7, text contrast >= 4.6:1
            on the card, in both themes. Blue, green, red (facility, as in the
-           DBI logo), amber; keywords use muted-foreground. */
+           DBI logo), amber, violet (technical skills); keywords use muted-foreground. */
         --cloud-methods: 205 94% 60%;
         --cloud-measured: 156 90% 47%;
         --cloud-facility: 3 74% 64%;
         --cloud-fuels: 45 98% 48%;
+        --cloud-skills: 259 99% 69%;
     }
 
     .light {
@@ -136,12 +138,13 @@
         --sidebar-ring: 192 78% 32%;
 
         --success: 152 34% 36%;
-        --warning: 35 77% 38%;
+        --warning: 33 85% 32%;
         --info: 194 37% 38%;
         --cloud-methods: 207 74% 31%;
         --cloud-measured: 164 70% 30%;
         --cloud-facility: 360 96% 30%;
         --cloud-fuels: 36 73% 34%;
+        --cloud-skills: 261 89% 36%;
     }
 
     .light :is(input, textarea, select)::placeholder {
@@ -194,7 +197,8 @@
     }
 
     input[type="checkbox"] {
-        accent-color: hsl(var(--warning));
+        /* Checked boxes use the app accent; warning colours are for warnings only. */
+        accent-color: hsl(var(--primary));
     }
 
     pre,

@@ -820,13 +820,13 @@ const CamerasMappingPage = ({ projectPath = '' }) => {
                           {status === 'warning' && (
                             <div className="space-y-1">
                               <span className="inline-flex items-center gap-1 text-amber-400" title={result.warnings.join(' | ')}><AlertTriangle size={12} /> Warning</span>
-                              <p className="max-w-[220px] text-[10px] leading-tight text-amber-300">{result.warnings[0]}</p>
+                              <p className="max-w-[220px] text-[11px] leading-tight text-amber-300">{result.warnings[0]}</p>
                             </div>
                           )}
                           {status === 'error' && (
                             <div className="space-y-1">
                               <span className="inline-flex items-center gap-1 text-destructive" title={result.errors.join(' | ')}><AlertTriangle size={12} /> Error</span>
-                              <p className="max-w-[220px] text-[10px] leading-tight text-destructive/90">{result.errors[0]}</p>
+                              <p className="max-w-[220px] text-[11px] leading-tight text-destructive/90">{result.errors[0]}</p>
                             </div>
                           )}
                         </td>

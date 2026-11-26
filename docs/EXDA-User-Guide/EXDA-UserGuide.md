@@ -1,4 +1,4 @@
-# EXDA User Guide — MVP mode (version 5.0.4)
+# EXDA User Guide — MVP mode (version 5.0.5)
 
 This guide walks you through a test campaign in EXDA, tab by tab, in the order
 you use them: from opening a project to exporting the report. Every section has a
@@ -199,7 +199,7 @@ keywords, …). **Clear All** empties the folder list until you add a folder wit
 
 **Research and experimental capabilities.** The card under the summary shows
 the terms from the Project Description of the projects listed: methods, measured
-quantities, facility, fuels and keywords. The more projects use a term, the larger
+quantities, technical skills, facility, fuels and keywords. The more projects use a term, the larger
 it is, and each kind of term has its own colour (see the line above the words).
 Hold the mouse over a word to highlight it and see which projects use it; click
 it to find those projects. While a word or a search is active, a bar above the
@@ -224,10 +224,10 @@ The first tab says what the project is.
 date and deadline. They are saved automatically with the experiment plan.
 
 **Standard fields** are the same in every project, so projects can be compared:
-research questions, methods, measured quantities, facility / rig, fuels /
-mixtures, scale & conditions, partners / funding and keywords. Leave a field empty
-if it does not apply. The terms in methods, measured quantities, facility, fuels
-and keywords make up the **research and experimental capabilities** card on the
+research questions, methods, measured quantities, technical skills, facility /
+rig, fuels / mixtures, scale & conditions, partners / funding and keywords. Leave a
+field empty if it does not apply. The terms in methods, measured quantities,
+technical skills, facility, fuels and keywords make up the **research and experimental capabilities** card on the
 Projects page (see [section 3](#3-projects-open-create-and-find-them)).
 
 - In term fields, type a term and press **Enter** (or comma). While you type, EXDA
@@ -235,6 +235,22 @@ Projects page (see [section 3](#3-projects-open-create-and-find-them)).
   one with the arrow keys and **Enter**, or click it. A typed term that matches a
   known one takes its spelling, so the same thing has the same name everywhere.
 - **Backspace** in an empty term field removes the last term; **×** removes one.
+
+**Technical skills** are the skills the project needs, for example DAQ setup, CFD
+(OpenFOAM) or 3D CAD design. To keep the same name for the same skill in every
+project, they are picked from the **team's skills list**, grouped by category:
+type part of a name or category (for example *imag* or *CAD*) and pick a skill.
+
+- **A skill is missing?** Type it and click **Add "…" to the team's skills list**,
+  check the name, choose its category (or a new one) and click **Add and use**.
+  It is then in the list for everyone, with who added it and when. First check
+  that it is not already there under another name.
+- The list is shared by all projects in your projects folder and is stored in
+  `EXDA-Projects/exda-skills.json`. EXDA never removes skills from it.
+- A skill shown in orange with a warning sign is not in your team's list, for
+  example in a project from another team. It is kept as it is.
+
+![Technical skills picked from the team's list](images/03-technical-skills.png)
 
 **Extra fields** are for things only this project needs (for example the vent
 configuration or the ignition source): click **Add field**, give it a name and a

@@ -1,4 +1,5 @@
-const SIMULATION_CASE_PATH_RE = /pTProbes\/.*\/p$/i;
+// Accepts "/" and "\" (Windows paths).
+const SIMULATION_CASE_PATH_RE = /pTProbes[\\/].*[\\/]p$/i;
 
 const toLowerPath = (value) => String(value || '').toLowerCase();
 
@@ -21,9 +22,11 @@ export const countSimulationCases = (files, folderPath = '') =>
 export const countFilesInFolder = (files, folderPath = '') =>
   (Array.isArray(files) ? files : []).filter((file) => isFileInFolder(file, folderPath)).length;
 
-export const buildServerAuxCandidates = (mainPath) => {
-  const dir = String(mainPath || '').substring(0, String(mainPath || '').lastIndexOf('/'));
-  const postProcessingBaseMatch = String(mainPath || '').match(/^(.*\/postProcessing)\//i);
+export const buildServerAuxCandidates = (rawMainPath) => {
+  // Windows paths use "\"; the backend accepts "/" on every system.
+  const mainPath = String(rawMainPath || '').replace(/\\/g, '/');
+  const dir = mainPath.substring(0, mainPath.lastIndexOf('/'));
+  const postProcessingBaseMatch = mainPath.match(/^(.*\/postProcessing)\//i);
   const postProcessingBase = postProcessingBaseMatch ? postProcessingBaseMatch[1] : dir;
 
   return {

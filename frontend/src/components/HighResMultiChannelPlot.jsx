@@ -344,11 +344,11 @@ const HighResMultiChannelPlot = ({
           <button
             type="button"
             onClick={handleResetZoom}
-            className="rounded border border-border bg-background/80 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground transition"
+            className="rounded border border-border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground transition"
           >
             Reset Zoom
           </button>
-          <span className="rounded border border-border bg-background/70 px-2 py-1 text-[10px] text-muted-foreground">
+          <span className="rounded border border-border bg-background/70 px-2 py-1 text-[11px] text-muted-foreground">
             Shift + Drag to Pan
           </span>
         </div>

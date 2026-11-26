@@ -145,7 +145,7 @@ const ProceduresPanel = ({ apiBaseUrl, projectPath, procedures }) => {
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sidebar-border/60 bg-background/40 px-3 py-2">
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-foreground" title={doc.files.map((f) => f.path).join('\n')}>{doc.name}</div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-[11px] text-muted-foreground">
                       {doc.files.map((f) => f.format).join(' · ')}
                       {doc.files[0]?.modified ? ` — modified ${formatDate(doc.files[0].modified)}` : ''}
                     </div>

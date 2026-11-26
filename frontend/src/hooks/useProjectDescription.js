@@ -20,6 +20,7 @@ export const useProjectDescription = (apiBaseUrl, projectPath) => {
     loading: true, error: '', description: null, fields: [], source: '', updatedAt: '',
   });
   const [suggestions, setSuggestions] = useState({});
+  const [skills, setSkills] = useState({ catalog: null, error: '' });
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -58,7 +59,38 @@ export const useProjectDescription = (apiBaseUrl, projectPath) => {
     }
   }, [apiBaseUrl, projectPath]);
 
+  // The team's standard list of technical skills (shared by all projects).
+  const loadSkills = useCallback(async () => {
+    if (!apiBaseUrl) return;
+    try {
+      const res = await fetch(`${apiBaseUrl}/skills_catalog`);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Could not load the skills list');
+      setSkills({ catalog: data.catalog, error: '' });
+    } catch (error) {
+      setSkills({ catalog: null, error: error.message || 'Could not load the skills list' });
+    }
+  }, [apiBaseUrl]);
+
+  // Returns { ok, catalog } or { ok: false, error }.
+  const addSkill = useCallback(async (name, category) => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/add_skill_to_catalog`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, category }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) return { ok: false, error: data.error || 'Could not add the skill' };
+      setSkills({ catalog: data.catalog, error: '' });
+      return { ok: true, catalog: data.catalog };
+    } catch (error) {
+      return { ok: false, error: error.message || 'Could not add the skill' };
+    }
+  }, [apiBaseUrl]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadSkills(); }, [loadSkills]);
   useEffect(() => { loadSuggestions(); }, [loadSuggestions]);
 
   // Returns { ok: true } or { ok: false, error, conflict }.
@@ -95,7 +127,7 @@ export const useProjectDescription = (apiBaseUrl, projectPath) => {
     }
   }, [apiBaseUrl, projectPath]);
 
-  return { ...state, suggestions, saving, reload: load, save };
+  return { ...state, suggestions, skills, addSkill, saving, reload: load, save };
 };
 
 export default useProjectDescription;

@@ -881,7 +881,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
                               >
                                 <AlertTriangle size={12} /> Warning
                               </span>
-                              <p className="max-w-[220px] text-[10px] leading-tight text-amber-300">
+                              <p className="max-w-[220px] text-[11px] leading-tight text-amber-300">
                                 {result.warnings[0]}
                               </p>
                             </div>
@@ -894,7 +894,7 @@ const SensorsMappingPage = ({ projectPath = '' }) => {
                               >
                                 <AlertTriangle size={12} /> Error
                               </span>
-                              <p className="max-w-[220px] text-[10px] leading-tight text-destructive/90">
+                              <p className="max-w-[220px] text-[11px] leading-tight text-destructive/90">
                                 {result.errors[0]}
                               </p>
                             </div>

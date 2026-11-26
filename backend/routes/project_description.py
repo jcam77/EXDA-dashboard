@@ -6,7 +6,7 @@ from collections import Counter
 from flask import Blueprint, jsonify, request
 
 from modules import project_description as pd
-from modules import project_manager, project_store
+from modules import project_manager, project_store, skills_catalog
 from routes.projects import _projects_root_default, find_projects
 from routes.state import _base_version, _now_display_str, _store_error_response
 
@@ -106,3 +106,29 @@ def project_description_suggestions():
         for field_id, counter in counters.items()
     }
     return jsonify({"success": True, "suggestions": suggestions, "projectsSearched": len(seen)})
+
+
+@project_description_bp.route('/skills_catalog', methods=['GET'])
+def get_skills_catalog():
+    """The team's standard list of technical skills (read-only)."""
+    root = _projects_root_default()
+    try:
+        catalog, source = skills_catalog.load(root)
+    except skills_catalog.SkillsCatalogError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+    return jsonify({"success": True, "catalog": catalog, "source": source,
+                    "path": skills_catalog.catalog_path(root)})
+
+
+@project_description_bp.route('/add_skill_to_catalog', methods=['POST'])
+def add_skill_to_catalog():
+    """Add a skill to the team list: {name, category}. Nothing is ever removed."""
+    payload = request.json or {}
+    try:
+        catalog = skills_catalog.add_skill(_projects_root_default(), payload.get("name"), payload.get("category"),
+                                           added_by=project_store._actor().get("user", ""))
+    except skills_catalog.SkillsCatalogError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except OSError as exc:
+        return jsonify({"success": False, "error": f"Could not save the skills list: {exc}"}), 500
+    return jsonify({"success": True, "catalog": catalog, "source": "file"})

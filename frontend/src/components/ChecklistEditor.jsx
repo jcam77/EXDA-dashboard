@@ -84,7 +84,7 @@ const ChecklistEditor = ({ draft, setDraft, confirmDeleteGroup }) => {
           <button
             type="button"
             onClick={() => addItem(gIdx)}
-            className="mt-3 inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/20"
+            className="mt-3 inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-primary hover:bg-primary/20"
           >
             <Plus size={12} /> Add check
           </button>

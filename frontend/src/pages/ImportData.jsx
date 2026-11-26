@@ -650,7 +650,7 @@ const ImportDataPage = (props) => {
                                                     type="button"
                                                     onClick={() => setAllInspectorsCollapsed(false)}
                                                     disabled={allInspectedExpanded}
-                                                    className="rounded border border-border px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted/40 disabled:opacity-50"
+                                                    className="rounded border border-border px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/40 disabled:opacity-50"
                                                 >
                                                     Expand all
                                                 </button>
@@ -658,7 +658,7 @@ const ImportDataPage = (props) => {
                                                     type="button"
                                                     onClick={() => setAllInspectorsCollapsed(true)}
                                                     disabled={allInspectedCollapsed}
-                                                    className="rounded border border-border px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted/40 disabled:opacity-50"
+                                                    className="rounded border border-border px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/40 disabled:opacity-50"
                                                 >
                                                     Collapse all
                                                 </button>
@@ -729,11 +729,11 @@ const ImportDataPage = (props) => {
                                                             </div>
                                                             <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
                                                                 <div className="rounded border border-border/70 bg-background px-2 py-1.5">
-                                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Time Vector</div>
+                                                                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Time Vector</div>
                                                                     <div className="mt-0.5 font-semibold text-foreground">{summarizeTimeVectorState(inspection.timeSummary)}</div>
                                                                 </div>
                                                                 <div className="rounded border border-border/70 bg-background px-2 py-1.5">
-                                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Sample Rate (Hz)</div>
+                                                                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Sample Rate (Hz)</div>
                                                                     <div className="mt-0.5 font-semibold text-foreground">
                                                                         {Number.isFinite(Number(inspection.timeSummary?.estimatedSampleRateHz))
                                                                             ? Number(inspection.timeSummary.estimatedSampleRateHz).toFixed(3)
@@ -741,7 +741,7 @@ const ImportDataPage = (props) => {
                                                                     </div>
                                                                 </div>
                                                                 <div className="rounded border border-border/70 bg-background px-2 py-1.5">
-                                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Duration (s)</div>
+                                                                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Duration (s)</div>
                                                                     <div className="mt-0.5 font-semibold text-foreground">
                                                                         {Number.isFinite(Number(inspection.timeSummary?.durationSeconds))
                                                                             ? Number(inspection.timeSummary.durationSeconds).toFixed(6)
@@ -749,7 +749,7 @@ const ImportDataPage = (props) => {
                                                                     </div>
                                                                 </div>
                                                                 <div className="rounded border border-border/70 bg-background px-2 py-1.5">
-                                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Duplicates</div>
+                                                                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Duplicates</div>
                                                                     <div className="mt-0.5 font-semibold text-foreground">
                                                                         {Number(inspection.timeSummary?.duplicates || 0)}
                                                                     </div>

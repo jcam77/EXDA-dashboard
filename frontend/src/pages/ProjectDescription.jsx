@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { LayoutList, Plus, ScrollText, SquarePen, Target, Trash2 } from 'lucide-react';
 import IsoDateInput from '../components/IsoDateInput';
 import PageHeader from '../components/PageHeader';
+import SkillPicker from '../components/SkillPicker';
 import TagInput from '../components/TagInput';
 import { useProjectDescription } from '../hooks/useProjectDescription';
 import {
@@ -193,9 +194,21 @@ const ProjectDescriptionPage = ({ apiBaseUrl, projectPath, readOnly = false, pla
                 <div key={field.id} className="grid grid-cols-1 gap-1.5 md:grid-cols-[220px_1fr] md:gap-6">
                   <div className="pt-1.5">
                     <div className="text-sm font-semibold text-foreground">{field.label}</div>
-                    <div className="text-[11px] text-muted-foreground">{field.kind === 'tags' ? 'Short terms' : 'Text'}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {field.catalog === 'skills' ? 'From the team\'s skills list' : field.kind === 'tags' ? 'Short terms' : 'Text'}
+                    </div>
                   </div>
-                  {field.kind === 'tags' ? (
+                  {field.catalog === 'skills' ? (
+                    <SkillPicker
+                      label={field.label}
+                      value={current.standard[field.id] || []}
+                      onChange={(names) => edit((next) => { next.standard[field.id] = names; })}
+                      catalog={data.skills.catalog}
+                      catalogError={data.skills.error}
+                      onAddSkill={readOnly ? null : data.addSkill}
+                      disabled={readOnly}
+                    />
+                  ) : field.kind === 'tags' ? (
                     <TagInput
                       label={field.label}
                       value={current.standard[field.id] || []}

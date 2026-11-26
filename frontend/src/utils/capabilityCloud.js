@@ -8,6 +8,7 @@
 export const CAPABILITY_FIELDS = [
   { id: 'methods', label: 'Methods', fillClass: 'fill-cloud-methods', dotClass: 'bg-cloud-methods' },
   { id: 'measured_quantities', label: 'Measured quantities', fillClass: 'fill-cloud-measured', dotClass: 'bg-cloud-measured' },
+  { id: 'technical_skills', label: 'Technical skills', fillClass: 'fill-cloud-skills', dotClass: 'bg-cloud-skills' },
   { id: 'facility', label: 'Facility / rig', fillClass: 'fill-cloud-facility', dotClass: 'bg-cloud-facility' },
   { id: 'fuels', label: 'Fuels / mixtures', fillClass: 'fill-cloud-fuels', dotClass: 'bg-cloud-fuels' },
   { id: 'keywords', label: 'Keywords', fillClass: 'fill-muted-foreground', dotClass: 'bg-muted-foreground' },

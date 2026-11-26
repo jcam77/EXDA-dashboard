@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ChevronDown, FolderPlus, Folder, FolderOpen, Folders, Trash2, Search, RefreshCw, Home, Pencil, Copy, X } from 'lucide-react';
 import CapabilityCloud from '../components/CapabilityCloud';
+import { folderName } from '../utils/pathCrumbs';
 import ProjectPickerModal from '../components/ProjectPickerModal';
 import UnifiedModal from '../components/UnifiedModal';
 import { getBackendBaseUrl } from '../utils/backendUrl';
@@ -419,9 +420,9 @@ const ProjectsPage = ({
   const getStatusColor = (status) => {
     switch (status) {
       case 'active':
-        return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+        return 'bg-success/15 text-success border-success/40';
       case 'planning':
-        return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+        return 'bg-warning/15 text-warning border-warning/40';
       case 'archived':
         return 'bg-muted/20 text-muted-foreground border-border';
       default:
@@ -661,7 +662,7 @@ const ProjectsPage = ({
               <select
                 value={project.status}
                 onChange={(e) => handleStatusChange(project, e.target.value)}
-                className={`rounded-md border px-2 py-1 text-[10px] font-semibold uppercase ${getStatusColor(
+                className={`rounded-md border px-2 py-1 text-[11px] font-semibold uppercase ${getStatusColor(
                   project.status
                 )}`}
               >
@@ -863,7 +864,7 @@ const ProjectsPage = ({
                     onClick={() => setSelectedFolder(folder.path)}
                     className="text-xs font-semibold"
                   >
-                    {folder.path.split('/').filter(Boolean).slice(-1)[0]}
+                    {folderName(folder.path)}
                   </button>
                   <button
                     type="button"
@@ -875,7 +876,7 @@ const ProjectsPage = ({
                         setSelectedFolder(next.length ? next[0].path : 'all');
                       }
                     }}
-                    className="rounded-full border border-transparent px-1 text-[10px] text-muted-foreground hover:border-destructive/40 hover:text-destructive"
+                    className="rounded-full border border-transparent px-1 text-[11px] text-muted-foreground hover:border-destructive/40 hover:text-destructive"
                     aria-label={`Remove ${folder.path}`}
                   >
                     ✕

@@ -60,6 +60,7 @@ export default {
           measured: "hsl(var(--cloud-measured))",
           facility: "hsl(var(--cloud-facility))",
           fuels: "hsl(var(--cloud-fuels))",
+          skills: "hsl(var(--cloud-skills))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

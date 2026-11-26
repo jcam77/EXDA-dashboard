@@ -156,7 +156,7 @@ const ProjectPickerModal = ({
                   );
                 })}
                 {currentIsProject && (
-                  <span className="ml-1 shrink-0 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  <span className="ml-1 shrink-0 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
                     Project
                   </span>
                 )}
@@ -248,7 +248,7 @@ const ProjectPickerModal = ({
                   <RowIcon size={15} className={`shrink-0 ${dir.isProject ? 'text-primary' : 'text-primary/70'}`} />
                   <span className="min-w-0 flex-1 truncate">{dir.name}</span>
                   {dir.isProject && (
-                    <span className="shrink-0 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                    <span className="shrink-0 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
                       Project
                     </span>
                   )}

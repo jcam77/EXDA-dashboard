@@ -218,7 +218,7 @@ const ReportPage = ({
           <div className="mb-3 flex items-center gap-2">
             <Construction size={16} className="text-amber-400" />
             <h3 className="text-base font-semibold text-foreground">2. Experiments Report</h3>
-            <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+            <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-300">
               Under Construction
             </span>
           </div>
