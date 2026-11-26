@@ -34,6 +34,9 @@ npx vitest run --config frontend/vitest.config.js  # frontend tests
 npx eslint --config frontend/eslint.config.js frontend
 ```
 
+While developing, start EXDA with `EXDA_BACKEND_DEBUG=1` so the backend
+reloads after code changes (see "Development mode" in RUN_EXDA.md).
+
 All three must pass. Add tests for new behaviour, especially for anything that
 calculates, reads files or saves data.
 

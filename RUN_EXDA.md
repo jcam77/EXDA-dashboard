@@ -109,6 +109,15 @@ Each operating system keeps its own Python environment, so one EXDA folder (for 
 
 EXDA uses two local ports, set in [config/exda-defaults.env](config/exda-defaults.env): **5173** for the page in the browser and **5077** for the backend (5000 until version 5.0.6; macOS uses port 5000 for AirPlay Receiver). On every start the launchers check that it is really EXDA that answers on the backend port ([scripts/check_exda_backend.py](scripts/check_exda_backend.py), via `/exda_health`). If another program answers there, the launcher says so and stops, instead of the page showing *"Backend not running?"*. To use other ports, change the two `PORT` lines in `config/exda-defaults.env`.
 
+## Development mode
+
+The launchers start the backend without debug mode. For development, switch it on for one start; the backend then reloads after code changes and shows the Werkzeug debugger on errors:
+
+- Linux/macOS: `EXDA_BACKEND_DEBUG=1 ./Run-EXDA-LINUX.sh` (or `EXDA_BACKEND_DEBUG=1 ./run exda`)
+- Windows: `set EXDA_BACKEND_DEBUG=1` in a Command Prompt, then `Run-EXDA-WIN.bat` in the same window
+
+Do not use debug mode for normal work: the debugger can run code, so it must never be reachable from other computers.
+
 ## MVP Mode (Optional)
 
 For a simplified onsite workflow, you can enable MVP mode (Minimum Viable Product).

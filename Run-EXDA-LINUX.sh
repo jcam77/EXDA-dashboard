@@ -355,9 +355,11 @@ cleanup() {
 }
 
 start_app() {
+  # Debug mode (auto-reload on code changes, Werkzeug debugger) is for development only:
+  # start with EXDA_BACKEND_DEBUG=1 to switch it on.
   echo ""
   echo "Starting EXDA backend on http://${BACKEND_HOST}:${BACKEND_PORT} ..."
-  EXDA_BACKEND_DEBUG=1 \
+  EXDA_BACKEND_DEBUG="${EXDA_BACKEND_DEBUG:-0}" \
   EXDA_BACKEND_HOST="$BACKEND_HOST" \
   EXDA_BACKEND_PORT="$BACKEND_PORT" \
   EXDA_FRONTEND_HOST="$FRONTEND_HOST" \

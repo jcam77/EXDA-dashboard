@@ -72,7 +72,9 @@ if "%SETTINGS_OK%"=="0" (
 
 echo.
 echo Starting EXDA backend on http://%BACKEND_HOST%:%BACKEND_PORT% ...
-set EXDA_BACKEND_DEBUG=1
+rem Debug mode (auto-reload, Werkzeug debugger) is for development only:
+rem run "set EXDA_BACKEND_DEBUG=1" in the same window before starting EXDA.
+if not defined EXDA_BACKEND_DEBUG set "EXDA_BACKEND_DEBUG=0"
 set PYTHONIOENCODING=utf-8
 set EXDA_BACKEND_HOST=%BACKEND_HOST%
 set EXDA_BACKEND_PORT=%BACKEND_PORT%
