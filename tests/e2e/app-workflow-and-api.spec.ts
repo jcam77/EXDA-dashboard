@@ -125,7 +125,7 @@ test.afterAll(() => {
 test.describe("UI: Home and Shell", () => {
   test("renders hero content and global actions", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Hydrogen Explosion/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Research Platform/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "Home", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Projects", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Verification", exact: true })).toBeVisible();
@@ -136,6 +136,7 @@ test.describe("UI: Home and Shell", () => {
 
   test("opens keyboard shortcuts overlay with ?", async ({ page }) => {
     await page.goto("/");
+    await expect(page.getByRole("heading", { name: /Research Platform/i })).toBeVisible();
     await page.evaluate(() => {
       window.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -197,7 +198,7 @@ test.describe("UI: Workspace Tabs With Loaded Project", () => {
     await expect(page.getByRole("heading", { name: "App Calculations Verification" })).toBeVisible();
 
     await page.getByRole("link", { name: "Report", exact: true }).click();
-    await expect(page.getByText(/Experimental Test Report/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Report$/i })).toBeVisible();
 
     await page.getByRole("link", { name: "Literature", exact: true }).click();
     await expect(page.getByText(/Research Library/i)).toBeVisible();
@@ -246,9 +247,15 @@ test.describe("API: Core and Analysis", () => {
   });
 
   test("POST /analyze_pressure and /aggregate_plot process requests", async ({ request }) => {
+    // The backend refuses to filter very short signals (no silent fallback), so
+    // send 50 samples at 1 kHz: a smooth pressure pulse of 2 kPa over 100 kPa.
+    const samples = Array.from({ length: 50 }, (_, i) => {
+      const x = i / 49;
+      return `${(i * 0.001).toFixed(3)} ${(100000 + 8000 * x * (1 - x)).toFixed(1)}`;
+    });
     const pressureRes = await request.post(`${BACKEND_URL}/analyze_pressure`, {
       data: {
-        content: "0.0 100000\n0.001 101000\n0.002 102000\n0.003 101500",
+        content: samples.join("\n"),
         cutoff: 100,
         order: 4,
         impulseDrop: 1.0,
@@ -355,10 +362,10 @@ test.describe("Integration: Stability", () => {
   test("renders on desktop and tablet viewports", async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Hydrogen Explosion/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Research Platform/i })).toBeVisible();
 
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.reload();
-    await expect(page.getByRole("heading", { name: /Hydrogen Explosion/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Research Platform/i })).toBeVisible();
   });
 });

@@ -41,7 +41,9 @@ async function seedProjectForWorkspace(page: Page) {
 
 async function openImportData(page: Page) {
   await seedProjectForWorkspace(page);
-  await page.goto("/data");
+  await page.goto("/");
+  // Opening a project lands on Project Description, so use the Import Data tab.
+  await page.getByRole("link", { name: "Import Data", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Experiments Data", exact: true })).toBeVisible();
 }
 
