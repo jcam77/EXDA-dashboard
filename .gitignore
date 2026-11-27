@@ -85,3 +85,4 @@ docs/EXDA-User-Guide/tools/.raw-videos/
 
 # Local AI development tools
 .codex
+claude-context/*
