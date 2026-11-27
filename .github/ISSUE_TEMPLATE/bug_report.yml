@@ -12,8 +12,8 @@ body:
     id: version
     attributes:
       label: EXDA version
-      description: Shown at the bottom of the Home page, e.g. "EXDA-Dashboard 5.0.6".
-      placeholder: "5.0.6"
+      description: The version shown at the bottom of the Home page (also in the browser tab title).
+      placeholder: "the number after EXDA-Dashboard on the Home page"
     validations:
       required: true
   - type: dropdown

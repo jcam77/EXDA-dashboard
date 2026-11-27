@@ -270,6 +270,39 @@ If no terminal is available to ask, it stops before making any change.
 - creates and pushes the tag from `main`
 - merges `main` back into `<dev-branch>` and pushes it
 
+### Files the release updates
+
+A release writes the new version into every file that names it, in the
+"Prepare release" commit, **before** the tag is created, so the tag always
+contains files that show its own version:
+
+| File | What changes |
+| --- | --- |
+| `package.json`, `package-lock.json` | `"version"` |
+| `VERSIONING.md` | "Current Release": version, tag, date |
+| `docs/EXDA-User-Guide/EXDA-UserGuide.md` | title: `MVP mode (version X.Y.Z)` |
+| `docs/EXDA-Design-Guide.md` | `State: EXDA X.Y.Z (Month YYYY)` |
+| `docs/EXDA-Developer-Overview/EXDA-Developer-Overview.md` | `State described: release X.Y.Z … (D Month YYYY)` |
+| `docs/EXDA-User-Guide/EXDA-UserGuide.docx` | rebuilt from the Markdown guide: cover version and date (needs `python-docx`) |
+
+The list of documents is `VERSION_DOCS` at the top of `versioning.sh`; add a
+document there if it starts naming the app version. `--dry-run` shows the list
+and test-builds the Word guide.
+
+Not changed by a release, because they need no update:
+
+- the app itself: the browser tab and the Home page read the version from git
+  (`git describe`) or `package.json` when EXDA starts;
+- generated reports: their "version" fields are file versions of the mappings
+  (`v000`, `v001`, …), not the app version;
+- `docs/EXDA-User-Guide/report_template.docx`: the Word template; the builder
+  replaces its version text;
+- history notes such as "since 5.0.6" in the documents.
+
+The version number only says which release a document went out with. Keeping
+the text, pictures and videos current is part of each change (see the
+Developer Overview, "Regenerating the user-guide media").
+
 ### Save work without a release (`--push-only`)
 
 Use this to put your work, or commits an assistant made locally, on GitHub

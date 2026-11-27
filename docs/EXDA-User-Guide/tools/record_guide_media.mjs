@@ -240,7 +240,10 @@ const SECTIONS = {
       await goToTab(page, 'Checklist');
     },
     act: async (page) => {
-      const boxes = page.locator('input[type=checkbox]');
+      // A complete group folds to one line (✓ 5/5); incomplete groups stay open.
+      await click(page, page.getByRole('button', { name: /Mark Group/i }).first(), 1200);
+      const group2 = page.locator('div.rounded-xl', { has: page.getByRole('button', { name: /Group 2:/ }) });
+      const boxes = group2.locator('input[type=checkbox]');
       for (const index of [0, 1, 2]) await click(page, boxes.nth(index), 500);
       await shot(page, '04-checklist');
       await typeInto(page, page.getByPlaceholder('Responsible Name'), 'A. Example', 400);
@@ -266,6 +269,11 @@ const SECTIONS = {
       const addForm = page.getByLabel('Add run to VH2D-Demo-G02');
       await typeInto(page, addForm.getByLabel('H2 vol.%'), '20', 600);
       await click(page, addForm.getByRole('button', { name: 'Add Run' }), 1500);
+      // Run groups: folded rows, the open group with its new run and the form
+      // suggesting the next run number.
+      await page.getByRole('heading', { name: /Run Groups/ }).evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await pause(page, 700);
+      await shot(page, '05-run-groups');
       // Groups start folded; open G01 to reach its run card.
       await click(page, page.getByRole('button', { name: /VH2D-Demo-G01/ }).first(), 800);
       const edit = page.getByRole('button', { name: 'Edit run card VH2D-Demo-G01-01' });

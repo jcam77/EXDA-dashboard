@@ -271,6 +271,9 @@ saves them too. The description is stored in `Plan/project_description.json`.
 The **Checklist** tab holds the safety and pre-test checks.
 
 1. Tick each check as it is completed, or use **Mark All** / **Mark Group**.
+   A complete group folds to one line (✓ 5/5); groups with open checks stay
+   open. Click a group's header to fold or open it; a group folded while
+   incomplete shows how many checks are still open.
 2. Sign off: **Responsible Name**, **University / Institute Initials**, and tick
    **I confirm safety readiness**.
 
@@ -291,7 +294,7 @@ warns when RAMS or SOPs are missing; click it to jump to the list.
 
 ![Safety procedures of the project](images/04-safety-procedures.png)
 
-▶ **Video:** [Checklist and safety procedures](videos/04-checklist.mp4) (15 s)
+▶ **Video:** [Checklist and safety procedures](videos/04-checklist.mp4) (16 s)
 
 ---
 
@@ -327,6 +330,8 @@ EXDA first lists every folder that will be moved and asks you to confirm; either
 all folders are renamed or none.
 
 ![Plan](images/05-plan.png)
+
+![Run groups](images/05-run-groups.png)
 
 ![Run card](images/05-run-card.png)
 
