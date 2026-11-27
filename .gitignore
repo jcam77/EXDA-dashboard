@@ -88,5 +88,3 @@ claude-context/
 CLAUDE.local.md
 .claude/settings.local.json
 .codex
-# Older location of working notes; move its contents to claude-context/
-Claude outputs/
