@@ -54,7 +54,7 @@ verified today, and what to improve before the calculations are extended.
 | End-to-end tests (6.0.1) | Start their own backend (5055) and Vite (5175) with `EXDA_PROJECTS_ROOT` in a temporary folder and never reuse a running server, so a running EXDA and real project data are never used; selectors match the current screens | [playwright.config.ts](../../playwright.config.ts), [tests/e2e/](../../tests/e2e) |
 | Plan tab (6.0.2–6.0.3; badge removal after 6.0.5) | Plan file bar, summary cards and Campaign Schedule on top, full width; run groups below as folded rows (schedule colour, run count, status summary, progress bar, objective), open state remembered per project in `localStorage`, Open all / Fold all. **New Run Group** creates a group with its first run; **Add Run** inside a group fills in the group and suggests the next run number; GENERAL and mixture groups ask for a full run name. Missing metadata is shown in the warning colour and each "Missing" item opens the run card at that field (`data-run-field`); no deadline shows "—". After 6.0.5 the schedule no longer draws an H2 % badge next to each run (the run card shows the mixture). Plan file format unchanged | [Plan.jsx](../../frontend/src/pages/Plan.jsx) |
 | Checklist (6.0.2) | Complete groups fold to one line (✓ n/n), incomplete groups stay open; a header click folds or opens a group for this visit only; a group folded by hand shows "N open" | [Checklist.jsx](../../frontend/src/pages/Checklist.jsx) |
-| Release script (6.0.2–6.0.5) | `--push-only` commits allowed changes and pushes the development branch without a release; releases and push-only ask for the commit message; each release writes its version into the user guide, the design guide and this overview (`VERSION_DOCS`) and warns when the Word guide is older than the Markdown guide | [versioning.sh](../../versioning.sh), [VERSIONING.md](../../VERSIONING.md) |
+| Release script (6.0.2–6.0.5) | `--push-only` commits allowed changes and pushes the development branch without a release; releases and push-only ask for the commit message; each release writes its version into the user guide, the design guide and this overview (`VERSION_DOCS`) and, after 6.0.5, rebuilds the Word user guide (python-docx, test-built before `main` is touched) | [versioning.sh](../../versioning.sh), [VERSIONING.md](../../VERSIONING.md) |
 
 ---
 
@@ -863,8 +863,8 @@ EXDA_BACKEND_PORT=5055 npx vite --config frontend/vite.config.js --port 5175 &
 EXDA_URL=http://localhost:5175 CHROME_PATH=/snap/bin/chromium \
   node docs/EXDA-User-Guide/tools/record_guide_media.mjs /tmp/EXDA-Demo
 
-# 4. Word version
-python3 docs/EXDA-User-Guide/build_userguide_docx.py
+# 4. Word version (each release also rebuilds it; needs python-docx)
+node scripts/run-python.mjs docs/EXDA-User-Guide/build_userguide_docx.py
 ```
 
 Raw recordings go to `docs/EXDA-User-Guide/tools/.raw-videos/` (ignored by

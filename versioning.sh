@@ -17,7 +17,8 @@
 #                        origin. No merge into main, no version bump, no tag.
 #
 #   A release also writes the new version into the guides listed in VERSION_DOCS
-#   and warns when the Word user guide is older than the Markdown guide.
+#   and rebuilds the Word user guide (needs python-docx; checked by a test build
+#   before main is touched).
 #
 #   Changed files are committed on the development branch first. You are asked
 #   for the commit message; Enter keeps the default ("Release-ready changes",
@@ -292,14 +293,26 @@ for (const file of files) {
 NODE
 }
 
-# True when the Markdown user guide changed after the Word guide was last
-# rebuilt (release commits, which only stamp the version, are ignored).
-guide_docx_outdated() {
-  local docx_commit=""
+# Build the Word user guide from the Markdown guide (extra arguments, e.g.
+# --output <file>, are passed to the builder). Uses the app's Python
+# environment through scripts/run-python.mjs; needs python-docx.
+build_guide_docx() {
+  node scripts/run-python.mjs docs/EXDA-User-Guide/build_userguide_docx.py "$@"
+}
 
-  docx_commit="$(git log -1 --format=%H -- "$GUIDE_DOCX" 2>/dev/null || true)"
-  [[ -n "$docx_commit" ]] || return 1
-  git log --format=%s "${docx_commit}..HEAD" -- "$GUIDE_MD" 2>/dev/null | grep -qv '^Prepare release'
+# Test build into a temporary folder, so a release stops before touching main
+# when the Word guide cannot be built.
+check_guide_docx_build() {
+  local tmp_dir=""
+  local status=0
+
+  tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/exda-guide-check.XXXXXX")"
+  build_guide_docx --output "${tmp_dir}/EXDA-UserGuide.docx" >"${tmp_dir}/build.log" 2>&1 || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    tail -5 "${tmp_dir}/build.log" | sed 's/^/  /'
+  fi
+  [[ -n "$tmp_dir" && -d "$tmp_dir" ]] && rm -rf -- "$tmp_dir"
+  return "$status"
 }
 
 # --- Arguments --------------------------------------------------------------
@@ -502,16 +515,22 @@ else
   echo "Planned release:"
   echo "- Commit + push allowed changes on ${dev_branch} (if any)"
   echo "- Merge ${dev_branch} into main, bump version to ${new_version}, update VERSIONING.md"
-  echo "- Write ${new_version} into the guides: ${VERSION_DOCS[*]}"
+  echo "- Write ${new_version} into the guides (${VERSION_DOCS[*]}) and rebuild ${GUIDE_DOCX}"
   echo "- Tag ${tag_name} on main and push main + tag"
   echo "- Merge main back into ${dev_branch} and push"
 fi
 
-if [[ "$push_only" -eq 0 ]] && guide_docx_outdated; then
+if [[ "$push_only" -eq 0 ]]; then
   echo
-  echo "WARNING: the Word user guide is older than the Markdown guide. Rebuild it before"
-  echo "the release (it is then committed with your changes):"
-  echo "  python3 docs/EXDA-User-Guide/build_userguide_docx.py   (needs python-docx)"
+  echo ">> Test build of the Word user guide (checks python-docx before main is touched)"
+  if ! check_guide_docx_build; then
+    echo
+    echo "The release rebuilds ${GUIDE_DOCX} with python-docx. Install it in the app's"
+    echo "Python environment, e.g. run the setup script again (Setup-EXDA-*), or:"
+    echo "  node scripts/run-python.mjs -m pip install python-docx"
+    die "Cannot build the Word user guide."
+  fi
+  echo "Word user guide: test build OK."
 fi
 
 if [[ "$dry_run" -eq 1 ]]; then
@@ -655,12 +674,20 @@ update_versioning_file "$new_version" "$tag_name" "$release_date"
 echo
 echo ">> Writing ${new_version} into the guides"
 update_doc_versions "$new_version" "$release_date"
+echo
+echo ">> Rebuilding ${GUIDE_DOCX}"
+if ! build_guide_docx; then
+  echo
+  echo "Nothing was committed or pushed. main has the merge of ${dev_branch} on this"
+  echo "computer only. To undo it: git checkout -- . && git switch ${dev_branch} && git branch -f main origin/main"
+  die "Rebuilding the Word user guide failed."
+fi
 
 doc_paths=()
 for doc in "${VERSION_DOCS[@]}"; do
   [[ -f "$doc" ]] && doc_paths+=("$doc")
 done
-run_cmd git add -- package.json package-lock.json VERSIONING.md ${doc_paths[@]+"${doc_paths[@]}"}
+run_cmd git add -- package.json package-lock.json VERSIONING.md ${doc_paths[@]+"${doc_paths[@]}"} "$GUIDE_DOCX"
 if git diff --cached --quiet; then
   echo "No release metadata/version changes to commit on main."
 else

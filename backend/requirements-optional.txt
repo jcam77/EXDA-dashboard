@@ -1,1 +1,3 @@
 ollama
+# Release tooling: versioning.sh rebuilds the Word user guide with it
+python-docx

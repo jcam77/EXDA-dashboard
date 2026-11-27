@@ -14,6 +14,7 @@ IMPORT_NAME_MAP = {
     "flask-cors": "flask_cors",
     "pymupdf": "fitz",
     "pywavelets": "pywt",
+    "python-docx": "docx",
 }
 
 

@@ -262,6 +262,11 @@ If no terminal is available to ask, it stops before making any change.
 - merges `<dev-branch>` into `main`
 - bumps the version on `main` if needed
 - updates `VERSIONING.md` with latest release version, tag, and date
+- writes the new version into the user guide, the design guide and the Developer
+  Overview, and rebuilds the Word user guide (`EXDA-UserGuide.docx`); these go into
+  the "Prepare release" commit, before the tag is created. The Word build needs
+  `python-docx` (in `backend/requirements-optional.txt`, installed by setup); a test
+  build runs before `main` is touched, also in `--dry-run`
 - creates and pushes the tag from `main`
 - merges `main` back into `<dev-branch>` and pushes it
 
