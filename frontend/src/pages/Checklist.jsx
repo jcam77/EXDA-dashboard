@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, ClipboardList, ListChecks, Pencil, UserCheck } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ClipboardList, ListChecks, Pencil, UserCheck } from 'lucide-react';
 import ProceduresPanel, { ProceduresBadge } from '../components/ProceduresPanel';
 import ChecklistEditor from '../components/ChecklistEditor';
 import PageHeader from '../components/PageHeader';
@@ -38,6 +38,10 @@ const ChecklistPage = ({
     const definition = useChecklistDefinition(apiBaseUrl, projectPath);
     const checklistGroups = definition.checklist?.groups || [];
     const [editing, setEditing] = useState(false);
+    // Safety checklist: a complete group folds to one line, an incomplete group
+    // stays open. Clicking a group header overrides this for this visit only
+    // (not remembered), so every test day starts with all open checks visible.
+    const [manualFold, setManualFold] = useState({});
     const [draft, setDraft] = useState(null);
     const [editMessage, setEditMessage] = useState('');
     const { dialogModal, setDialogModal, showConfirm } = useAppDialog();
@@ -291,27 +295,46 @@ const ChecklistPage = ({
                     const groupTotal = group.items.length;
                     const groupPercent = groupTotal ? Math.round((groupDone / groupTotal) * 100) : 0;
                     const groupComplete = groupDone === groupTotal && groupTotal > 0;
+                    const groupOpenCount = groupTotal - groupDone;
+                    const folded = manualFold[group.id] ?? groupComplete;
 
                     return (
-                    <div key={group.id} className="rounded-xl border border-sidebar-border bg-card/50 p-5 hover:border-primary/50 transition">
-                        <div className="flex items-center gap-3 mb-4">
+                    <div key={group.id} className={`rounded-xl border border-sidebar-border bg-card/50 hover:border-primary/50 transition ${folded ? 'self-start px-5 py-3' : 'p-5'}`}>
+                        <button
+                            type="button"
+                            onClick={() => setManualFold((prev) => ({ ...prev, [group.id]: !folded }))}
+                            aria-expanded={!folded}
+                            title={folded ? 'Show the checks in this group' : 'Fold this group'}
+                            className={`flex w-full items-center gap-3 text-left ${folded ? 'mb-2' : 'mb-4'}`}
+                        >
                             <ChecklistGroupIcon name={group.icon} />
                             <h2 className="text-sm font-black uppercase whitespace-nowrap">Group {gIdx + 1}:</h2>
                             <h2 className="min-w-0 truncate text-sm font-black" title={group.title}>{group.title}</h2>
-                            <span className={`ml-auto rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest ${
+                            {folded && !groupComplete && groupOpenCount > 0 && (
+                                <span className="shrink-0 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] font-bold text-warning">
+                                    {groupOpenCount} open
+                                </span>
+                            )}
+                            <span className={`ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest ${
                                 groupComplete
                                     ? 'border-primary/30 bg-primary/10 text-primary'
                                     : 'border-border bg-muted/40 text-muted-foreground'
                             }`}>
+                                {groupComplete && <Check size={11} />}
                                 {groupDone}/{groupTotal}
                             </span>
-                        </div>
-                        <div className="mb-3 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                            <ChevronDown
+                                size={16}
+                                className={`shrink-0 text-muted-foreground transition-transform ${folded ? '-rotate-90' : ''}`}
+                            />
+                        </button>
+                        <div className={`h-1.5 w-full rounded-full bg-muted/60 overflow-hidden ${folded ? '' : 'mb-3'}`}>
                             <div
                                 className="h-full rounded-full bg-primary transition-all"
                                 style={{ width: `${groupPercent}%` }}
                             />
                         </div>
+                        {!folded && (<>
                         <div className="mb-3 flex items-center gap-2">
                             <button
                                 type="button"
@@ -346,6 +369,7 @@ const ChecklistPage = ({
                                 </label>
                             ))}
                         </div>
+                        </>)}
                     </div>
                     );
                 })}
