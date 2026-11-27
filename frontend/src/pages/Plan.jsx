@@ -165,7 +165,10 @@ const PlanPage = ({
     const [rawDataFiles, setRawDataFiles] = useState([]);
     const [gasMixingByRun, setGasMixingByRun] = useState({});
     const [loadingGasMixingMirror, setLoadingGasMixingMirror] = useState(false);
+    // Fold state per run group, remembered per project in this browser.
+    const foldStorageKey = projectPath ? `exda-plan-open-groups:${projectPath}` : '';
     const [collapsedGroups, setCollapsedGroups] = useState({});
+    const [foldStateLoadedFor, setFoldStateLoadedFor] = useState(null);
     // "New run group" form: open by default only when the plan has no runs yet.
     const [showNewGroupForm, setShowNewGroupForm] = useState(() => !(Array.isArray(experiments) && experiments.length));
     // "Add run" form inside one run group at a time (the group name is fixed there).
@@ -177,6 +180,23 @@ const PlanPage = ({
     const [folderCheck, setFolderCheck] = useState({ status: 'idle', message: '' });
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0, rect: null });
     const runCardRef = useRef(null);
+    // Field to show when the run card opens from a "Missing" badge (h2, ignition, vent, data).
+    const [runCardFocusField, setRunCardFocusField] = useState('');
+    // When the run card opened for a missing field, scroll to it and highlight it.
+    useEffect(() => {
+        if (!editingExp || !runCardFocusField) return undefined;
+        const timerId = setTimeout(() => {
+            const target = runCardRef.current?.querySelector(`[data-run-field="${runCardFocusField}"]`);
+            if (target) {
+                target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                target.querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
+                target.classList.add('ring-2', 'ring-info', 'rounded');
+                setTimeout(() => target.classList.remove('ring-2', 'ring-info', 'rounded'), 1800);
+            }
+            setRunCardFocusField('');
+        }, 80);
+        return () => clearTimeout(timerId);
+    }, [editingExp, runCardFocusField]);
     const scheduleChartAreaRef = useRef(null);
     const scheduleDragRef = useRef({ runName: '', startDay: 1, startX: 0, currentX: 0, moved: false });
     const deleteUndoTimeoutRef = useRef(null);
@@ -245,7 +265,8 @@ const PlanPage = ({
         const preparation = experiments.filter((e) => !!e?.meta?.isPreparation).length;
 
         const today = new Date();
-        const deadlineDate = planMeta.deadline ? new Date(planMeta.deadline) : null;
+        const parsedDeadline = planMeta.deadline ? new Date(planMeta.deadline) : null;
+        const deadlineDate = parsedDeadline && !Number.isNaN(parsedDeadline.getTime()) ? parsedDeadline : null;
         
         let daysLeft = 0;
         let pace = 0;
@@ -258,7 +279,7 @@ const PlanPage = ({
             }
         }
         const completionPercent = total ? Math.round((done / total) * 100) : 0;
-        return { total, done, remaining, canceled, errors, preparation, daysLeft: daysLeft > 0 ? daysLeft : 0, pace, completionPercent };
+        return { total, done, remaining, canceled, errors, preparation, hasDeadline: !!deadlineDate, daysLeft: daysLeft > 0 ? daysLeft : 0, pace, completionPercent };
     };
     
     const stats = getStats();
@@ -859,19 +880,6 @@ const PlanPage = ({
         setLastDeletedRun(null);
     }, [clearDeleteUndoTimeout, lastDeletedRun, setExperiments]);
 
-    const updateRunShortDescription = useCallback((runId, value) => {
-        setExperiments((previous) => previous.map((exp) => {
-            if (exp.id !== runId) return exp;
-            return {
-                ...exp,
-                meta: {
-                    ...(exp.meta || {}),
-                    shortDescription: value,
-                },
-            };
-        }));
-    }, [setExperiments]);
-
     const exportPlanArtifact = useCallback(async (format) => {
         if (!projectPath) {
             await showAlert({
@@ -1335,6 +1343,34 @@ const PlanPage = ({
             </text>
         );
     }, [beginScheduleRunDrag, draggingScheduleRun, experiments, getRunVisualStatus]);
+    // Load the remembered fold state when the project changes.
+    useEffect(() => {
+        let stored = {};
+        if (foldStorageKey) {
+            try {
+                const parsed = JSON.parse(window.localStorage.getItem(foldStorageKey) || '{}');
+                if (parsed && typeof parsed === 'object') stored = parsed;
+            } catch {
+                stored = {};
+            }
+        }
+        setCollapsedGroups(stored);
+        setFoldStateLoadedFor(foldStorageKey);
+    }, [foldStorageKey]);
+    // Save it after every change (only once it was loaded for this project).
+    useEffect(() => {
+        if (!foldStorageKey || foldStateLoadedFor !== foldStorageKey) return;
+        try {
+            window.localStorage.setItem(foldStorageKey, JSON.stringify(collapsedGroups));
+        } catch {
+            // Storage full or blocked: folding still works for this visit.
+        }
+    }, [collapsedGroups, foldStorageKey, foldStateLoadedFor]);
+    const setAllGroupsFolded = (folded) => {
+        const next = {};
+        Object.keys(groupedTasks).forEach((groupName) => { next[groupName] = folded; });
+        setCollapsedGroups(next);
+    };
     // Groups start folded so the plan reads as a list of group summaries;
     // false means the user unfolded that group.
     const isGroupCollapsed = useCallback((groupName) => collapsedGroups[groupName] !== false, [collapsedGroups]);
@@ -1476,6 +1512,15 @@ const PlanPage = ({
     const editingMirroredPchamber = formatPressurePa(editingGasMirror?.pChamberPa);
     const editingMirroredTchamberK = formatTempK(editingGasMirror?.tChamberK);
 
+    // Open the run card, optionally at a field (h2, ignition, vent, data).
+    const openRunCard = (exp, focusField = '') => {
+        setModalOffset({ x: 0, y: 40 });
+        setEditError("");
+        setRunCardFocusField(focusField);
+        setEditingExp({ ...exp });
+    };
+    const MISSING_FIELD_KEYS = { 'H2%': 'h2', Ignition: 'ignition', Vent: 'vent', Data: 'data' };
+
     // One-line status summary for a folded run group, e.g. "16 done · 1 error".
     const summarizeRunGroup = (tasks) => [
         ['done', tasks.filter((task) => task.done).length],
@@ -1507,7 +1552,7 @@ const PlanPage = ({
                     {e.name}
                 </span>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                    <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} title="Edit run card" aria-label={`Edit run card ${e.name}`} className="text-muted-foreground hover:text-foreground p-1 hover:bg-muted rounded transition-colors"><PenTool size={12}/></button>
+                    <button onClick={() => openRunCard(e)} title="Edit run card" aria-label={`Edit run card ${e.name}`} className="text-muted-foreground hover:text-foreground p-1 hover:bg-muted rounded transition-colors"><PenTool size={12}/></button>
                     <button onClick={() => removeRunWithUndo(e.id)} title="Delete run" aria-label={`Delete run ${e.name}`} className="text-muted-foreground hover:text-destructive p-1 hover:bg-muted rounded transition-colors"><Trash2 size={12}/></button>
                 </div>
             </div>
@@ -1553,20 +1598,30 @@ const PlanPage = ({
                         )}
                     </>
                 ) : (
-                    <div className="flex items-center gap-1 bg-info/10 border border-info/30 px-1.5 py-0.5 rounded text-[11px] text-info font-bold tracking-wide">
-                        <AlertCircle size={8}/> Missing: {getMissingMeta(e).join(', ')}
+                    <div className="flex flex-wrap items-center gap-1 bg-info/10 border border-info/30 px-1.5 py-0.5 rounded text-[11px] text-info font-bold tracking-wide">
+                        <AlertCircle size={8}/> Missing:
+                        {getMissingMeta(e).map((label, index, all) => (
+                            <React.Fragment key={label}>
+                                <button
+                                    type="button"
+                                    onClick={() => openRunCard(e, MISSING_FIELD_KEYS[label] || '')}
+                                    title={`Open the run card at ${label}`}
+                                    className="underline decoration-dotted underline-offset-2 hover:text-foreground"
+                                >
+                                    {label}
+                                </button>
+                                {index < all.length - 1 ? ',' : ''}
+                            </React.Fragment>
+                        ))}
                     </div>
                 )}
             </div>
-            <div className="ml-8 mt-2">
-                <input
-                    value={String(e.meta?.shortDescription || '')}
-                    onChange={(event) => updateRunShortDescription(e.id, event.target.value)}
-                    onClick={(event) => event.stopPropagation()}
-                    placeholder="Short run description (e.g., baseline vented run)"
-                    className="w-full bg-background/[0.28] border border-border rounded px-2 py-1 text-[11px] text-foreground/85 outline-none focus:border-primary"
-                />
-            </div>
+            {/* Short description: shown when filled in, edited in the run card. */}
+            {String(e.meta?.shortDescription || '').trim() && (
+                <div className="ml-8 mt-2 text-[11px] italic text-foreground/75 break-words" title="Edit in the run card (pen icon)">
+                    {e.meta.shortDescription}
+                </div>
+            )}
         </div>
     );
 
@@ -1597,11 +1652,14 @@ const PlanPage = ({
                 Project Description tab (same plan data, saved with the plan). */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
                 <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                    <div className="text-xl font-bold text-foreground/85 leading-none mb-1">{stats.daysLeft}</div>
+                    <div className="text-xl font-bold text-foreground/85 leading-none mb-1">{stats.hasDeadline ? stats.daysLeft : '—'}</div>
                     <div className="text-[11px] text-muted-foreground font-bold">Days until Deadline</div>
+                    {!stats.hasDeadline && (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">Set a deadline in Project Description</div>
+                    )}
                 </div>
                 <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                    <div className="text-xl font-bold text-primary leading-none mb-1">{stats.pace || '--'}</div>
+                    <div className="text-xl font-bold text-primary leading-none mb-1">{stats.pace || '—'}</div>
                     <div className="text-[11px] text-muted-foreground font-bold">Pace (Runs/Day)</div>
                 </div>
                 <div className="bg-card/60 border border-warning/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
@@ -1723,6 +1781,13 @@ const PlanPage = ({
                     <span className="text-[11px] text-muted-foreground">
                         {runGroupCount} {runGroupCount === 1 ? 'group' : 'groups'} · {stats.total} {stats.total === 1 ? 'run' : 'runs'}
                     </span>
+                    {runGroupCount > 1 && (
+                        <span className="flex items-center gap-1 text-[11px]">
+                            <button type="button" onClick={() => setAllGroupsFolded(false)} className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Open all</button>
+                            <span className="text-muted-foreground">·</span>
+                            <button type="button" onClick={() => setAllGroupsFolded(true)} className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Fold all</button>
+                        </span>
+                    )}
                     <div className="ml-auto flex flex-wrap items-center gap-2">
                         <button
                             type="button"
@@ -1915,9 +1980,21 @@ const PlanPage = ({
                                         · {objective}
                                     </span>
                                 )}
+                                {(() => {
+                                    const doneCount = tasks.filter((task) => task.done).length;
+                                    const percent = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
+                                    return (
+                                        <span className="ml-auto hidden shrink-0 items-center gap-2 sm:flex" title={`${doneCount} of ${tasks.length} runs done`}>
+                                            <span className="h-1 w-20 overflow-hidden rounded-full bg-muted">
+                                                <span className="block h-full bg-primary" style={{ width: `${percent}%` }} />
+                                            </span>
+                                            <span className="w-9 text-right text-[11px] text-muted-foreground">{percent}%</span>
+                                        </span>
+                                    );
+                                })()}
                                 <ChevronDown
                                     size={16}
-                                    className={`ml-auto shrink-0 text-muted-foreground transition-transform ${folded ? '-rotate-90' : ''}`}
+                                    className={`ml-auto shrink-0 text-muted-foreground transition-transform sm:ml-0 ${folded ? '-rotate-90' : ''}`}
                                 />
                             </button>
                             {!folded && (
@@ -2116,7 +2193,7 @@ const PlanPage = ({
                                         <TrendingUp size={12}/> Mixture Parameters
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 pl-1 md:pl-2">
-                                        <div><label className="text-[11px] text-muted-foreground font-bold mb-1 block">Target H2%V</label><input value={editingExp.meta?.h2} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2:e.target.value}})} className="w-full bg-background border border-border rounded p-2.5 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 10.5"/></div>
+                                        <div data-run-field="h2"><label className="text-[11px] text-muted-foreground font-bold mb-1 block">Target H2%V</label><input value={editingExp.meta?.h2} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, h2:e.target.value}})} className="w-full bg-background border border-border rounded p-2.5 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., 10.5"/></div>
                                         <div>
                                             <label className="text-[11px] text-muted-foreground font-bold mb-1 block" title="Injected hydrogen mass">H2 injected (g) • mirrored from Gas Mixing</label>
                                             <input value={editingMirroredH2Injected} readOnly className="w-full bg-background border border-border rounded p-2.5 text-xs text-foreground/85 outline-none cursor-not-allowed" placeholder={loadingGasMixingMirror ? 'Loading...' : 'Not calculated yet'} />
@@ -2208,7 +2285,7 @@ const PlanPage = ({
                                             />
                                             Preparation run (skip required metadata gate)
                                         </label>
-                                        <div>
+                                        <div data-run-field="ignition">
                                             <label className="text-[11px] text-muted-foreground font-bold mb-1 block">Ignition Configuration</label>
                                             <select
                                                 value={editingIgnitionSelection}
@@ -2243,7 +2320,7 @@ const PlanPage = ({
                                                 />
                                             )}
                                         </div>
-                                        <div>
+                                        <div data-run-field="vent">
                                             <label className="text-[11px] text-muted-foreground font-bold mb-1 block">Venting Configuration</label>
                                             <select
                                                 value={editingVentSelection}
@@ -2289,7 +2366,7 @@ const PlanPage = ({
                                     </div>
                                     <div><label className="text-[11px] text-muted-foreground font-bold mb-1 block">Case ID / CFD Hash</label><input value={editingExp.meta?.cfdHash} onChange={e=>setEditingExp({...editingExp, meta:{...editingExp.meta, cfdHash:e.target.value}})} className="w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground placeholder:italic outline-none focus:ring-1 focus:ring-primary" placeholder="e.g., #OFv2306-mesh-rev2"/></div>
                                 </div>
-                                <div>
+                                <div data-run-field="data">
                                     <div className="flex items-center gap-2 text-foreground/85 font-semibold text-xs tracking-wide mb-3 border-b border-border pb-1">
                                         <Layers size={12}/> Associated Data Files
                                     </div>
