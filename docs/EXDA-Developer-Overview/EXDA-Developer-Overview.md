@@ -5,7 +5,7 @@ verified today, and what to improve before the calculations are extended.
 
 - **Audience:** developers working on EXDA (not end users; see
   [EXDA-UserGuide.md](../EXDA-User-Guide/EXDA-UserGuide.md) for those).
-- **State described:** release 6.0.6 on `CLAUDE-Updates`
+- **State described:** release 6.0.7 on `CLAUDE-Updates`
   (27 November 2026). `versioning.sh` writes this version line at each
   release; the text is updated with each change. Releases 4.0.13–5.0.5
   changed the install layout, the shortcuts, the projects folder, the

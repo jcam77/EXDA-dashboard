@@ -1,4 +1,4 @@
-# EXDA User Guide — MVP mode (version 6.0.6)
+# EXDA User Guide — MVP mode (version 6.0.7)
 
 This guide walks you through a test campaign in EXDA, tab by tab, in the order
 you use them: from opening a project to exporting the report. Every section has a

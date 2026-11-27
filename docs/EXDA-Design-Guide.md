@@ -9,7 +9,7 @@ How EXDA looks and why, so that new screens, and new apps in the same family
   [frontend/src/index.css](../frontend/src/index.css) and
   [frontend/tailwind.config.js](../frontend/tailwind.config.js). This guide
   explains them; if the two ever disagree, fix the guide.
-- **State:** EXDA 6.0.6 (November 2026). It replaces the old
+- **State:** EXDA 6.0.7 (November 2026). It replaces the old
   `design_guidelines.json` (February 2026), which described an earlier, grey look.
 
 ---
