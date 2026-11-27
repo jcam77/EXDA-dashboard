@@ -16,6 +16,9 @@
 #                        branch (asks for a message) and push that branch to
 #                        origin. No merge into main, no version bump, no tag.
 #
+#   A release also writes the new version into the guides listed in VERSION_DOCS
+#   and warns when the Word user guide is older than the Markdown guide.
+#
 #   Changed files are committed on the development branch first. You are asked
 #   for the commit message; Enter keeps the default ("Release-ready changes",
 #   or "Work in progress" with --push-only).
@@ -245,6 +248,60 @@ fs.writeFileSync(path, text);
 NODE
 }
 
+# Documents that name the app version; every release writes the new version
+# into them (the text itself is updated with each change, not by the release).
+VERSION_DOCS=(
+  docs/EXDA-User-Guide/EXDA-UserGuide.md
+  docs/EXDA-Design-Guide.md
+  docs/EXDA-Developer-Overview/EXDA-Developer-Overview.md
+)
+GUIDE_MD="docs/EXDA-User-Guide/EXDA-UserGuide.md"
+GUIDE_DOCX="docs/EXDA-User-Guide/EXDA-UserGuide.docx"
+
+# Write the release version (and date) into the version line of each document
+# in VERSION_DOCS. A document whose version line is not found is left as is.
+update_doc_versions() {
+  local new_version="$1"
+  local release_date="$2"
+
+  node - "$new_version" "$release_date" "${VERSION_DOCS[@]}" <<'NODE'
+const fs = require('fs');
+const [newVersion, releaseDate, ...files] = process.argv.slice(2);
+const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+  'August', 'September', 'October', 'November', 'December'];
+const [y, m, d] = releaseDate.split('-').map(Number);
+const monthYear = `${months[m - 1]} ${y}`;
+const dayMonthYear = `${d} ${months[m - 1]} ${y}`;
+const rules = [
+  // User guide title, e.g. "# EXDA User Guide — MVP mode (version 6.0.4)"
+  [/^(# .*\(version )\d+\.\d+\.\d+(\))/m, `$1${newVersion}$2`],
+  // Design guide, e.g. "- **State:** EXDA 6.0.4 (November 2026)"
+  [/^(- \*\*State:\*\* EXDA )\d+\.\d+\.\d+ \([A-Z][a-z]+ \d{4}\)/m, `$1${newVersion} (${monthYear})`],
+  // Developer overview, e.g. "**State described:** release 6.0.4 on `X`\n  (27 November 2026)"
+  [/(\*\*State described:\*\* release )\d+\.\d+\.\d+( on `[^`]+`\s*\()\d{1,2} [A-Z][a-z]+ \d{4}(\))/, `$1${newVersion}$2${dayMonthYear}$3`],
+];
+for (const file of files) {
+  if (!fs.existsSync(file)) { console.log(`  ${file}: not found, skipped`); continue; }
+  const text = fs.readFileSync(file, 'utf8');
+  const rule = rules.find(([pattern]) => pattern.test(text));
+  if (!rule) { console.log(`  ${file}: no version line found, left as is`); continue; }
+  const next = text.replace(rule[0], rule[1]);
+  fs.writeFileSync(file, next);
+  console.log(`  ${file}: ${next === text ? 'already at' : 'set to'} ${newVersion}`);
+}
+NODE
+}
+
+# True when the Markdown user guide changed after the Word guide was last
+# rebuilt (release commits, which only stamp the version, are ignored).
+guide_docx_outdated() {
+  local docx_commit=""
+
+  docx_commit="$(git log -1 --format=%H -- "$GUIDE_DOCX" 2>/dev/null || true)"
+  [[ -n "$docx_commit" ]] || return 1
+  git log --format=%s "${docx_commit}..HEAD" -- "$GUIDE_MD" 2>/dev/null | grep -qv '^Prepare release'
+}
+
 # --- Arguments --------------------------------------------------------------
 
 opt_dev_branch=""
@@ -445,8 +502,16 @@ else
   echo "Planned release:"
   echo "- Commit + push allowed changes on ${dev_branch} (if any)"
   echo "- Merge ${dev_branch} into main, bump version to ${new_version}, update VERSIONING.md"
+  echo "- Write ${new_version} into the guides: ${VERSION_DOCS[*]}"
   echo "- Tag ${tag_name} on main and push main + tag"
   echo "- Merge main back into ${dev_branch} and push"
+fi
+
+if [[ "$push_only" -eq 0 ]] && guide_docx_outdated; then
+  echo
+  echo "WARNING: the Word user guide is older than the Markdown guide. Rebuild it before"
+  echo "the release (it is then committed with your changes):"
+  echo "  python3 docs/EXDA-User-Guide/build_userguide_docx.py   (needs python-docx)"
 fi
 
 if [[ "$dry_run" -eq 1 ]]; then
@@ -587,8 +652,15 @@ release_date="$(date +%F)"
 echo
 echo ">> Updating VERSIONING.md release metadata"
 update_versioning_file "$new_version" "$tag_name" "$release_date"
+echo
+echo ">> Writing ${new_version} into the guides"
+update_doc_versions "$new_version" "$release_date"
 
-run_cmd git add -- package.json package-lock.json VERSIONING.md
+doc_paths=()
+for doc in "${VERSION_DOCS[@]}"; do
+  [[ -f "$doc" ]] && doc_paths+=("$doc")
+done
+run_cmd git add -- package.json package-lock.json VERSIONING.md ${doc_paths[@]+"${doc_paths[@]}"}
 if git diff --cached --quiet; then
   echo "No release metadata/version changes to commit on main."
 else

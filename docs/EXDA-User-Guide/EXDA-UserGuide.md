@@ -1,4 +1,4 @@
-# EXDA User Guide — MVP mode (version 5.0.7)
+# EXDA User Guide — MVP mode (version 6.0.4)
 
 This guide walks you through a test campaign in EXDA, tab by tab, in the order
 you use them: from opening a project to exporting the report. Every section has a
@@ -39,18 +39,18 @@ run, of whether the run is OK or must be repeated. Detailed analysis for reports
 and papers is done elsewhere (for example in MATLAB). MVP mode shows only the tabs
 needed to prepare, run and document a campaign, in this order:
 
-| Tab | What it is for |
-| --- | --- |
-| **Project Description** | What the project is: objective, dates, and standard fields that describe it the same way in every project |
-| **Checklist** | Safety and pre-test checks, signed off, and the project's safety procedures |
-| **Plan** | The runs of the campaign, their status and details |
-| **DAQ Systems** | The data acquisition systems used |
-| **Sensors Mapping** / **Cameras Mapping** | Where each sensor and camera is and how it is connected |
-| **Gas Mixing** | Hydrogen fill calculation for each run |
-| **Import Data** | Selecting the instrument files of a run |
-| **Raw Data Screening — Pressure** | A quick look at the pressure signals, with peak pressures in a time range |
-| **Raw Data Screening — H2 Concentration** | A quick look at the measured hydrogen concentration |
-| **Report** | The metadata report of the campaign (PDF or CSV) |
+| Tab                                                   | What it is for                                                                                            |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Project Description**                         | What the project is: objective, dates, and standard fields that describe it the same way in every project |
+| **Checklist**                                   | Safety and pre-test checks, signed off, and the project's safety procedures                               |
+| **Plan**                                        | The runs of the campaign, their status and details                                                        |
+| **DAQ Systems**                                 | The data acquisition systems used                                                                         |
+| **Sensors Mapping** / **Cameras Mapping** | Where each sensor and camera is and how it is connected                                                   |
+| **Gas Mixing**                                  | Hydrogen fill calculation for each run                                                                    |
+| **Import Data**                                 | Selecting the instrument files of a run                                                                   |
+| **Raw Data Screening — Pressure**              | A quick look at the pressure signals, with peak pressures in a time range                                 |
+| **Raw Data Screening — H2 Concentration**      | A quick look at the measured hydrogen concentration                                                       |
+| **Report**                                      | The metadata report of the campaign (PDF or CSV)                                                          |
 
 The **MVP** button in the top bar switches MVP mode on and off; switching it off
 can be protected with a password set by whoever installed EXDA. With MVP mode off,
@@ -553,17 +553,17 @@ exported from their own tabs.
 
 ## 16. Troubleshooting
 
-| Message or symptom | What to do |
-| --- | --- |
+| Message or symptom                                              | What to do                                                                                                                                                                                                                                                                                                       |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | *“Backend not running?”*, or no projects and folders appear | Look at the terminal window that runs EXDA. If it says *“another program answers on port …”*, that program uses EXDA's port: on a Mac this is often **AirPlay Receiver** (System Settings → General → AirDrop & Handoff → switch off AirPlay Receiver). If the window is closed, start EXDA again. |
-| **Read-only** banner | The project is open in another window or on another computer. Close that one and reload this one. Use **Take over editing** only if the other EXDA crashed. |
-| *“… was changed elsewhere … reload”* | Someone saved the same file after you opened it. Reload the page, then redo your change. |
-| Gas Mixing result marked **STALE** | An input changed after calculating. Click **Calculate** again, then **Save Run**. |
-| *“Missing required input …”* in Gas Mixing | Enter the missing measured value; EXDA does not substitute a default. |
-| Peak pressures: *“Set a time range …”* | Enter **Start** and **End** (in s) of the event, then click **Calculate peaks**. |
-| Peak values cleared | The range or the ticked channels changed; click **Calculate peaks** again. |
-| H2S file: *“contains 2 recordings; choose one”* | Choose the recording in **Recording in this file**. |
-| A file does not appear in Import Data | Check that it is inside `Raw_Data/<run>/` and has a supported type: csv, txt, dat, asc, mf4, tpc5. |
-| *“Not an EXDA project yet”* when opening a folder | You opened a folder without project folders (for example a folder that only groups projects). Click **Cancel** and open one of the projects inside it, or **Create project folders** if it really is a new project. |
-| A project is missing from the Projects page | Check that it is inside your projects folder (at most three folder levels deep) and contains `exda-project.json` or a `Plan/` folder with an experiment plan. |
-| The first start stops with a message about Node.js or Python | Install the program it names (or accept the offer to install it), then double-click EXDA again. |
+| **Read-only** banner                                      | The project is open in another window or on another computer. Close that one and reload this one. Use **Take over editing** only if the other EXDA crashed.                                                                                                                                                |
+| *“… was changed elsewhere … reload”*                      | Someone saved the same file after you opened it. Reload the page, then redo your change.                                                                                                                                                                                                                         |
+| Gas Mixing result marked **STALE**                        | An input changed after calculating. Click **Calculate** again, then **Save Run**.                                                                                                                                                                                                                    |
+| *“Missing required input …”* in Gas Mixing                 | Enter the missing measured value; EXDA does not substitute a default.                                                                                                                                                                                                                                            |
+| Peak pressures: *“Set a time range …”*                     | Enter **Start** and **End** (in s) of the event, then click **Calculate peaks**.                                                                                                                                                                                                               |
+| Peak values cleared                                             | The range or the ticked channels changed; click **Calculate peaks** again.                                                                                                                                                                                                                                 |
+| H2S file: *“contains 2 recordings; choose one”*             | Choose the recording in **Recording in this file**.                                                                                                                                                                                                                                                        |
+| A file does not appear in Import Data                           | Check that it is inside `Raw_Data/<run>/` and has a supported type: csv, txt, dat, asc, mf4, tpc5.                                                                                                                                                                                                             |
+| *“Not an EXDA project yet”* when opening a folder           | You opened a folder without project folders (for example a folder that only groups projects). Click **Cancel** and open one of the projects inside it, or **Create project folders** if it really is a new project.                                                                                  |
+| A project is missing from the Projects page                     | Check that it is inside your projects folder (at most three folder levels deep) and contains `exda-project.json` or a `Plan/` folder with an experiment plan.                                                                                                                                                |
+| The first start stops with a message about Node.js or Python    | Install the program it names (or accept the offer to install it), then double-click EXDA again.                                                                                                                                                                                                                  |
