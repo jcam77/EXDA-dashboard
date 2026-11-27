@@ -50,23 +50,6 @@ const formatVolPercentLabel = (value) => {
     return `${numeric.toFixed(2).replace(/\.?0+$/, '')} vol.%`;
 };
 
-const formatCompactPercentLabel = (value) => {
-    const raw = String(value ?? '').trim();
-    if (!raw) return '';
-    const numericText = raw
-        .replace(/h2/gi, '')
-        .replace(/vol\.?\s*%/gi, '')
-        .replace(/%\s*vol\.?/gi, '')
-        .replace(/%/g, '')
-        .trim()
-        .replace(',', '.');
-    const numeric = Number.parseFloat(numericText);
-    if (!Number.isFinite(numeric)) return raw;
-    return `${numeric.toFixed(2).replace(/\.?0+$/, '')}%`;
-};
-
-// Sized for the 11 px badge text (the design guide's minimum).
-const getScheduleH2BadgeWidth = (label) => Math.max(34, Math.min(58, (String(label || '').length * 6.8) + 12));
 
 const IGNITION_PRESET_OPTIONS = [
     'Back Wall',
@@ -1063,7 +1046,6 @@ const PlanPage = ({
             name: exp.name,
             groupName,
             groupColor: scheduleGroupColorByName[groupName] || GROUP_MARKER_COLORS[0],
-            h2Label: formatCompactPercentLabel(exp?.meta?.h2),
             day,
             visualStatus: getRunVisualStatus(exp),
             runSortKey: String(exp?.name || ''),
@@ -1095,7 +1077,6 @@ const PlanPage = ({
             row[`${dayKey}Name`] = run?.name || '';
             row[`${dayKey}Group`] = run?.groupName || '';
             row[`${dayKey}GroupColor`] = run?.groupColor || '';
-            row[`${dayKey}H2`] = run?.h2Label || '';
             row[`${dayKey}Status`] = run?.visualStatus || 'planned';
             row[`${dayKey}Day`] = day;
         });
@@ -1236,10 +1217,6 @@ const PlanPage = ({
         const statusStrokeWidth = visualStatus === 'done'
             ? 0.9
             : (isDragging ? 1 : 0.45);
-        const h2Label = String(payload?.[`${dayKey}H2`] || '').trim();
-        const showH2Badge = h2Label && width >= 120;
-        const h2BadgeText = h2Label;
-        const h2BadgeWidth = showH2Badge ? getScheduleH2BadgeWidth(h2BadgeText) : 0;
         return (
             <g
                 style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
@@ -1276,32 +1253,6 @@ const PlanPage = ({
                     fill={groupColor}
                     opacity={1}
                 />
-                {showH2Badge && (
-                    <g pointerEvents="none">
-                        <rect
-                            x={x + width + 5}
-                            y={y + 3}
-                            width={h2BadgeWidth}
-                            height={Math.max(0, height - 6)}
-                            rx={5}
-                            ry={5}
-                            fill="hsl(var(--primary) / 0.12)"
-                            stroke="hsl(var(--primary) / 0.42)"
-                            strokeWidth={0.55}
-                        />
-                        <text
-                            x={x + width + h2BadgeWidth / 2 + 5}
-                            y={y + height / 2}
-                            fill="hsl(var(--primary))"
-                            fontSize={11}
-                            fontWeight={800}
-                            dominantBaseline="middle"
-                            textAnchor="middle"
-                        >
-                            {h2BadgeText}
-                        </text>
-                    </g>
-                )}
             </g>
         );
     }, [beginScheduleRunDrag, draggingScheduleRun]);
@@ -1696,7 +1647,7 @@ const PlanPage = ({
                             layout="vertical"
                             data={scheduleData}
                             barSize={22}
-                            margin={{left: 16, right: 72, top: 16, bottom: 22}}
+                            margin={{left: 16, right: 24, top: 16, bottom: 22}}
                         >
                             <CartesianGrid strokeDasharray="2 4" horizontal={false} stroke="hsl(var(--border))" />
                             <XAxis
