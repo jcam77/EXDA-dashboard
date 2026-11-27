@@ -157,14 +157,14 @@ install_missing_python_packages() {
 
 resolve_python() {
   sanitize_local_venv
-  if [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+  if [ -d "$REPO_ROOT/.venv" ]; then
     local detected_prefix=""
     detected_prefix="$("$REPO_ROOT/.venv/bin/python" -c "import sys; print(sys.prefix)" 2>/dev/null || true)"
     if [ "$detected_prefix" = "$REPO_ROOT/.venv" ]; then
       PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
       return
     fi
-    add_missing "Broken local virtualenv: recreate .venv with python3 -m venv .venv"
+    add_missing "Broken local virtualenv: run ./Setup-EXDA-LINUX.sh (it archives .venv and creates a new one)"
   fi
   if command -v python3 >/dev/null 2>&1; then
     PYTHON_CMD="python3"

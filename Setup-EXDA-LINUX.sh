@@ -124,7 +124,10 @@ archive_broken_venv() {
 }
 
 resolve_python() {
-  if [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+  # Reuse .venv only if its Python runs from this folder. Archive anything else
+  # (broken bin/python link, no bin/python, a macOS or Windows venv), because
+  # "python3 -m venv" over an existing folder keeps a broken link.
+  if [ -d "$REPO_ROOT/.venv" ]; then
     local detected_prefix=""
     detected_prefix="$("$REPO_ROOT/.venv/bin/python" -c "import sys; print(sys.prefix)" 2>/dev/null || true)"
     if [ "$detected_prefix" = "$REPO_ROOT/.venv" ]; then
