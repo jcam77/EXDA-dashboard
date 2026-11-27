@@ -250,7 +250,8 @@ The script stops before staging anything if:
 It stages only the allowed paths, by name (never `git add -A`), re-checks what was staged,
 shows `git diff --cached --stat`, and asks for confirmation:
 
-1. before committing and pushing on `<dev-branch>`;
+1. before committing and pushing on `<dev-branch>`, then for the commit message
+   (Enter keeps `Release-ready changes`; quotes around the text are removed);
 2. before merging into `main`, bumping, tagging and pushing.
 
 If no terminal is available to ask, it stops before making any change.
@@ -277,7 +278,7 @@ without making a release:
 It runs the same branch and allow-list checks as a release, then:
 
 1. if allowed files are changed: stages them by name, shows `git diff --cached --stat`,
-   asks before committing and asks for a commit message (default `Work in progress`);
+   asks before committing and asks for a commit message (Enter keeps `Work in progress`);
 2. lists the local commits that `origin/<dev-branch>` does not have yet (as of the last
    fetch) and asks before pushing `<dev-branch>`;
 3. stops. `main`, the version and the tags are not touched.

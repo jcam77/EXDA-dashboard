@@ -16,6 +16,10 @@
 #                        branch (asks for a message) and push that branch to
 #                        origin. No merge into main, no version bump, no tag.
 #
+#   Changed files are committed on the development branch first. You are asked
+#   for the commit message; Enter keeps the default ("Release-ready changes",
+#   or "Work in progress" with --push-only).
+#
 # Safety rules (see EXDA-Check.md, Part D):
 #   - Never stages with `git add -A` / `git add .`. Only paths in ALLOWED_DIRS and
 #     ALLOWED_FILES below are staged, by explicit path.
@@ -159,6 +163,20 @@ confirm() {
   fi
   read -r -p "${prompt} [y/N]: " answer </dev/tty || answer=""
   [[ "$answer" == "y" || "$answer" == "Y" || "$answer" == "yes" || "$answer" == "YES" ]]
+}
+
+# Ask for a commit message on the terminal; Enter keeps the default.
+# Surrounding spaces and one pair of surrounding quotes are removed.
+ask_commit_message() {
+  local default_msg="$1"
+  local answer=""
+
+  read -r -p "Commit message [${default_msg}]: " answer </dev/tty || answer=""
+  answer="$(printf '%s' "$answer" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+  if [[ "$answer" =~ ^\"(.*)\"$ || "$answer" =~ ^\'(.*)\'$ ]]; then
+    answer="${BASH_REMATCH[1]}"
+  fi
+  printf '%s' "${answer:-$default_msg}"
 }
 
 is_allowed_path() {
@@ -485,13 +503,11 @@ if [[ "$push_only" -eq 1 ]]; then
       git restore --staged -- "${stage_paths[@]}" || true
       die "Cancelled by user. Staging undone; nothing was committed."
     fi
-    commit_msg=""
-    read -r -p "Commit message [${dev_commit_msg}]: " commit_msg </dev/tty || commit_msg=""
-    commit_msg="$(echo "$commit_msg" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
     if git diff --cached --quiet; then
       echo "No staged changes to commit on ${dev_branch}."
     else
-      run_cmd git commit -m "${commit_msg:-$dev_commit_msg}"
+      commit_msg="$(ask_commit_message "$dev_commit_msg")"
+      run_cmd git commit -m "$commit_msg"
     fi
   fi
 
@@ -535,7 +551,8 @@ if [[ ${#stage_paths[@]} -gt 0 ]]; then
   if git diff --cached --quiet; then
     echo "No staged changes to commit on ${dev_branch}."
   else
-    run_cmd git commit -m "$dev_commit_msg"
+    commit_msg="$(ask_commit_message "$dev_commit_msg")"
+    run_cmd git commit -m "$commit_msg"
     run_cmd git push origin "$dev_branch"
   fi
 fi
