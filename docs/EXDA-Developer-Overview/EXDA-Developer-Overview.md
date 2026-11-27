@@ -6,14 +6,18 @@ verified today, and what to improve before the calculations are extended.
 - **Audience:** developers working on EXDA (not end users; see
   [EXDA-UserGuide.md](../EXDA-User-Guide/EXDA-UserGuide.md) for those).
 - **State described:** release 6.0.5 on `CLAUDE-Updates`
-  (27 November 2026). Releases 4.0.13–5.0.5 changed the install layout,
-  the shortcuts, the projects folder, the capabilities cloud, the picker
-  start folder, Windows path handling and added the technical skills field
-  (all in the table below). Sections 1–4, 7, 8 and 10 are
-  updated for this state. The findings in section 6 were first written for
-  4.0.0. The calculation modules they refer to (`pressure_analysis`,
-  `ewt_analysis`, `gas_mixing`, `flame_analysis`, `useAnalysisPipeline`)
-  have not changed since, so F1–F16 still apply. F17–F19 come from the
+  (27 November 2026). `versioning.sh` writes this version line at each
+  release; the text is updated with each change. Releases 4.0.13–5.0.5
+  changed the install layout, the shortcuts, the projects folder, the
+  capabilities cloud, the picker start folder, Windows path handling and
+  added the technical skills field; releases 5.0.10–6.0.5 added the Linux
+  `.venv-linux` environment, isolated end-to-end tests, the reorganised Plan
+  tab and Checklist, and release-script options (all in the table below).
+  Sections 1–4, 7, 8 and 10 are updated for this state. The findings in
+  section 6 were first written for 4.0.0. The calculation modules they
+  refer to (`pressure_analysis`, `ewt_analysis`, `gas_mixing`,
+  `flame_analysis`, `useAnalysisPipeline`) have not changed since, so
+  F1–F16 still apply. F17–F19 come from the
   "no default values" audit of November 2026.
 - **Evidence:** every finding in section 6 was checked against the code;
   the numbers quoted were reproduced by running the current code.
@@ -46,6 +50,11 @@ verified today, and what to improve before the calculations are extended.
 | Page headers | One `PageHeader` component for every tab | [PageHeader.jsx](../../frontend/src/components/PageHeader.jsx) |
 | Launchers | `Setup-EXDA-*` installs requirements on first start; `Run-EXDA-*` only checks and starts; recommended layout `EXDA/` with the app, `EXDA-Projects/` and the EXDA shortcut | repository root, [make_shortcuts.ps1](../../scripts/make_shortcuts.ps1) |
 | User guide | Media regenerated from synthetic demo projects by two scripts | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) |
+| Linux environment (6.0.0) | Linux uses `.venv-linux`, like `.venv-mac` and `.venv-win`; a working plain `.venv` from older installs is still used until setup has run. Setup archives any `.venv-linux` whose Python does not run from the app folder (broken link, a Windows or macOS venv) instead of reusing it; the launcher reports a broken environment and points to setup | `Setup-EXDA-LINUX.sh`, `Run-EXDA-LINUX.sh`, [run-python.mjs](../../scripts/run-python.mjs), `electron/main.cjs` |
+| End-to-end tests (6.0.1) | Start their own backend (5055) and Vite (5175) with `EXDA_PROJECTS_ROOT` in a temporary folder and never reuse a running server, so a running EXDA and real project data are never used; selectors match the current screens | [playwright.config.ts](../../playwright.config.ts), [tests/e2e/](../../tests/e2e) |
+| Plan tab (6.0.2–6.0.3; badge removal after 6.0.5) | Plan file bar, summary cards and Campaign Schedule on top, full width; run groups below as folded rows (schedule colour, run count, status summary, progress bar, objective), open state remembered per project in `localStorage`, Open all / Fold all. **New Run Group** creates a group with its first run; **Add Run** inside a group fills in the group and suggests the next run number; GENERAL and mixture groups ask for a full run name. Missing metadata is shown in the warning colour and each "Missing" item opens the run card at that field (`data-run-field`); no deadline shows "—". After 6.0.5 the schedule no longer draws an H2 % badge next to each run (the run card shows the mixture). Plan file format unchanged | [Plan.jsx](../../frontend/src/pages/Plan.jsx) |
+| Checklist (6.0.2) | Complete groups fold to one line (✓ n/n), incomplete groups stay open; a header click folds or opens a group for this visit only; a group folded by hand shows "N open" | [Checklist.jsx](../../frontend/src/pages/Checklist.jsx) |
+| Release script (6.0.2–6.0.5) | `--push-only` commits allowed changes and pushes the development branch without a release; releases and push-only ask for the commit message; each release writes its version into the user guide, the design guide and this overview (`VERSION_DOCS`) and warns when the Word guide is older than the Markdown guide | [versioning.sh](../../versioning.sh), [VERSIONING.md](../../VERSIONING.md) |
 
 ---
 
@@ -233,8 +242,8 @@ Sizes are lines of code (tracked files, November 2026).
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| [features/workspace/WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) | 2 175 | App shell: tabs, tab headers, routing, project open/save, versions, lock, read-only banner |
-| [pages/Plan.jsx](../../frontend/src/pages/Plan.jsx) | 2 092 | Campaign plan, run cards, renames, actual ignition time |
+| [features/workspace/WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) | 2 176 | App shell: tabs, tab headers, routing, project open/save, versions, lock, read-only banner |
+| [pages/Plan.jsx](../../frontend/src/pages/Plan.jsx) | 2 466 | Campaign plan: overview, schedule, run groups (New Run Group, Add Run), run cards, renames, actual ignition time |
 | [pages/RawDataScreeningCorePage.jsx](../../frontend/src/pages/RawDataScreeningCorePage.jsx) | 1 446 | Pressure and H₂ screening plots; unit and ppm conversions for display; peak range and channel choice (kept in localStorage) |
 | [pages/GasMixing.jsx](../../frontend/src/pages/GasMixing.jsx) | 1 366 | Gas mixing form, calculate/save, calibration, record checks |
 | [pages/SensorsMapping.jsx](../../frontend/src/pages/SensorsMapping.jsx), [CamerasMapping.jsx](../../frontend/src/pages/CamerasMapping.jsx) | 1 216, 1 043 | Sensor/camera mappings, per-run overrides |
@@ -265,7 +274,7 @@ reuses the pressure workbench.
 | [tests/e2e/](../../tests/e2e) | Playwright end-to-end tests |
 | [scripts/](../../scripts) | Packaging/maintenance scripts |
 | [docs/](..) | `EXDA-User-Guide/` (guide, Word version, screenshots, videos, build script, and `tools/` with the demo-project generator and the Playwright media recorder), `EXDA-Developer-Overview/` (this overview, EXDA-Check.md review brief, downsampling notes), `EXDA-Design-Guide.md` (look and feel, for EXDA and apps in the same style), `design/` (architecture animation sources), `assets/` (icons used by the README) |
-| [versioning.sh](../../versioning.sh), [VERSIONING.md](../../VERSIONING.md) | Release assistant (allow-listed staging, tag, merge) |
+| [versioning.sh](../../versioning.sh), [VERSIONING.md](../../VERSIONING.md) | Release assistant (allow-listed staging, tag, merge); `--push-only` pushes the development branch without a release; each release writes its version into the guides |
 
 ---
 
@@ -683,7 +692,7 @@ table.
 | # | Finding | Suggestion |
 | --- | --- | --- |
 | S1 | `routes/state.py` has 5 813 lines and 40 routes (file I/O, exports, lock, renames, analysis, channel peaks). The Project Description already got its own blueprint, which is the pattern to follow. | Split into blueprints: `files`, `records` (plan/mappings/gas), `exports`, `lock`, `runs`. Move PDF/CSV export code to a module. |
-| S2 | `WorkspacePage.jsx` (2 174) and `Plan.jsx` (2 092) hold most frontend state and logic. | Extract hooks (`useProjectLock`, `useProjectSave`, `usePlanEditor`) and keep pages presentational. |
+| S2 | `WorkspacePage.jsx` (2 176) and `Plan.jsx` (2 466) hold most frontend state and logic. | Extract hooks (`useProjectLock`, `useProjectSave`, `usePlanEditor`) and keep pages presentational. |
 | S3 | Four pressure-unit tables: [pressure_analysis.py:36](../../backend/modules/pressure_analysis.py#L36) (has psi), [data_parser.py:481](../../backend/modules/data_parser.py#L481) (no psi), [units.js:38](../../frontend/src/utils/units.js#L38) (no psi), [gasMixing.js:38](../../frontend/src/utils/gasMixing.js#L38) (Pa-based). | One backend table (`units.py`) exported as JSON to the frontend; test both sides against the same cases. |
 | S4 | Duplicate helpers: `resample_uniform` in pressure_analysis and ewt_analysis; three `parse_data_content` wrappers; `flame_analysis` has its own parser. | One `signal_utils.py` (resample, decimate, uniformity check) and one parser entry point. |
 | S5 | Two read paths: full-resolution `daq_reader` (pressure analysis, screening peak table) and reduced preview text (screening plots, EWT, vent, flame). | Make every calculation use `daq_reader`; keep preview text for display only. |
@@ -702,7 +711,7 @@ table.
 | --- | --- | ---: | --- |
 | Backend unittest | 21 in [backend/tests/](../../backend/tests) | 176 | 5 skipped: need week-27 data or the removed `Projects/VH2D-Project` file |
 | Frontend vitest | 19 in [frontend/tests/](../../frontend/tests) | 93 | Gas-mixing logic, technical skills list, Windows paths, units (incl. trigger detection), peak formatting, capabilities cloud, picker start folder, run data files, mappings, versions, formatting, path crumbs, Project Description |
-| End-to-end | 2 in [tests/e2e/](../../tests/e2e) | – | Playwright; need a running app |
+| End-to-end | 2 in [tests/e2e/](../../tests/e2e) | 19 | Playwright; start their own app on 5055/5175 with a temporary projects folder (a running EXDA is not used); need Playwright's Chromium (`npx playwright install chromium`) |
 | Guide media | [docs/EXDA-User-Guide/tools/](../EXDA-User-Guide/tools) | – | Not a test, but it clicks through every MVP tab on synthetic data, so a broken flow shows up when the media are regenerated |
 | Octave comparison | [backend/tests/scripts/comparison/](../../backend/tests/scripts/comparison) | – | Manual scripts writing CSVs to `backend/tests/results/` |
 
@@ -824,6 +833,9 @@ npx vitest run --config frontend/vitest.config.js
 # lint
 npx eslint --config frontend/eslint.config.js frontend
 
+# end-to-end (starts its own app on 5055/5175; first time: npx playwright install chromium)
+npm run test:e2e
+
 # Octave comparison (writes backend/tests/results/*.csv)
 bash backend/tests/run_octave_verification.sh
 bash backend/tests/run_octave_ewt_verification.sh
@@ -835,7 +847,8 @@ need real campaign data skip when it is not present.
 ### Regenerating the user-guide media
 
 Run a separate test copy of the app on other ports, so a running EXDA
-(5077/5173) is never touched. Then generate the synthetic demo projects
+(5077/5173) is never touched. The end-to-end tests use the same ports, so do
+not run both at the same time. Then generate the synthetic demo projects
 and record the media:
 
 ```bash
@@ -843,7 +856,7 @@ and record the media:
 python3 docs/EXDA-User-Guide/tools/make_demo_project.py /tmp/EXDA-Demo
 
 # 2. test copy of the app on 5055/5175, using the demo as projects folder
-EXDA_BACKEND_PORT=5055 EXDA_PROJECTS_ROOT=/tmp/EXDA-Demo/EXDA-Projects python3 backend/app.py &
+EXDA_BACKEND_PORT=5055 EXDA_FRONTEND_PORT=5175 EXDA_PROJECTS_ROOT=/tmp/EXDA-Demo/EXDA-Projects python3 backend/app.py &
 EXDA_BACKEND_PORT=5055 npx vite --config frontend/vite.config.js --port 5175 &
 
 # 3. screenshots + videos (all sections, or name some: plan gas-mixing …)
