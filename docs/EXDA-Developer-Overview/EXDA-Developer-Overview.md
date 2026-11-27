@@ -5,8 +5,8 @@ verified today, and what to improve before the calculations are extended.
 
 - **Audience:** developers working on EXDA (not end users; see
   [EXDA-UserGuide.md](../EXDA-User-Guide/EXDA-UserGuide.md) for those).
-- **State described:** release 5.0.5 on `CLAUDE-Updates`
-  (26 November 2026). Releases 4.0.13–5.0.5 changed the install layout,
+- **State described:** release 6.0.5 on `CLAUDE-Updates`
+  (27 November 2026). Releases 4.0.13–5.0.5 changed the install layout,
   the shortcuts, the projects folder, the capabilities cloud, the picker
   start folder, Windows path handling and added the technical skills field
   (all in the table below). Sections 1–4, 7, 8 and 10 are
