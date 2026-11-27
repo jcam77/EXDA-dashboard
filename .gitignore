@@ -26,9 +26,6 @@ dist-electron
 *.sln
 *.sw?
 
-# Working notes kept with the app but never committed or released
-Claude outputs/
-
 # Microsoft Word lock files and automatic backup copies
 ~$*
 Backup of *.docx
@@ -83,6 +80,13 @@ EXDA.lnk
 # Temporary recordings of the user guide media recorder
 docs/EXDA-User-Guide/tools/.raw-videos/
 
-# Local AI development tools
+# AI assistant working files (see "AI working files" in CLAUDE.md).
+# CLAUDE.md is tracked and public; everything below stays on this computer.
+# Keep all private notes, handoffs and outputs in claude-context/ at the root.
+claude-context/
+**/claude-context/
+CLAUDE.local.md
+.claude/settings.local.json
 .codex
-claude-context/*
+# Older location of working notes; move its contents to claude-context/
+Claude outputs/
