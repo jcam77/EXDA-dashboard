@@ -77,6 +77,13 @@ git commit -m "Describe the change"
 git push origin <dev-branch>
 ```
 
+Or let the script do the same safely, without a release:
+
+```bash
+./versioning.sh --push-only --dry-run   # see what would be committed and pushed
+./versioning.sh --push-only             # commit allowed changes, push <dev-branch>
+```
+
 Important:
 
 - do not use `git add -A` or `git add .`
@@ -210,6 +217,7 @@ from the repository root, **while on your development branch**.
 
 ```bash
 ./versioning.sh [--dev-branch <name>] [--dry-run] [<release-tag>]
+./versioning.sh --push-only [--dev-branch <name>] [--dry-run]
 ```
 
 - `<release-tag>`: must end with `vMAJOR.MINOR.PATCH`; prompted for if omitted.
@@ -219,6 +227,8 @@ from the repository root, **while on your development branch**.
   exist locally, and be the branch you are on.
 - `--dry-run`: run every check and list what would be staged, without changing anything.
   Run this first.
+- `--push-only`: no release. Commit the allowed changes on `<dev-branch>` and push that
+  branch; see [Save work without a release](#save-work-without-a-release---push-only).
 
 Examples:
 
@@ -253,6 +263,27 @@ If no terminal is available to ask, it stops before making any change.
 - updates `VERSIONING.md` with latest release version, tag, and date
 - creates and pushes the tag from `main`
 - merges `main` back into `<dev-branch>` and pushes it
+
+### Save work without a release (`--push-only`)
+
+Use this to put your work, or commits an assistant made locally, on GitHub
+without making a release:
+
+```bash
+./versioning.sh --push-only --dry-run   # lists the changes and the local commits to push
+./versioning.sh --push-only
+```
+
+It runs the same branch and allow-list checks as a release, then:
+
+1. if allowed files are changed: stages them by name, shows `git diff --cached --stat`,
+   asks before committing and asks for a commit message (default `Work in progress`);
+2. lists the local commits that `origin/<dev-branch>` does not have yet (as of the last
+   fetch) and asks before pushing `<dev-branch>`;
+3. stops. `main`, the version and the tags are not touched.
+
+It says "Nothing to push" when there is nothing to do, and a release tag cannot be
+given together with `--push-only`.
 
 ## What To Remember
 

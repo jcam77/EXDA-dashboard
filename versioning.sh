@@ -4,6 +4,7 @@
 #
 # Usage:
 #   ./versioning.sh [--dev-branch <name>] [--dry-run] [<release-tag>]
+#   ./versioning.sh --push-only [--dev-branch <name>] [--dry-run]
 #
 #   <release-tag>        must end with vMAJOR.MINOR.PATCH (e.g. browser-MVP-v3.12.0);
 #                        prompted for if omitted.
@@ -11,6 +12,9 @@
 #                        Default: $DEV_BRANCH, else the current branch if it is not main.
 #   --dry-run            run all safety checks and show what would be staged,
 #                        without committing, merging, tagging or pushing.
+#   --push-only          no release: commit allowed changes on the development
+#                        branch (asks for a message) and push that branch to
+#                        origin. No merge into main, no version bump, no tag.
 #
 # Safety rules (see EXDA-Check.md, Part D):
 #   - Never stages with `git add -A` / `git add .`. Only paths in ALLOWED_DIRS and
@@ -227,6 +231,7 @@ NODE
 
 opt_dev_branch=""
 dry_run=0
+push_only=0
 input_tag=""
 
 while [[ $# -gt 0 ]]; do
@@ -244,8 +249,12 @@ while [[ $# -gt 0 ]]; do
       dry_run=1
       shift
       ;;
+    --push-only)
+      push_only=1
+      shift
+      ;;
     -h | --help)
-      sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+      awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
       exit 0
       ;;
     -*)
@@ -258,6 +267,10 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$push_only" -eq 1 && -n "$input_tag" ]]; then
+  die "--push-only does not make a release; leave out the release tag."
+fi
 
 # --- Pre-flight checks (read-only) -----------------------------------------
 
@@ -306,9 +319,11 @@ fi
 current_pkg_version="$(node -p "require('./package.json').version" 2>/dev/null || echo 'unknown')"
 latest_tag="$(git describe --tags --abbrev=0 2>/dev/null || echo 'none')"
 dev_commit_msg="Release-ready changes"
+[[ "$push_only" -eq 1 ]] && dev_commit_msg="Work in progress"
 
 echo "========================================"
 echo "EXDA Release Assistant"
+[[ "$push_only" -eq 1 ]] && echo "(PUSH ONLY: commit and push ${dev_branch}; no release)"
 [[ "$dry_run" -eq 1 ]] && echo "(DRY RUN: no commits, merges, tags or pushes)"
 echo "========================================"
 echo "Current branch: ${current_branch}"
@@ -317,28 +332,30 @@ echo "Current package version: ${current_pkg_version}"
 echo "Latest tag: ${latest_tag}"
 echo
 
-if [[ -z "$input_tag" ]]; then
-  read -r -p "New release tag (e.g. browser-MVP-v2.9.0): " input_tag || true
-fi
+if [[ "$push_only" -eq 0 ]]; then
+  if [[ -z "$input_tag" ]]; then
+    read -r -p "New release tag (e.g. browser-MVP-v2.9.0): " input_tag || true
+  fi
 
-tag_name="$(echo "$input_tag" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
-if [[ -z "$tag_name" ]]; then
-  die "Tag is required."
-fi
+  tag_name="$(echo "$input_tag" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+  if [[ -z "$tag_name" ]]; then
+    die "Tag is required."
+  fi
 
-if [[ "$tag_name" =~ v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-  new_version="${BASH_REMATCH[1]}"
-else
-  die "Invalid tag format. Tag must end with vMAJOR.MINOR.PATCH (example: browser-MVP-v2.9.0)."
-fi
-echo "Detected version ${new_version} from tag."
+  if [[ "$tag_name" =~ v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+    new_version="${BASH_REMATCH[1]}"
+  else
+    die "Invalid tag format. Tag must end with vMAJOR.MINOR.PATCH (example: browser-MVP-v2.9.0)."
+  fi
+  echo "Detected version ${new_version} from tag."
 
-if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null 2>&1; then
-  die "Tag '${tag_name}' already exists locally. Choose a new tag."
-fi
+  if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null 2>&1; then
+    die "Tag '${tag_name}' already exists locally. Choose a new tag."
+  fi
 
-if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
-  die "Tag '${tag_name}' already exists on origin. Choose a new tag."
+  if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
+    die "Tag '${tag_name}' already exists on origin. Choose a new tag."
+  fi
 fi
 
 # --- Check working tree against the allow-list -----------------------------
@@ -392,11 +409,27 @@ else
 fi
 
 echo
-echo "Planned release:"
-echo "- Commit + push allowed changes on ${dev_branch} (if any)"
-echo "- Merge ${dev_branch} into main, bump version to ${new_version}, update VERSIONING.md"
-echo "- Tag ${tag_name} on main and push main + tag"
-echo "- Merge main back into ${dev_branch} and push"
+if [[ "$push_only" -eq 1 ]]; then
+  # Local commits not yet on origin (as of the last fetch).
+  remote_ref="refs/remotes/origin/${dev_branch}"
+  echo "Planned (push only, no release):"
+  echo "- Commit allowed changes on ${dev_branch} (if any; you choose the message)"
+  if git show-ref --verify --quiet "$remote_ref"; then
+    unpushed_count="$(git rev-list --count "origin/${dev_branch}..${dev_branch}")"
+    echo "- Push ${dev_branch} to origin: ${unpushed_count} local commit(s) not on origin/${dev_branch} yet"
+    if [[ "$unpushed_count" -gt 0 ]]; then
+      git --no-pager log --oneline "origin/${dev_branch}..${dev_branch}" | sed 's/^/    /'
+    fi
+  else
+    echo "- Push ${dev_branch} to origin (origin has no ${dev_branch} yet; it will be created)"
+  fi
+else
+  echo "Planned release:"
+  echo "- Commit + push allowed changes on ${dev_branch} (if any)"
+  echo "- Merge ${dev_branch} into main, bump version to ${new_version}, update VERSIONING.md"
+  echo "- Tag ${tag_name} on main and push main + tag"
+  echo "- Merge main back into ${dev_branch} and push"
+fi
 
 if [[ "$dry_run" -eq 1 ]]; then
   echo
@@ -409,13 +442,14 @@ if ! (: </dev/tty) 2>/dev/null; then
   die "Confirmation required but no terminal is available. Run this script interactively."
 fi
 
-# --- Step 1: commit allowed changes on the development branch --------------
+# Stage the allowed paths and re-check what actually got staged (allow-list,
+# blob sizes); undo the staging and stop if anything fails.
+stage_allowed_paths() {
+  local staged_bad=()
+  local path=""
+  local size_bytes=""
 
-if [[ ${#stage_paths[@]} -gt 0 ]]; then
   run_cmd git add -- "${stage_paths[@]}"
-
-  # Re-check what actually got staged (blob sizes, allow-list).
-  staged_bad=()
   while IFS= read -r -d '' path; do
     if ! is_allowed_path "$path"; then
       staged_bad+=("${path} (outside allow-list)")
@@ -440,6 +474,59 @@ if [[ ${#stage_paths[@]} -gt 0 ]]; then
   echo ">> git diff --cached --stat"
   git --no-pager diff --cached --stat
   echo
+}
+
+# --- Push only: commit and push the development branch, then stop ------------
+
+if [[ "$push_only" -eq 1 ]]; then
+  if [[ ${#stage_paths[@]} -gt 0 ]]; then
+    stage_allowed_paths
+    if ! confirm "Commit these changes on '${dev_branch}'?"; then
+      git restore --staged -- "${stage_paths[@]}" || true
+      die "Cancelled by user. Staging undone; nothing was committed."
+    fi
+    commit_msg=""
+    read -r -p "Commit message [${dev_commit_msg}]: " commit_msg </dev/tty || commit_msg=""
+    commit_msg="$(echo "$commit_msg" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+    if git diff --cached --quiet; then
+      echo "No staged changes to commit on ${dev_branch}."
+    else
+      run_cmd git commit -m "${commit_msg:-$dev_commit_msg}"
+    fi
+  fi
+
+  if [[ -n "$(git status --porcelain)" ]]; then
+    git --no-pager status --short
+    die "Working tree is not clean on ${dev_branch}. Resolve this and rerun."
+  fi
+
+  if git show-ref --verify --quiet "refs/remotes/origin/${dev_branch}"; then
+    unpushed_count="$(git rev-list --count "origin/${dev_branch}..${dev_branch}")"
+    if [[ "$unpushed_count" -eq 0 ]]; then
+      echo
+      echo "Nothing to push: ${dev_branch} has no commits that origin/${dev_branch} lacks (as of the last fetch)."
+      exit 0
+    fi
+    echo
+    echo "Local commits to push:"
+    git --no-pager log --oneline "origin/${dev_branch}..${dev_branch}" | sed 's/^/  /'
+  fi
+  echo
+  if ! confirm "Push '${dev_branch}' to origin?"; then
+    die "Cancelled by user. Your commits stay on this computer."
+  fi
+  run_cmd git push origin "$dev_branch"
+
+  echo
+  echo "Push finished. No release was made (main, version and tags are unchanged)."
+  echo "Branch: ${dev_branch} (pushed to origin)"
+  exit 0
+fi
+
+# --- Step 1: commit allowed changes on the development branch --------------
+
+if [[ ${#stage_paths[@]} -gt 0 ]]; then
+  stage_allowed_paths
   if ! confirm "Commit these changes on '${dev_branch}' and push to origin/${dev_branch}?"; then
     git restore --staged -- "${stage_paths[@]}" || true
     die "Cancelled by user. Staging undone; nothing was committed."
