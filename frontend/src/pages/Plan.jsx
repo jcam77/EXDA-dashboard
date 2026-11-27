@@ -149,7 +149,7 @@ const PlanPage = ({
             setIgnitionCandidates({ runName: name, items: [], error: err?.message || String(err), loading: false });
         }
     }, [apiBaseUrl, projectPath]);
-    const [input, setInput] = useState({ group: "", run: "", h2: "", plannedDate: "", name: "", isPreparation: false });
+    const [input, setInput] = useState({ group: "", objective: "", run: "1", h2: "", plannedDate: "", name: "", isPreparation: false });
     const [editingExp, setEditingExp] = useState(null);
     const [createError, setCreateError] = useState("");
     const [editError, setEditError] = useState("");
@@ -166,6 +166,13 @@ const PlanPage = ({
     const [gasMixingByRun, setGasMixingByRun] = useState({});
     const [loadingGasMixingMirror, setLoadingGasMixingMirror] = useState(false);
     const [collapsedGroups, setCollapsedGroups] = useState({});
+    // "New run group" form: open by default only when the plan has no runs yet.
+    const [showNewGroupForm, setShowNewGroupForm] = useState(() => !(Array.isArray(experiments) && experiments.length));
+    // "Add run" form inside one run group at a time (the group name is fixed there).
+    const EMPTY_GROUP_RUN_DRAFT = { run: "", name: "", h2: "", plannedDate: "", isPreparation: false };
+    const [groupRunFormGroup, setGroupRunFormGroup] = useState(null);
+    const [groupRunDraft, setGroupRunDraft] = useState(EMPTY_GROUP_RUN_DRAFT);
+    const [groupRunError, setGroupRunError] = useState("");
     const [lastDeletedRun, setLastDeletedRun] = useState(null);
     const [folderCheck, setFolderCheck] = useState({ status: 'idle', message: '' });
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0, rect: null });
@@ -640,27 +647,47 @@ const PlanPage = ({
         await syncRunFolders(generatedNames);
     }, [experiments, getRunGroupKey, groupRenameDrafts, normalizeRunName, renameRunFolders, renameRunMetadataReferences, setExperiments, setPlanMeta, showConfirm, syncRunFolders]);
 
-    const addExp = async () => {
-        const manualRunName = String(input.name || '').trim();
-        const generatedRunName = buildRunName(input.group, input.run);
-        const runName = manualRunName || generatedRunName;
-        if (!runName) {
-            setCreateError("Run name is required.");
-            return;
+    // Groups are derived from run names. A numbered group (e.g. VH2D-G01 from
+    // VH2D-G01-06) continues with run numbers; the catch-all GENERAL group and
+    // mixture groups (e.g. 18%VOL) need a full run name instead.
+    const groupUsesRunNumbers = (groupName) => groupName !== 'GENERAL' && !/%VOL$/.test(String(groupName || ''));
+
+    // Next free run number in a group: highest run number + 1 (repeats such as
+    // -06-R1 count as 6).
+    const getNextRunNumber = (groupName) => {
+        let highest = 0;
+        experiments.forEach((exp) => {
+            if (getRunGroupKey(exp?.name) !== groupName) return;
+            const { runNumber } = parseRunNameOrder(exp?.name);
+            if (Number.isFinite(runNumber) && runNumber > highest) highest = runNumber;
+        });
+        return String(highest + 1);
+    };
+
+    // Why no run name could be built from Group ID + Run #.
+    const describeRunNameProblem = (groupValue, runValue) => {
+        if (!String(groupValue || '').trim()) {
+            return 'Enter a Group ID (e.g., TEST-01), or type a full name in "Manual run name".';
         }
+        if (!String(runValue || '').trim()) {
+            return 'Enter a Run # (e.g., 1, or 1-R1 for a repeat), or type a full name in "Manual run name".';
+        }
+        return `Run # must be a number, e.g. 1, or 1-R1 for a repeat ("${String(runValue).trim()}" is not). Or type a full name in "Manual run name".`;
+    };
+
+    // Add one planned run. Returns an error message, or "" when the run was added.
+    const createRun = async ({ runName, h2, plannedDate, isPreparation }) => {
         if (isDuplicateRunName(runName)) {
-            setCreateError(`Run name "${runName}" already exists. Use a unique name.`);
-            return;
+            return `Run name "${runName}" already exists. Use a unique name.`;
         }
-        setCreateError("");
         setExperiments([...experiments, {
             id: Date.now(),
             name: runName,
             done: false,
             meta: {
-                h2: String(input.h2 || "").trim(),
-                plannedDate: String(input.plannedDate || "").trim(),
-                isPreparation: !!input.isPreparation,
+                h2: String(h2 || "").trim(),
+                plannedDate: String(plannedDate || "").trim(),
+                isPreparation: !!isPreparation,
                 hasError: false,
                 errorNote: "",
                 isCanceled: false,
@@ -676,8 +703,83 @@ const PlanPage = ({
                 dataFiles: []
             }
         }]);
-        setInput((prev) => ({ ...prev, run: "", name: "", isPreparation: false }));
+        // Show the group the run was added to.
+        setCollapsedGroups((prev) => ({ ...prev, [getRunGroupKey(runName)]: false }));
         await syncRunFolders([runName]);
+        return "";
+    };
+
+    // "New run group": a group exists through its runs, so it is created with its first run.
+    const addNewGroup = async () => {
+        const manualRunName = String(input.name || '').trim();
+        const runName = manualRunName || buildRunName(input.group, input.run);
+        if (!runName) {
+            setCreateError(describeRunNameProblem(input.group, input.run));
+            return;
+        }
+        if (isDuplicateRunName(runName)) {
+            setCreateError(`Run name "${runName}" already exists. Use a unique name.`);
+            return;
+        }
+        setCreateError("");
+        const groupKey = getRunGroupKey(runName);
+        const objective = String(input.objective || '').trim();
+        if (objective && !getGroupObjective(groupKey)) {
+            setGroupObjective(groupKey, objective);
+        }
+        await createRun({ runName, h2: input.h2, plannedDate: input.plannedDate, isPreparation: input.isPreparation });
+        setInput({ group: "", objective: "", run: "1", h2: "", plannedDate: "", name: "", isPreparation: false });
+        setShowNewGroupForm(false);
+    };
+
+    const openGroupRunForm = (groupName) => {
+        setGroupRunFormGroup(groupName);
+        setGroupRunDraft({
+            ...EMPTY_GROUP_RUN_DRAFT,
+            run: groupUsesRunNumbers(groupName) ? getNextRunNumber(groupName) : "",
+        });
+        setGroupRunError("");
+    };
+
+    const closeGroupRunForm = () => {
+        setGroupRunFormGroup(null);
+        setGroupRunError("");
+    };
+
+    // The run name the group's "Add run" form would create ("" if not valid yet).
+    const getGroupRunName = (groupName, draft) => (
+        groupUsesRunNumbers(groupName)
+            ? buildRunName(groupName, draft.run)
+            : String(draft.name || '').trim()
+    );
+
+    // "Add run" inside a group: the group is fixed, only the run details are entered.
+    const addRunToGroup = async (groupName) => {
+        const draft = groupRunDraft;
+        const numbered = groupUsesRunNumbers(groupName);
+        const runName = getGroupRunName(groupName, draft);
+        if (!runName) {
+            setGroupRunError(numbered
+                ? `Run # must be a number, e.g. ${getNextRunNumber(groupName)}, or ${getNextRunNumber(groupName)}-R1 for a repeat.`
+                : 'Type a run name.');
+            return;
+        }
+        if (getRunGroupKey(runName) !== groupName) {
+            setGroupRunError(`"${runName}" would be listed in group ${getRunGroupKey(runName)}, not ${groupName}. Use New Run Group for a new group.`);
+            return;
+        }
+        const error = await createRun({ runName, h2: draft.h2, plannedDate: draft.plannedDate, isPreparation: draft.isPreparation });
+        if (error) {
+            setGroupRunError(error);
+            return;
+        }
+        setGroupRunError("");
+        // Keep the form open for the next run of the series, with the next number.
+        const { runNumber } = parseRunNameOrder(runName);
+        setGroupRunDraft({
+            ...EMPTY_GROUP_RUN_DRAFT,
+            run: numbered && Number.isFinite(runNumber) ? String(runNumber + 1) : "",
+        });
     };
 
     const saveEdit = async () => {
@@ -1233,9 +1335,11 @@ const PlanPage = ({
             </text>
         );
     }, [beginScheduleRunDrag, draggingScheduleRun, experiments, getRunVisualStatus]);
-    const isGroupCollapsed = useCallback((groupName) => collapsedGroups[groupName] === true, [collapsedGroups]);
+    // Groups start folded so the plan reads as a list of group summaries;
+    // false means the user unfolded that group.
+    const isGroupCollapsed = useCallback((groupName) => collapsedGroups[groupName] !== false, [collapsedGroups]);
     const toggleGroupCollapse = useCallback((groupName) => {
-        setCollapsedGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }));
+        setCollapsedGroups((prev) => ({ ...prev, [groupName]: prev[groupName] === false }));
     }, []);
     const getGroupObjective = useCallback((groupName) => {
         const objectives = planMeta?.groupObjectives;
@@ -1372,383 +1476,593 @@ const PlanPage = ({
     const editingMirroredPchamber = formatPressurePa(editingGasMirror?.pChamberPa);
     const editingMirroredTchamberK = formatTempK(editingGasMirror?.tChamberK);
 
-    return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
-            {/* LEFT: LIST & RUN CARDS (30%) */}
-            <div className="lg:col-span-4 bg-card/60 border border-border p-6 rounded-xl flex flex-col h-full overflow-hidden">
-                <div className="mb-4 space-y-2">
-                   <div className="flex items-center gap-2">
-                       <FlaskConical size={16} className="text-primary shrink-0"/>
-                       <input value={planName} onChange={e=>setPlanName(e.target.value)} aria-label="Plan name" title="Plan name" className="bg-transparent border-b border-border text-sm font-bold w-full min-w-0 outline-none focus:border-primary text-foreground"/>
-                   </div>
-                   <div className="flex flex-wrap items-center justify-end gap-1">
-                       <button onClick={handleSavePlan} title="Save plan" aria-label="Save plan" className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"><Save size={18}/></button>
-                       <button onClick={onImport} title="Load a plan file" aria-label="Load a plan file" className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"><Upload size={18}/></button>
-                       <ExportFormatButtons
-                           onExportCsv={exportPlanAsCsv}
-                           onExportPdf={exportPlanAsPdf}
-                           busyFormat={busyFormat}
-                           size="sm"
-                       />
-                   </div>
-                </div>
-                
-                <div className="flex flex-col gap-2 mb-4 bg-background/[0.28] p-3 rounded border border-border/[0.58]">
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                        <input
-                            value={input.group}
-                            onChange={e=>{ setInput({...input, group:e.target.value}); setCreateError(""); }}
-                            placeholder="Group ID (e.g., TEST-01)"
-                            className="bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-foreground"
-                        />
-                        <input
-                            value={input.run}
-                            onChange={e=>{ setInput({...input, run:e.target.value}); setCreateError(""); }}
-                            placeholder="Run # (e.g., 1 or 1-R1)"
-                            className="bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-foreground"
-                        />
-                        <input
-                            value={input.h2}
-                            onChange={e=>{ setInput({...input, h2:e.target.value}); setCreateError(""); }}
-                            placeholder="H2 vol.% (e.g., 18)"
-                            className="bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-foreground"
-                        />
-                        <IsoDateInput
-                            value={input.plannedDate}
-                            onValueChange={next=>{ setInput({...input, plannedDate: next}); setCreateError(""); }}
-                            placeholder="YYYY-MM-DD"
-                            title="Schedule date"
-                            className="w-full bg-background border border-border rounded px-3 py-1.5 pr-9 text-sm outline-none focus:border-primary text-foreground"
-                        />
-                    </div>
-                    <input
-                        value={input.name}
-                        onChange={e=>{ setInput({...input, name:e.target.value}); setCreateError(""); }}
-                        placeholder="Manual run name override (optional)"
-                        className="bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary text-foreground"
-                    />
-                    <div className="text-[11px] text-muted-foreground">
-                        Auto run name: <span className="text-foreground/85 font-semibold">{buildRunName(input.group, input.run) || "--"}</span>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                        Naming is fully editable. You can use any project prefix and override the generated name.
-                    </div>
-                    <label className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <input
-                            type="checkbox"
-                            checked={!!input.isPreparation}
-                            onChange={(e) => { setInput({ ...input, isPreparation: e.target.checked }); setCreateError(""); }}
-                            className="h-3.5 w-3.5 accent-primary"
-                        />
-                        Preparation run (can be marked done without full metadata)
-                    </label>
-                    {createError && (
-                        <div className="text-[11px] text-destructive">{createError}</div>
-                    )}
-                    <button onClick={addExp} className="bg-primary/10 border border-primary/30 px-3 py-1.5 rounded text-primary hover:border-primary/60 hover:bg-primary/20 flex items-center justify-center gap-2 font-bold text-xs"><Plus size={14}/> Add Planned Run</button>
-                    <button
-                        onClick={() => verifyRunFolders(true)}
-                        className="border border-border px-3 py-1.5 rounded text-foreground/85 hover:border-ring hover:text-foreground flex items-center justify-center gap-2 font-semibold text-xs"
-                    >
-                        <Layers size={14}/> Sync run folders
-                    </button>
-                    {!!folderCheck.message && (
-                        <div className={`text-[11px] ${
-                            folderCheck.status === 'ok' ? 'text-primary' :
-                            folderCheck.status === 'warning' ? 'text-warning' :
-                            folderCheck.status === 'error' ? 'text-destructive' :
-                            'text-muted-foreground'
-                        }`}>
-                            {folderCheck.message}
-                        </div>
-                    )}
-                </div>
+    // One-line status summary for a folded run group, e.g. "16 done · 1 error".
+    const summarizeRunGroup = (tasks) => [
+        ['done', tasks.filter((task) => task.done).length],
+        ['error', tasks.filter((task) => task.meta?.hasError).length],
+        ['canceled', tasks.filter((task) => !task.meta?.hasError && task.meta?.isCanceled).length],
+        ['missing metadata', tasks.filter((task) => !isReady(task)).length],
+    ]
+        .filter(([, count]) => count > 0)
+        .map(([label, count]) => `${count} ${label}`)
+        .join(' · ');
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
-                    {lastDeletedRun?.experiment && (
-                        <div className="mb-3 flex items-center justify-between gap-2 rounded border border-warning/40 bg-warning/10 px-3 py-2 text-[11px] text-warning">
-                            <div className="truncate">
-                                Run <span className="font-semibold">{lastDeletedRun.experiment.name}</span> deleted.
+    const renderRunCard = (e) => (
+        <div key={e.id} draggable onDragStart={()=>setDraggedId(e.id)} onDragOver={ev=>ev.preventDefault()} onDrop={()=>onDrop(e.id)} className={`flex flex-col p-3 bg-background/50 border rounded group transition-all ${isReady(e) ? 'border-border hover:border-border' : 'border-info/30 hover:border-info/50'}`}>
+            <div className="flex items-center gap-2">
+                <GripVertical size={14} className="text-muted-foreground cursor-grab active:cursor-grabbing"/>
+                <button 
+                    onClick={() => setExperiments(experiments.map(x => x.id === e.id ? {...x, done: !x.done} : x))} 
+                    disabled={!isReady(e)}
+                    className={`${isReady(e) ? 'text-muted-foreground hover:text-primary' : 'text-muted-foreground/50 cursor-not-allowed'}`}
+                >
+                    {e.done ? <CheckSquare size={16} className="text-[hsl(var(--primary))]"/> : <Square size={16}/>}
+                </button>
+                <span
+                    title={String(e.name || '')}
+                    className={`text-[13px] leading-snug flex-1 min-w-0 pr-2 font-mono font-semibold break-all ${
+                        e.done ? 'text-muted-foreground' : 'text-foreground/85'
+                    }`}
+                >
+                    {e.name}
+                </span>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                    <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} title="Edit run card" aria-label={`Edit run card ${e.name}`} className="text-muted-foreground hover:text-foreground p-1 hover:bg-muted rounded transition-colors"><PenTool size={12}/></button>
+                    <button onClick={() => removeRunWithUndo(e.id)} title="Delete run" aria-label={`Delete run ${e.name}`} className="text-muted-foreground hover:text-destructive p-1 hover:bg-muted rounded transition-colors"><Trash2 size={12}/></button>
+                </div>
+            </div>
+
+            <div className="ml-8 mt-2 flex flex-wrap gap-2">
+                {String(e.meta?.h2 || '').trim() && (
+                    <div className="flex items-center gap-1 bg-primary/10 border border-primary/30 px-1.5 py-0.5 rounded text-[11px] text-primary font-bold">
+                        <Beaker size={8}/> {formatVolPercentLabel(e.meta.h2)} H2
+                    </div>
+                )}
+                {formatRunSchedule(e) && (
+                    <div className="flex items-center gap-1 border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded text-[11px] text-primary font-semibold">
+                        <Calendar size={8}/> {formatRunSchedule(e)}
+                    </div>
+                )}
+                {isPreparationRun(e) && (
+                    <div className="flex items-center gap-1 border border-warning/40 bg-warning/10 px-1.5 py-0.5 rounded text-[11px] text-warning font-semibold">
+                        <Wrench size={8}/> Preparation
+                    </div>
+                )}
+                {e.meta?.hasError && (
+                    <div className="flex items-center gap-1 border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 rounded text-[11px] text-destructive font-semibold">
+                        <AlertCircle size={8}/> Error
+                    </div>
+                )}
+                {!e.meta?.hasError && e.meta?.isCanceled && (
+                    <div className="flex items-center gap-1 border border-warning/40 bg-warning/10 px-1.5 py-0.5 rounded text-[11px] text-warning font-semibold">
+                        <X size={8}/> Canceled
+                    </div>
+                )}
+                {isReady(e) ? (
+                    <>
+                        <div className="flex items-center gap-1 border border-border px-1.5 py-0.5 rounded text-[11px] text-muted-foreground">
+                            <Gauge size={8}/> {formatPressurePa(e.meta.p0) || '-'} Pa
+                        </div>
+                        <div className="flex items-center gap-1 border border-border px-1.5 py-0.5 rounded text-[11px] text-muted-foreground">
+                            <Thermometer size={8}/> {formatTempK(e.meta.t0) || '-'} K
+                        </div>
+                        {!!(Array.isArray(e.meta?.dataFiles) && e.meta.dataFiles.length) && (
+                            <div className="flex items-center gap-1 border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded text-[11px] text-primary font-semibold">
+                                <Layers size={8}/> {e.meta.dataFiles.length} data file{e.meta.dataFiles.length > 1 ? 's' : ''}
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={undoDeletedRun}
-                                    className="inline-flex items-center gap-1 rounded border border-warning/40 px-2 py-1 font-semibold text-warning hover:bg-warning/20"
-                                >
-                                    <Undo2 size={12}/> Undo
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        clearDeleteUndoTimeout();
-                                        setLastDeletedRun(null);
-                                    }}
-                                    className="text-warning/80 hover:text-warning"
-                                    aria-label="Dismiss delete notice"
-                                >
-                                    <X size={12} />
-                                </button>
+                        )}
+                    </>
+                ) : (
+                    <div className="flex items-center gap-1 bg-info/10 border border-info/30 px-1.5 py-0.5 rounded text-[11px] text-info font-bold tracking-wide">
+                        <AlertCircle size={8}/> Missing: {getMissingMeta(e).join(', ')}
+                    </div>
+                )}
+            </div>
+            <div className="ml-8 mt-2">
+                <input
+                    value={String(e.meta?.shortDescription || '')}
+                    onChange={(event) => updateRunShortDescription(e.id, event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                    placeholder="Short run description (e.g., baseline vented run)"
+                    className="w-full bg-background/[0.28] border border-border rounded px-2 py-1 text-[11px] text-foreground/85 outline-none focus:border-primary"
+                />
+            </div>
+        </div>
+    );
+
+    const runGroupCount = Object.keys(groupedTasks).length;
+    const fieldLabelClass = "flex min-w-0 flex-col gap-1 text-[11px] font-semibold text-muted-foreground";
+    const fieldInputClass = "w-full bg-background border border-border rounded px-2 py-1.5 text-xs font-normal outline-none focus:border-primary text-foreground";
+    const newGroupRunName = String(input.name || '').trim() || buildRunName(input.group, input.run);
+
+    return (
+        <div className="flex h-full flex-col gap-4 overflow-y-auto custom-scrollbar pr-2">
+            {/* PLAN FILE: name, save, load, export */}
+            <div className="bg-card/60 border border-border rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
+                <FlaskConical size={16} className="text-primary shrink-0"/>
+                <input value={planName} onChange={e=>setPlanName(e.target.value)} aria-label="Plan name" title="Plan name" className="bg-transparent border-b border-border text-sm font-bold flex-1 min-w-[12rem] outline-none focus:border-primary text-foreground"/>
+                <div className="flex flex-wrap items-center gap-1">
+                    <button onClick={handleSavePlan} title="Save plan" aria-label="Save plan" className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"><Save size={18}/></button>
+                    <button onClick={onImport} title="Load a plan file" aria-label="Load a plan file" className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"><Upload size={18}/></button>
+                    <ExportFormatButtons
+                        onExportCsv={exportPlanAsCsv}
+                        onExportPdf={exportPlanAsPdf}
+                        busyFormat={busyFormat}
+                        size="sm"
+                    />
+                </div>
+            </div>
+
+            {/* KPIs. The objective, description, start and deadline are edited in the
+                Project Description tab (same plan data, saved with the plan). */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                    <div className="text-xl font-bold text-foreground/85 leading-none mb-1">{stats.daysLeft}</div>
+                    <div className="text-[11px] text-muted-foreground font-bold">Days until Deadline</div>
+                </div>
+                <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                    <div className="text-xl font-bold text-primary leading-none mb-1">{stats.pace || '--'}</div>
+                    <div className="text-[11px] text-muted-foreground font-bold">Pace (Runs/Day)</div>
+                </div>
+                <div className="bg-card/60 border border-warning/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                    <div className="text-xl font-bold text-warning leading-none mb-1">{stats.canceled}</div>
+                    <div className="text-[11px] text-muted-foreground font-bold">Canceled Runs</div>
+                </div>
+                <div className="bg-card/60 border border-destructive/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                    <div className="text-xl font-bold text-destructive leading-none mb-1">{stats.errors}</div>
+                    <div className="text-[11px] text-muted-foreground font-bold">Error Runs</div>
+                </div>
+                <div className="bg-card/60 border border-info/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                    <div className="text-xl font-bold text-info leading-none mb-1">{stats.preparation}</div>
+                    <div className="text-[11px] text-muted-foreground font-bold">Preparation Runs</div>
+                </div>
+                <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
+                    <div className="text-xl font-bold text-foreground leading-none mb-1">{stats.completionPercent}%</div>
+                    <div className="text-[11px] text-muted-foreground font-bold">Completion ({stats.done}/{stats.total})</div>
+                    <div className="mt-2 h-1 w-full max-w-[120px] rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${stats.completionPercent}%` }} />
+                    </div>
+                </div>
+            </div>
+
+            {/* TIMELINE */}
+            <div
+                className="bg-card/60 border border-border p-4 rounded-xl shrink-0 flex flex-col"
+                style={{ height: `${scheduleChartHeightPx}px` }}
+            >
+                <h3 className="text-[11px] font-bold text-muted-foreground mb-4 flex items-center gap-2 tracking-wide"><Clock size={12}/> Campaign Schedule</h3>
+                <div
+                    ref={scheduleChartAreaRef}
+                    className="flex-1 bg-background/50 rounded-lg border border-border/[0.58] overflow-hidden"
+                    style={{ cursor: draggingScheduleRun ? 'grabbing' : 'default' }}
+                >
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                            layout="vertical"
+                            data={scheduleData}
+                            barSize={22}
+                            margin={{left: 16, right: 72, top: 16, bottom: 22}}
+                        >
+                            <CartesianGrid strokeDasharray="2 4" horizontal={false} stroke="hsl(var(--border))" />
+                            <XAxis
+                                type="number"
+                                stroke="hsl(var(--muted-foreground))"
+                                fontSize={11}
+                                tickFormatter={formatScheduleTick}
+                                domain={[0, scheduleMaxDay]}
+                                ticks={scheduleTicks}
+                                allowDecimals={false}
+                            />
+                            <YAxis
+                                type="category"
+                                dataKey="laneLabel"
+                                width={0}
+                                tick={false}
+                                axisLine={false}
+                                tickLine={false}
+                                padding={{ top: 10, bottom: 10 }}
+                            />
+                            {scheduleDayKeys.map((dayKey) => (
+                                <React.Fragment key={dayKey}>
+                                    <Bar dataKey={`${dayKey}Gap`} stackId="scheduleLane" fill="transparent" isAnimationActive={false} barSize={22} />
+                                    <Bar
+                                        dataKey={`${dayKey}Duration`}
+                                        stackId="scheduleLane"
+                                        isAnimationActive={false}
+                                        barSize={22}
+                                        shape={(props) => renderScheduleBarShape(props, dayKey)}
+                                    >
+                                        <LabelList
+                                            dataKey={`${dayKey}Name`}
+                                            content={(props) => renderScheduleLabel(props, dayKey)}
+                                        />
+                                    </Bar>
+                                </React.Fragment>
+                            ))}
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground text-center">
+                    Drag a run block left/right to move its planned day. Click opens Run Metadata Card.
+                </div>
+                <div className="mt-3 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2.5 w-2.5 rounded-sm border border-primary/40 bg-primary/15" />
+                        <span>Done</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2.5 w-2.5 rounded-sm bg-warning" />
+                        <span>Canceled</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2.5 w-2.5 rounded-sm bg-destructive" />
+                        <span>Error</span>
+                    </div>
+                </div>
+                {scheduleGroupNames.length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                        <span className="font-bold uppercase tracking-wide text-muted-foreground">Groups</span>
+                        {scheduleGroupNames.map((groupName) => (
+                            <span key={groupName} className="inline-flex items-center gap-1.5">
+                                <span
+                                    className="inline-block h-2 w-2 rounded-[2px]"
+                                    style={{ backgroundColor: scheduleGroupColorByName[groupName] || GROUP_MARKER_COLORS[0] }}
+                                />
+                                <span>{groupName}</span>
+                            </span>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+
+            {/* RUN GROUPS */}
+            <section className="flex flex-col gap-3" aria-label="Run groups">
+                <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-[11px] font-bold text-muted-foreground flex items-center gap-2 tracking-wide"><Layers size={12}/> Run Groups</h3>
+                    <span className="text-[11px] text-muted-foreground">
+                        {runGroupCount} {runGroupCount === 1 ? 'group' : 'groups'} · {stats.total} {stats.total === 1 ? 'run' : 'runs'}
+                    </span>
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => { setShowNewGroupForm((open) => !open); setCreateError(""); }}
+                            aria-expanded={showNewGroupForm}
+                            title="Start a new group of runs (e.g., a concentration series). To add a run to an existing group, open that group."
+                            className="bg-primary/10 border border-primary/30 px-3 py-1.5 rounded text-primary hover:border-primary/60 hover:bg-primary/20 flex items-center justify-center gap-2 font-bold text-xs"
+                        >
+                            <Plus size={14}/> New Run Group
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => verifyRunFolders(true)}
+                            className="border border-border px-3 py-1.5 rounded text-foreground/85 hover:border-ring hover:text-foreground flex items-center justify-center gap-2 font-semibold text-xs"
+                        >
+                            <Layers size={14}/> Sync run folders
+                        </button>
+                    </div>
+                </div>
+                {!!folderCheck.message && (
+                    <div className={`text-[11px] ${
+                        folderCheck.status === 'ok' ? 'text-primary' :
+                        folderCheck.status === 'warning' ? 'text-warning' :
+                        folderCheck.status === 'error' ? 'text-destructive' :
+                        'text-muted-foreground'
+                    }`}>
+                        {folderCheck.message}
+                    </div>
+                )}
+
+                {showNewGroupForm && (
+                    <div className="bg-card/60 border border-border rounded-xl p-4 flex flex-col gap-3" aria-label="New run group">
+                        <div className="text-xs font-bold text-foreground">New run group</div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <label className={fieldLabelClass}>
+                                Group ID
+                                <input
+                                    value={input.group}
+                                    onChange={e=>{ setInput({...input, group:e.target.value}); setCreateError(""); }}
+                                    placeholder="e.g., VH2D-G01"
+                                    className={fieldInputClass}
+                                />
+                            </label>
+                            <label className={fieldLabelClass}>
+                                Group objective (optional)
+                                <input
+                                    value={input.objective}
+                                    onChange={e=>{ setInput({...input, objective:e.target.value}); setCreateError(""); }}
+                                    placeholder="e.g., Repeatability, 16-20 vol.% H2"
+                                    className={fieldInputClass}
+                                />
+                            </label>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">First run of the group (add more runs from inside the group):</div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <label className={fieldLabelClass}>
+                                Run #
+                                <input
+                                    value={input.run}
+                                    onChange={e=>{ setInput({...input, run:e.target.value}); setCreateError(""); }}
+                                    placeholder="1, or 1-R1 for a repeat"
+                                    className={fieldInputClass}
+                                />
+                            </label>
+                            <label className={fieldLabelClass}>
+                                H2 vol.%
+                                <input
+                                    value={input.h2}
+                                    onChange={e=>{ setInput({...input, h2:e.target.value}); setCreateError(""); }}
+                                    placeholder="e.g., 18"
+                                    className={fieldInputClass}
+                                />
+                            </label>
+                            <div className={fieldLabelClass}>
+                                Planned date
+                                <IsoDateInput
+                                    value={input.plannedDate}
+                                    onValueChange={next=>{ setInput({...input, plannedDate: next}); setCreateError(""); }}
+                                    placeholder="YYYY-MM-DD"
+                                    title="Planned date"
+                                    className={`${fieldInputClass} pr-9`}
+                                />
                             </div>
                         </div>
-                    )}
-                    {Object.entries(groupedTasks).map(([group, tasks]) => (
-                        <div key={group} className="mb-4">
-                            <div className="mb-2 flex flex-col gap-2">
-                                <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => toggleGroupCollapse(group)}
-                                    className="shrink-0 text-[11px] font-bold text-muted-foreground flex items-center gap-2 tracking-wide hover:text-foreground/85 transition-colors"
-                                    title={isGroupCollapsed(group) ? 'Expand group' : 'Collapse group'}
-                                >
-                                    {isGroupCollapsed(group) ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-                                    <Layers size={10}/>
-                                    {group}
-                                    <span className="text-[11px] text-muted-foreground">({tasks.length})</span>
-                                </button>
-                                <input
-                                    value={getGroupObjective(group)}
-                                    onChange={(event) => setGroupObjective(group, event.target.value)}
-                                    placeholder="Group objective (short description)"
-                                    className="min-w-0 flex-1 bg-background border border-border rounded px-2 py-1 text-[11px] text-foreground/85 outline-none focus:border-primary"
-                                />
+                        <label className={fieldLabelClass}>
+                            Manual run name (optional, replaces Group ID + Run #)
+                            <input
+                                value={input.name}
+                                onChange={e=>{ setInput({...input, name:e.target.value}); setCreateError(""); }}
+                                placeholder="e.g., test5"
+                                className={fieldInputClass}
+                            />
+                        </label>
+                        <label className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <input
+                                type="checkbox"
+                                checked={!!input.isPreparation}
+                                onChange={(e) => { setInput({ ...input, isPreparation: e.target.checked }); setCreateError(""); }}
+                                className="h-3.5 w-3.5 accent-primary"
+                            />
+                            Preparation run (can be marked done without full metadata)
+                        </label>
+                        <div className="text-[11px] text-muted-foreground">
+                            First run name: <span className="font-mono font-semibold text-foreground/85">{newGroupRunName || "--"}</span>
+                            {newGroupRunName && (
+                                <span> · group <span className="font-mono font-semibold text-foreground/85">{getRunGroupKey(newGroupRunName)}</span></span>
+                            )}
+                        </div>
+                        {createError && (
+                            <div className="text-[11px] text-destructive">{createError}</div>
+                        )}
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => { setShowNewGroupForm(false); setCreateError(""); }}
+                                className="border border-border px-3 py-1.5 rounded text-foreground/85 hover:border-ring hover:text-foreground font-semibold text-xs"
+                            >
+                                Cancel
+                            </button>
+                            <button type="button" onClick={addNewGroup} className="bg-primary/10 border border-primary/30 px-3 py-1.5 rounded text-primary hover:border-primary/60 hover:bg-primary/20 flex items-center justify-center gap-2 font-bold text-xs"><Plus size={14}/> Create Group</button>
+                        </div>
+                    </div>
+                )}
+
+                {lastDeletedRun?.experiment && (
+                    <div className="mb-3 flex items-center justify-between gap-2 rounded border border-warning/40 bg-warning/10 px-3 py-2 text-[11px] text-warning">
+                        <div className="truncate">
+                            Run <span className="font-semibold">{lastDeletedRun.experiment.name}</span> deleted.
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={undoDeletedRun}
+                                className="inline-flex items-center gap-1 rounded border border-warning/40 px-2 py-1 font-semibold text-warning hover:bg-warning/20"
+                            >
+                                <Undo2 size={12}/> Undo
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    clearDeleteUndoTimeout();
+                                    setLastDeletedRun(null);
+                                }}
+                                className="text-warning/80 hover:text-warning"
+                                aria-label="Dismiss delete notice"
+                            >
+                                <X size={12} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+                {runGroupCount === 0 && (
+                    <div className="rounded-xl border border-border bg-card/60 p-6 text-center text-xs text-muted-foreground">
+                        No planned runs yet. Use New Run Group to start the campaign plan.
+                    </div>
+                )}
+                {Object.entries(groupedTasks).map(([group, tasks]) => {
+                    const folded = isGroupCollapsed(group);
+                    const summary = summarizeRunGroup(tasks);
+                    const objective = getGroupObjective(group);
+                    const groupColor = scheduleGroupColorByName[group];
+                    return (
+                        <section
+                            key={group}
+                            className={`rounded-2xl border border-primary/25 bg-primary/[0.03] ${folded ? 'px-4 py-2.5 sm:px-5' : 'p-4 sm:p-5'}`}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => toggleGroupCollapse(group)}
+                                aria-expanded={!folded}
+                                title={folded ? 'Show the runs in this group' : 'Fold this group'}
+                                className={`flex w-full items-center gap-2 rounded-lg text-left ${folded ? '' : 'mb-4'}`}
+                            >
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15">
+                                    <Layers className="text-primary" size={16} />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        value={groupRenameDrafts[group] ?? group}
-                                        onChange={(event) => {
-                                            const nextValue = event.target.value;
-                                            setGroupRenameDrafts((prev) => ({ ...prev, [group]: nextValue }));
-                                            setGroupRenameErrors((prev) => ({ ...prev, [group]: "" }));
-                                        }}
-                                        placeholder="Rename group (updates all runs in this group)"
-                                        className="min-w-0 flex-1 bg-background border border-border rounded px-2 py-1 text-[11px] text-foreground/85 outline-none focus:border-primary"
+                                {groupColor && (
+                                    <span
+                                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                                        style={{ backgroundColor: groupColor }}
+                                        title="Colour of this group in the campaign schedule"
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={() => renameGroupRuns(group)}
-                                        className="shrink-0 border border-primary/40 bg-primary/10 text-primary px-2 py-1 rounded text-[11px] font-semibold hover:bg-primary/20"
-                                    >
-                                        Apply Group Rename
-                                    </button>
-                                </div>
-                                {!!groupRenameErrors[group] && (
-                                    <div className="text-[11px] text-destructive">{groupRenameErrors[group]}</div>
                                 )}
-                            </div>
-                            {!isGroupCollapsed(group) && tasks.map(e => (
-                                <div key={e.id} draggable onDragStart={()=>setDraggedId(e.id)} onDragOver={ev=>ev.preventDefault()} onDrop={()=>onDrop(e.id)} className={`flex flex-col p-3 bg-background/50 border rounded mb-2 group transition-all ${isReady(e) ? 'border-border hover:border-border' : 'border-info/30 hover:border-info/50'}`}>
-                                    <div className="flex items-center gap-2">
-                                        <GripVertical size={14} className="text-muted-foreground cursor-grab active:cursor-grabbing"/>
-                                        <button 
-                                            onClick={() => setExperiments(experiments.map(x => x.id === e.id ? {...x, done: !x.done} : x))} 
-                                            disabled={!isReady(e)}
-                                            className={`${isReady(e) ? 'text-muted-foreground hover:text-primary' : 'text-muted-foreground/50 cursor-not-allowed'}`}
-                                        >
-                                            {e.done ? <CheckSquare size={16} className="text-[hsl(var(--primary))]"/> : <Square size={16}/>}
-                                        </button>
-                                        <span
-                                            title={String(e.name || '')}
-                                            className={`text-[13px] leading-snug flex-1 min-w-0 pr-2 font-mono font-semibold break-all ${
-                                                e.done ? 'text-muted-foreground' : 'text-foreground/85'
-                                            }`}
-                                        >
-                                            {e.name}
-                                        </span>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                                            <button onClick={()=>{ setModalOffset({ x: 0, y: 40 }); setEditError(""); setEditingExp({...e}); }} title="Edit run card" aria-label={`Edit run card ${e.name}`} className="text-muted-foreground hover:text-foreground p-1 hover:bg-muted rounded transition-colors"><PenTool size={12}/></button>
-                                            <button onClick={() => removeRunWithUndo(e.id)} title="Delete run" aria-label={`Delete run ${e.name}`} className="text-muted-foreground hover:text-destructive p-1 hover:bg-muted rounded transition-colors"><Trash2 size={12}/></button>
+                                <h2 className="shrink-0 font-mono text-base font-bold text-foreground">{group}</h2>
+                                <span className="shrink-0 text-xs text-muted-foreground">
+                                    {tasks.length} {tasks.length === 1 ? 'run' : 'runs'}{summary ? ` · ${summary}` : ''}
+                                </span>
+                                {objective && (
+                                    <span className="hidden min-w-0 truncate text-xs text-foreground/70 md:inline" title={objective}>
+                                        · {objective}
+                                    </span>
+                                )}
+                                <ChevronDown
+                                    size={16}
+                                    className={`ml-auto shrink-0 text-muted-foreground transition-transform ${folded ? '-rotate-90' : ''}`}
+                                />
+                            </button>
+                            {!folded && (
+                                <>
+                                    <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                        <label className="flex flex-col gap-1 text-[11px] font-semibold text-muted-foreground">
+                                            Group objective
+                                            <input
+                                                value={objective}
+                                                onChange={(event) => setGroupObjective(group, event.target.value)}
+                                                placeholder="Group objective (short description)"
+                                                className="min-w-0 bg-background border border-border rounded px-2 py-1 text-[11px] font-normal text-foreground/85 outline-none focus:border-primary"
+                                            />
+                                        </label>
+                                        <div className="flex flex-col gap-1 text-[11px] font-semibold text-muted-foreground">
+                                            <label htmlFor={`rename-group-${group}`}>Rename group (updates all runs in this group)</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    id={`rename-group-${group}`}
+                                                    value={groupRenameDrafts[group] ?? group}
+                                                    onChange={(event) => {
+                                                        const nextValue = event.target.value;
+                                                        setGroupRenameDrafts((prev) => ({ ...prev, [group]: nextValue }));
+                                                        setGroupRenameErrors((prev) => ({ ...prev, [group]: "" }));
+                                                    }}
+                                                    className="min-w-0 flex-1 bg-background border border-border rounded px-2 py-1 text-[11px] font-normal text-foreground/85 outline-none focus:border-primary"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => renameGroupRuns(group)}
+                                                    className="shrink-0 border border-primary/40 bg-primary/10 text-primary px-2 py-1 rounded text-[11px] font-semibold hover:bg-primary/20"
+                                                >
+                                                    Apply Group Rename
+                                                </button>
+                                            </div>
+                                            {!!groupRenameErrors[group] && (
+                                                <div className="font-normal text-destructive">{groupRenameErrors[group]}</div>
+                                            )}
                                         </div>
                                     </div>
-                                    
-                                    <div className="ml-8 mt-2 flex flex-wrap gap-2">
-                                        {String(e.meta?.h2 || '').trim() && (
-                                            <div className="flex items-center gap-1 bg-primary/10 border border-primary/30 px-1.5 py-0.5 rounded text-[11px] text-primary font-bold">
-                                                <Beaker size={8}/> {formatVolPercentLabel(e.meta.h2)} H2
-                                            </div>
+                                    <div className="mb-3 flex items-center justify-between gap-2">
+                                        <span className="text-[11px] font-semibold text-muted-foreground">Runs</span>
+                                        {groupRunFormGroup !== group && (
+                                            <button
+                                                type="button"
+                                                onClick={() => openGroupRunForm(group)}
+                                                className="bg-primary/10 border border-primary/30 px-2.5 py-1 rounded text-primary hover:border-primary/60 hover:bg-primary/20 flex items-center gap-1.5 font-bold text-[11px]"
+                                            >
+                                                <Plus size={12}/> Add Run
+                                            </button>
                                         )}
-                                        {formatRunSchedule(e) && (
-                                            <div className="flex items-center gap-1 border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded text-[11px] text-primary font-semibold">
-                                                <Calendar size={8}/> {formatRunSchedule(e)}
-                                            </div>
-                                        )}
-                                        {isPreparationRun(e) && (
-                                            <div className="flex items-center gap-1 border border-warning/40 bg-warning/10 px-1.5 py-0.5 rounded text-[11px] text-warning font-semibold">
-                                                <Wrench size={8}/> Preparation
-                                            </div>
-                                        )}
-                                        {e.meta?.hasError && (
-                                            <div className="flex items-center gap-1 border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 rounded text-[11px] text-destructive font-semibold">
-                                                <AlertCircle size={8}/> Error
-                                            </div>
-                                        )}
-                                        {!e.meta?.hasError && e.meta?.isCanceled && (
-                                            <div className="flex items-center gap-1 border border-warning/40 bg-warning/10 px-1.5 py-0.5 rounded text-[11px] text-warning font-semibold">
-                                                <X size={8}/> Canceled
-                                            </div>
-                                        )}
-                                        {isReady(e) ? (
-                                            <>
-                                                <div className="flex items-center gap-1 border border-border px-1.5 py-0.5 rounded text-[11px] text-muted-foreground">
-                                                    <Gauge size={8}/> {formatPressurePa(e.meta.p0) || '-'} Pa
-                                                </div>
-                                                <div className="flex items-center gap-1 border border-border px-1.5 py-0.5 rounded text-[11px] text-muted-foreground">
-                                                    <Thermometer size={8}/> {formatTempK(e.meta.t0) || '-'} K
-                                                </div>
-                                                {!!(Array.isArray(e.meta?.dataFiles) && e.meta.dataFiles.length) && (
-                                                    <div className="flex items-center gap-1 border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded text-[11px] text-primary font-semibold">
-                                                        <Layers size={8}/> {e.meta.dataFiles.length} data file{e.meta.dataFiles.length > 1 ? 's' : ''}
+                                    </div>
+                                    {groupRunFormGroup === group && (() => {
+                                        const numbered = groupUsesRunNumbers(group);
+                                        const previewName = getGroupRunName(group, groupRunDraft);
+                                        const updateDraft = (patch) => { setGroupRunDraft((prev) => ({ ...prev, ...patch })); setGroupRunError(""); };
+                                        return (
+                                            <div className="mb-3 rounded-xl border border-primary/30 bg-background/50 p-3 flex flex-col gap-3" aria-label={`Add run to ${group}`}>
+                                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                                    {numbered ? (
+                                                        <label className={fieldLabelClass}>
+                                                            Run #
+                                                            <input
+                                                                value={groupRunDraft.run}
+                                                                onChange={(event) => updateDraft({ run: event.target.value })}
+                                                                placeholder="e.g., 7, or 7-R1 for a repeat"
+                                                                className={fieldInputClass}
+                                                            />
+                                                        </label>
+                                                    ) : (
+                                                        <label className={fieldLabelClass}>
+                                                            Run name
+                                                            <input
+                                                                value={groupRunDraft.name}
+                                                                onChange={(event) => updateDraft({ name: event.target.value })}
+                                                                placeholder="e.g., test5"
+                                                                className={fieldInputClass}
+                                                            />
+                                                        </label>
+                                                    )}
+                                                    <label className={fieldLabelClass}>
+                                                        H2 vol.%
+                                                        <input
+                                                            value={groupRunDraft.h2}
+                                                            onChange={(event) => updateDraft({ h2: event.target.value })}
+                                                            placeholder="e.g., 18"
+                                                            className={fieldInputClass}
+                                                        />
+                                                    </label>
+                                                    <div className={fieldLabelClass}>
+                                                        Planned date
+                                                        <IsoDateInput
+                                                            value={groupRunDraft.plannedDate}
+                                                            onValueChange={(next) => updateDraft({ plannedDate: next })}
+                                                            placeholder="YYYY-MM-DD"
+                                                            title="Planned date"
+                                                            className={`${fieldInputClass} pr-9`}
+                                                        />
                                                     </div>
+                                                    <label className="inline-flex items-center gap-2 self-end pb-1.5 text-[11px] text-muted-foreground">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!!groupRunDraft.isPreparation}
+                                                            onChange={(event) => updateDraft({ isPreparation: event.target.checked })}
+                                                            className="h-3.5 w-3.5 accent-primary"
+                                                        />
+                                                        Preparation run
+                                                    </label>
+                                                </div>
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <div className="text-[11px] text-muted-foreground">
+                                                        New run: <span className="font-mono font-semibold text-foreground/85">{previewName || "--"}</span>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={closeGroupRunForm}
+                                                            className="border border-border px-3 py-1.5 rounded text-foreground/85 hover:border-ring hover:text-foreground font-semibold text-xs"
+                                                        >
+                                                            Close
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => addRunToGroup(group)}
+                                                            className="bg-primary/10 border border-primary/30 px-3 py-1.5 rounded text-primary hover:border-primary/60 hover:bg-primary/20 flex items-center justify-center gap-2 font-bold text-xs"
+                                                        >
+                                                            <Plus size={14}/> Add Run
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {groupRunError && (
+                                                    <div className="text-[11px] text-destructive">{groupRunError}</div>
                                                 )}
-                                            </>
-                                        ) : (
-                                            <div className="flex items-center gap-1 bg-info/10 border border-info/30 px-1.5 py-0.5 rounded text-[11px] text-info font-bold tracking-wide">
-                                                <AlertCircle size={8}/> Missing: {getMissingMeta(e).join(', ')}
                                             </div>
-                                        )}
+                                        );
+                                    })()}
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {tasks.map(renderRunCard)}
                                     </div>
-                                    <div className="ml-8 mt-2">
-                                        <input
-                                            value={String(e.meta?.shortDescription || '')}
-                                            onChange={(event) => updateRunShortDescription(e.id, event.target.value)}
-                                            onClick={(event) => event.stopPropagation()}
-                                            placeholder="Short run description (e.g., baseline vented run)"
-                                            className="w-full bg-background/[0.28] border border-border rounded px-2 py-1 text-[11px] text-foreground/85 outline-none focus:border-primary"
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* RIGHT: CHARTS & PROJECT STATS (70%) */}
-            <div className="lg:col-span-8 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2">
-                {/* KPIs. The objective, description, start and deadline are edited in the
-                    Project Description tab (same plan data, saved with the plan). */}
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-                    <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-foreground/85 leading-none mb-1">{stats.daysLeft}</div>
-                        <div className="text-[11px] text-muted-foreground font-bold">Days until Deadline</div>
-                    </div>
-                    <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-primary leading-none mb-1">{stats.pace || '--'}</div>
-                        <div className="text-[11px] text-muted-foreground font-bold">Pace (Runs/Day)</div>
-                    </div>
-                    <div className="bg-card/60 border border-warning/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-warning leading-none mb-1">{stats.canceled}</div>
-                        <div className="text-[11px] text-muted-foreground font-bold">Canceled Runs</div>
-                    </div>
-                    <div className="bg-card/60 border border-destructive/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-destructive leading-none mb-1">{stats.errors}</div>
-                        <div className="text-[11px] text-muted-foreground font-bold">Error Runs</div>
-                    </div>
-                    <div className="bg-card/60 border border-info/30 rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-info leading-none mb-1">{stats.preparation}</div>
-                        <div className="text-[11px] text-muted-foreground font-bold">Preparation Runs</div>
-                    </div>
-                    <div className="bg-card/60 border border-border rounded-xl flex flex-col items-center justify-center p-2 text-center">
-                        <div className="text-xl font-bold text-foreground leading-none mb-1">{stats.completionPercent}%</div>
-                        <div className="text-[11px] text-muted-foreground font-bold">Completion ({stats.done}/{stats.total})</div>
-                        <div className="mt-2 h-1 w-full max-w-[120px] rounded-full bg-muted overflow-hidden">
-                            <div className="h-full bg-primary" style={{ width: `${stats.completionPercent}%` }} />
-                        </div>
-                    </div>
-                </div>
-
-                {/* TIMELINE */}
-                <div
-                    className="bg-card/60 border border-border p-4 rounded-xl shrink-0 flex flex-col"
-                    style={{ height: `${scheduleChartHeightPx}px` }}
-                >
-                    <h3 className="text-[11px] font-bold text-muted-foreground mb-4 flex items-center gap-2 tracking-wide"><Clock size={12}/> Campaign Schedule</h3>
-                    <div
-                        ref={scheduleChartAreaRef}
-                        className="flex-1 bg-background/50 rounded-lg border border-border/[0.58] overflow-hidden"
-                        style={{ cursor: draggingScheduleRun ? 'grabbing' : 'default' }}
-                    >
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                layout="vertical"
-                                data={scheduleData}
-                                barSize={22}
-                                margin={{left: 16, right: 72, top: 16, bottom: 22}}
-                            >
-                                <CartesianGrid strokeDasharray="2 4" horizontal={false} stroke="hsl(var(--border))" />
-                                <XAxis
-                                    type="number"
-                                    stroke="hsl(var(--muted-foreground))"
-                                    fontSize={11}
-                                    tickFormatter={formatScheduleTick}
-                                    domain={[0, scheduleMaxDay]}
-                                    ticks={scheduleTicks}
-                                    allowDecimals={false}
-                                />
-                                <YAxis
-                                    type="category"
-                                    dataKey="laneLabel"
-                                    width={0}
-                                    tick={false}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    padding={{ top: 10, bottom: 10 }}
-                                />
-                                {scheduleDayKeys.map((dayKey) => (
-                                    <React.Fragment key={dayKey}>
-                                        <Bar dataKey={`${dayKey}Gap`} stackId="scheduleLane" fill="transparent" isAnimationActive={false} barSize={22} />
-                                        <Bar
-                                            dataKey={`${dayKey}Duration`}
-                                            stackId="scheduleLane"
-                                            isAnimationActive={false}
-                                            barSize={22}
-                                            shape={(props) => renderScheduleBarShape(props, dayKey)}
-                                        >
-                                            <LabelList
-                                                dataKey={`${dayKey}Name`}
-                                                content={(props) => renderScheduleLabel(props, dayKey)}
-                                            />
-                                        </Bar>
-                                    </React.Fragment>
-                                ))}
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                    <div className="mt-2 text-[11px] text-muted-foreground text-center">
-                        Drag a run block left/right to move its planned day. Click opens Run Metadata Card.
-                    </div>
-                    <div className="mt-3 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-sm border border-primary/40 bg-primary/15" />
-                            <span>Done</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-warning" />
-                            <span>Canceled</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-destructive" />
-                            <span>Error</span>
-                        </div>
-                    </div>
-                    {scheduleGroupNames.length > 0 && (
-                        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                            <span className="font-bold uppercase tracking-wide text-muted-foreground">Groups</span>
-                            {scheduleGroupNames.map((groupName) => (
-                                <span key={groupName} className="inline-flex items-center gap-1.5">
-                                    <span
-                                        className="inline-block h-2 w-2 rounded-[2px]"
-                                        style={{ backgroundColor: scheduleGroupColorByName[groupName] || GROUP_MARKER_COLORS[0] }}
-                                    />
-                                    <span>{groupName}</span>
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-            </div>
+                                </>
+                            )}
+                        </section>
+                    );
+                })}
+            </section>
 
             {/* RUN CARD MODAL */}
             {editingExp && (

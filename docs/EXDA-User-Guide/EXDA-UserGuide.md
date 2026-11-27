@@ -300,10 +300,18 @@ warns when RAMS or SOPs are missing; click it to jump to the list.
 The **Plan** tab holds the runs of the campaign. The objective, description and
 dates are in **Project Description**.
 
-1. Add a run: **Group ID** (e.g. `VH2D-G01`), **Run #** (e.g. `1`, or `1-R1` for a
-   repeat), **H2 vol.%** and the planned date. The run name is built from these
-   (here `VH2D-G01-01`); you can override it.
-2. Click **Add Planned Run**. Repeat for every run.
+The figures and the campaign schedule are at the top. Below them, each run group
+is one row with its run count and status (done, error, cancelled, missing
+metadata); click a row to show its runs.
+
+1. Start a group: click **New Run Group** and enter the **Group ID** (e.g.
+   `VH2D-G01`), an optional objective and the first run: **Run #** (e.g. `1`, or
+   `1-R1` for a repeat), **H2 vol.%** and the planned date. The run name is built
+   from these (here `VH2D-G01-01`); a manual run name replaces it. Click
+   **Create Group**.
+2. Add the other runs from inside the group: open it and click **Add Run**. The
+   next run number is filled in; enter H2 vol.% and the date, then click
+   **Add Run**. Repeat for every run.
 3. Click **Sync run folders**. This creates `Raw_Data/<run>/` for every run; that
    is where the instrument files of the run go.
 4. Click the **pen icon** on a run to open its **run card**: ignition position,

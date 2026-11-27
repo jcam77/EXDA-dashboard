@@ -260,10 +260,14 @@ const SECTIONS = {
     },
     act: async (page) => {
       await shot(page, '05-plan');
-      await typeInto(page, page.getByPlaceholder('Group ID'), 'VH2D-Demo-G02', 300);
-      await typeInto(page, page.getByPlaceholder(/Run #/), '3', 300);
-      await typeInto(page, page.getByPlaceholder(/H2 vol/), '20', 600);
-      await click(page, page.getByRole('button', { name: /Add Planned Run/ }), 1500);
+      // Add a run inside an existing group: the next run number is filled in.
+      await click(page, page.getByRole('button', { name: /VH2D-Demo-G02/ }).first(), 800);
+      await click(page, page.getByRole('button', { name: 'Add Run' }).first(), 800);
+      const addForm = page.getByLabel('Add run to VH2D-Demo-G02');
+      await typeInto(page, addForm.getByLabel('H2 vol.%'), '20', 600);
+      await click(page, addForm.getByRole('button', { name: 'Add Run' }), 1500);
+      // Groups start folded; open G01 to reach its run card.
+      await click(page, page.getByRole('button', { name: /VH2D-Demo-G01/ }).first(), 800);
       const edit = page.getByRole('button', { name: 'Edit run card VH2D-Demo-G01-01' });
       await page.locator('div.group', { hasText: 'VH2D-Demo-G01-01' }).first().hover();
       await click(page, edit, 1800);
