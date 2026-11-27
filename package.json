@@ -5,7 +5,7 @@
     "email": "javier.camacho@brand.lth.se"
   },
   "private": true,
-  "version": "5.0.10",
+  "version": "6.0.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
