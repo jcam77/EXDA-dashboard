@@ -115,6 +115,7 @@ All AI-assistant working material is kept out of git in one place:
 | Path | Tracked | Purpose |
 | --- | --- | --- |
 | `CLAUDE.md` (this file) | yes, public | Shared project rules for assistants |
+| `AGENTS.md` | yes, public | Points Codex and other agents to this file; keep it a pointer only |
 | `CLAUDE.local.md` | no | Private instructions for the maintainer's own sessions; loaded automatically by Claude Code |
 | `claude-context/` | no | Private handoff notes, roadmap and session outputs |
 | `.claude/settings.local.json` | no | Local Claude Code settings |

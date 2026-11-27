@@ -63,7 +63,7 @@ ALLOWED_FILES=(
   Setup-EXDA-MAC.command
   Setup-EXDA-WIN.bat
   VERSIONING.md
-  copilot-instructions.md
+  AGENTS.md
   design_guidelines.json
   find_and_run_backend.sh
   package-lock.json
