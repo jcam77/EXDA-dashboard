@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { AlertTriangle, FolderOpen, RefreshCw, ShieldCheck } from 'lucide-react';
 
-// Safety procedures of the project (Procedures/: RAMS, RAMS-Appendices, SOPs).
+// Safety procedures of the project (Procedures/: RAMS, RAMS-Appendices, SOPs,
+// Other-Procedures).
 // Read from the folder each time, so new or updated documents appear without
 // typing a procedure reference. Styled like the Sensor Mounting reference card.
 
@@ -94,7 +95,7 @@ const ProceduresPanel = ({ apiBaseUrl, projectPath, procedures }) => {
           <ShieldCheck size={22} className="text-primary" />
           <div>
             <h2 className="text-lg font-bold tracking-tight uppercase text-foreground">Safety Procedures</h2>
-            <p className="text-[11px] text-muted-foreground">RAMS, appendices and SOPs from the project folder Procedures/</p>
+            <p className="text-[11px] text-muted-foreground">RAMS, appendices, SOPs and other procedures from the project folder Procedures/</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

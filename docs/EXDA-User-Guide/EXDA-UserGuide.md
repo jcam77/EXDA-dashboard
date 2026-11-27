@@ -177,7 +177,8 @@ EXDA-Projects/
     ├── CFD_Data/           simulation data
     ├── Reports/            mappings, gas mixing, checklist and exported reports
     ├── Literature/         papers for the project
-    ├── Procedures/         RAMS, RAMS appendices and SOPs for the campaign
+    ├── Procedures/         RAMS, RAMS appendices and SOPs for the campaign, and
+    │                       Other-Procedures (facility rules, manuals, permits)
     └── History/            earlier versions of every saved file and a change log
 ```
 
@@ -288,7 +289,10 @@ A renamed or moved check keeps its tick; EXDA asks before checks are removed.
 **Safety Procedures** at the bottom of the tab lists the documents in the
 project's `Procedures/` folder (RAMS, appendices, SOPs) with **Preview**,
 **Open PDF** and **Download**. The badge at the top shows how many there are, or
-warns when RAMS or SOPs are missing; click it to jump to the list.
+warns when RAMS or SOPs are missing; click it to jump to the list. Put documents
+that are not specific to this campaign (facility rules, emergency plans,
+equipment manuals, permits) in `Procedures/Other-Procedures/`; they are listed
+after the SOPs and are optional.
 
 ![Checklist](images/04-checklist.png)
 

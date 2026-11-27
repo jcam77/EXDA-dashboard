@@ -375,7 +375,8 @@ EXDA-Projects/[<group folder>/]<project>/
 │                    project_description.json, exported plan CSV/PDF
 ├── Raw_Data/<run>/<DAQ>/   instrument files (read only for EXDA)
 ├── Clean_Data/, CFD_Data/, Literature/, aiChat/
-├── Procedures/      RAMS/, RAMS-Appendices/, SOPs/ (campaign safety documents)
+├── Procedures/      RAMS/, RAMS-Appendices/, SOPs/ (campaign safety documents),
+│                    Other-Procedures/ (facility rules, manuals, permits, …)
 ├── Reports/         daq_systems.json, sensors_mapping.json, cameras_mapping.json,
 │                    gas_mixing.json, checklist_state.json, checklist_runs.json,
 │                    exported reports <project>_<kind>_<YYYY-MM-DD_HHMMSS>.{pdf,csv}

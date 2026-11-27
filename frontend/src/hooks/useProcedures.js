@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-// Procedure sections that every test campaign must have; RAMS-Appendices is optional.
+// Procedure sections that every test campaign must have; RAMS-Appendices and
+// Other-Procedures are optional.
 export const REQUIRED_PROCEDURE_SECTIONS = ['RAMS', 'SOPs'];
 
 // Procedure documents of the project, read from Procedures/ by the backend.

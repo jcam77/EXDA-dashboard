@@ -89,7 +89,7 @@ class ProjectsRootTests(unittest.TestCase):
 class ProjectFoldersTests(unittest.TestCase):
     """Standard project folders, including Procedures/ for safety documents."""
 
-    PROCEDURES = ("Procedures/RAMS", "Procedures/RAMS-Appendices", "Procedures/SOPs")
+    PROCEDURES = ("Procedures/RAMS", "Procedures/RAMS-Appendices", "Procedures/SOPs", "Procedures/Other-Procedures")
 
     def setUp(self):
         self.base = Path(tempfile.mkdtemp(prefix="exda_folders_test_"))

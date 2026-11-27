@@ -1,4 +1,5 @@
-"""Procedure documents of a project (Procedures/: RAMS, RAMS-Appendices, SOPs).
+"""Procedure documents of a project (Procedures/: RAMS, RAMS-Appendices, SOPs,
+Other-Procedures).
 
 Read only: lists what is in the folder so the Checklist page can preview,
 open or download it. Nothing in the folder is created, renamed or changed
@@ -12,7 +13,9 @@ import os
 from datetime import datetime, timezone
 
 PROCEDURES_FOLDER = "Procedures"
-STANDARD_SECTIONS = ("RAMS", "RAMS-Appendices", "SOPs")
+# Other-Procedures: documents that are not specific to this campaign (facility
+# rules, emergency plans, equipment manuals, permits). Optional, like the appendices.
+STANDARD_SECTIONS = ("RAMS", "RAMS-Appendices", "SOPs", "Other-Procedures")
 
 # Files that are not procedure documents: macOS metadata, Office lock files
 # and Word's automatic backup copies.

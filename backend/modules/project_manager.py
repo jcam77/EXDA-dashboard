@@ -419,10 +419,12 @@ def initialize_project_structure(base_path):
     folders = ["Plan", "Raw_Data", "Clean_Data", "CFD_Data", "aiChat", "Reports", "Literature", "Procedures"]
 
     # Subfolders: literature by type; procedures for the campaign's safety
-    # documents (risk assessment and method statements, appendices, SOPs).
+    # documents (risk assessment and method statements, appendices, SOPs) and
+    # other procedures that are not specific to the campaign.
     sub_resources = [
         os.path.join("Literature", "Books"), os.path.join("Literature", "Papers"), os.path.join("Literature", "Standards"),
         os.path.join("Procedures", "RAMS"), os.path.join("Procedures", "RAMS-Appendices"), os.path.join("Procedures", "SOPs"),
+        os.path.join("Procedures", "Other-Procedures"),
     ]
     
     all_targets = folders + sub_resources

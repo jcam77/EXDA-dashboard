@@ -56,6 +56,15 @@ class ProceduresListingTests(unittest.TestCase):
         self.assertEqual(sop["path"], "Procedures/SOPs/H2VD-SOP-002.pdf")
         self.assertTrue(sop["previewable"])
 
+    def test_other_procedures_after_sops_and_before_own_folders(self):
+        self.assertTrue((self.proc / "Other-Procedures").is_dir())  # standard folder
+        touch(self.proc / "Zeta-Notes" / "Note.pdf")
+        touch(self.proc / "Other-Procedures" / "Facility rules.pdf")
+        touch(self.proc / "SOPs" / "SOP.pdf")
+        touch(self.proc / "Aaa-Own" / "Own.pdf")
+        sections = [d["section"] for d in procedures.list_procedures(str(self.root))["documents"]]
+        self.assertEqual(sections, ["SOPs", "Other-Procedures", "Aaa-Own", "Zeta-Notes"])
+
     def test_backup_lock_and_hidden_files_are_not_listed(self):
         touch(self.proc / "SOPs" / "SOP.pdf")
         touch(self.proc / "SOPs" / "SOP" / "Backup of SOP.docx")
