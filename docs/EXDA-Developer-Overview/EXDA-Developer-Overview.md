@@ -108,7 +108,7 @@ flowchart LR
 | Frontend | React 19, Vite 7 (Node ^20.19 or ≥ 22.12), Tailwind, uPlot (screening plots), Recharts, vitest | [frontend/src/main.jsx](../../frontend/src/main.jsx) → [AppShell.jsx](../../frontend/src/app/AppShell.jsx) → [WorkspacePage.jsx](../../frontend/src/features/workspace/WorkspacePage.jsx) |
 | Backend | Python 3, Flask (6 blueprints), NumPy, SciPy, h5py, asammdf, ewtpy, PyWavelets | [backend/app.py](../../backend/app.py) |
 | Desktop build | Electron (starts the packaged backend) | [electron/main.cjs](../../electron/main.cjs) |
-| Launchers | First start: `Setup-EXDA-*` creates the Python environment (`.venv`, `.venv-mac`, `.venv-win`; never committed) and installs npm packages. Later starts: `Run-EXDA-*` checks the requirements, starts backend + Vite and opens the browser | `Setup-EXDA-*.{sh,command,bat}`, `Run-EXDA-*.{sh,command,bat}` |
+| Launchers | First start: `Setup-EXDA-*` creates the Python environment (`.venv-linux`, `.venv-mac`, `.venv-win`; never committed) and installs npm packages. Later starts: `Run-EXDA-*` checks the requirements, starts backend + Vite and opens the browser | `Setup-EXDA-*.{sh,command,bat}`, `Run-EXDA-*.{sh,command,bat}` |
 | Configuration | Host/port defaults | [config/exda-defaults.env](../../config/exda-defaults.env), env vars `EXDA_*` |
 
 ### What the setup installs, and where
@@ -129,7 +129,7 @@ EXDA/
 
 | What | Where | Done by | Admin rights |
 | --- | --- | --- | --- |
-| Python packages | `.venv-win` / `.venv-mac` / `.venv` inside the app folder | `python -m venv` + `pip install -r backend/requirements*.txt` | No |
+| Python packages | `.venv-win` / `.venv-mac` / `.venv-linux` inside the app folder | `python -m venv` + `pip install -r backend/requirements*.txt` | No |
 | Frontend packages | `node_modules` inside the app folder | `npm install` (never `-g`) | No |
 | EXDA shortcut (Windows) | User's Start menu (`Programs`) always; the parent `EXDA` folder when the app is in its own folder, otherwise the app folder (`EXDA.lnk`, git-ignored); the Desktop only after a yes (an existing Desktop shortcut is just updated) | [scripts/make_shortcuts.ps1](../../scripts/make_shortcuts.ps1), called by `:make_shortcuts` | No |
 | EXDA shortcut (macOS) | Relative symlink `EXDA` → `<app>/EXDA.app` in the parent folder, when the app is in its own folder; never the Dock or Desktop | `Setup-EXDA-MAC.command` (`in_own_folder`, `ln -sfn`) | No |

@@ -39,7 +39,7 @@ Install once per computer: Node.js 22 LTS (20.19+ or 22.12+), Python 3.10+ (3.12
 
 Every start runs a quick check:
 
-- the Python environment for this operating system exists and works (`.venv-mac` on macOS, `.venv-win` on Windows)
+- the Python environment for this operating system exists and works (`.venv-mac` on macOS, `.venv-win` on Windows, `.venv-linux` on Linux)
 - the packages in [backend/requirements.txt](backend/requirements.txt) are installed
 - Node.js is new enough ([scripts/check_node_version.cjs](scripts/check_node_version.cjs))
 - the frontend packages are installed for this operating system
@@ -71,7 +71,7 @@ You choose the location by where you put the `EXDA` folder. Setup asks nothing e
 
 | What | Where | Removed by deleting the app folder? |
 | --- | --- | --- |
-| Python packages | `.venv-win` (Windows), `.venv-mac` (macOS), `.venv` (Linux), inside the app folder | Yes |
+| Python packages | `.venv-win` (Windows), `.venv-mac` (macOS), `.venv-linux` (Linux), inside the app folder | Yes |
 | Frontend packages | `node_modules`, inside the app folder | Yes |
 | EXDA shortcuts | See the table above | Only the one inside the app folder; delete the others by hand (or let the next version rewrite them) |
 | Node.js and Python | System-wide, **only if missing and only after you accept** (Windows: `winget`, Python for your user only; macOS: Homebrew). On Linux, install them yourself | No: they are normal programs, uninstall them as usual |
@@ -103,7 +103,7 @@ Node.js and Python stay installed; the next version needs them too. Remove them 
 - **Windows:** EXDA usually keeps working, but the shortcuts still point to the old place. Run `Setup-EXDA-WIN.bat` once in the new place to rewrite them.
 - **Linux:** run `Setup-EXDA-LINUX.sh` again.
 
-Each operating system keeps its own Python environment, so one EXDA folder (for example on an external drive) can be used from macOS and Windows. `node_modules` is shared: npm keeps the native packages for each system side by side. An older shared `.venv` folder is no longer used on macOS or Windows and can be deleted.
+Each operating system keeps its own Python environment, so one EXDA folder (for example on an external drive) can be used from macOS, Windows and Linux. `node_modules` is shared: npm keeps the native packages for each system side by side. An older shared `.venv` folder is no longer needed: macOS and Windows do not use it, and Linux uses it only until `Setup-EXDA-LINUX.sh` has created `.venv-linux`. Delete it once EXDA runs.
 
 ## Ports
 
@@ -146,8 +146,8 @@ Terminal shortcuts from the repo root:
 
 ```bash
 npm install
-python3 -m venv .venv            # on macOS the launcher uses .venv-mac
-source .venv/bin/activate
+python3 -m venv .venv-linux      # on macOS use .venv-mac
+source .venv-linux/bin/activate
 pip install -r backend/requirements.txt
 pip install -r backend/requirements-optional.txt   # optional extras
 ```

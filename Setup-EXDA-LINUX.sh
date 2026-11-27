@@ -3,18 +3,20 @@ set -u
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT" || exit 1
+# Python environment for Linux (macOS uses .venv-mac, Windows .venv-win).
+VENV_DIR="$REPO_ROOT/.venv-linux"
 
 PYTHON_CMD=""
 NPM_CMD=""
 NPM_CLI_PATH=""
 
 activate_local_venv() {
-  if [ ! -f "$REPO_ROOT/.venv/bin/activate" ]; then
+  if [ ! -f "$VENV_DIR/bin/activate" ]; then
     return 1
   fi
   # shellcheck disable=SC1091
-  . "$REPO_ROOT/.venv/bin/activate" || return 1
-  PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+  . "$VENV_DIR/bin/activate" || return 1
+  PYTHON_CMD="$VENV_DIR/bin/python"
   return 0
 }
 
@@ -52,7 +54,7 @@ print_header() {
   echo ""
   echo "EXDA installs its packages inside this app folder only:"
   echo "  $REPO_ROOT"
-  echo "  Python packages:   .venv"
+  echo "  Python packages:   .venv-linux"
   echo "  Frontend packages: node_modules"
   echo "  About 1 to 2 GB in total. Deleting the app folder removes all of it."
   echo "Node.js and Python must already be installed (this script does not install them)."
@@ -115,23 +117,24 @@ run_npm() {
 }
 
 archive_broken_venv() {
-  if [ ! -d "$REPO_ROOT/.venv" ]; then
+  if [ ! -d "$VENV_DIR" ]; then
     return 0
   fi
-  local archived_path="$REPO_ROOT/.venv.broken-$(date +%Y%m%d-%H%M%S)"
-  mv "$REPO_ROOT/.venv" "$archived_path" || return 1
+  local archived_path="$VENV_DIR.broken-$(date +%Y%m%d-%H%M%S)"
+  mv "$VENV_DIR" "$archived_path" || return 1
   echo "Archived incompatible local virtualenv to $archived_path"
 }
 
 resolve_python() {
-  # Reuse .venv only if its Python runs from this folder. Archive anything else
-  # (broken bin/python link, no bin/python, a macOS or Windows venv), because
-  # "python3 -m venv" over an existing folder keeps a broken link.
-  if [ -d "$REPO_ROOT/.venv" ]; then
+  # Reuse .venv-linux only if its Python runs from this folder. Archive anything
+  # else (broken bin/python link, no bin/python, a macOS or Windows venv),
+  # because "python3 -m venv" over an existing folder keeps a broken link.
+  # An older plain .venv is left alone (see the note at the end).
+  if [ -d "$VENV_DIR" ]; then
     local detected_prefix=""
-    detected_prefix="$("$REPO_ROOT/.venv/bin/python" -c "import sys; print(sys.prefix)" 2>/dev/null || true)"
-    if [ "$detected_prefix" = "$REPO_ROOT/.venv" ]; then
-      PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+    detected_prefix="$("$VENV_DIR/bin/python" -c "import sys; print(sys.prefix)" 2>/dev/null || true)"
+    if [ "$detected_prefix" = "$VENV_DIR" ]; then
+      PYTHON_CMD="$VENV_DIR/bin/python"
       return 0
     fi
     archive_broken_venv || return 1
@@ -146,9 +149,9 @@ resolve_python() {
     return 1
   fi
 
-  echo "Creating local .venv ..."
-  "$base_python" -m venv "$REPO_ROOT/.venv" || return 1
-  PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+  echo "Creating local .venv-linux ..."
+  "$base_python" -m venv "$VENV_DIR" || return 1
+  PYTHON_CMD="$VENV_DIR/bin/python"
   return 0
 }
 
@@ -166,7 +169,7 @@ seed_gui_path
 command -v node >/dev/null 2>&1 || fail "Missing tool: node"
 resolve_npm || fail "Missing tool: npm"
 resolve_python || fail "Missing tool: python3 or python"
-activate_local_venv || fail "Could not activate the local .venv"
+activate_local_venv || fail "Could not activate the local .venv-linux"
 
 echo ""
 echo "Installing frontend dependencies with npm ..."
@@ -174,8 +177,8 @@ run_npm install || fail "npm install failed"
 verify_node_packages || fail "Frontend packages are still incomplete after npm install"
 
 echo ""
-echo "Upgrading pip in local .venv ..."
-"$PYTHON_CMD" -m pip install --upgrade pip >/dev/null 2>&1 || fail "Could not upgrade pip in .venv"
+echo "Upgrading pip in local .venv-linux ..."
+"$PYTHON_CMD" -m pip install --upgrade pip >/dev/null 2>&1 || fail "Could not upgrade pip in .venv-linux"
 
 echo "Installing backend requirements ..."
 "$PYTHON_CMD" -m pip install -r backend/requirements.txt || fail "Failed to install backend/requirements.txt"
@@ -187,13 +190,19 @@ verify_python_requirements backend/requirements-optional.txt || fail "Optional P
 
 echo ""
 echo "EXDA setup is complete. Installed in the app folder:"
-echo "  $REPO_ROOT/.venv"
+echo "  $VENV_DIR"
 echo "  $REPO_ROOT/node_modules"
 echo ""
-echo "The EXDA launcher uses .venv automatically."
+echo "The EXDA launcher uses .venv-linux automatically."
 echo "If you want this terminal itself to stay activated afterward, run:"
-echo "  source .venv/bin/activate"
+echo "  source .venv-linux/bin/activate"
 echo ""
+if [ -d "$REPO_ROOT/.venv" ]; then
+  echo "An older .venv folder is still in the app folder. EXDA no longer uses it"
+  echo "on Linux; delete it once EXDA runs:"
+  echo "  rm -rf \"$REPO_ROOT/.venv\""
+  echo ""
+fi
 echo "Next step:"
 echo "  Run-EXDA-LINUX.sh"
 echo ""

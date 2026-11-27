@@ -20,7 +20,7 @@ All contact goes through GitHub; there is no public email address.
 - **Project or experiment data** (anything from `EXDA-Projects`, raw DAQ files,
   plans of real campaigns). The repository is public. Use the synthetic demo
   projects instead (`docs/EXDA-User-Guide/tools/make_demo_project.py`).
-- Python environments (`.venv`, `.venv-mac`, `.venv-win`), `node_modules`,
+- Python environments (`.venv`, `.venv-mac`, `.venv-win`, `.venv-linux`), `node_modules`,
   shortcuts (`EXDA.lnk`) or local settings.
 
 ## Set up and check

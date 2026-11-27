@@ -101,7 +101,7 @@ EXDA/
 - **Linux:** run `Setup-EXDA-LINUX.sh` once, then `Run-EXDA-LINUX.sh`.
 
 **The first start installs what EXDA needs** (a few minutes, internet needed,
-about 1–2 GB). The Python packages go into `.venv-win`, `.venv-mac` or `.venv`
+about 1–2 GB). The Python packages go into `.venv-win`, `.venv-mac` or `.venv-linux`
 and the frontend packages into `node_modules`, both inside the app folder, and
 the setup window prints these paths. Nothing else is added to your computer
 apart from the shortcuts listed above. Only if Node.js or Python is missing does

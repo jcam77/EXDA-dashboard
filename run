@@ -5,7 +5,7 @@ APP="${1:-}"
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OS_NAME="$(uname -s 2>/dev/null || echo unknown)"
 # The launchers pick and set up the Python environment themselves
-# (.venv-mac on macOS, .venv-win on Windows, .venv on Linux).
+# (.venv-mac on macOS, .venv-win on Windows, .venv-linux on Linux).
 
 VERSION="$(git -C "$ROOT_DIR" describe --tags --always 2>/dev/null || echo "unknown")"
 BRANCH="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")"

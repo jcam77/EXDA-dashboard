@@ -11,7 +11,7 @@
 - [ ] Changed screens: screenshots in **light and dark** below; theme tokens only, text ≥ 11 px ([design guide](https://github.com/jcam77/EXDA-dashboard/blob/main/docs/EXDA-Design-Guide.md))
 - [ ] Works with Windows paths (`\`) as well as `/`
 - [ ] User guide / Developer Overview updated if a screen or workflow changed
-- [ ] No project or experiment data, no `.venv` / `node_modules` committed
+- [ ] No project or experiment data, no `.venv*` / `node_modules` committed
 - [ ] AI tools used? Say so here: <!-- e.g. "Written with AI assistance, reviewed by me" -->
 
 ## Screenshots

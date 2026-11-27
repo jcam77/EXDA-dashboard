@@ -64,7 +64,7 @@ Double-click the launcher for your operating system:
 **First start** on a computer (macOS and Windows): the launcher finds that EXDA is not set up yet and runs the setup script ([Setup-EXDA-MAC.command](Setup-EXDA-MAC.command) / [Setup-EXDA-WIN.bat](Setup-EXDA-WIN.bat)) automatically. This takes a few minutes and needs an internet connection. Setup:
 
 - checks the Node.js and Python versions
-- creates the Python environment for this operating system inside the app folder (`.venv-mac` on macOS, `.venv-win` on Windows, `.venv` on Linux) and installs the Python packages
+- creates the Python environment for this operating system inside the app folder (`.venv-mac` on macOS, `.venv-win` on Windows, `.venv-linux` on Linux) and installs the Python packages
 - installs the frontend packages (`npm install`) inside the app folder
 - adds the **EXDA** shortcut: in the `EXDA` folder (when the app sits in its own folder), on Windows also in the Start menu, and on the Desktop only if you answer yes
 
@@ -103,8 +103,8 @@ From the repository root:
 
 ```bash
 npm install
-python3 -m venv .venv        # the launchers use .venv-mac on macOS and .venv-win on Windows
-source .venv/bin/activate
+python3 -m venv .venv-linux  # on macOS use .venv-mac, on Windows .venv-win (the names the launchers use)
+source .venv-linux/bin/activate
 pip install -r backend/requirements.txt
 # Optional extras (AiRA / local LLM):
 # pip install -r backend/requirements-optional.txt
@@ -137,7 +137,7 @@ If you want to start the services manually instead, use the two-terminal flow be
 Start the backend:
 
 ```bash
-source .venv/bin/activate
+source .venv-linux/bin/activate   # .venv-mac on macOS
 python backend/app.py
 ```
 

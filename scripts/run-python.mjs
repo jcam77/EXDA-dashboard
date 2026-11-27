@@ -7,8 +7,9 @@ const requestedPython = process.env.EXDA_PYTHON;
 
 // Each operating system keeps its own Python environment, so one EXDA folder
 // (for example on a shared or external drive) can be used from macOS, Windows
-// and Linux: .venv-mac on macOS, .venv-win on Windows, .venv on Linux.
-const OS_VENV = { darwin: '.venv-mac', win32: '.venv-win' };
+// and Linux: .venv-mac on macOS, .venv-win on Windows, .venv-linux on Linux.
+// A plain .venv (older Linux installs, hand-made venvs) is the fallback.
+const OS_VENV = { darwin: '.venv-mac', win32: '.venv-win', linux: '.venv-linux' };
 const venvPython = (dir) => (process.platform === 'win32'
   ? path.join(repoRoot, dir, 'Scripts', 'python.exe')
   : path.join(repoRoot, dir, 'bin', 'python'));

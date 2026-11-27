@@ -66,7 +66,7 @@ const resolveBackendCommand = () => {
     return { cmd: process.env.EXDA_BACKEND_PATH, args: [] };
   }
   if (isDev) {
-    // Per-OS environment first (.venv-win / .venv-mac, see scripts/run-python.mjs), then .venv.
+    // Per-OS environment first (.venv-win / .venv-mac / .venv-linux, see scripts/run-python.mjs), then .venv.
     const venvCandidates = process.platform === 'win32'
       ? [
         path.join(app.getAppPath(), '.venv-win', 'Scripts', 'python.exe'),
@@ -74,6 +74,7 @@ const resolveBackendCommand = () => {
       ]
       : [
         ...(process.platform === 'darwin' ? [path.join(app.getAppPath(), '.venv-mac', 'bin', 'python')] : []),
+        ...(process.platform === 'linux' ? [path.join(app.getAppPath(), '.venv-linux', 'bin', 'python')] : []),
         path.join(app.getAppPath(), '.venv', 'bin', 'python'),
       ];
     const pythonCmd =

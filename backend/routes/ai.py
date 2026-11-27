@@ -31,6 +31,7 @@ REPO_SCAN_IGNORE_DIRS = {
     ".venv",
     ".venv-mac",
     ".venv-win",
+    ".venv-linux",
     "venv",
     "__pycache__",
     "dist",

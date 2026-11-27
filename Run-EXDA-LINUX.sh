@@ -4,6 +4,9 @@ set -u
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT" || exit 1
 DEFAULTS_FILE="$REPO_ROOT/config/exda-defaults.env"
+# Python environment for Linux (macOS uses .venv-mac, Windows .venv-win).
+# An older plain .venv is still used if .venv-linux does not exist yet.
+VENV_DIR="$REPO_ROOT/.venv-linux"
 
 if [ -f "$DEFAULTS_FILE" ]; then
   # shellcheck disable=SC1090
@@ -21,10 +24,10 @@ BACKEND_HOST="${EXDA_BACKEND_HOST:-${EXDA_DEFAULT_BACKEND_HOST:-}}"
 BACKEND_PORT="${EXDA_BACKEND_PORT:-${EXDA_DEFAULT_BACKEND_PORT:-}}"
 
 activate_local_venv() {
-  if [ "$PYTHON_CMD" = "$REPO_ROOT/.venv/bin/python" ] && [ -f "$REPO_ROOT/.venv/bin/activate" ]; then
+  if [ "$PYTHON_CMD" = "$VENV_DIR/bin/python" ] && [ -f "$VENV_DIR/bin/activate" ]; then
     # shellcheck disable=SC1091
-    . "$REPO_ROOT/.venv/bin/activate" || return 1
-    PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+    . "$VENV_DIR/bin/activate" || return 1
+    PYTHON_CMD="$VENV_DIR/bin/python"
   fi
   return 0
 }
@@ -57,9 +60,19 @@ seed_gui_path() {
 }
 
 sanitize_local_venv() {
-  if [ -d "$REPO_ROOT/.venv" ]; then
-    find "$REPO_ROOT/.venv" -name '._*' -type f -delete >/dev/null 2>&1 || true
-  fi
+  local venv=""
+  for venv in "$VENV_DIR" "$REPO_ROOT/.venv"; do
+    if [ -d "$venv" ]; then
+      find "$venv" -name '._*' -type f -delete >/dev/null 2>&1 || true
+    fi
+  done
+}
+
+# True if the venv in folder $1 has a Python that runs from that folder.
+venv_runs_here() {
+  local detected_prefix=""
+  detected_prefix="$("$1/bin/python" -c "import sys; print(sys.prefix)" 2>/dev/null || true)"
+  [ "$detected_prefix" = "$1" ]
 }
 
 print_header() {
@@ -141,7 +154,7 @@ node_packages_ok() {
 }
 
 using_local_venv() {
-  [ -n "$PYTHON_CMD" ] && [ "$PYTHON_CMD" = "$REPO_ROOT/.venv/bin/python" ]
+  [ -n "$PYTHON_CMD" ] && [ "$PYTHON_CMD" = "$VENV_DIR/bin/python" ]
 }
 
 install_missing_python_packages() {
@@ -157,14 +170,18 @@ install_missing_python_packages() {
 
 resolve_python() {
   sanitize_local_venv
-  if [ -d "$REPO_ROOT/.venv" ]; then
-    local detected_prefix=""
-    detected_prefix="$("$REPO_ROOT/.venv/bin/python" -c "import sys; print(sys.prefix)" 2>/dev/null || true)"
-    if [ "$detected_prefix" = "$REPO_ROOT/.venv" ]; then
-      PYTHON_CMD="$REPO_ROOT/.venv/bin/python"
+  if [ -d "$VENV_DIR" ]; then
+    if venv_runs_here "$VENV_DIR"; then
+      PYTHON_CMD="$VENV_DIR/bin/python"
       return
     fi
-    add_missing "Broken local virtualenv: run ./Setup-EXDA-LINUX.sh (it archives .venv and creates a new one)"
+    add_missing "Broken local virtualenv: run ./Setup-EXDA-LINUX.sh (it archives ${VENV_DIR##*/} and creates a new one)"
+  elif [ -d "$REPO_ROOT/.venv" ] && venv_runs_here "$REPO_ROOT/.venv"; then
+    # Older Linux installs: keep using a working .venv until setup creates .venv-linux.
+    VENV_DIR="$REPO_ROOT/.venv"
+    PYTHON_CMD="$VENV_DIR/bin/python"
+    echo "Using the older .venv folder. Run ./Setup-EXDA-LINUX.sh once to move to .venv-linux."
+    return
   fi
   if command -v python3 >/dev/null 2>&1; then
     PYTHON_CMD="python3"
@@ -212,7 +229,7 @@ check_python_packages() {
       missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements.txt 2>/dev/null)"
       status=$?
       if [ "$status" -eq 0 ]; then
-        echo "Python runtime packages repaired in .venv."
+        echo "Python runtime packages repaired in ${VENV_DIR##*/}."
         return
       fi
     fi
@@ -224,7 +241,7 @@ check_python_packages() {
           missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements.txt 2>/dev/null)"
           status=$?
           if [ "$status" -eq 0 ]; then
-            echo "Python runtime packages repaired in .venv."
+            echo "Python runtime packages repaired in ${VENV_DIR##*/}."
             return
           fi
         fi
@@ -261,7 +278,7 @@ check_optional_python_packages() {
       missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements-optional.txt 2>/dev/null)"
       status=$?
       if [ "$status" -eq 0 ]; then
-        echo "Feature packages repaired in .venv."
+        echo "Feature packages repaired in ${VENV_DIR##*/}."
         return
       fi
     fi
@@ -273,7 +290,7 @@ check_optional_python_packages() {
           missing_output="$("$PYTHON_CMD" scripts/check_runtime_requirements.py --requirements backend/requirements-optional.txt 2>/dev/null)"
           status=$?
           if [ "$status" -eq 0 ]; then
-            echo "Feature packages repaired in .venv."
+            echo "Feature packages repaired in ${VENV_DIR##*/}."
             return
           fi
         fi
@@ -321,10 +338,11 @@ print_missing_summary() {
     echo " - $item"
   done
   echo ""
-  echo "Recommended setup commands:"
+  echo "Recommended: run ./Setup-EXDA-LINUX.sh"
+  echo "Or set up by hand:"
   echo "  npm install"
-  echo "  python3 -m venv .venv"
-  echo "  source .venv/bin/activate"
+  echo "  python3 -m venv .venv-linux"
+  echo "  source .venv-linux/bin/activate"
   echo "  pip install -r backend/requirements.txt"
   echo "  pip install -r backend/requirements-optional.txt"
   echo ""
@@ -424,7 +442,7 @@ seed_gui_path
 check_command node
 resolve_npm
 resolve_python
-activate_local_venv || add_missing "Could not activate the local .venv"
+activate_local_venv || add_missing "Could not activate the local ${VENV_DIR##*/}"
 check_runtime_defaults
 check_node_packages
 check_python_packages
