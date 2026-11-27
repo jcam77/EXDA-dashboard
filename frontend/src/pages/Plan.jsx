@@ -190,8 +190,8 @@ const PlanPage = ({
             if (target) {
                 target.scrollIntoView({ block: 'center', behavior: 'smooth' });
                 target.querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
-                target.classList.add('ring-2', 'ring-info', 'rounded');
-                setTimeout(() => target.classList.remove('ring-2', 'ring-info', 'rounded'), 1800);
+                target.classList.add('ring-2', 'ring-warning', 'rounded');
+                setTimeout(() => target.classList.remove('ring-2', 'ring-warning', 'rounded'), 1800);
             }
             setRunCardFocusField('');
         }, 80);
@@ -1521,19 +1521,16 @@ const PlanPage = ({
     };
     const MISSING_FIELD_KEYS = { 'H2%': 'h2', Ignition: 'ignition', Vent: 'vent', Data: 'data' };
 
-    // One-line status summary for a folded run group, e.g. "16 done · 1 error".
+    // Status parts for a run group row; "missing metadata" is shown as a warning.
     const summarizeRunGroup = (tasks) => [
-        ['done', tasks.filter((task) => task.done).length],
-        ['error', tasks.filter((task) => task.meta?.hasError).length],
-        ['canceled', tasks.filter((task) => !task.meta?.hasError && task.meta?.isCanceled).length],
-        ['missing metadata', tasks.filter((task) => !isReady(task)).length],
-    ]
-        .filter(([, count]) => count > 0)
-        .map(([label, count]) => `${count} ${label}`)
-        .join(' · ');
+        { label: 'done', count: tasks.filter((task) => task.done).length },
+        { label: 'error', count: tasks.filter((task) => task.meta?.hasError).length },
+        { label: 'canceled', count: tasks.filter((task) => !task.meta?.hasError && task.meta?.isCanceled).length },
+        { label: 'missing metadata', count: tasks.filter((task) => !isReady(task)).length, warning: true },
+    ].filter((part) => part.count > 0);
 
     const renderRunCard = (e) => (
-        <div key={e.id} draggable onDragStart={()=>setDraggedId(e.id)} onDragOver={ev=>ev.preventDefault()} onDrop={()=>onDrop(e.id)} className={`flex flex-col p-3 bg-background/50 border rounded group transition-all ${isReady(e) ? 'border-border hover:border-border' : 'border-info/30 hover:border-info/50'}`}>
+        <div key={e.id} draggable onDragStart={()=>setDraggedId(e.id)} onDragOver={ev=>ev.preventDefault()} onDrop={()=>onDrop(e.id)} className={`flex flex-col p-3 bg-background/50 border rounded group transition-all ${isReady(e) ? 'border-border hover:border-border' : 'border-warning/50 hover:border-warning/70'}`}>
             <div className="flex items-center gap-2">
                 <GripVertical size={14} className="text-muted-foreground cursor-grab active:cursor-grabbing"/>
                 <button 
@@ -1598,7 +1595,7 @@ const PlanPage = ({
                         )}
                     </>
                 ) : (
-                    <div className="flex flex-wrap items-center gap-1 bg-info/10 border border-info/30 px-1.5 py-0.5 rounded text-[11px] text-info font-bold tracking-wide">
+                    <div className="flex flex-wrap items-center gap-1 bg-warning/15 border border-warning/50 px-1.5 py-0.5 rounded text-[11px] text-warning font-bold tracking-wide">
                         <AlertCircle size={8}/> Missing:
                         {getMissingMeta(e).map((label, index, all) => (
                             <React.Fragment key={label}>
@@ -1973,7 +1970,13 @@ const PlanPage = ({
                                 )}
                                 <h2 className="shrink-0 font-mono text-base font-bold text-foreground">{group}</h2>
                                 <span className="shrink-0 text-xs text-muted-foreground">
-                                    {tasks.length} {tasks.length === 1 ? 'run' : 'runs'}{summary ? ` · ${summary}` : ''}
+                                    {tasks.length} {tasks.length === 1 ? 'run' : 'runs'}
+                                    {summary.map((part) => (
+                                        <React.Fragment key={part.label}>
+                                            {' · '}
+                                            <span className={part.warning ? 'font-semibold text-warning' : ''}>{part.count} {part.label}</span>
+                                        </React.Fragment>
+                                    ))}
                                 </span>
                                 {objective && (
                                     <span className="hidden min-w-0 truncate text-xs text-foreground/70 md:inline" title={objective}>
@@ -1985,7 +1988,7 @@ const PlanPage = ({
                                     const percent = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
                                     return (
                                         <span className="ml-auto hidden shrink-0 items-center gap-2 sm:flex" title={`${doneCount} of ${tasks.length} runs done`}>
-                                            <span className="h-1 w-20 overflow-hidden rounded-full bg-muted">
+                                            <span className="h-1 w-20 overflow-hidden rounded-full bg-foreground/15">
                                                 <span className="block h-full bg-primary" style={{ width: `${percent}%` }} />
                                             </span>
                                             <span className="w-9 text-right text-[11px] text-muted-foreground">{percent}%</span>
