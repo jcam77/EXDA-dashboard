@@ -22,46 +22,55 @@
 ## Commands
 
 - Backend only:
+
 ```bash
 npm run test:backend
 ```
 
 - Octave reference export (writes `backend/tests/results/pressure_metrics_octave.csv`):
+
 ```bash
 npm run test:octave
 ```
 
 - Python pressure metrics export (writes `backend/tests/results/pressure_metrics_python.csv`):
+
 ```bash
 python3 backend/tests/scripts/comparison/python/verify_pressure_metrics_python.py
 ```
 
 - EWT Octave reference export for Verification-page peak alignment:
+
 ```bash
 npm run test:ewt:octave
 ```
 
 - Frontend unit only:
+
 ```bash
 npm run test:frontend
 ```
 
 - E2E only:
+
 ```bash
 npm run test:e2e
 ```
 
 - Full suite:
+
 ```bash
 npm run test:all
 ```
 
 - Default `npm test`:
+
 ```bash
 npm test
 ```
 
 - E2E HTML report:
+
 ```bash
 npm run test:report
 ```
